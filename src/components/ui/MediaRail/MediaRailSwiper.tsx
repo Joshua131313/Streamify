@@ -11,7 +11,7 @@ import { useMediaDiscover } from '../../../hooks/mediaHooks/useMediaDiscover';
 
 export const MediaRailSwiper = () => {
     const { genre, provider, mediaType, category, variant } = useMediaRail();
-    const [media, loading, err] = useMediaDiscover({
+    const [media] = useMediaDiscover({
         mediaType,
         category,
         genreId: genre,

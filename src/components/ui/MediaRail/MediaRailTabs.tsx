@@ -1,4 +1,4 @@
-import { getCategoryTabs, type TTab } from "../../../utils/categoryTabs"
+import { getCategoryTabs } from "../../../utils/categoryTabs"
 import { useMediaRail } from "./MediaRailContext"
 import "./MediaRail.css"
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
