@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import type { TMDBRawMovie, TMDBNullMovie } from "../../types/TMDBMovieType";
+import type { TMDBRawMovie } from "../../types/TMDBMovieType";
 import axios from "axios";
 import type { TStreamProviders, TStreamCategories } from "../../types/genericTypes";
 import { getTMDBEndpointByCategory } from "../../utils/helpers";

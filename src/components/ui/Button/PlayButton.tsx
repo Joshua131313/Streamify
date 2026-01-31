@@ -8,7 +8,7 @@ interface Props {
 }
 
 export const PlayButton = (props : Props) => {
-    const { mediaType, mediaId } = props;
+    // const { mediaType, mediaId } = props;
     return (
         <Button className="play-button">
             <FaPlay />

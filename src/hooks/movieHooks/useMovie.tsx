@@ -1,6 +1,4 @@
-import { useEffect, useState } from "react"
-import axios from "axios";
-import { TMDBNullMovie, type TMDBRawMovie } from "../../types/TMDBMovieType";
+import { type TMDBRawMovie } from "../../types/TMDBMovieType";
 import { useTMDBQuery } from "../tmdbHooks/useTMDBQuery";
 import { normalizeMovie } from "../../utils/normalizeTMDB";
 import type { TMDBMovieMedia } from "../../types/TMDBMediaType";

@@ -1,4 +1,3 @@
-import { useParams } from "react-router-dom"
 import "./MediaLayout.css"
 import type { TMDBMedia } from "../../../types/TMDBMediaType";
 import { Trailer } from "../../ui/Trailer/Trailer";

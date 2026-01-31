@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState } from "react";
 
 type User = {
   id: string;
@@ -19,7 +19,7 @@ type AppContextType = {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-export const AppProvider = ({ children }: { children: ReactNode }) => {
+export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User>(null);
   const [loading, setLoading] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");

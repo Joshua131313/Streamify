@@ -2,7 +2,6 @@ import type { TMediaRailVariant, TMediaType, TStreamCategories } from "../../../
 import { MediaRailProvider } from "./MediaRailContext";
 import { MediaRailHeader } from "./MediaRailHeader";
 import { MediaRailSwiper } from "./MediaRailSwiper";
-import { MediaRailTabs } from "./MediaRailTabs";
 
 interface Props {
     title: string;

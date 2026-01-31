@@ -1,7 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useMovie } from "../../hooks/movieHooks/useMovie";
 import { MediaLayout } from "../../components/layout/MediaLayout/MediaLayout";
-import { Trailer } from "../../components/ui/Trailer/Trailer";
 
 export const Movie = ()  => {
     const { movieId } = useParams();

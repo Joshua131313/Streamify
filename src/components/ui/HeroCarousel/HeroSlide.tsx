@@ -1,9 +1,7 @@
-import { SwiperSlide } from "swiper/react"
 import type { TMDBMedia } from "../../../types/TMDBMediaType"
 import { TMDBImg } from "../TMDBImg/TMDBImg";
 import { PlayButton } from "../Button/PlayButton";
 import { SeeMoreButton } from "../Button/SeeMoreButton";
-import { FaCalendar, FaStar } from "react-icons/fa";
 import { MediaMetaBadges } from "../MediaMetaBadges/MediaMetaBadges";
 
 interface Props {

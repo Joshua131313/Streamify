@@ -1,6 +1,5 @@
-import { FaCalendar, FaStar } from "react-icons/fa"
+import { FaStar } from "react-icons/fa"
 import { MediaBadge } from "./MediaBadge"
-import type { TMDBMedia } from "../../../types/TMDBMediaType"
 import { TMDB_MOVIE_GENRES } from "../../../data/TMDBGenres";
 import "./MediaMetaBadges.css"
 import { HiOutlineCalendar } from "react-icons/hi2";

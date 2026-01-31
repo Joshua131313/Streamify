@@ -1,7 +1,7 @@
 import type { YouTubeProps } from "react-youtube";
 import "./Trailer.css"
 import YouTube from "react-youtube";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { TMDBImg } from "../TMDBImg/TMDBImg";
 import {  FaDownload, FaLongArrowAltLeft, FaPlus, FaVolumeMute } from "react-icons/fa";
 import { Icon } from "../Icon/Icon";
@@ -10,7 +10,6 @@ import { useNavigate } from "react-router-dom";
 import { MediaMetaBadges, type MediaMetaBadgesProps } from "../MediaMetaBadges/MediaMetaBadges";
 import { PlayButton } from "../Button/PlayButton";
 import type { TMediaType } from "../../../types/genericTypes";
-import { useMouseIdle } from "../../../hooks/useMouseIdle";
 import { Button } from "../Button/Button";
 
 interface Props {
