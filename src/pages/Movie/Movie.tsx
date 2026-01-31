@@ -20,8 +20,7 @@ export const Movie = ()  => {
                 src={`https://www.vidking.net/embed/movie/${movieId}`} 
                 width="100%" 
                 height="600" 
-                frameborder="0"  
-                allowfullscreen>
+                >
             </iframe>
         </MediaLayout>
     )
