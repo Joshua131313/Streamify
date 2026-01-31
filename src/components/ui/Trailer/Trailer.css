@@ -1,0 +1,133 @@
+.trailer {
+    height: 80vh;
+}
+.trailer .yt-iframe, .trailer iframe {
+    height: 100%;
+    width: 100%;
+    pointer-events: none;
+}
+.trailer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.trailer iframe {
+  position: absolute;
+
+  /* center it */
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+
+  /* make bigger than container */
+  width: 145vw;
+  height: 145vh;
+}
+.trailer-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    transition: all 0.6s;
+}
+.trailer-backdrop.fade-out {
+    opacity: 0;
+}
+.trailer-controls {
+    position: absolute;
+    padding: 20px;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 2;
+}
+.trailer-info {
+    position: absolute;
+    z-index: 3;
+}
+.trailer .trailer-info {
+    position: absolute;
+    top: 50%;
+    z-index: 3;
+    width: 100%;
+    max-width: 1400px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0 20px;
+}
+.inner-trailer-info {
+    display: flex;
+    flex-direction: column;
+    max-width: 600px;
+    align-items: start;
+    gap: 10px;
+}
+.inner-trailer-info > * {
+    margin-bottom: 20px;
+}
+.inner-trailer-info img {
+    max-height: 80px;
+    width: auto;
+    object-fit: contain;
+    transition: all 0.8s;
+}
+.trailer .media-meta-badges {
+    flex-direction: column;
+}
+.trailer .trailer-info .media-meta-badges, .trailer .trailer-info .description {
+    transition: all 0.8s;
+}
+.trailer-action-buttons  {
+    gap: 20px;
+    align-items: center;
+}
+.trailer-hovered {
+
+}
+.idle .trailer .inner-trailer-info img {
+    transform: translateY(175px) translateX(-10%) scale(0.8);
+}
+.idle .trailer .trailer-info .media-meta-badges, .idle .trailer .trailer-info .description {
+    opacity: 0;
+    transform: translateY(60px);
+}
+@media(max-width: 1400px) {
+    
+    .trailer iframe {
+        /* make bigger than container */
+        width: 160vw;
+        height: 160vh;
+    }
+
+}
+@media(max-width: 1200px) {
+    
+    .trailer iframe {
+        /* make bigger than container */
+        width: 180vw;
+        height: 160vh;
+    }
+
+}
+@media(max-width: 1050px) {
+    
+    .trailer iframe {
+        /* make bigger than container */
+        width: 210vw;
+        height: 160vh;
+    }
+
+}
+@media(max-width: 900px) {
+    
+    .trailer iframe {
+        /* make bigger than container */
+        width: 220vw;
+        height: 160vh;
+    }
+
+}

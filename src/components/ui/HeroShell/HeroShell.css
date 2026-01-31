@@ -1,0 +1,32 @@
+.hero-shell {
+  height: 100%;
+  width: 100%;
+  position: relative;
+}
+
+/* same as hero-slide .slide-content */
+.hero-shell-content {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
+  width: 100%;
+  max-width: 1400px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0 20px;
+}
+
+/* same as inner-slide-content */
+.hero-shell-inner {
+  max-width: 600px;
+}
+
+.hero-shell-inner > * {
+  margin-bottom: 20px;
+}
+
+.hero-shell-inner img {
+  max-height: 80px;
+  width: auto;
+  object-fit: contain;
+}

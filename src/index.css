@@ -1,0 +1,171 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  scroll-behavior: smooth;
+  font-family: 'Nunito', sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+:root {
+  /* Backgrounds */
+  --bg-primary: #0B0D10;
+  --bg-secondary: #13161B;
+  --bg-surface: #1B1E24;
+  --bg-transparent: hsla(0, 0%, 100%, 0.053);
+  /* Accents */
+  --accent-primary: #D81F26;
+  --accent-hover: #FF2D36;
+  --accent-subtle: #8A1119;
+
+  /* Text */
+  --text-primary: #F5F5F5;
+  --text-body: #C7C7C7;
+  --text-muted: #8F8F8F;
+
+  /* States */
+  --success: #2ECC71;
+  --error: #FF4D4F;
+  --warning: #F1C40F;
+  /* Colors */
+  --green: #2ECC71;
+  --red: #FF4D4F;
+  --yellow: #F1C40F;
+  /* UI Helpers */
+  --overlay: rgba(0,0,0,0.6);
+  --shadow-base: 0 0 10px rgba(0,0,0,0.55);
+
+  /* Scrollbar */
+  --scrollbar-bg: var(--bg-secondary);
+  --scrollbar-thumb: var(--accent-primary);
+
+  /* Inputs */
+  --input-bg: var(--bg-surface);
+  --border: #35383F;
+  --border-white: hsla(0,0%,100%,.2);
+  /* Fonts */
+  --font-xs: 0.75rem;     /* 12px — captions, meta */
+  --font-sm: 0.875rem;    /* 14px — small labels */
+  --font-md: 1rem;        /* 16px — base text */
+  --font-lg: 1.125rem;    /* 18px — card titles */
+  --font-xl: 1.25rem;     /* 20px — section headers */
+  --font-2xl: 1.5rem;     /* 24px — page headers */
+  --font-3xl: 1.875rem;   /* 30px — hero titles */
+  --font-4xl: 2.25rem;    /* 36px — big hero */
+}
+
+
+.app {
+  min-height: 100vh;
+}
+
+/* Typography resets */
+p, h1, h2, h3, h4, h5, h6, a {
+  margin: 0;
+  padding: 0;
+}
+.capitalize { text-transform: capitalize; }
+.gray-text { color: var(--text-muted); }
+
+/* Links */
+a {
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: color 0.3s;
+}
+a:hover {
+}
+
+/* Icons */
+i {
+  cursor: pointer;
+  transition: color .3s;
+  color: var(--text-primary);
+}
+.app .fa-exclamation-circle { color: var(--error); }
+.app .fa-check-circle { color: var(--success); }
+.app .fa-exclamation-triangle { color: var(--warning); }
+
+/* Global elements */
+* {
+  box-sizing: border-box;
+  position: relative;
+}
+img { object-fit: cover; }
+
+/* Inputs */
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 10px;
+}
+
+/* Selection highlight */
+::selection {
+  background-color: var(--accent-primary);
+  color: var(--bg-primary);
+}
+
+/* Simple utils */
+.fill-container {
+  width: 100%;
+  height: 100%;
+}
+.flex { display: flex; }
+.flex-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.flex-col {
+  display: flex;
+  flex-direction: column;
+}
+.sb { justify-content: space-between; }
+.br { border-radius: 5px; }
+.spacer1 { height: 100px; }
+
+/* Loading */
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20px;
+}
+
+/* Skeleton */
+.skeleton-img {
+  animation: skeleton 2.2s infinite;
+}
+@keyframes skeleton {
+  0% { opacity: 1; }
+  50% { opacity: 0.2; }
+  100% { opacity: 1; }
+}
+
+/* Details */
+details {
+  border: 1px solid var(--text-primary);
+  color: var(--text-primary);
+  border-radius: 5px;
+}
+details > summary {
+  list-style: none;
+  display: flex;
+  padding: 10px;
+  cursor: pointer;
+}
+details > summary::before {
+  content: '+';
+  margin-right: 10px;
+}
+details[open] > summary::before {
+  content: '-';
+}

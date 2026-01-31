@@ -1,0 +1,24 @@
+.media-meta-badges {
+    display: flex;
+    gap: 10px;
+}
+.media-badge {
+    border: solid 1px var(--border-white);
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: var(--font-sm);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.rating svg {
+    color: var(--yellow);
+}
+.general-badges {
+    display: flex;
+    gap: 10px;
+}
+.genres-badges {
+    display: flex;
+    gap: 10px;
+}

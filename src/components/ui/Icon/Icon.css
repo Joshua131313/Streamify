@@ -1,0 +1,17 @@
+.app-icon {
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--bg-transparent);
+    border: solid 1px var(--border-white);
+    cursor: pointer;
+    z-index: 2;
+    transition: all 0.3s;
+}
+.app-icon:hover {
+    transform: scale(1.1);
+}
