@@ -22,3 +22,9 @@
     display: flex;
     gap: 10px;
 }
+@media (max-width: 600px) {
+    .media-badge {
+        padding: 4px 8px;
+        font-size: var(--font-xs);
+    }
+}

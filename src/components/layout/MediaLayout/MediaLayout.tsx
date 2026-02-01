@@ -47,7 +47,7 @@ export const MediaLayout = ({media, loading, err, mediaType, children} : Props) 
              <div className={`player`}>
                 <Icon Icon={FaLongArrowAltLeft} onClick={cancelPlay}/>
                 <iframe 
-                    src={`https://vidsrc.cc/v2/embed/${mediaType}/${media.id}`} 
+                    src={`https://vidsrc.cc/v3/embed/${mediaType}/${media.id}`} 
                     allowFullScreen
                 />
             </div>
