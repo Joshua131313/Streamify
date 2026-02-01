@@ -17,7 +17,9 @@ export const TMDB_MOVIE_GENRES = [
     { text: "TV Movie", value: "10770" },
     { text: "Thriller", value: "53" },
     { text: "War", value: "10752" },
-    { text: "Western", value: "37" }
+    { text: "Western", value: "37" },
+    { text: "Action & Adventure", value: "10759" },
+    { text: "Sci-Fi & Fantasy", value: "10765" },
 ];
 export const TMDB_MAIN_GENRES = [
     { text: "Comedy", value: "35" },

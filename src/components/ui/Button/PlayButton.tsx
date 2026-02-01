@@ -1,6 +1,7 @@
 import { FaPlay } from "react-icons/fa"
 import { Button } from "./Button"
 import type { TMediaType } from "../../../types/genericTypes";
+import { Link } from "react-router-dom";
 
 interface Props {
     mediaType: TMediaType;
@@ -12,9 +13,11 @@ export const PlayButton = (props : Props) => {
     console.log(mediaType)
     console.log(mediaId)
     return (
-        <Button className="play-button">
-            <FaPlay />
-            Play
-        </Button>
+        <Link to={`/${mediaType}/${mediaId}?play`}>
+            <Button className="play-button">
+                <FaPlay />
+                Play
+            </Button>
+        </Link>
     )
 }

@@ -12,7 +12,7 @@ export interface MediaMetaBadgesProps {
 }
 
 export const MediaMetaBadges = (props: MediaMetaBadgesProps) => {
-    const { genre_ids, vote_average, date, genresLimit = -1 } = props
+    const { genre_ids, vote_average, date, genresLimit = genre_ids.length } = props
     const genresRow = genre_ids?.slice(0, genresLimit).map(genreId => {
         return (
             <MediaBadge 
@@ -20,6 +20,7 @@ export const MediaMetaBadges = (props: MediaMetaBadgesProps) => {
             />
         )
     })
+    console.log("assd", genre_ids)
     return (
         <div className="media-meta-badges">
             <div className="general-badges">
@@ -30,7 +31,7 @@ export const MediaMetaBadges = (props: MediaMetaBadgesProps) => {
                 />
                 <MediaBadge 
                     Icon={HiOutlineCalendar} 
-                    text={date}
+                    text={new Date(date).getFullYear().toString()}
                 />
             </div>
             <div className="genres-badges">
