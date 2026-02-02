@@ -29,7 +29,7 @@ interface TMDBCrewPerson extends TMDBPersn {
   department: string;
   job: string;
 }
-interface TMDBCastPerson {
+export interface TMDBCastPerson  extends TMDBPersn{
   cast_id: number;
   character: string;
 }

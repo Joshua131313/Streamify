@@ -1,5 +1,5 @@
 import { providers } from "../../../data/providers";
-import { AccentLine } from "../AccentLine/AccentLine";
+import { AccentLine } from "../../ui/AccentLine/AccentLine";
 import { useMediaRail } from "./MediaRailContext"
 import { MediaRailTabs } from "./MediaRailTabs"
 

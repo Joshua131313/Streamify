@@ -5,10 +5,10 @@ import { Navigation } from 'swiper/modules';
 
 import "./MediaRail.css"
 import { useMediaRail } from './MediaRailContext';
-import { MediaCard } from '../MediaCard/MediaCard';
-import { Top10MediaCard } from '../MediaCard/Top10MediaCard';
+import { MediaCard } from '../../ui/MediaCard/MediaCard';
+import { Top10MediaCard } from '../../ui/MediaCard/Top10MediaCard';
 import { useMediaDiscover } from '../../../hooks/mediaHooks/useMediaDiscover';
-import { MediaSkeletonCard } from '../MediaCard/SkeletonCards/MediaSkeletonCard';
+import { MediaSkeletonCard } from '../../ui/MediaCard/SkeletonCards/MediaSkeletonCard';
 
 export const MediaRailSwiper = () => {
     const { genre, provider, mediaType, category, variant } = useMediaRail();

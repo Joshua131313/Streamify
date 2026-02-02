@@ -6,6 +6,8 @@ import { useSearchParams } from "react-router-dom";
 import { Icon } from "../../ui/Icon/Icon";
 import { FaLongArrowAltLeft } from "react-icons/fa";
 import { useEffect } from "react";
+import { RecommendationMedia } from "../../media/RecommendationMedia/RecommendationMedia";
+import { Actors } from "../../media/Actors/Actors";
 
 interface Props {
     media: TMDBMedia;
@@ -80,6 +82,10 @@ export const MediaLayout = ({media, isLoading, error, mediaType, containerId, ch
             <div className="media-layout-content">
                 {children}
             </div>
+            <Actors 
+                actors={media.credits?.cast}
+            />
+            <RecommendationMedia />
         </div>
     )
 }

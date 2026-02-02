@@ -9,6 +9,7 @@ import { Input } from "../../components/ui/Input/Input";
 import { FaSearch, FaSortAmountDownAlt, FaSortAmountUpAlt } from "react-icons/fa";
 import { Icon } from "../../components/ui/Icon/Icon";
 import { EpisodeSkeletonCard } from "../../components/ui/MediaCard/SkeletonCards/EpisodeSkeletonCard";
+import { Title } from "../../components/ui/Title/Title";
 
 interface Props {
     show: TMDBShowMedia;
@@ -52,7 +53,13 @@ export const EpisodesContainer = ({show} : Props) => {
     
     return (
         <>
-            <Container title="Episodes" containerId="episodes">
+            <div className="layout-container">
+                <Title 
+                    id="episodes"
+                    title="Episodes"
+                />
+            </div>
+            <Container className="season-selector-container" styled>
                 <div className="season-selector">
                     <StyledSelect<SeasonOption, false>
                         options={seasonOptions}
@@ -72,7 +79,7 @@ export const EpisodesContainer = ({show} : Props) => {
                     />
                 </div>
             </Container>
-            <Container className="episodes-container">
+            <Container className="episodes-container" styled>
                 {
                     episodesRow?.length ?
                     episodesRow :

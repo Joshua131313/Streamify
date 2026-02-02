@@ -1,5 +1,5 @@
 import { HeroCarousel } from "../../components/ui/HeroCarousel/HeroCarousel"
-import { MediaRail } from "../../components/ui/MediaRail/MediaRail"
+import { MediaRail } from "../../components/media/MediaRail/MediaRail"
 import "./Home.css"
 
 export const Home = ()  => {

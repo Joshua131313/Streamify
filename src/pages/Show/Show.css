@@ -27,3 +27,8 @@
     max-height: 900px;
     overflow-y: auto;
 }
+.season-selector-container {
+    position: sticky;
+    top: 0px;
+    z-index: 3;
+}

@@ -1,4 +1,5 @@
 import { AccentLine } from "../../ui/AccentLine/AccentLine"
+import { Title } from "../../ui/Title/Title";
 import "./Container.css"
 
 interface Props {
@@ -6,22 +7,20 @@ interface Props {
     children?: React.ReactNode;
     className?: string;
     containerId?: string;
+    styled?: boolean;
 }
 
 export const Container = (props : Props) => {
 
-    const { title, className, containerId } = props
+    const { title, className, containerId, styled } = props
 
     return (
         <div className={`app-container ${className}`} id={containerId}>
             {
             title && 
-                <div className="container-title">
-                    <AccentLine />
-                    <h1>{title}</h1>
-                </div>
+                <Title title={title}/>
             }
-            <div className="container-content">
+            <div className={`container-content ${styled ? "styled" : ""}`}>
                 {props.children}
             </div>
         </div>

@@ -5,11 +5,13 @@
     flex-direction: column;
     gap: 20px;
 }
-.app-container .container-content {
+.app-container .container-content.styled {
     background-color: var(--bg-surface);
-    padding: 20px;
-    border-radius: 5px;
     border: solid 1px var(--border);
+    border-radius: 5px;
+    padding: 20px;
+}
+.app-container .container-content {
 }
 .container-title {
     display: flex;

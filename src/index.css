@@ -9,6 +9,9 @@ html, body {
 .no-scrollbars {
   overflow: hidden;
 }
+.layout-container {
+  margin: 0 4rem;
+}
 :root {
   /* Backgrounds */
   --bg-primary: #0B0D10;

@@ -1,0 +1,6 @@
+.title {
+    display: flex;
+    flex-direction: row;
+    gap: 0;
+    margin-top: 40px;
+}
