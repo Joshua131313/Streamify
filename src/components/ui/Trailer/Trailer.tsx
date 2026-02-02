@@ -80,7 +80,6 @@ export const Trailer = (props : Props) => {
         }
     }
     const handleMouseOver = (e : React.MouseEvent<HTMLDivElement>) => {
-       console.log('over')
         e.currentTarget.classList.add("trailer-hovered")
     }
     const handleMouseLeave = (e : React.MouseEvent<HTMLDivElement>) => {
@@ -105,6 +104,7 @@ export const Trailer = (props : Props) => {
         </div>
         <div className="trailer-info">
             <div className="inner-trailer-info">
+                <div className="img-placeholder"></div>
                 <TMDBImg path={logo_path} />
                 <MediaMetaBadges 
                     {...mediaMetaBadgesProps}

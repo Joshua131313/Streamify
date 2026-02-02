@@ -1,0 +1,29 @@
+.season-selector {
+    display: flex;
+    gap: 10px;
+}
+.season-selector > * {
+    height: 50px;
+    flex: 1;
+}
+.season-selector .app-icon {
+    background-color: var(--bg-primary);
+    border-radius: 5px;
+    width: 50px;
+    flex: 0 0 50px;
+}
+.season-selector .app-icon:hover {
+    transform: initial;
+}
+.season-selector input, .select > span + div{
+    width: 100%;
+    height: 100%;
+}
+
+.episodes-container .container-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-height: 900px;
+    overflow-y: auto;
+}

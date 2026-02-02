@@ -37,7 +37,7 @@ img {
 }
 .hero-slide .slide-content {
     position: absolute;
-    top: 50%;
+    bottom: 25%;
     z-index: 3;
     width: 100%;
     max-width: 1400px;

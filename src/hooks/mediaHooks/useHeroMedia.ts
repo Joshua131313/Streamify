@@ -5,6 +5,7 @@ import { normalizeMovie, normalizeShow } from "../../utils/normalizeTMDB";
 import type { TMDBRawMovie } from "../../types/TMDBMovieType";
 import type { TMDBRawShow } from "../../types/TMDBShowType";
 import type { TMDBMedia } from "../../types/TMDBMediaType";
+import type { UseQueryResult } from "@tanstack/react-query";
 
 interface TMDBMultiItem extends Partial<TMDBRawMovie>, Partial<TMDBRawShow> {
   media_type: "movie" | "tv" | "person";
@@ -14,17 +15,21 @@ interface TMDBMultiResponse {
   results: TMDBMultiItem[];
 }
 
+type UseHeroMediaResult = UseQueryResult<TMDBMultiResponse> & {
+  heroes: TMDBMedia[]
+}
+
 export const useHeroMedia = (
   count: number = 20
-): [TMDBMedia[], boolean, any] => {
+): UseHeroMediaResult => {
 
-  const [data, loading, error] =
+  const query =
     useTMDBQuery<TMDBMultiResponse>({
       endpoint: "/trending/all/day"
     });
 
   const baseHeroes = useMemo(() => {
-    const items = data?.results ?? [];
+    const items = query.data?.results ?? [];
 
     const filtered = items.filter(
       x =>
@@ -40,7 +45,7 @@ export const useHeroMedia = (
 
     return normalized.slice(0, count);
 
-  }, [data, count]);
+  }, [query, count]);
 
   const [heroes, setHeroes] = useState<TMDBMedia[]>([]);
 
@@ -87,5 +92,8 @@ export const useHeroMedia = (
 
   }, [baseHeroes]);
 
-  return [heroes, loading, error];
+  return {
+    ...query,
+    heroes: heroes
+  }
 };

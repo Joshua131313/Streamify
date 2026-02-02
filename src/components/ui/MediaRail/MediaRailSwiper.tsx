@@ -8,10 +8,11 @@ import { useMediaRail } from './MediaRailContext';
 import { MediaCard } from '../MediaCard/MediaCard';
 import { Top10MediaCard } from '../MediaCard/Top10MediaCard';
 import { useMediaDiscover } from '../../../hooks/mediaHooks/useMediaDiscover';
+import { MediaSkeletonCard } from '../MediaCard/SkeletonCards/MediaSkeletonCard';
 
 export const MediaRailSwiper = () => {
     const { genre, provider, mediaType, category, variant } = useMediaRail();
-    const [media] = useMediaDiscover({
+    const { media, isLoading } = useMediaDiscover({
         mediaType,
         category,
         genreId: genre,
@@ -19,7 +20,7 @@ export const MediaRailSwiper = () => {
     })
     const swiperSlides = media.map((m, i) => {
         return (
-            <SwiperSlide>
+            <SwiperSlide key={m.id}>
                 {
                     variant === "top10" ?
                     <Top10MediaCard rank={i + 1} media={m}/>
@@ -29,6 +30,16 @@ export const MediaRailSwiper = () => {
             </SwiperSlide>
         )
     })
+
+    const skeletonSlides = Array.from({ length: 5 }).map((_, i) => {
+        return (
+            <SwiperSlide key={i}>
+                <MediaSkeletonCard />
+            </SwiperSlide>
+        )
+    })
+
+    console.log(isLoading)
     return  (
         <Swiper
             className={`media-swiper ${variant === "top10" && "top-10-media-swiper"}`}
@@ -38,7 +49,13 @@ export const MediaRailSwiper = () => {
             modules={[Navigation]}
             loop
         >
-            {swiperSlides}
+            {
+                isLoading ?
+                    skeletonSlides
+                    :
+                    swiperSlides
+                    
+            }
         </Swiper>
     )
 }

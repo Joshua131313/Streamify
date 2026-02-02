@@ -11,8 +11,10 @@ html, body {
   /* Backgrounds */
   --bg-primary: #0B0D10;
   --bg-secondary: #13161B;
-  --bg-surface: #1B1E24;
+  --bg-surface: #191919;
+  --bg-surface-hover: #1d1d1d;
   --bg-transparent: hsla(0, 0%, 100%, 0.053);
+  --bg-alt: #282828;
   /* Accents */
   --accent-primary: #D81F26;
   --accent-hover: #FF2D36;
@@ -40,7 +42,7 @@ html, body {
   --scrollbar-thumb: var(--accent-primary);
 
   /* Inputs */
-  --input-bg: var(--bg-surface);
+  --input-bg: var(--bg-primary);
   --border: #35383F;
   --border-white: hsla(0,0%,100%,.2);
   /* Fonts */
@@ -52,6 +54,9 @@ html, body {
   --font-2xl: 1.5rem;     /* 24px — page headers */
   --font-3xl: 1.875rem;   /* 30px — hero titles */
   --font-4xl: 2.25rem;    /* 36px — big hero */
+
+  /* Paddoing */
+  --container-padding: 4rem;
 }
 
 

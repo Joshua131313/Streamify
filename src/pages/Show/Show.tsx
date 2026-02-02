@@ -2,15 +2,31 @@ import { useParams } from "react-router-dom";
 import { useShow } from "../../hooks/showHooks/useShow";
 import { Trailer } from "../../components/ui/Trailer/Trailer";
 import { MediaLayout } from "../../components/layout/MediaLayout/MediaLayout";
+import { Container } from "../../components/layout/Container/Container";
+import Select from "react-select";
+import { useEffect, useState } from "react";
+import type { TSeason } from "../../types/TMDBShowType";
+import { Input } from "../../components/ui/Input/Input";
+import { FaDirections, FaSearch, FaSort, FaSortAmountDownAlt, FaSortAmountUpAlt } from "react-icons/fa";
+import "./Show.css"
+import { Icon } from "../../components/ui/Icon/Icon";
+import { StyledSelect } from "../../components/ui/StyledSelect/StyledSelect";
+import { EpisodesContainer } from "./EpisodesContainer";
+
+
 
 export const Show = ()  => {
     const { showId } = useParams();
-    const [show, loading, err] = useShow({showId: showId!});
-    console.log("move", show)
-    
-    return (
-        <MediaLayout media={show!} err={err} loading={loading} mediaType="tv">
+    const { show, isLoading, error } = useShow({showId: showId!});
 
+    return (
+        <MediaLayout media={show!} error={error} isLoading={isLoading} mediaType="tv">
+            {
+                show && 
+                <EpisodesContainer 
+                    show={show}
+                />
+            }
         </MediaLayout>
     )
 }

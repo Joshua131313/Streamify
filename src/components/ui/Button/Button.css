@@ -5,7 +5,7 @@
 
   padding: 12px 22px;
   border-radius: 10px;
-  font-size: 15px;
+  font-size: var(--font-sm);
   font-weight: 600;
 
   cursor: pointer;
@@ -25,4 +25,10 @@
     background-color: transparent;
     border: solid 1px var(--border);
     color: var(--text-primary);
+}
+@media (max-width: 600px) {
+    .button {
+        font-size: var(--font-xs);
+        padding: 10px 20px;
+    }
 }

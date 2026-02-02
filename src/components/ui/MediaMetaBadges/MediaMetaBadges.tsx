@@ -16,11 +16,11 @@ export const MediaMetaBadges = (props: MediaMetaBadgesProps) => {
     const genresRow = genre_ids?.slice(0, genresLimit).map(genreId => {
         return (
             <MediaBadge 
+                key={genreId}
                 text={TMDB_MOVIE_GENRES.find(x=> x.value === genreId.toString())?.text ?? ""}
             />
         )
     })
-    console.log("assd", genre_ids)
     return (
         <div className="media-meta-badges">
             <div className="general-badges">

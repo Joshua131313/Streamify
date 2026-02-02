@@ -10,8 +10,7 @@ interface Props {
 
 export const PlayButton = (props : Props) => {
     const { mediaType, mediaId } = props;
-    console.log(mediaType)
-    console.log(mediaId)
+
     return (
         <Link to={`/${mediaType}/${mediaId}?play`}>
             <Button className="play-button">

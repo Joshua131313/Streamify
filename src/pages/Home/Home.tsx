@@ -22,7 +22,7 @@ export const Home = ()  => {
                 <MediaRail 
                     category="provider"
                     mediaType="movie"
-                    title="Series on"
+                    title="Movies on"
                 />
                 <MediaRail 
                     category="top_rated"

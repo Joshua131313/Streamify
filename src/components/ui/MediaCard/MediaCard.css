@@ -1,10 +1,19 @@
-.media-card {
+.media-card, .media-skeleton-card {
     width: 200px;
     display: flex;
     position: relative;
     height: 300px;
     overflow: hidden;
 }
+
+.media-skeleton-card {
+  background-color: var(--bg-alt);
+  border-radius: 12px;
+  transition: all 0.3s;
+  animation: skeleton 2.2s infinite
+}
+
+
 .media-card.top10-media-card {
     overflow: initial;
 }
@@ -76,4 +85,94 @@
 }
 .media-rating svg {
     color: var(--yellow);
+}
+
+.episode-card, .episode-skeleton-card {
+    display: flex;
+    height: 125px;
+    gap: 10px;
+    background-color: var(--bg-alt);
+    border-radius: 10px;
+    border: solid 1px transparent;
+    transition: all 0.3s;
+}
+.episode-skeleton-card {
+      animation: skeleton 2.2s infinite
+}
+.episode-card:hover {
+    border: solid 1px var(--accent-primary);
+}
+.episode-card:hover strong {
+    color: var(--accent-primary);
+}
+.episode-card .episode-info {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    overflow-y: auto;
+}
+.episode-info::-webkit-scrollbar {
+    width: 0;
+}
+.episode-info small {
+    color: var(--text-muted);
+}
+.episode-card img, .episode-card .img-skeleton {
+    height: 100%;
+    border-radius: 10px;
+}
+.episode-card .img-skeleton {
+    width: 175px;
+}
+.episode-badges {
+    display: flex;
+    gap: 10px;
+    bottom: 5px;
+    right: 5px;
+    justify-content: flex-end;
+    position: sticky;
+    margin-top: auto;
+}
+.episode-badges .media-badge {
+    background-color: var(--bg-alt);
+}
+.episode-badges .media-badge {
+    font-size: var(--font-xs);
+}
+
+.still-container .app-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+.still-container .app-icon:hover {
+    transform: translate(-50%, -50%);
+}
+.still-container .episode-number {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    border: solid 1px var(--border);
+    padding: 5px;
+    font-size: var(--font-xs);
+    border-radius: 5px;
+    background-color: var(--bg-alt);
+}
+
+@media (max-width: 900px) {
+    .episode-card {
+        height: 150px;
+    }
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }

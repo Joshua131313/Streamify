@@ -6,8 +6,7 @@ import { Autoplay } from "swiper/modules";
 
 
 export const HeroCarousel = () => {
-    const [heroes] = useHeroMedia();
-    console.log("heroes", heroes)
+    const { heroes } = useHeroMedia();
     const carouselSlides = heroes.map(hero => {
         return (
             <SwiperSlide>

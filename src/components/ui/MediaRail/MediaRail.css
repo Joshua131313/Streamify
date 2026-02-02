@@ -1,6 +1,8 @@
 
 .rail-header {
     margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
 }
 .rail-header h2 span {
     color: var(--accent-primary);
@@ -44,7 +46,9 @@
     font-size: var(--font-sm);
     border-bottom: solid 2px var(--border);
     padding-bottom: 10px;
+    flex-wrap: wrap;
 }
+
 .rail-tabs .tab {
     cursor: pointer;
 }
@@ -62,13 +66,6 @@
     background-color: var(--accent-primary);
     left: 0;
     transition: all 0.3s;
-}
-.ui-line {
-    width: 8px;
-    background-color: var(--accent-primary);
-    align-self: stretch;
-    margin-right: 10px;
-    border-radius: 20px;
 }
 .top10-title {
   font-size: 80px;

@@ -1,0 +1,33 @@
+.input-container {
+    position: relative;
+}
+.input-container .icon {
+    position: absolute;
+}
+.input-container input {
+    background-color: var(--input-bg);
+    border: solid 1px var(--border);
+    padding: 15px 25px;
+    border-radius: 5px;
+    outline: none;
+    transition: all 0.3s;
+    color: var(--text-body);
+}
+.input-container.has-icon input {
+    padding-left: 30px;
+}
+::placeholder {
+    color: var(--text-muted)
+}
+input:focus {
+    border: solid 1px red;
+}
+.input-container .icon {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    z-index: 1;
+    font-size: var(--font-xs);
+    left: 10px;
+}

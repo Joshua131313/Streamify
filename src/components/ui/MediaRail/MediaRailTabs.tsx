@@ -25,7 +25,6 @@ export const MediaRailTabs = () => {
         })
     }
 
-    console.log(activeTab)
     const tabsRow = tabs.map((tab, i) => {
         return (
             <div 

@@ -1,4 +1,5 @@
 import { providers } from "../../../data/providers";
+import { AccentLine } from "../AccentLine/AccentLine";
 import { useMediaRail } from "./MediaRailContext"
 import { MediaRailTabs } from "./MediaRailTabs"
 
@@ -13,7 +14,7 @@ export const MediaRailHeader = () => {
                 </div>
                 :
                 <div className="flex-row">
-                    <div className="ui-line"></div>
+                    <AccentLine />
                     <h2>
                     {title}                 
                     {

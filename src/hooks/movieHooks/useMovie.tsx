@@ -2,17 +2,22 @@ import { type TMDBRawMovie } from "../../types/TMDBMovieType";
 import { useTMDBQuery } from "../tmdbHooks/useTMDBQuery";
 import { normalizeMovie } from "../../utils/normalizeTMDB";
 import type { TMDBMovieMedia } from "../../types/TMDBMediaType";
+import type { UseQueryResult } from "@tanstack/react-query";
 
+type UseMovieResult = UseQueryResult<TMDBRawMovie> & {
+    movie: TMDBMovieMedia | null,
+}
 
-export const useMovie = ({movieId} : {movieId: string}) : [TMDBMovieMedia | null, boolean, any] => {
+export const useMovie = ({movieId} : {movieId: string}) : UseMovieResult => {
 
-    const [data, loading, err] = useTMDBQuery<TMDBRawMovie>({
+    const query = useTMDBQuery<TMDBRawMovie>({
         endpoint: `/movie/${movieId}`,
         params: {
             append_to_response: "videos,credits,images"
         }
     })
-    console.log('movie', data)
-    const movie = data ? normalizeMovie(data) : null; 
-    return [movie, loading, err]
+    return {
+        ...query,
+        movie: query.data ? normalizeMovie(query.data) : null
+    }
 }

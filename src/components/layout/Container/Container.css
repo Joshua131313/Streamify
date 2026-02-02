@@ -1,0 +1,16 @@
+.app-container {
+    padding: 0 4rem;
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.app-container .container-content {
+    background-color: var(--bg-surface);
+    padding: 20px;
+    border-radius: 5px;
+    border: solid 1px var(--border);
+}
+.container-title {
+    display: flex;
+}

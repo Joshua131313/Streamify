@@ -8,25 +8,35 @@ import { FaLongArrowAltLeft } from "react-icons/fa";
 
 interface Props {
     media: TMDBMedia;
-    loading: boolean;
-    err: any;
+    isLoading: boolean;
+    error: Error | null;
     mediaType: TMediaType;
     children?: React.ReactNode;
 }
 
-export const MediaLayout = ({media, loading, err, mediaType, children} : Props) => {
+export const MediaLayout = ({media, isLoading, error, mediaType, children} : Props) => {
     const [searchParams, setSearchParams] = useSearchParams();
     const shouldPlay = searchParams.has("play");
-
+    
     const cancelPlay = () => {
         searchParams.delete("play");
+        searchParams.delete("season");
+        searchParams.delete("episode");
         setSearchParams(searchParams, {replace: true});
     }
-    console.log("media ", media?.genres?.map(g => g.id))
-    if(loading || !media) {
+
+    const getMediaSrc = () => {
+        if(mediaType === "tv") {
+            const season = searchParams.get("season");
+            const episode = searchParams.get("episode");
+            return `https://vidsrc.cc/v3/embed/tv/${media.id}/${season}/${episode}`
+        }
+        return `https://vidsrc.cc/v3/embed/${mediaType}/${media.id}`
+    }
+
+    if(isLoading || !media) {
         return <div className="loading"></div>
     }
-    console.log("should play", shouldPlay)
     return (
         <div className={`media-layout media-page ${mediaType}`}>
             <Trailer 
@@ -47,7 +57,7 @@ export const MediaLayout = ({media, loading, err, mediaType, children} : Props) 
              <div className={`player`}>
                 <Icon Icon={FaLongArrowAltLeft} onClick={cancelPlay}/>
                 <iframe 
-                    src={`https://vidsrc.cc/v3/embed/${mediaType}/${media.id}`} 
+                    src={getMediaSrc()} 
                     allowFullScreen
                 />
             </div>

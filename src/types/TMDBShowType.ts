@@ -1,4 +1,26 @@
 import type { TMDBVideo, TMDBMediaCredits, TMDBLogo } from "./TMDBMediaType";
+export type TSeason = {
+    air_date: string | null;
+    episode_count: number;
+    id: number;
+    name: string;
+    overview: string;
+    poster_path: string | null;
+    season_number: number;
+    episodes?: TEpisode[];
+}
+export interface TEpisode {
+  id: number;
+  name: string;
+  overview: string;
+  air_date: string | null;
+  episode_number: number;
+  season_number: number;
+  runtime: number | null;
+  still_path: string | null;
+  vote_average: number;
+  vote_count: number;
+}
 
 export type TMDBRawShow = {
   adult: boolean;
@@ -44,15 +66,7 @@ export type TMDBRawShow = {
     name: string;
     origin_country: string;
   }[];
-  seasons?: {
-    air_date: string | null;
-    episode_count: number;
-    id: number;
-    name: string;
-    overview: string;
-    poster_path: string | null;
-    season_number: number;
-  }[];
+  seasons?: TSeason[];
   status?: string;
   tagline?: string | null;
   type?: string;

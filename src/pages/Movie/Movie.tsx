@@ -4,12 +4,11 @@ import { MediaLayout } from "../../components/layout/MediaLayout/MediaLayout";
 
 export const Movie = ()  => {
     const { movieId } = useParams();
-    const [movie, loading, err] = useMovie({movieId: movieId!});
-    console.log("move", movie)
+    const { movie, isLoading, error } = useMovie({movieId: movieId!});
 
 
     return (
-        <MediaLayout media={movie!} loading={loading} err={err} mediaType="movie">
+        <MediaLayout media={movie!} isLoading={isLoading} error={error} mediaType="movie">
 
         </MediaLayout>
     )

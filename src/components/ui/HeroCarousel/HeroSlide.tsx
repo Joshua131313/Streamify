@@ -10,7 +10,6 @@ interface Props {
 
 export const HeroSlide = (props: Props) => {
     const { media } = props
-    console.log("heromedia", media)
     return (
         <div className="hero-slide">
             <TMDBImg className="hero-img" path={media.backdrop_path ?? ""} alt={media.title} />
