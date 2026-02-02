@@ -5,6 +5,7 @@ import type { TMediaType } from "../../../types/genericTypes";
 import { useSearchParams } from "react-router-dom";
 import { Icon } from "../../ui/Icon/Icon";
 import { FaLongArrowAltLeft } from "react-icons/fa";
+import { useEffect } from "react";
 
 interface Props {
     media: TMDBMedia;
@@ -12,9 +13,10 @@ interface Props {
     error: Error | null;
     mediaType: TMediaType;
     children?: React.ReactNode;
+    containerId?: string;
 }
 
-export const MediaLayout = ({media, isLoading, error, mediaType, children} : Props) => {
+export const MediaLayout = ({media, isLoading, error, mediaType, containerId, children} : Props) => {
     const [searchParams, setSearchParams] = useSearchParams();
     const shouldPlay = searchParams.has("play");
     
@@ -34,11 +36,23 @@ export const MediaLayout = ({media, isLoading, error, mediaType, children} : Pro
         return `https://vidsrc.cc/v3/embed/${mediaType}/${media.id}`
     }
 
+    useEffect(()=> {
+        if(shouldPlay) {
+            document.body.classList.add("no-scrollbars");
+        }
+        else {
+            document.body.classList.remove("no-scrollbars");
+        }
+        return () => {
+            document.body.classList.remove("no-scrollbars");
+        }
+    }, [shouldPlay])
+
     if(isLoading || !media) {
         return <div className="loading"></div>
     }
     return (
-        <div className={`media-layout media-page ${mediaType}`}>
+        <div className={`media-layout media-page ${mediaType}`} id={containerId}>
             <Trailer 
                 logo_path={media?.logo_path ?? ""}
                 trailer_id={media?.videos?.find(x=> x.official && x.type === "Trailer" && x.site === "YouTube")?.key ?? ""}
@@ -59,6 +73,7 @@ export const MediaLayout = ({media, isLoading, error, mediaType, children} : Pro
                 <iframe 
                     src={getMediaSrc()} 
                     allowFullScreen
+                    onPause={() => console.log("paused")}
                 />
             </div>
            }

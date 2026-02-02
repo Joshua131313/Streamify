@@ -6,7 +6,7 @@ import { TMDBImg } from "../TMDBImg/TMDBImg";
 import {  FaDownload, FaLongArrowAltLeft, FaPlus, FaVolumeMute } from "react-icons/fa";
 import { Icon } from "../Icon/Icon";
 import { FaVolumeHigh } from "react-icons/fa6";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { MediaMetaBadges, type MediaMetaBadgesProps } from "../MediaMetaBadges/MediaMetaBadges";
 import { PlayButton } from "../Button/PlayButton";
 import type { TMediaType } from "../../../types/genericTypes";
@@ -119,9 +119,13 @@ export const Trailer = (props : Props) => {
                         mediaType === "movie" ? 
                         <Icon Icon={FaDownload}/> 
                         : 
-                        <Button className="secondary">Episodes</Button>
+                        <a href="#episodes">
+                            <Button className="secondary">Episodes</Button>
+                        </a>
                     }
-                    <Button className="secondary">Similars</Button>
+                    <a href="#similar">
+                        <Button className="secondary">Similars</Button>
+                    </a>
                 </div>
             </div>
         </div>

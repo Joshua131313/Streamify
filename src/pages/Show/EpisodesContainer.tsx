@@ -52,7 +52,7 @@ export const EpisodesContainer = ({show} : Props) => {
     
     return (
         <>
-            <Container title="Episodes">
+            <Container title="Episodes" containerId="episodes">
                 <div className="season-selector">
                     <StyledSelect<SeasonOption, false>
                         options={seasonOptions}

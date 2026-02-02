@@ -6,7 +6,9 @@ html, body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
 }
-
+.no-scrollbars {
+  overflow: hidden;
+}
 :root {
   /* Backgrounds */
   --bg-primary: #0B0D10;

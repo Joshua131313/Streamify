@@ -5,14 +5,15 @@ interface Props {
     title?: string;
     children?: React.ReactNode;
     className?: string;
+    containerId?: string;
 }
 
 export const Container = (props : Props) => {
 
-    const { title, className } = props
+    const { title, className, containerId } = props
 
     return (
-        <div className={`app-container ${className}`}>
+        <div className={`app-container ${className}`} id={containerId}>
             {
             title && 
                 <div className="container-title">

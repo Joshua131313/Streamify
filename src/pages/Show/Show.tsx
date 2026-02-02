@@ -20,7 +20,7 @@ export const Show = ()  => {
     const { show, isLoading, error } = useShow({showId: showId!});
 
     return (
-        <MediaLayout media={show!} error={error} isLoading={isLoading} mediaType="tv">
+        <MediaLayout  media={show!} error={error} isLoading={isLoading} mediaType="tv">
             {
                 show && 
                 <EpisodesContainer 
