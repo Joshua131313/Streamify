@@ -17,7 +17,10 @@ export const HeroCarousel = () => {
     return (
         <Swiper 
             slidesPerView={1}
-
+            autoplay={{
+                delay: 8000,
+            }}
+            modules={[Autoplay]}
             className="hero-carousel"
         >
            {carouselSlides}

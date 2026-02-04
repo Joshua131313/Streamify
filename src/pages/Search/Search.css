@@ -32,3 +32,15 @@
 .search-controls .input-container input {
     width: 100%;
 }
+.search-controls .container-content > * {
+    height: 50px;
+}
+@media(max-width: 600px) {
+    .search-controls .container-content {
+        flex-direction: column;
+        display: flex;
+    }
+    .search-controls .container-content > * {
+        width: 100%;
+    }
+}
