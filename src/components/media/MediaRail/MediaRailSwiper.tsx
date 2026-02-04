@@ -46,7 +46,6 @@ export const MediaRailSwiper = () => {
             spaceBetween={variant === "top10" ? 100 : 10}
             navigation
             modules={[Navigation]}
-            loop
         >
             {
                 isLoading ?
