@@ -11,7 +11,6 @@ interface Props {
 
 export const RecommendationMedia = ({mediaId, mediaType}: Props) => {
     const { media: recommended } = useRecommendedMedia({mediaId, mediaType, count: 15});
-    console.log(recommended)
     const recommendedRow = recommended.map(media => {
         return (
             <MediaCard media={media}/>

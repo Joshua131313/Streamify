@@ -14,9 +14,7 @@ interface Props {
 }
 export const useRecommendedMedia = (props: Props) : TMDBMediaQueryResult => {
     const { mediaType, mediaId, count } = props
-   
-    console.log(mediaId + " asd")
-   
+      
     const query = useTMDBQuery<TMDBListResponse>({
         endpoint: `/${mediaType}/${mediaId}/recommendations`,
         params: {
