@@ -77,7 +77,7 @@
 
   /* Outline stroke */
   -webkit-text-stroke: 1px #ff2a2a;
-
+  -webkit-text-fill-color: var(--bg-primary); /* 👈 Samsung fix */
   /* Neon glow */
   text-shadow:
     0 0 6px rgba(255, 0, 0, 0.6),

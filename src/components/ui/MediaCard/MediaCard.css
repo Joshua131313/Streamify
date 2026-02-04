@@ -4,6 +4,10 @@
     position: relative;
     height: var(--media-card-height);
     overflow: hidden;
+        border-radius: 10px;
+
+}
+.media-card img, .media-skeleton-card {
     border-radius: 10px;
 }
 
@@ -38,6 +42,9 @@
 }
 .media-card:hover img {
     transform: scale(1.1);
+}
+.media-card.top10-media-card:hover img {
+    transform: initial;
 }
 .media-title {
     font-weight: bold;
@@ -218,7 +225,7 @@
 }
 @media (max-width: 500px) {
     :root {
-        --media-card-width: 140px;
+        --media-card-width: 130px;
         --media-card-height: 220px;
     }
     .episode-card {
@@ -231,6 +238,19 @@
         width: 125px;
     }
 }
+@media (max-width: 440px) {
+    :root {
+        --media-card-width: 120px;
+        --media-card-height: 225px;
+    }
+}
+@media (max-width: 400px) {
+    :root {
+        --media-card-width: 110px;
+        --media-card-height: 200px;
+    }
+}
+
 
 @keyframes skeleton-pulse {
   0%, 100% {
@@ -240,3 +260,12 @@
     opacity: 0.7;
   }
 }
+/* @media (hover: none) and (pointer: coarse) {
+    .media-card img {
+        filter: brightness(80%);
+    }
+    .media-info {
+        bottom: 0px;
+        opacity: 1;
+    }
+} */

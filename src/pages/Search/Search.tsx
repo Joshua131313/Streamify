@@ -68,7 +68,7 @@ export const Search = () => {
                     />
                 </Container>
             </Container>
-            <Container title="Trending Today" className="media-grid">
+            <Container title={searchResultsRow.length ? "Search Results" : "Trending Today"} className="media-grid">
                 {
                     searchResultsRow.length ? 
                     searchResultsRow :
