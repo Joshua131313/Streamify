@@ -2,12 +2,12 @@ import type { TStreamCategories } from "../types/tmdb";
 import { providers } from "../data/providers";
 import { TMDB_MAIN_GENRES } from "../data/TMDBGenres";
 export type TTab = {
-    text: string;
+    label: string;
     value: string;
 }  
 const MOVIE_TV_TABS = [ 
-    { text: "Movies", value: "movie" },
-    { text: "Series", value: "tv" }   
+    { label: "Movies", value: "movie" },
+    { label: "Series", value: "tv" }   
 ] 
 export const getCategoryTabs = (category : TStreamCategories) : TTab[] => {
     switch(category) {
@@ -17,7 +17,7 @@ export const getCategoryTabs = (category : TStreamCategories) : TTab[] => {
         return MOVIE_TV_TABS;
         case "provider":
             return providers.map(p => ({
-                text: p.name,
+                label: p.name,
                 value: p.provider
             }))
         case "top_rated":

@@ -31,9 +31,7 @@
     transition: all 0.3s;
     border-radius: 5px;
 }
-.navbar .search-link {
-    display: none;
-}
+
 .nav-link:hover {
     border: solid 1px var(--border-white);
     background-color: hsla(0,0%,100%,.1);
@@ -65,5 +63,8 @@
     }
     .mobile-bar {
         display: flex;
+    }
+    .navbar .search-link {
+        display: none;
     }
 }

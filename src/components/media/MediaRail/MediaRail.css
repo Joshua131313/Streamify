@@ -87,3 +87,17 @@
   /* Depth shadow */
   filter: drop-shadow(0 6px 10px rgba(0,0,0,0.8));
 }
+.swiper-select {
+    display: none;
+}
+@media (max-width: 700px) {
+    .top10-title {
+        font-size: 60px;
+    }
+    .swiper-select {
+        display: block;
+    }
+    .rail-tabs {
+        display: none;
+    }
+}

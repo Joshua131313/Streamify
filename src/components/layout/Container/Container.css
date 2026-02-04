@@ -8,6 +8,9 @@
     margin-left: auto;
     margin-right: auto;
 }
+.app-container.media-grid {
+    max-width: 1400px;
+}
 .app-container .container-content.styled {
     background-color: var(--bg-surface);
     border: solid 1px var(--border);
@@ -20,13 +23,11 @@
     display: flex;
 }
 .media-grid .container-content {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px,1fr));
-  grid-gap: 10px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(var(--media-card-width), 1fr));
+    gap: 10px;
 }
-.media-grid .container-content .media-card {
-    width: 100%;
-}
+
 @media(max-width: 1400px) {
     .app-container {
         padding: 0 10px;

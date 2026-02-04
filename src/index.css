@@ -70,6 +70,10 @@ html, body {
 
   /* Paddoing */
   --container-padding: 4rem;
+
+  /* card */
+  --media-card-width: 200px;
+  --media-card-height: 300px;
 }
 
 

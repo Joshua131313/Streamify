@@ -1,9 +1,10 @@
 .media-card, .media-skeleton-card {
-    width: 200px;
+    width: var(--media-card-width);
     display: flex;
     position: relative;
-    height: 300px;
+    height: var(--media-card-height);
     overflow: hidden;
+    border-radius: 10px;
 }
 
 .media-skeleton-card {
@@ -40,6 +41,7 @@
 }
 .media-title {
     font-weight: bold;
+    font-size: var(--font-md);
 }
 .media-card .media-card-overlay {
   position: absolute;
@@ -185,6 +187,10 @@
 }
 
 @media (max-width: 700px) {
+    :root {
+        --media-card-width: 175px;
+        --media-card-height: 275px;
+    }
     .episode-card {
         height: 125px;
     }
@@ -193,14 +199,28 @@
     }
 }
 @media (max-width: 600px) {
+    :root {
+        --media-card-width: 150px;
+        --media-card-height: 250px;
+    }
     .episode-info strong {
         font-size: var(--font-sm);
     }
     .episode-info small {
         font-size: var(--font-xs);
     }
+    .rank-number {
+        font-size: 100px;
+    }
+    .media-title {
+        font-size: var(--font-sm);
+    }
 }
 @media (max-width: 500px) {
+    :root {
+        --media-card-width: 140px;
+        --media-card-height: 220px;
+    }
     .episode-card {
         height: 100px;
     }

@@ -8,6 +8,7 @@ import { FaLongArrowAltLeft } from "react-icons/fa";
 import { useEffect } from "react";
 import { RecommendationMedia } from "../../media/RecommendationMedia/RecommendationMedia";
 import { Actors } from "../../media/Actors/Actors";
+import { createPortal } from "react-dom";
 
 interface Props {
     media: TMDBMedia;
@@ -37,18 +38,30 @@ export const MediaLayout = ({media, isLoading, error, mediaType, containerId, ch
         }
         return `https://vidsrc.cc/v3/embed/${mediaType}/${media.id}`
     }
+    useEffect(() => {
+        if (shouldPlay) {
+            const scrollY = window.scrollY;
 
-    useEffect(()=> {
-        if(shouldPlay) {
-            document.body.classList.add("no-scrollbars");
+            document.body.style.position = "fixed";
+            document.body.style.top = `-${scrollY}px`;
+            document.body.style.width = "100%";
+        } else {
+            const scrollY = document.body.style.top;
+
+            document.body.style.position = "";
+            document.body.style.top = "";
+            document.body.style.width = "";
+
+            window.scrollTo(0, parseInt(scrollY || "0") * -1);
         }
-        else {
-            document.body.classList.remove("no-scrollbars");
-        }
+        document.body.classList.toggle("player-open", shouldPlay);
         return () => {
-            document.body.classList.remove("no-scrollbars");
-        }
-    }, [shouldPlay])
+            document.body.style.position = "";
+            document.body.style.top = "";
+            document.body.style.width = "";
+            document.body.classList.remove("player-open");
+        };
+    }, [shouldPlay]);
 
     if(isLoading || !media) {
         return <div className="loading"></div>
@@ -70,14 +83,16 @@ export const MediaLayout = ({media, isLoading, error, mediaType, containerId, ch
             />
            {
             shouldPlay && 
-             <div className={`player`}>
+            createPortal(
+             <div className={`player`} role="dialog" aria-modal="true">
                 <Icon Icon={FaLongArrowAltLeft} onClick={cancelPlay}/>
                 <iframe 
                     src={getMediaSrc()} 
                     allowFullScreen
                     onPause={() => console.log("paused")}
                 />
-            </div>
+            </div>, document.body
+            )
            }
             <div className="media-layout-content">
                 {children}

@@ -19,7 +19,7 @@ export const MovieSeries = (props: Props) => {
         )
     })
     return (
-        <Container className="movie-series" title={movieSeriesID.name}>
+        <Container className="movie-series media-grid" title={movieSeriesID.name}>
             {/* <TMDBImg 
                 path={seriesBackdropPath}
             /> */}

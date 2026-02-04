@@ -17,7 +17,7 @@ export const MediaMetaBadges = (props: MediaMetaBadgesProps) => {
         return (
             <MediaBadge 
                 key={genreId}
-                text={TMDB_MOVIE_GENRES.find(x=> x.value === genreId.toString())?.text ?? ""}
+                text={TMDB_MOVIE_GENRES.find(x=> x.value === genreId.toString())?.label ?? ""}
             />
         )
     })

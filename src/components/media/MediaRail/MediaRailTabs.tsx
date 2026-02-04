@@ -1,7 +1,8 @@
-import { getCategoryTabs } from "../../../utils/categoryTabs"
+import { getCategoryTabs, type TTab } from "../../../utils/categoryTabs"
 import { useMediaRail } from "./MediaRailContext"
 import "./MediaRail.css"
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { StyledSelect } from "../../ui/StyledSelect/StyledSelect";
 
 export const MediaRailTabs = () => {
     const { category, activeTab, setActiveTab } = useMediaRail();
@@ -33,7 +34,7 @@ export const MediaRailTabs = () => {
                 onClick={() => setActiveTab(tab)}
                 className={`tab ${tab.value === activeTab?.value ? "active-tab" : ""}`}
             >
-                {tab.text}
+                {tab.label}
             </div>
         )
     })
@@ -64,6 +65,12 @@ export const MediaRailTabs = () => {
             </div>
             : null
         }
+        <StyledSelect<TTab, false> 
+            options={tabs}
+            value={activeTab}
+            onChange={(t) => t && setActiveTab(t)}
+            className="swiper-select"
+        />
         </>
     )
 }
