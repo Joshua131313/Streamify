@@ -50,15 +50,20 @@ export const MediaRailTabs = () => {
     }, [activeTab])
 
     return (
-        <div className="rail-tabs flex-row" ref={containerRef}>
-            <div 
-                className="tab-indicator" 
-                style={{
-                    width: `${indicator.width}px`,
-                    transform: `translateX(${indicator.left}px)`
-                }}
-            />
-            {tabsRow}
-        </div>
+        <>
+        {tabsRow.length ?
+            <div className="rail-tabs flex-row" ref={containerRef}>
+                <div 
+                    className="tab-indicator" 
+                    style={{
+                        width: `${indicator.width}px`,
+                        transform: `translateX(${indicator.left}px)`
+                    }}
+                />
+                {tabsRow}
+            </div>
+            : null
+        }
+        </>
     )
 }

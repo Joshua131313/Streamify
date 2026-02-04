@@ -1,7 +1,7 @@
 import { useTMDBQuery } from "../tmdbHooks/useTMDBQuery";
-import { normalizeShow } from "../../utils/normalizeTMDB";
-import type { TMDBShowMedia } from "../../types/TMDBMediaType";
-import type { TMDBRawShow } from "../../types/TMDBShowType";
+import { normalizeShow } from "../../../utils/normalizeTMDB";
+import type { TMDBShowMedia } from "../../../types/TMDBMediaType";
+import type { TMDBRawShow } from "../../../types/TMDBShowType";
 import type { UseQueryResult } from "@tanstack/react-query";
 
 type UseShowResult = UseQueryResult<TMDBRawShow> & {
@@ -14,7 +14,8 @@ export const useShow = ({showId} : {showId: string}) : UseShowResult => {
         endpoint: `/tv/${showId}`,
         params: {
             append_to_response: "videos,credits,images"
-        }
+        },
+        enabled: !!showId
     })
 
     return {

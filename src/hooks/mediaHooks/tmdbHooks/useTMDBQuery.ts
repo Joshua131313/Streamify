@@ -4,11 +4,13 @@ import { useQuery } from "@tanstack/react-query";
 interface TMDBQueryProps {
   endpoint: string;
   params?: Record<string, any>;
+  enabled?: boolean
 }
 
 export const useTMDBQuery = <T = any>({
   endpoint,
   params = {},
+  enabled
 }: TMDBQueryProps) => {
     
   return useQuery<T>({
@@ -20,10 +22,12 @@ export const useTMDBQuery = <T = any>({
           params: {
             api_key: import.meta.env.VITE_TMDB_API_KEY,
             ...params,
+
           },
         }
       );
       return res.data;
     },
+    enabled
   });
 };

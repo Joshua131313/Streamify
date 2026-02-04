@@ -1,4 +1,4 @@
-import type { TMediaRailVariant, TMediaType, TStreamCategories } from "../../../types/genericTypes";
+import type { TMediaRailVariant, TMediaType, TStreamCategories } from "../../../types/tmdb";
 import { MediaRailProvider } from "./MediaRailContext";
 import { MediaRailHeader } from "./MediaRailHeader";
 import { MediaRailSwiper } from "./MediaRailSwiper";

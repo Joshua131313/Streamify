@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { useShow } from "../../hooks/showHooks/useShow";
+import { useShow } from "../../hooks/mediaHooks/showHooks/useShow";
 import { Trailer } from "../../components/ui/Trailer/Trailer";
 import { MediaLayout } from "../../components/layout/MediaLayout/MediaLayout";
 import { Container } from "../../components/layout/Container/Container";

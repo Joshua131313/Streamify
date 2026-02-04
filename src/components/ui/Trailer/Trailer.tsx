@@ -9,7 +9,7 @@ import { FaVolumeHigh } from "react-icons/fa6";
 import { Link, useNavigate } from "react-router-dom";
 import { MediaMetaBadges, type MediaMetaBadgesProps } from "../MediaMetaBadges/MediaMetaBadges";
 import { PlayButton } from "../Button/PlayButton";
-import type { TMediaType } from "../../../types/genericTypes";
+import type { TMediaType } from "../../../types/tmdb.ts";
 import { Button } from "../Button/Button";
 
 interface Props {

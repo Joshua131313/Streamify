@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Container } from "../../components/layout/Container/Container"
 import { EpisodeCard } from "../../components/ui/MediaCard/EpisodeCard";
-import { useEpisodes } from "../../hooks/showHooks/useEpisodes";
+import { useEpisodes } from "../../hooks/mediaHooks/showHooks/useEpisodes";
 import type { TMDBShowMedia } from "../../types/TMDBMediaType";
 import type { TSeason } from "../../types/TMDBShowType";
 import { StyledSelect } from "../../components/ui/StyledSelect/StyledSelect";

@@ -1,4 +1,4 @@
-import type { TMDBMovieMedia, TMDBShowMedia } from "../types/TMDBMediaType";
+import type { TMDBMedia, TMDBMovieMedia, TMDBRawMedia, TMDBShowMedia } from "../types/TMDBMediaType";
 import type { TMDBRawMovie } from "../types/TMDBMovieType";
 import type { TMDBRawShow } from "../types/TMDBShowType";
 
@@ -94,7 +94,7 @@ export function normalizeShow(show: TMDBRawShow): TMDBShowMedia {
     number_of_episodes: show.number_of_episodes,
     number_of_seasons: show.number_of_seasons,
     production_companies: show.production_companies,
-    seasons: show.seasons,
+    seasons: show.seasons ? show.seasons.filter(season => season.season_number > 0) : [],
     status: show.status,
     tagline: show.tagline,
     type: show.type,
@@ -102,4 +102,26 @@ export function normalizeShow(show: TMDBRawShow): TMDBShowMedia {
       ?   logo.file_path
       : ""
   };
+}
+
+
+export const normalizeTMDBMedia = (
+  items: TMDBRawMedia[] = [],
+  count?: number
+): TMDBMedia[] => {
+  const filtered = items.filter(
+    (x) =>
+      (x.media_type === "movie" || x.media_type === "tv") &&
+      Boolean(x.backdrop_path)
+  );
+
+  const normalized = filtered.map((x) =>
+    x.media_type === "movie"
+      ? normalizeMovie(x as TMDBRawMovie)
+      : normalizeShow(x as TMDBRawShow)
+  );
+
+  return typeof count === "number"
+    ? normalized.slice(0, count)
+    : normalized;
 }

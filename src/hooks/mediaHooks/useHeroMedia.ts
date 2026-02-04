@@ -1,84 +1,44 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
-import { useTMDBQuery } from "../tmdbHooks/useTMDBQuery";
-import { normalizeMovie, normalizeShow } from "../../utils/normalizeTMDB";
-import type { TMDBRawMovie } from "../../types/TMDBMovieType";
-import type { TMDBRawShow } from "../../types/TMDBShowType";
+import { useMixedMedia } from "./useMixedMedia";
 import type { TMDBMedia } from "../../types/TMDBMediaType";
-import type { UseQueryResult } from "@tanstack/react-query";
-
-interface TMDBMultiItem extends Partial<TMDBRawMovie>, Partial<TMDBRawShow> {
-  media_type: "movie" | "tv" | "person";
-}
-
-interface TMDBMultiResponse {
-  results: TMDBMultiItem[];
-}
-
-type UseHeroMediaResult = UseQueryResult<TMDBMultiResponse> & {
-  heroes: TMDBMedia[]
-}
+import type { TMDBMediaQueryResult } from "../../types/tmdb";
 
 export const useHeroMedia = (
   count: number = 20
-): UseHeroMediaResult => {
+): TMDBMediaQueryResult => {
 
-  const query =
-    useTMDBQuery<TMDBMultiResponse>({
-      endpoint: "/trending/all/day"
-    });
-
-  const baseHeroes = useMemo(() => {
-    const items = query.data?.results ?? [];
-
-    const filtered = items.filter(
-      x =>
-        (x.media_type === "movie" || x.media_type === "tv") &&
-        x.backdrop_path
-    );
-
-    const normalized: TMDBMedia[] = filtered.map(x =>
-      x.media_type === "movie"
-        ? normalizeMovie(x as TMDBRawMovie)
-        : normalizeShow(x as TMDBRawShow)
-    );
-
-    return normalized.slice(0, count);
-
-  }, [query, count]);
-
+  const mixed = useMixedMedia("/trending/all/day", count);
   const [heroes, setHeroes] = useState<TMDBMedia[]>([]);
 
   useEffect(() => {
-    if (!baseHeroes.length) return;
+    if (!mixed.media.length) return;
 
     let cancelled = false;
 
     const loadLogos = async () => {
       const withLogos = await Promise.all(
-        baseHeroes.map(async (m) => {
+        mixed.media.map(async (m) => {
           try {
             const resp = await axios.get(
               `https://api.themoviedb.org/3/${m.mediaType}/${m.id}/images`,
               {
                 params: {
-                  api_key: import.meta.env.VITE_TMDB_API_KEY
-                }
+                  api_key: import.meta.env.VITE_TMDB_API_KEY,
+                },
               }
             );
 
             const logos = resp.data?.logos ?? [];
-            const logo = logos.find((l : any) => l.iso_639_1 === "en") || logos[0];
+            const logo =
+              logos.find((l: any) => l.iso_639_1 === "en") || logos[0];
 
             return {
               ...m,
-              logo_path: logo
-                ? `${logo.file_path}`
-                : undefined
+              logo_path: logo ? logo.file_path : undefined,
             };
-
           } catch {
-            return { ...m, logoUrl: undefined };
+            return { ...m, logo_path: undefined };
           }
         })
       );
@@ -87,13 +47,13 @@ export const useHeroMedia = (
     };
 
     loadLogos();
-
-    return () => { cancelled = true };
-
-  }, [baseHeroes]);
+    return () => {
+      cancelled = true;
+    };
+  }, [mixed.media]);
 
   return {
-    ...query,
-    heroes: heroes
-  }
+    ...mixed,
+    media: heroes,
+  };
 };

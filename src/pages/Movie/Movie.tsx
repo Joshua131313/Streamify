@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { useMovie } from "../../hooks/movieHooks/useMovie";
+import { useMovie } from "../../hooks/mediaHooks/movieHooks/useMovie";
 import { MediaLayout } from "../../components/layout/MediaLayout/MediaLayout";
 
 export const Movie = ()  => {

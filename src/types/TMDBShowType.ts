@@ -1,3 +1,4 @@
+import type { TMediaType } from "./tmdb";
 import type { TMDBVideo, TMDBMediaCredits, TMDBLogo } from "./TMDBMediaType";
 export type TSeason = {
     air_date: string | null;
@@ -38,7 +39,7 @@ export type TMDBRawShow = {
   name: string;
   vote_average: number;
   vote_count: number;
-
+  media_type: TMediaType;
   // Detail endpoint extras
   created_by?: {
     id: number;
@@ -110,4 +111,5 @@ export const TMDBNullShow: TMDBRawShow = {
   status: "",
   tagline: null,
   type: "",
+  media_type: "tv"
 };

@@ -1,10 +1,10 @@
-import { useTMDBQuery } from "../tmdbHooks/useTMDBQuery";
+import { useTMDBQuery } from "./tmdbHooks/useTMDBQuery";
 import { normalizeMovie, normalizeShow } from "../../utils/normalizeTMDB";
 import { getTMDBEndpointByCategory } from "../../utils/helpers";
 import type { TMDBRawMovie } from "../../types/TMDBMovieType";
 import type { TMDBRawShow } from "../../types/TMDBShowType";
 import type { TMDBMedia } from "../../types/TMDBMediaType";
-import type { TStreamCategories, TStreamProviders } from "../../types/genericTypes";
+import type { TMDBListResponse, TMDBMediaQueryResult, TStreamCategories, TStreamProviders } from "../../types/tmdb";
 import type { UseQueryResult } from "@tanstack/react-query";
 
 interface Props {
@@ -14,15 +14,8 @@ interface Props {
   provider?: TStreamProviders | "";
   page?: number;
 }
-interface TMDBListResponse<T> {
-  results: T[];
-}
 
-type UseMediaDiscoverResult = UseQueryResult<TMDBListResponse<TMDBRawMovie | TMDBRawShow>> & {
-  media: TMDBMedia[]
-}
-
-export const useMediaDiscover = (props: Props): UseMediaDiscoverResult => {
+export const useMediaDiscover = (props: Props): TMDBMediaQueryResult => {
   const {
     mediaType,
     category,
@@ -38,7 +31,7 @@ export const useMediaDiscover = (props: Props): UseMediaDiscoverResult => {
     provider
   );
 
-  const query = useTMDBQuery<TMDBListResponse<TMDBRawMovie | TMDBRawShow>>({
+  const query = useTMDBQuery<TMDBListResponse>({
     endpoint,
     params: { page }
   });

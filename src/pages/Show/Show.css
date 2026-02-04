@@ -24,11 +24,22 @@
     display: flex;
     flex-direction: column;
     gap: 20px;
-    max-height: 900px;
+    max-height: 80vh;
     overflow-y: auto;
 }
 .season-selector-container {
     position: sticky;
     top: 0px;
     z-index: 3;
+}
+@media (max-width: 700px) {
+    .season-selector {
+        flex-wrap: wrap;
+    }
+    .season-selector .select {
+        flex: 0 0 100%;
+    }
+    .season-selector .input-container {
+        flex: 1
+    }
 }

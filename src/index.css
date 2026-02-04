@@ -9,9 +9,17 @@ html, body {
 .no-scrollbars {
   overflow: hidden;
 }
+
 .layout-container {
   margin: 0 4rem;
 }
+
+@media(max-width: 1400px) {
+    .layout-container {
+        margin: 0 10px;
+    }
+}
+
 :root {
   /* Backgrounds */
   --bg-primary: #0B0D10;

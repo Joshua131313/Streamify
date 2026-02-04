@@ -7,7 +7,7 @@
   border-radius: 10px;
   font-size: var(--font-sm);
   font-weight: 600;
-
+  background-color: #fff;
   cursor: pointer;
   transition: all .18s ease;
   border: none;

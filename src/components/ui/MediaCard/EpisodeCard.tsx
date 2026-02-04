@@ -12,13 +12,14 @@ interface Props {
 
 export const EpisodeCard = (props: Props) => {
     const { episode } = props;
-    
     return (
         <Link 
             to={`?play&season=${episode.season_number}&episode=${episode.episode_number}`} 
             className="episode-card"
         >
             <div className="still-container">
+                <MediaBadge className="time" Icon={FaClock} text={`${episode.runtime?.toString() ?? 0} min`}/>
+                <MediaBadge className="rating" Icon={FaStar} text={`${episode.vote_average.toFixed(1)}/10`}/>
                 <TMDBImg 
                     path={episode.still_path ?? ""}
                 />
@@ -28,10 +29,10 @@ export const EpisodeCard = (props: Props) => {
             <div className="episode-info">
                 <strong>{episode.name}</strong>
                 <small>{episode.overview}</small>
-                <div className="episode-badges">
+                {/* <div className="episode-badges">
                     <MediaBadge Icon={FaClock} text={`${episode.runtime?.toString() ?? 0} min`}/>
                     <MediaBadge Icon={FaStar} text={`${episode.vote_average.toFixed(1)}/10`}/>
-                </div>
+                </div> */}
             </div>
         </Link>
     )

@@ -21,7 +21,7 @@ export const MediaCard = (props: Props)  => {
                 <div className="media-info flex-col">
                     <span className="media-title">{media.title}</span>
                     <div className="flex-row sb">
-                        <small>{media.mediaType}</small>
+                        <small>{media.mediaType === "movie" ? "Movie" : "Series"}</small>
                         <div className="flex-row media-rating">
                             <FaStar className="text-red-500" />
                             <small className="rating">{media.vote_average}/10</small>

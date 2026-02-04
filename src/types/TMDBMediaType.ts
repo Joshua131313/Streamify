@@ -1,3 +1,6 @@
+import type { TMDBRawMovie } from "./TMDBMovieType";
+import type { TMDBRawShow } from "./TMDBShowType";
+
 export interface TMDBLogo {
     aspect_ratio: number;
     file_path: string;
@@ -140,3 +143,4 @@ export type TMDBShowMedia = TMDBMediaBase & {
   }[];
 };
 export type TMDBMedia = TMDBMovieMedia | TMDBShowMedia;
+export type TMDBRawMedia = TMDBRawMovie | TMDBRawShow;

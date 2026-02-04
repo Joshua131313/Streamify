@@ -1,7 +1,7 @@
 import "./MediaLayout.css"
 import type { TMDBMedia } from "../../../types/TMDBMediaType";
 import { Trailer } from "../../ui/Trailer/Trailer";
-import type { TMediaType } from "../../../types/genericTypes";
+import type { TMediaType } from "../../../types/tmdb";
 import { useSearchParams } from "react-router-dom";
 import { Icon } from "../../ui/Icon/Icon";
 import { FaLongArrowAltLeft } from "react-icons/fa";
@@ -85,7 +85,10 @@ export const MediaLayout = ({media, isLoading, error, mediaType, containerId, ch
             <Actors 
                 actors={media.credits?.cast}
             />
-            <RecommendationMedia />
+            <RecommendationMedia 
+                mediaType={mediaType}
+                mediaId={media.id}
+            />
         </div>
     )
 }

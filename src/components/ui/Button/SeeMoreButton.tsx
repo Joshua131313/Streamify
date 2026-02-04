@@ -1,7 +1,7 @@
 import { FaPlusCircle } from "react-icons/fa"
 import { Button } from "./Button"
 import { Link } from "react-router-dom";
-import type { TMediaType } from "../../../types/genericTypes";
+import type { TMediaType } from "../../../types/tmdb";
 
 interface Props {
     mediaType: TMediaType;

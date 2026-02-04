@@ -1,4 +1,4 @@
-import type { TStreamCategories } from "../types/genericTypes";
+import type { TStreamCategories } from "../types/tmdb";
 import { providers } from "../data/providers";
 import { TMDB_MAIN_GENRES } from "../data/TMDBGenres";
 export type TTab = {

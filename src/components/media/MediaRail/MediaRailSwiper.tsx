@@ -39,7 +39,6 @@ export const MediaRailSwiper = () => {
         )
     })
 
-    console.log(isLoading)
     return  (
         <Swiper
             className={`media-swiper ${variant === "top10" && "top-10-media-swiper"}`}

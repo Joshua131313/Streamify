@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import type { TTab } from "../../../utils/categoryTabs"
-import type { TMediaRailVariant, TMediaType, TStreamCategories, TStreamProviders } from "../../../types/genericTypes";
+import type { TMediaRailVariant, TMediaType, TStreamCategories, TStreamProviders } from "../../../types/tmdb";
 
 type MediaRailState = {
     title: string;

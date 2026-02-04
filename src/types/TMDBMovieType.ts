@@ -1,4 +1,5 @@
-import type { TMDBLogo, TMDBMediaCredits, TMDBVideo } from "./TMDBMediaType";
+import type { TMediaType } from "./tmdb";
+import type { TMDBLogo, TMDBMediaCredits, TMDBMovieMedia, TMDBVideo } from "./TMDBMediaType";
 
 export type TMDBRawMovie = {
   adult: boolean;
@@ -16,6 +17,7 @@ export type TMDBRawMovie = {
   video?: boolean;
   vote_average: number;
   vote_count: number;
+  media_type: TMediaType;
 
   // Detail endpoint extras
   budget?: number;
@@ -76,4 +78,5 @@ export const TMDBNullMovie: TMDBRawMovie = {
   spoken_languages: [],
   status: "",
   tagline: null,
+  media_type: "movie"
 };

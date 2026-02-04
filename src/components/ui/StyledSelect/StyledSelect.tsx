@@ -2,6 +2,7 @@ import Select, {
   type Props as SelectProps,
   type GroupBase,
 } from "react-select";
+import "./StyledSelect.css"
 
 const styles = {
   control: (base: any, state: any) => ({

@@ -1,6 +1,6 @@
 import { FaPlay } from "react-icons/fa"
 import { Button } from "./Button"
-import type { TMediaType } from "../../../types/genericTypes";
+import type { TMediaType } from "../../../types/tmdb";
 import { Link } from "react-router-dom";
 
 interface Props {
