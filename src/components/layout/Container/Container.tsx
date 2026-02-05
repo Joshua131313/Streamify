@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { AccentLine } from "../../ui/AccentLine/AccentLine"
 import { Title } from "../../ui/Title/Title";
 import "./Container.css"
@@ -10,19 +11,35 @@ interface Props {
     styled?: boolean;
 }
 
-export const Container = (props : Props) => {
-
-    const { title, className, containerId, styled } = props
-
-    return (
-        <div className={`app-container ${className}`} id={containerId}>
-            {
-            title && 
-                <Title title={title}/>
-            }
-            <div className={`container-content ${styled ? "styled" : ""}`}>
-                {props.children}
+export const Container = forwardRef<HTMLDivElement, Props>(
+    ({ title, className, containerId, styled, children}, ref) => {
+        return (
+            <div ref={ref}  className={`app-container ${className}`} id={containerId}>
+                {
+                title && 
+                    <Title title={title}/>
+                }
+                <div className={`container-content ${styled ? "styled" : ""}`}>
+                    {children}
+                </div>
             </div>
-        </div>
-    )
-}
+        )
+    }
+)
+
+// export const Container = (props : Props) => {
+
+//     const { title, className, containerId, styled } = props
+
+//     return (
+//         <div  className={`app-container ${className}`} id={containerId}>
+//             {
+//             title && 
+//                 <Title title={title}/>
+//             }
+//             <div className={`container-content ${styled ? "styled" : ""}`}>
+//                 {props.children}
+//             </div>
+//         </div>
+//     )
+// }

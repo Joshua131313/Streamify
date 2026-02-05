@@ -4,12 +4,12 @@
     display: flex;
     flex-direction: column;
     gap: 20px;
-    max-width: 1360px;
+    max-width: var(--max-container-width);
     margin-left: auto;
     margin-right: auto;
 }
 .app-container.media-grid {
-    max-width: 1400px;
+    max-width: var(--max-container-width);
 }
 .app-container .container-content.styled {
     background-color: var(--bg-surface);

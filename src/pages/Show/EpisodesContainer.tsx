@@ -31,7 +31,7 @@ export const EpisodesContainer = ({show} : Props) => {
         season: s
     })) ?? []
 
-    const episodesRow = episodes?.filter(a => a.name.toLowerCase().includes(searchEpisode.toLowerCase())).sort((a, b) => {
+    const episodesRow = episodes?.filter(a => a.episode_number.toString() === searchEpisode || (a.name.toLowerCase().includes(searchEpisode.toLowerCase()))).sort((a, b) => {
         if(direction === "desc") return b.episode_number - a.episode_number;
         else return a.episode_number - b.episode_number
     }).map(episode => {
@@ -75,7 +75,7 @@ export const EpisodesContainer = ({show} : Props) => {
                     />
                     <Icon 
                         onClick={() => setDirection(direction === "asc" ? "desc" : "asc")}
-                        Icon={direction === "desc" ? FaSortAmountDownAlt : FaSortAmountUpAlt}
+                        Icon={direction === "asc" ? FaSortAmountDownAlt : FaSortAmountUpAlt}
                     />
                 </div>
             </Container>

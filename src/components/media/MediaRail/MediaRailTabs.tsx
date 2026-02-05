@@ -1,8 +1,9 @@
-import { getCategoryTabs, type TTab } from "../../../utils/categoryTabs"
+import { getCategoryTabs } from "../../../utils/categoryTabs"
 import { useMediaRail } from "./MediaRailContext"
 import "./MediaRail.css"
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { StyledSelect } from "../../ui/StyledSelect/StyledSelect";
+import type { TLabelValue } from "../../../types/tmdb";
 
 export const MediaRailTabs = () => {
     const { category, activeTab, setActiveTab } = useMediaRail();
@@ -65,7 +66,7 @@ export const MediaRailTabs = () => {
             </div>
             : null
         }
-        <StyledSelect<TTab, false> 
+        <StyledSelect<TLabelValue, false> 
             options={tabs}
             value={activeTab}
             onChange={(t) => t && setActiveTab(t)}

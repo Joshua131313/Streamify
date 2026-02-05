@@ -10,9 +10,9 @@ interface Props {
 
 export const PlayButton = (props : Props) => {
     const { mediaType, mediaId } = props;
-
+    const to = mediaType === "movie" ? `/${mediaType}/${mediaId}?play` : `/${mediaType}/${mediaId}?play&season=1&episode=1`
     return (
-        <Link to={`/${mediaType}/${mediaId}?play`}>
+        <Link to={to}>
             <Button className="play-button">
                 <FaPlay />
                 Play

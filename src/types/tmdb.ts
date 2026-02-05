@@ -19,3 +19,7 @@ export type TMDBMediaQueryResult<TData = unknown> =
   UseQueryResult<TData> & {
     media: TMDBMedia[];
 };
+export type TLabelValue = {
+    label: string;
+    value: string;
+}  

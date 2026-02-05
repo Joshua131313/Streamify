@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import type { TTab } from "../../../utils/categoryTabs"
-import type { TMediaRailVariant, TMediaType, TStreamCategories, TStreamProviders } from "../../../types/tmdb";
+import type { TLabelValue, TMediaRailVariant, TMediaType, TStreamCategories, TStreamProviders } from "../../../types/tmdb";
 
 type MediaRailState = {
     title: string;
@@ -8,8 +7,8 @@ type MediaRailState = {
     variant: TMediaRailVariant;
     mediaType: TMediaType;
     setMediaType: (mediaType: TMediaType) => void;
-    activeTab: TTab | null;
-    setActiveTab: (tab : TTab) => void;
+    activeTab: TLabelValue | null;
+    setActiveTab: (tab : TLabelValue) => void;
     genre?: string;
     setGenre: (genre: string) => void;
     provider?: TStreamProviders | "";
@@ -31,7 +30,7 @@ export const MediaRailProvider = ({
     title: string;
     children: React.ReactNode
 }) => {
-    const [activeTab, setActiveTab] = useState<TTab | null>(null);
+    const [activeTab, setActiveTab] = useState<TLabelValue | null>(null);
     const [type, setType] = useState<TMediaType>("movie");
     const [genre, setGenre] = useState<string>("35");
     const [provider, setProvider] = useState<TStreamProviders>("netflix")

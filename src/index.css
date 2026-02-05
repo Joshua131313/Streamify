@@ -74,6 +74,8 @@ html, body {
   /* card */
   --media-card-width: 200px;
   --media-card-height: 300px;
+
+  --max-container-width: 1400px;
 }
 
 input {

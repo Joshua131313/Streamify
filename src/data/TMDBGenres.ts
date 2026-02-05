@@ -1,4 +1,6 @@
-export const TMDB_MOVIE_GENRES = [
+import type { TLabelValue } from "../types/tmdb";
+
+export const TMDB_MEDIA_GENRES : TLabelValue[] = [
     { label: "Action", value: "28" },
     { label: "Adventure", value: "12" },
     { label: "Animation", value: "16" },

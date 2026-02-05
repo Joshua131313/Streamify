@@ -1,8 +1,8 @@
 import { FaStar } from "react-icons/fa"
 import { MediaBadge } from "./MediaBadge"
-import { TMDB_MOVIE_GENRES } from "../../../data/TMDBGenres";
 import "./MediaMetaBadges.css"
 import { HiOutlineCalendar } from "react-icons/hi2";
+import { TMDB_MEDIA_GENRES } from "../../../data/TMDBGenres";
 
 export interface MediaMetaBadgesProps {
     genresLimit?: number;
@@ -17,7 +17,7 @@ export const MediaMetaBadges = (props: MediaMetaBadgesProps) => {
         return (
             <MediaBadge 
                 key={genreId}
-                text={TMDB_MOVIE_GENRES.find(x=> x.value === genreId.toString())?.label ?? ""}
+                text={TMDB_MEDIA_GENRES.find(x=> x.value === genreId.toString())?.label ?? ""}
             />
         )
     })

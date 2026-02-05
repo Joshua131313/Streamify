@@ -21,8 +21,7 @@
 }
 
 .episodes-container .container-content {
-    display: flex;
-    flex-direction: column;
+    display: grid;
     gap: 20px;
     max-height: 80vh;
     overflow-y: auto;

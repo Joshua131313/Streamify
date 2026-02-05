@@ -6,6 +6,7 @@ import { Movie } from "../pages/Movie/Movie"
 import { Show } from "../pages/Show/Show"
 import { AppLayout } from "../components/layout/AppLayout"
 import { Search } from "../pages/Search/Search"
+import { Browse } from "../pages/Browse/Browse"
 
 export const AppRouter = () => {
 
@@ -19,6 +20,7 @@ export const AppRouter = () => {
                     <Route path="tv-shows" element={<Shows />} />
                     <Route path="tv/:showId" element={<Show />} />
                     <Route path="search" element={<Search />}/>
+                    <Route path="discover" element={<Browse />}/>
                 </Route>
             </Routes>
         </BrowserRouter>

@@ -56,7 +56,9 @@
 .mobile-bar .nav-link {
     flex-direction: column;
 }
-
+.mobile-bar-spacer {
+    display: none;
+}
 @media (max-width: 600px) {
     .navbar .nav-links {
         display: none;
@@ -66,5 +68,9 @@
     }
     .navbar .search-link {
         display: none;
+    }
+    .mobile-bar-spacer {
+        display: block;
+        height: 80px;
     }
 }
