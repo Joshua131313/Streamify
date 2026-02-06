@@ -21,6 +21,8 @@ export const EpisodeCard = (props: Props) => {
                 <MediaBadge className="time" Icon={FaClock} text={`${episode.runtime?.toString() ?? 0} min`}/>
                 <MediaBadge className="rating" Icon={FaStar} text={`${episode.vote_average.toFixed(1)}/10`}/>
                 <TMDBImg 
+                    type="still"
+                    size="w185"
                     path={episode.still_path ?? ""}
                 />
                 <Icon Icon={FaPlay} />

@@ -12,7 +12,7 @@ export const ActorCard = (props: Props) => {
     return (
         <a target="_blank" href={`https://www.google.com/search?q=${actor.name}`}>
             <div className="actor-card">
-                <TMDBImg path={actor.profile_path} />
+                <TMDBImg type="profile" size="w185" path={actor.profile_path} />
                 <div className="actor-info">
                     <strong>{actor.name}</strong>
                     <small>{actor.character}</small>

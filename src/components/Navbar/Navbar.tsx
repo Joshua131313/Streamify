@@ -3,28 +3,40 @@ import { Container } from "../layout/Container/Container"
 import "./Navbar.css"
 import { FaFilm, FaHome, FaSearch, FaSquarespace, FaTv } from "react-icons/fa"
 import { FaCubesStacked } from "react-icons/fa6"
-import { Link } from "react-router-dom"
+import { NavLink } from "react-router-dom"
 import { Mobilebar } from "./Mobilebar"
+import type { IconType } from "react-icons"
+import { AppNavLink } from "./AppNavLink"
+
+const navLinks : {path: string, Icon: IconType, label: string}[] = [
+    {
+        path: "/",
+        Icon: FaHome,
+        label: "Home"
+    },
+    {
+        path: "/discover?media=movie",
+        Icon: FaFilm,
+        label: "Movies"
+    },
+    {
+        path: "/discover?media=tv",
+        Icon: FaTv,
+        label: "TV Shows"
+    },
+    {
+        path: "/search",
+        Icon: FaSearch,
+        label: "Search"
+    },
+]
 
 export const NavLinks = () => {
     return (
         <div className="nav-links">
-            <Link to={"/"} className="nav-link">
-                <FaHome />
-                <span>Home</span>
-            </Link>
-            <Link to="/discover?media=movie" className="nav-link">
-                <FaFilm />
-                <span>Movies</span>
-            </Link>
-            <Link to="/discover?media=tv" className="nav-link">
-                <FaTv />
-                <span>TV Shows</span>
-            </Link>
-            <Link to={"/search"} className="nav-link search-link">
-                <FaSearch />
-                <span>Search</span>
-            </Link>
+            {navLinks.map(link => {
+                return <AppNavLink {...link}/>
+            })}
         </div>
     )
 }

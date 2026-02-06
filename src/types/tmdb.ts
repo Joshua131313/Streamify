@@ -1,5 +1,6 @@
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { TMDBMedia, TMDBRawMedia } from "./TMDBMediaType";
+import type { TMDB_IMAGE_SIZES } from "../data";
 
 export type TStreamCategories = "top10" | "trending" | "top_rated" | "byGenre" | "provider" ;
 
@@ -23,3 +24,8 @@ export type TLabelValue = {
     label: string;
     value: string;
 }  
+
+export type TMDBImageType = keyof typeof TMDB_IMAGE_SIZES;
+
+export type TMDBImageSize<T extends TMDBImageType> =
+  (typeof TMDB_IMAGE_SIZES)[T][number];

@@ -28,6 +28,7 @@ export const useMovieCollection = (collectionId : number) : UseMovieResult => {
         },
         enabled: !!collectionId
     })
+    console.log(query.data)
     const movies = useMemo<TMDBMovieMedia[]>(() => {
         if(!query.data?.parts) return [];
 

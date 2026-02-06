@@ -12,11 +12,11 @@ export const HeroSlide = (props: Props) => {
     const { media } = props
     return (
         <div className="hero-slide">
-            <TMDBImg className="hero-img" path={media.backdrop_path ?? ""} alt={media.title} />
+            <TMDBImg type="backdrop" size="original" className="hero-img" path={media.backdrop_path ?? ""} alt={media.title} />
             <div className="hero-overlay"></div>
             <div className="slide-content">
                 <div className="inner-slide-content">
-                    <TMDBImg path={media.logo_path ?? ""} />
+                    <TMDBImg type="logo" size="w500" path={media.logo_path ?? ""} />
                     <MediaMetaBadges 
                         date={media.date}
                         genre_ids={media.genre_ids ?? []}

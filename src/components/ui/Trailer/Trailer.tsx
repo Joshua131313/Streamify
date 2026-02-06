@@ -105,7 +105,7 @@ export const Trailer = (props : Props) => {
         <div className="trailer-info">
             <div className="inner-trailer-info">
                 <div className="img-placeholder"></div>
-                <TMDBImg path={logo_path} />
+                <TMDBImg type="logo" size="w500" path={logo_path} />
                 <MediaMetaBadges 
                     {...mediaMetaBadgesProps}
                 />
@@ -130,6 +130,8 @@ export const Trailer = (props : Props) => {
             </div>
         </div>
         <TMDBImg 
+            type="backdrop"
+            size="w1280"
             path={backdrop_path} 
             className={`trailer-backdrop ${playing ? "fade-out" : ""}`}
         />

@@ -2,25 +2,29 @@ import { useHeroMedia } from "../../../hooks/mediaHooks/useHeroMedia"
 import "./HeroCarousel.css"
 import { Swiper, SwiperSlide } from "swiper/react";
 import { HeroSlide } from "./HeroSlide";
-import { Autoplay } from "swiper/modules";
+import { Autoplay, Virtual } from "swiper/modules";
+import { useState } from "react";
 
 
 export const HeroCarousel = () => {
     const { media: heroes } = useHeroMedia();
-    const carouselSlides = heroes.map(hero => {
+
+    const carouselSlides = heroes.map((hero, i) => {
         return (
-            <SwiperSlide>
-                 <HeroSlide key={hero.id} media={hero}/>
+            <SwiperSlide virtualIndex={i} key={hero.id}>
+                 <HeroSlide key={hero.id} media={hero} />
             </SwiperSlide>
         )
-    })
+    });
+    
     return (
         <Swiper 
             slidesPerView={1}
             autoplay={{
                 delay: 8000,
             }}
-            modules={[Autoplay]}
+            virtual
+            modules={[Autoplay, Virtual]}
             className="hero-carousel"
         >
            {carouselSlides}

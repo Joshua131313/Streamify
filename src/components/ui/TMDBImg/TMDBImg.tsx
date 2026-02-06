@@ -1,30 +1,51 @@
 import { useState, type ImgHTMLAttributes } from "react";
-import "./TMDBImg.css"
+import "./TMDBImg.css";
+import type { TMDBImageSize, TMDBImageType } from "../../../types/tmdb";
+import { getTMDBImageUrl } from "../../../utils/getTMDBImageUrl";
 
-interface Props extends ImgHTMLAttributes<HTMLImageElement> {
-    path: string;
+
+export type TMDBImgProps<T extends TMDBImageType> =
+  Omit<ImgHTMLAttributes<HTMLImageElement>, "src"> & {
+    type: T;
+    path?: string;
+    size?: TMDBImageSize<T>;
     skeletonClass?: string;
-}
+  };
 
-export const TMDBImg = ({path, skeletonClass, ...imgProps} : Props) => {
-    const [isLoading, setIsLoading] = useState(true);
-    
-    return (
-        <>
-            <img  
-                style={{
-                    display: isLoading ? "none" : "block"
-                }}
-                onLoad={() => setIsLoading(false)}
-                src={`https://image.tmdb.org/t/p/original${path}`} 
-                {...imgProps}
-            />
-            <div 
-                style={{
-                    display: isLoading ? "block" : "none"
-                }}
-                className={`img-skeleton ${skeletonClass}`}
-            />
-        </>
-    )
-}
+export const TMDBImg = <T extends TMDBImageType>({
+  type,
+  path,
+  size,
+  skeletonClass,
+  onLoad,
+  style,
+  ...imgProps
+}: TMDBImgProps<T>) => {
+  const src = getTMDBImageUrl(type, path, size);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const handleLoad: React.ReactEventHandler<HTMLImageElement> = (e) => {
+    setIsLoading(false);
+    onLoad?.(e); // preserve external onLoad
+  };
+
+  if (!src) return null;
+
+  return (
+    <>
+      <img
+        src={src}
+        onLoad={handleLoad}
+        style={{
+          display: isLoading ? "none" : "block",
+          ...style,
+        }}
+        {...imgProps}
+      />
+
+      {isLoading && (
+        <div className={`img-skeleton ${skeletonClass ?? ""}`} />
+      )}
+    </>
+  );
+};

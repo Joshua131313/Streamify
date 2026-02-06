@@ -1,69 +1,95 @@
-import { Container } from "../../components/layout/Container/Container"
-import { TMDB_MEDIA_GENRES } from "../../data/TMDBGenres"
-import { useRef, useState } from "react"
-import type { TMediaType, TLabelValue } from "../../types/tmdb"
-import { useNavigate, useSearchParams } from "react-router-dom"
-import { StyledSelect } from "../../components/ui/StyledSelect/StyledSelect"
-import { useMediaBrowse } from "../../hooks/mediaHooks/useMediaBrowse"
-import { ORDER_BY_OPTIONS } from "../../data"
-import { MediaCard } from "../../components/ui/MediaCard/MediaCard"
-import { useInfiniteScroll } from "../../hooks/utilHooks/useInfiniteScroll"
-import { useInfiniteMediaBrowse } from "../../hooks/mediaHooks/useInfiniteMediaBrowse"
-import "./Browse.css"
+import { useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+
+import { Container } from "../../components/layout/Container/Container";
+import { StyledSelect } from "../../components/ui/StyledSelect/StyledSelect";
+
+import { TMDB_MEDIA_GENRES } from "../../data/TMDBGenres";
+import type { TLabelValue } from "../../types/tmdb";
+
+import { useInfiniteMediaBrowse } from "../../hooks/mediaHooks/useInfiniteMediaBrowse";
+import { useInfiniteScroll } from "../../hooks/utilHooks/useInfiniteScroll";
+
+import { MediaCard } from "../../components/ui/MediaCard/MediaCard";
+import { MovieSeriesContainer } from "../../components/layout/Container/MovieSeriesContainer/MovieSeriesContainer";
+
+import "./Browse.css";
 
 export const Browse = () => {
-    const [searchParams, setSearchParams] = useSearchParams();
-    const [page, setPage] = useState(1);
-    const mediaType = searchParams.get("media");
-    const loadMoreRef = useRef<HTMLDivElement | null>(null);
-    const { media, genre, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteMediaBrowse();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const mediaType = searchParams.get("media") ?? "movie";
 
-    const mediaRow = media.map(m => {
-        return (
-            <MediaCard media={m} />
-        )
-    })
+  const [browseType, setBrowseType] = useState<TLabelValue>({
+    value: "browse",
+    label: "Browse",
+  });
 
-    const addParams = (param : string, value: string) => {
-        const params = new URLSearchParams(searchParams);
-        if(value) {
-            params.set(param, value);
-        }
-        else {
-            params.delete(param)
-        }
-        setSearchParams(params)
-    }
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-    const genreChange = (opt : TLabelValue) => {
-        addParams("genre", opt.value);
-    }
-    // const orderByChange = (opt : TLabelValue) => {
-    //     addParams("orderBy", opt.value);
-    // }
-    useInfiniteScroll(loadMoreRef, fetchNextPage, !!hasNextPage);
+  const { media, genre, fetchNextPage, hasNextPage } = useInfiniteMediaBrowse();
 
-    return (
-        <>
-        <Container title={mediaType === "tv" ? "TV Shows" : "Movies"} className="browse">
-            <div className="browse-controls">
-                <StyledSelect<TLabelValue, false> 
-                    options={[{value: "", label: "All"}, ...TMDB_MEDIA_GENRES]}
-                    value={genre}
-                    onChange={(opt) => genreChange({label: opt?.label ?? "", value: opt?.value ?? ""})}
-                />
-                {/* <StyledSelect<TLabelValue, false> 
-                    options={ORDER_BY_OPTIONS}
-                    value={orderBy}
-                    onChange={(opt) => orderByChange({label: opt?.label ?? "", value: opt?.value ?? ""})}
-                /> */}
-            </div>
+  useInfiniteScroll(loadMoreRef, fetchNextPage, !!hasNextPage);
 
-        </Container>            
+  /** Update URL params */
+  const setParam = (param: string, value: string) => {
+    const params = new URLSearchParams(searchParams);
+    value ? params.set(param, value) : params.delete(param);
+    setSearchParams(params);
+  };
+
+
+  const isSeriesMode = mediaType === "movie" && browseType.value === "movie-series";
+
+  return (
+    <div className={`${mediaType === "movie" ? "movies-browse-page" : ""} browse-page`}>
+      {/* Header + Controls */}
+      <Container
+        title={mediaType === "tv" ? "Browse TV Shows" : "Browse Movies"}
+        className="browse"
+        styled
+      >
+        <div className="browse-controls">
+          {/* Genre filter */}
+          <StyledSelect<TLabelValue, false>
+            options={[{ value: "", label: "All" }, ...TMDB_MEDIA_GENRES]}
+            value={genre}
+            onChange={(opt) =>
+              setParam("genre", opt?.value ?? "")
+            }
+          />
+
+          {/* Movie-only browse type */}
+          {mediaType === "movie" && (
+            <StyledSelect<TLabelValue, false>
+              options={[
+                { value: "browse", label: "Browse" },
+                { value: "movie-series", label: "Movie Series" },
+              ]}
+              value={browseType}
+              onChange={(opt) =>
+                setBrowseType({
+                  value: opt?.value ?? "browse",
+                  label: opt?.label ?? "Browse",
+                })
+              }
+            />
+          )}
+        </div>
+      </Container>
+
+      {/* Content */}
+      {isSeriesMode ? (
+        <MovieSeriesContainer genre={Number(genre?.value) || undefined} />
+      ) : (
         <Container className="browse-results media-grid">
-            {mediaRow}
+          {media.map((m) => (
+            <MediaCard key={m.id} media={m} />
+          ))}
         </Container>
-        <div className="load-more" ref={loadMoreRef} style={{ height: 1}}></div>
-        </>
-    )
-}
+      )}
+
+      {/* Infinite scroll trigger */}
+      <div ref={loadMoreRef} style={{ height: 1 }} />
+    </div>
+  );
+};
