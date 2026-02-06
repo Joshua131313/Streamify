@@ -1,0 +1,66 @@
+body.player-open.modal-player {
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+.player.modal-player {
+    z-index: 10;
+    width: 100%;
+    height: 100dvh;
+    position: fixed;
+    top: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.player.modal-player iframe {
+    width: 100%;
+    border: none;
+    height: calc(100dvh - env(safe-area-inset-bottom, 0px));
+}
+.player iframe {
+    width: 100%;
+    height: 50vh;
+    border: none;
+}
+.player .icon {
+    position: absolute;
+    top: 10px;
+}
+.player .app-icon {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 20px);
+    left: 16px;
+    z-index: 10000;   
+}
+.paused.idle .player iframe {
+    filter: brightness(50%);
+}
+.paused.idle .you-are-watching {
+    display: block;
+}
+.you-are-watching {
+    position: absolute;
+    z-index: 10;
+    top: 50%;
+    transform: translateY(-50%);
+    display: none;
+}
+.you-are-watching .container-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+}
+.you-are-watching .episode-info {
+    display: flex;
+    gap: 15px;
+    font-size: var(--font-sm);
+}
+.you-are-watching img {
+    height: 100px;
+}
+
+@supports not (height: 100dvh) {
+  .player.modal-player {
+    height: 100vh;
+  }
+}
