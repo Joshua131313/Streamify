@@ -51,7 +51,6 @@ export const useMediaBrowse = (page: number) : MediaBrowseResult => {
         endpoint: `/discover/${mediaType}`,
         params,
     })
-    console.log("quer", query.data?.results)
 
     const inferredMediaType = mediaType === "movie" || mediaType === "tv" ? mediaType : undefined;
     const media = useMemo(() => {

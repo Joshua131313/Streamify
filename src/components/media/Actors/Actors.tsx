@@ -9,7 +9,6 @@ interface Props {
 
 export const Actors = (props: Props) => {
     const { actors } = props;
-    console.log(actors)
     const actorsRow = actors?.map(actor => {
         return (
             <ActorCard actor={actor}/>

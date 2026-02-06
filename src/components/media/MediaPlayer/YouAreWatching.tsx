@@ -9,14 +9,12 @@ interface Props {
 }
 
 export const YouAreWatching = ({media}: Props) => {
-    console.log(media)
     const [searchParams] = useSearchParams();
     const season = searchParams.get("season");
     const episode = searchParams.get("episode");
 
     return (
         <>
-        {/* <div className="you-are-watching-overlay"></div> */}
         <Container className="you-are-watching">
             <TMDBImg path={media.logo_path} type="logo" size="w500"/>
             <MediaMetaBadges date={media.date} vote_average={media.vote_average} genre_ids={media.genres?.map(g => g.id) ?? []} />

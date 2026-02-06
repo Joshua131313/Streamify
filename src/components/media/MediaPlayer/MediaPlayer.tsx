@@ -86,7 +86,6 @@ export const MediaPlayer = ({mediaType, media, modal = true} : {mediaType: strin
                 <iframe 
                     src={getMediaSrc()} 
                     allowFullScreen
-                    onPause={() => console.log("paused")}
                 />
             </div>
         )
