@@ -18,7 +18,7 @@ export const RecommendationMedia = ({mediaId, mediaType}: Props) => {
     })
 
     return (
-        <Container title="You may like" className="media-grid" containerId="recommendations">
+        <Container title="You may like" className="media-grid" containerId="similar">
             {recommendedRow}
         </Container>
     )

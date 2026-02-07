@@ -22,7 +22,7 @@ const navLinks : {path: string, Icon: IconType, label: string}[] = [
     {
         path: "/discover?media=tv",
         Icon: FaTv,
-        label: "TV Shows"
+        label: "Shows"
     },
     {
         path: "/search",

@@ -116,15 +116,13 @@ export const Trailer = (props : Props) => {
                     <PlayButton mediaId={mediaId} mediaType={mediaType}/>
                     <Icon Icon={FaPlus}/>
                     {
-                        mediaType === "movie" ? 
-                        <Icon Icon={FaDownload}/> 
-                        : 
+                        mediaType === "tv" &&
                         <a href="#episodes">
                             <Button className="secondary">Episodes</Button>
                         </a>
                     }
                     <a href="#similar">
-                        <Button className="secondary">Similars</Button>
+                        <Button className="secondary">Similar</Button>
                     </a>
                 </div>
             </div>

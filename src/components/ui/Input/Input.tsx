@@ -1,6 +1,7 @@
 import type { InputHTMLAttributes } from "react"
 import type { IconType } from "react-icons"
 import "./Input.css"
+import { Button } from "../Button/Button";
 
 interface Props extends InputHTMLAttributes<HTMLInputElement> {
     Icon?: IconType;

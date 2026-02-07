@@ -245,9 +245,26 @@
         --media-card-width: 110px;
         --media-card-height: 200px;
     }
+    .media-title {
+        font-size: var(--font-xs);
+    }
+    .media-info {
+        font-size: var(--font-xs);
+    }
 }
 
-
+@media (max-width: 370px) {
+    :root {
+        --media-card-width: 100px;
+        --media-card-height: 190px;
+    }
+}
+@media (max-width: 340px) {
+    :root {
+        --media-card-width: 90px;
+        --media-card-height: 180px;
+    }
+}
 @keyframes skeleton-pulse {
   0%, 100% {
     opacity: 1;
