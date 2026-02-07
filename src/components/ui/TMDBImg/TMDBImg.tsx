@@ -29,8 +29,6 @@ export const TMDBImg = <T extends TMDBImageType>({
     onLoad?.(e); // preserve external onLoad
   };
 
-  if (!src) return null;
-
   return (
     <>
       <img
