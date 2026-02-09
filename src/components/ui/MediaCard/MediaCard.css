@@ -200,6 +200,13 @@
 .media-card:hover img {
     filter: opacity(90%);
 }
+@media (hover: none) and (pointer: coarse) {
+   .media-card .save-media-button {
+        pointer-events: all;
+        opacity: 1;
+        top: 5px;
+    }
+}
 
 @media (max-width: 900px) {
     .episode-card {

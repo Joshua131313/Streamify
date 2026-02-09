@@ -7,6 +7,7 @@ import { NavLink } from "react-router-dom"
 import { Mobilebar } from "./Mobilebar"
 import type { IconType } from "react-icons"
 import { AppNavLink } from "./AppNavLink"
+import { BsBookmarkFill } from "react-icons/bs"
 
 const navLinks : {path: string, Icon: IconType, label: string}[] = [
     {
@@ -25,10 +26,16 @@ const navLinks : {path: string, Icon: IconType, label: string}[] = [
         label: "Shows"
     },
     {
+        path: "/saved",
+        Icon: BsBookmarkFill,
+        label: "Saved"
+    },
+    {
         path: "/search",
         Icon: FaSearch,
         label: "Search"
     },
+
 ]
 
 export const NavLinks = () => {

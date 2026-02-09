@@ -63,7 +63,7 @@
 .mobile-bar-spacer {
     display: none;
 }
-@media (max-width: 600px) {
+@media (max-width: 700px) {
     .navbar .nav-links {
         display: none;
     }
@@ -82,8 +82,24 @@
         margin-top: 2px;
     }
 }
+@media (max-width: 500px) {
+    .mobile-bar .nav-links {
+        gap: 10px;
+        justify-content: space-between;
+    } 
+}
 @media (max-width: 400px) {
     .mobile-bar .nav-link span {
         font-size: var(--font-xs);
     }
+
+}
+@media (max-width: 370px) {
+    .mobile-bar .nav-link svg {
+        font-size: 14px;
+    }
+    .mobile-bar .nav-link span {
+        font-size: 10px
+    }
+
 }

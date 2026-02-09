@@ -8,7 +8,7 @@ import { useEffect, useState } from "react"
 export const SaveMediaButton = ({media} : {media: TMDBMedia}) => {
     const { has, remove, append } = useLocalStorage();
     const [isSaved, setIsSaved] = useState(false);
-console.log(isSaved)
+
     const handleClick = () => {
         if(isSaved) {
             setIsSaved(false);

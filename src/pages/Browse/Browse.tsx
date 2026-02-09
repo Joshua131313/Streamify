@@ -15,6 +15,7 @@ import { MovieSeriesContainer } from "../../components/layout/Container/MovieSer
 import "./Browse.css";
 import { PageHeader } from "../../components/ui/PageHeader/PageHeader";
 import { getGenresByMedia } from "../../data/TMDBGenres";
+import { GenreFilter } from "../../components/ui/GenreFilter/GenreFilter";
 
 export const Browse = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -49,13 +50,14 @@ export const Browse = () => {
         subTitle={`Explore thousands of ${mediaType === "movie" ? "movies" : "show"} in the catalog.`}
         controls={
           <>
-          <StyledSelect<TLabelValue, false>
+          <GenreFilter mediaType={mediaType} includeAll/>
+          {/* <StyledSelect<TLabelValue, false>
             options={[{ value: "", label: "All" }, ...getGenresByMedia(mediaType)]}
             value={genre}
             onChange={(opt) =>
               setParam("genre", opt?.value ?? "")
             }
-          />
+          /> */}
 
           {/* Movie-only browse type */}
           {mediaType === "movie" && (
