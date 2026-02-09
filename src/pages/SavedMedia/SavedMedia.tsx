@@ -19,7 +19,7 @@ export const SavedMedia = () => {
         : savedMedia;
 
     return (
-        <Container className="saved-media-page">
+        <div className="saved-media-page">
             <PageHeader 
                 title="Saved Media"
                 subTitle="Browse all saved for later movies and TV shows"
@@ -36,6 +36,6 @@ export const SavedMedia = () => {
                     ))
                 }
             </Container>
-        </Container>
+        </div>
     )
 }
