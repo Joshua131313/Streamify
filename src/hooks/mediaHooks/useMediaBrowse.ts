@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import type { TLabelValue, TMDBListResponse, TMDBMediaQueryResult, TMediaType } from "../../types/tmdb";
 import { useSearchParams } from "react-router-dom";
-import { TMDB_MEDIA_GENRES } from "../../data/TMDBGenres";
 // import { ORDER_BY_OPTIONS, sortMap } from "../../data";
 import { useTMDBQuery } from "./tmdbHooks/useTMDBQuery";
 import { normalizeTMDBMedia } from "../../utils/normalizeTMDB";
+import { TMDB_GENRES } from "../../data/TMDBGenres";
 
 type MediaBrowseResult = TMDBMediaQueryResult & {
     genre: TLabelValue | null;
@@ -19,7 +19,7 @@ export const useMediaBrowse = (page: number) : MediaBrowseResult => {
     const urlGenre = searchParams.get("genre");
     // const urlOrderBy = searchParams.get("orderBy");
 
-    const genre = TMDB_MEDIA_GENRES.find(x => x.value === urlGenre) ?? null;
+    const genre = TMDB_GENRES.find(x => x.value === urlGenre) ?? null;
 
     // const orderBy = ORDER_BY_OPTIONS.find(x => x.value === urlOrderBy) ?? null;
 
