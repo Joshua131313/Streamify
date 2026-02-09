@@ -11,38 +11,44 @@ import { MediaMetaBadges, type MediaMetaBadgesProps } from "../MediaMetaBadges/M
 import { PlayButton } from "../Button/PlayButton";
 import type { TMediaType } from "../../../types/tmdb.ts";
 import { Button } from "../Button/Button";
+import { SaveMediaButton } from "../Button/SaveMediaButton.tsx";
+import type { TMDBMedia } from "../../../types/TMDBMediaType.ts";
+import { useMediaLayoutContext } from "../../layout/MediaLayout/MediaLayoutContext.tsx";
+import { getOfficialYoutubeTrailerId } from "../../../utils/helpers.ts";
 
 interface Props {
-    backdrop_path: string;
-    logo_path: string;
-    trailer_id: string;
-    mediaMetaBadgesProps: MediaMetaBadgesProps;
-    description: string;
-    mediaId: number;
-    mediaType: TMediaType;
+    // backdrop_path: string;
+    // logo_path: string;
+    // trailer_id: string;
+    // mediaMetaBadgesProps: MediaMetaBadgesProps;
+    // description: string;
+    // mediaId: number;
+    // mediaType: TMediaType;
+    // media: TMDBMedia;
 }
 
 export const Trailer = (props : Props) => {
-    const { backdrop_path, trailer_id, logo_path, mediaMetaBadgesProps, description, mediaId, mediaType } = props;
+    // const { backdrop_path, trailer_id, logo_path, mediaMetaBadgesProps, description, mediaId, mediaType } = props;
+    const { media, mediaType } = useMediaLayoutContext();
     const [playing, setPlaying] = useState(false);
     const [muted, setMuted] = useState(true);
     const playerRef = useRef<any>(null);
     const trailerContainerRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
-
+    const trailerId = getOfficialYoutubeTrailerId(media.videos ?? [])
     const opts: YouTubeProps["opts"] = {
         width: "100%",
         height: "100%",
         playerVars: {
-        autoplay: 1,
-        mute: 1,
-        controls: 0,
-        rel: 0,
-        modestbranding: 1,
-        disablekb: 1,
-        playsinline: 1,
-        loop: 1,
-        playlist: trailer_id, 
+            autoplay: 1,
+            mute: 1,
+            controls: 0,
+            rel: 0,
+            modestbranding: 1,
+            disablekb: 1,
+            playsinline: 1,
+            loop: 1,
+            playlist: trailerId, 
         },
     };
 
@@ -105,16 +111,18 @@ export const Trailer = (props : Props) => {
         <div className="trailer-info">
             <div className="inner-trailer-info">
                 <div className="img-placeholder"></div>
-                <TMDBImg type="logo" size="w500" path={logo_path} />
+                <TMDBImg type="logo" size="w500" path={media.logo_path} />
                 <MediaMetaBadges 
-                    {...mediaMetaBadgesProps}
+                    date={media.date}
+                    genre_ids={media.genre_ids}
+                    vote_average={media.vote_average}
                 />
                 <div className="description">
-                    {description}
+                    {media.overview}
                 </div>
                 <div className="trailer-action-buttons flex">
-                    <PlayButton mediaId={mediaId} mediaType={mediaType}/>
-                    <Icon Icon={FaPlus}/>
+                    <PlayButton mediaId={media.id} mediaType={mediaType}/>
+                    <SaveMediaButton media={media}/>
                     {
                         mediaType === "tv" &&
                         <a href="#episodes">
@@ -130,11 +138,11 @@ export const Trailer = (props : Props) => {
         <TMDBImg 
             type="backdrop"
             size="w1280"
-            path={backdrop_path} 
+            path={media.backdrop_path} 
             className={`trailer-backdrop ${playing ? "fade-out" : ""}`}
         />
         <YouTube
-            videoId={trailer_id}
+            videoId={trailerId}
             opts={opts}
             onEnd={onEnd}
             className="yt-iframe"

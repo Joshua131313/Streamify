@@ -1,9 +1,9 @@
 
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
-import { TMDB_MEDIA_GENRES } from "../../data/TMDBGenres";
 import { normalizeTMDBMedia } from "../../utils/normalizeTMDB";
 import axios from "axios";
+import { TMDB_GENRES } from "../../data/TMDBGenres";
 
 export const useInfiniteMediaBrowse = () => {
   const [searchParams] = useSearchParams();
@@ -15,7 +15,7 @@ export const useInfiniteMediaBrowse = () => {
   const urlGenre = searchParams.get("genre");
 
   const genre =
-    TMDB_MEDIA_GENRES.find(x => x.value === urlGenre) ?? null;
+    TMDB_GENRES.find(x => x.value === urlGenre) ?? null;
 
   const query = useInfiniteQuery({
     queryKey: ["browse", mediaType, urlGenre],

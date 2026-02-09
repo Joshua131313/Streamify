@@ -1,8 +1,6 @@
 
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation } from 'swiper/modules';
-
-
 import "./MediaRail.css"
 import { useMediaRail } from './MediaRailContext';
 import { MediaCard } from '../../ui/MediaCard/MediaCard';

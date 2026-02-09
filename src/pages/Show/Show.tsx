@@ -12,6 +12,7 @@ import "./Show.css"
 import { Icon } from "../../components/ui/Icon/Icon";
 import { StyledSelect } from "../../components/ui/StyledSelect/StyledSelect";
 import { EpisodesContainer } from "./EpisodesContainer";
+import { MediaLayoutProvider } from "../../components/layout/MediaLayout/MediaLayoutContext";
 
 
 

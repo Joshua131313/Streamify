@@ -10,8 +10,8 @@ interface Props {
 export const Icon = ({Icon, className, onClick} : Props) => {
     
     return (
-        <div className="app-icon" onClick={() => onClick && onClick()}>
-            <Icon className={`${className}`}/>
+        <div className={`app-icon ${className}`} onClick={() => onClick && onClick()}>
+            <Icon/>
         </div>
     )
 }

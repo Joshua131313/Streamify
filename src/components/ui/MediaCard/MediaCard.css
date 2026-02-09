@@ -185,6 +185,21 @@
 .still-container .time {
     bottom: 5px;
 }
+.media-card .save-media-button {
+    position: absolute;
+    right: 10px;
+    opacity: 0;
+    pointer-events: none;
+    top: -10px;
+}
+.media-card:hover .save-media-button {
+    pointer-events: all;
+    opacity: 1;
+    top: 5px;
+}
+.media-card:hover img {
+    filter: opacity(90%);
+}
 
 @media (max-width: 900px) {
     .episode-card {

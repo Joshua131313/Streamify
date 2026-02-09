@@ -10,6 +10,7 @@ import { RecommendationMedia } from "../../media/RecommendationMedia/Recommendat
 import { Actors } from "../../media/Actors/Actors";
 import { createPortal } from "react-dom";
 import { MediaPlayer } from "../../media/MediaPlayer/MediaPlayer";
+import { MediaLayoutProvider } from "./MediaLayoutContext";
 
 interface Props {
     media: TMDBMedia;
@@ -30,37 +31,24 @@ export const MediaLayout = ({media, isLoading, error, mediaType, containerId, ch
         return <div className="loading"></div>
     }
     return (
-        <div className={`media-layout media-page ${mediaType}`} id={containerId}>
-            <Trailer 
-                logo_path={media?.logo_path ?? ""}
-                trailer_id={media?.videos?.find(x=> x.official && x.type === "Trailer" && x.site === "YouTube")?.key ?? ""}
-                backdrop_path={media?.backdrop_path ?? ""}
-                mediaMetaBadgesProps={{
-                    date: media?.date ?? "",
-                    genre_ids: media?.genres?.map(g => g.id) ?? [],
-                    vote_average: media?.vote_average ?? 0,
-                }}
-                description={media?.overview ?? ""}
-                mediaId={media?.id ?? 0}
-                mediaType={mediaType}
-            />
-           {
-            shouldPlay && 
-            <MediaPlayer 
-                media={media} 
-                mediaType={mediaType}
-            />
-           }
-            <div className="media-layout-content">
-                {children}
+        <MediaLayoutProvider media={media} mediaType={mediaType}>
+            <div className={`media-layout media-page ${mediaType}`} id={containerId}>
+                <Trailer />
+                {
+                    shouldPlay && 
+                    <MediaPlayer />
+                }
+                <div className="media-layout-content">
+                    {children}
+                </div>
+                <Actors 
+                    actors={media.credits?.cast}
+                />
+                <RecommendationMedia 
+                    mediaType={mediaType}
+                    mediaId={media.id}
+                />
             </div>
-            <Actors 
-                actors={media.credits?.cast}
-            />
-            <RecommendationMedia 
-                mediaType={mediaType}
-                mediaId={media.id}
-            />
-        </div>
+        </MediaLayoutProvider>
     )
 }

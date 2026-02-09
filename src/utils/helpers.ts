@@ -1,5 +1,6 @@
 import { providers } from "../data/providers";
 import type { TStreamCategories, TStreamProviders } from "../types/tmdb";
+import type { TMDBVideo } from "../types/TMDBMediaType";
 
 export const getTMDBEndpointByCategory = (
   type: "movie" | "tv",
@@ -29,3 +30,8 @@ export const getTMDBEndpointByCategory = (
 };
 
 export const isMobile = () => window.innerWidth < 768;
+
+
+export const getOfficialYoutubeTrailerId = (videos : TMDBVideo[]) : string => {
+  return videos?.find(x=> x.official && x.type === "Trailer" && x.site === "YouTube")?.key ?? ""
+}

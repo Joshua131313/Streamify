@@ -1,6 +1,6 @@
 import type { TLabelValue, TStreamCategories } from "../types/tmdb";
 import { providers } from "../data/providers";
-import { TMDB_MAIN_GENRES } from "../data/TMDBGenres";
+import { getMainGenres } from "../data/TMDBGenres";
 
 const MOVIE_TV_TABS = [ 
     { label: "Movies", value: "movie" },
@@ -20,7 +20,7 @@ export const getCategoryTabs = (category : TStreamCategories) : TLabelValue[] =>
         case "top_rated":
             return MOVIE_TV_TABS;
         case "byGenre":
-            return TMDB_MAIN_GENRES
+            return getMainGenres("movie");
 
     }
 }

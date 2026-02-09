@@ -12,7 +12,7 @@ const navLinks : {path: string, Icon: IconType, label: string}[] = [
     {
         path: "/",
         Icon: FaHome,
-        label: "Home"
+        label: "Discover"
     },
     {
         path: "/discover?media=movie",

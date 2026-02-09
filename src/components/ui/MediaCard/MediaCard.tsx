@@ -4,6 +4,7 @@ import { FaStar } from "react-icons/fa";
 import type { TMDBMedia } from "../../../types/TMDBMediaType";
 import { Link } from "react-router-dom";
 import { TMDBImg } from "../TMDBImg/TMDBImg";
+import { SaveMediaButton } from "../Button/SaveMediaButton";
 
 interface Props {
     media: TMDBMedia;
@@ -12,8 +13,8 @@ interface Props {
 export const MediaCard = (props: Props)  => {
     const { media } = props
     return (
-       <Link to={`/${media.mediaType}/${media.id}`}>
-            <div className="media-card">
+       <div className="media-card">
+            <Link to={`/${media.mediaType}/${media.id}`}>
                 <TMDBImg type="poster" size="w342" path={media.poster_path ?? ""}/>
                 <div className="media-card-overlay"></div>
                 <div className="media-info flex-col">
@@ -26,7 +27,8 @@ export const MediaCard = (props: Props)  => {
                         </div>
                     </div>
                 </div>
-            </div>
-       </Link>
+            </Link>
+            <SaveMediaButton media={media}/>
+       </div>
     )
 }

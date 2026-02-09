@@ -3,13 +3,12 @@ import type { TMDBMedia } from "../../../types/TMDBMediaType"
 import { MediaMetaBadges } from "../../ui/MediaMetaBadges/MediaMetaBadges";
 import { TMDBImg } from "../../ui/TMDBImg/TMDBImg";
 import { Container } from "../../layout/Container/Container";
+import { useMediaLayoutContext } from "../../layout/MediaLayout/MediaLayoutContext";
 
-interface Props {
-    media: TMDBMedia;
-}
 
-export const YouAreWatching = ({media}: Props) => {
+export const YouAreWatching = () => {
     const [searchParams] = useSearchParams();
+    const { media } = useMediaLayoutContext();
     const season = searchParams.get("season");
     const episode = searchParams.get("episode");
 

@@ -10,11 +10,12 @@ import { useTMDBQuery } from "../../hooks/mediaHooks/tmdbHooks/useTMDBQuery"
 import { normalizeTMDBMedia } from "../../utils/normalizeTMDB"
 import { useSearchMedia } from "../../hooks/mediaHooks/useSearchMedia"
 import type { TMediaType } from "../../types/tmdb"
-type Option = {
+import { PageHeader } from "../../components/ui/PageHeader/PageHeader"
+export type Option = {
     value: TMediaType | "multi";
     label: string;
 };
-const selectOptions : Option[] = [
+export const selectOptions : Option[] = [
     {
         value: "multi",
         label: "All",
@@ -47,7 +48,28 @@ export const Search = () => {
 
     return (
         <div className="search-page">
-            <Container className="search-container">
+            <PageHeader 
+                title="Browse Through The Catalog"
+                subTitle="Search through thousands of movies, TV shows and anime series"
+                controls={
+                    <>
+                        <StyledSelect<Option, false> 
+                            options={selectOptions}
+                            value={option}
+                            onChange={(opt) => setOption({label: opt?.label ?? "", value: opt?.value ?? "multi"})}
+                        />
+                        <Input 
+                            autoFocus
+                            Icon={FaSearch}
+                            placeholder="Type here to search"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && executeSearch()}
+                        />
+                    </>
+                }
+            />
+            {/* <Container className="search-container">
                 <div className="search-title">
                     <h1>Browse Through The Catalog</h1>
                     <span>Search through thousands of movies, TV shows and anime series</span>
@@ -67,7 +89,7 @@ export const Search = () => {
                         onKeyDown={(e) => e.key === "Enter" && executeSearch()}
                     />
                 </Container>
-            </Container>
+            </Container> */}
             <Container title={searchResultsRow.length ? "Search Results" : "Trending Today"} className="media-grid">
                 {
                     searchResultsRow.length ? 

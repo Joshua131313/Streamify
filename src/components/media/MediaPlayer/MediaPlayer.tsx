@@ -4,11 +4,12 @@ import { createPortal } from "react-dom"
 import { useSearchParams } from "react-router-dom"
 import { useEffect } from "react"
 import "./MediaPlayer.css"
-import type { TMDBMedia } from "../../../types/TMDBMediaType"
 import { YouAreWatching } from "./YouAreWatching"
+import { useMediaLayoutContext } from "../../layout/MediaLayout/MediaLayoutContext"
 
-export const MediaPlayer = ({mediaType, media, modal = true} : {mediaType: string, media: TMDBMedia, modal?: boolean}) => {
+export const MediaPlayer = ({ modal = true} : { modal?: boolean}) => {
     const [searchParams, setSearchParams] = useSearchParams();
+    const { media, mediaType } = useMediaLayoutContext();
 
     const cancelPlay = () => {
         searchParams.delete("play");
@@ -29,11 +30,9 @@ export const MediaPlayer = ({mediaType, media, modal = true} : {mediaType: strin
         if(modal) {
             document.body.classList.add("player-open");
             const scrollY = window.scrollY;
-
             document.body.style.position = "fixed";
             document.body.style.top = `-${scrollY}px`;
             document.body.style.width = "100%";
-
             return () => {
                 const scrollY = document.body.style.top;
                 document.body.style.position = "";
@@ -82,7 +81,7 @@ export const MediaPlayer = ({mediaType, media, modal = true} : {mediaType: strin
         return (
             <div className={`player ${modal ? "modal-player" : ""}`} role="dialog" aria-modal="true">
                 {modal && <Icon Icon={FaLongArrowAltLeft} onClick={cancelPlay}/>}
-                <YouAreWatching media={media}/>
+                <YouAreWatching />
                 <iframe 
                     src={getMediaSrc()} 
                     allowFullScreen

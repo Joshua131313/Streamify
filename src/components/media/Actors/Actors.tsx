@@ -11,7 +11,7 @@ export const Actors = (props: Props) => {
     const { actors } = props;
     const actorsRow = actors?.map(actor => {
         return (
-            <ActorCard actor={actor}/>
+            <ActorCard actor={actor} key={actor.id}/>
         )
     })
 

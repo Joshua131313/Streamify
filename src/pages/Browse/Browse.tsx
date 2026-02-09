@@ -4,8 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { Container } from "../../components/layout/Container/Container";
 import { StyledSelect } from "../../components/ui/StyledSelect/StyledSelect";
 
-import { TMDB_MEDIA_GENRES } from "../../data/TMDBGenres";
-import type { TLabelValue } from "../../types/tmdb";
+import type { TLabelValue, TMediaType } from "../../types/tmdb";
 
 import { useInfiniteMediaBrowse } from "../../hooks/mediaHooks/useInfiniteMediaBrowse";
 import { useInfiniteScroll } from "../../hooks/utilHooks/useInfiniteScroll";
@@ -14,10 +13,12 @@ import { MediaCard } from "../../components/ui/MediaCard/MediaCard";
 import { MovieSeriesContainer } from "../../components/layout/Container/MovieSeriesContainer/MovieSeriesContainer";
 
 import "./Browse.css";
+import { PageHeader } from "../../components/ui/PageHeader/PageHeader";
+import { getGenresByMedia } from "../../data/TMDBGenres";
 
 export const Browse = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const mediaType = searchParams.get("media") ?? "movie";
+  const mediaType: TMediaType = searchParams.get("media") === "movie" ? "movie" : "tv";
 
   const [browseType, setBrowseType] = useState<TLabelValue>({
     value: "browse",
@@ -41,17 +42,15 @@ export const Browse = () => {
   const isSeriesMode = mediaType === "movie" && browseType.value === "movie-series";
 
   return (
-    <div className={`${mediaType === "movie" ? "movies-browse-page" : ""} browse-page`}>
+    <div className={`${mediaType === "movie" ? "movies-browse-page" : "shows-browse-page"} browse-page`}>
       {/* Header + Controls */}
-      <Container
+      <PageHeader 
         title={mediaType === "tv" ? "Browse TV Shows" : "Browse Movies"}
-        className="browse"
-        styled
-      >
-        <div className="browse-controls">
-          {/* Genre filter */}
+        subTitle={`Explore thousands of ${mediaType === "movie" ? "movies" : "show"} in the catalog.`}
+        controls={
+          <>
           <StyledSelect<TLabelValue, false>
-            options={[{ value: "", label: "All" }, ...TMDB_MEDIA_GENRES]}
+            options={[{ value: "", label: "All" }, ...getGenresByMedia(mediaType)]}
             value={genre}
             onChange={(opt) =>
               setParam("genre", opt?.value ?? "")
@@ -74,8 +73,9 @@ export const Browse = () => {
               }
             />
           )}
-        </div>
-      </Container>
+          </>
+        }
+      />
 
       {/* Content */}
       {isSeriesMode ? (

@@ -2,22 +2,22 @@ import { FaStar } from "react-icons/fa"
 import { MediaBadge } from "./MediaBadge"
 import "./MediaMetaBadges.css"
 import { HiOutlineCalendar } from "react-icons/hi2";
-import { TMDB_MEDIA_GENRES } from "../../../data/TMDBGenres";
+import { TMDB_GENRES, type TGenre } from "../../../data/TMDBGenres";
 
 export interface MediaMetaBadgesProps {
     genresLimit?: number;
-    genre_ids: number[];
+    genre_ids: number[] | undefined;
     vote_average: number;
     date: string;
 }
 
 export const MediaMetaBadges = (props: MediaMetaBadgesProps) => {
-    const { genre_ids, vote_average, date, genresLimit = genre_ids.length } = props
+    const { genre_ids, vote_average, date, genresLimit = genre_ids?.length } = props
     const genresRow = genre_ids?.slice(0, genresLimit).map(genreId => {
         return (
             <MediaBadge 
                 key={genreId}
-                text={TMDB_MEDIA_GENRES.find(x=> x.value === genreId.toString())?.label ?? ""}
+                text={TMDB_GENRES.find((x : TGenre)=> x.value === genreId.toString())?.label ?? ""}
             />
         )
     })
