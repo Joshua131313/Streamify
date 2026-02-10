@@ -57,6 +57,7 @@ export const EpisodesContainer = ({show} : Props) => {
                 <Title 
                     id="episodes"
                     title="Episodes"
+                    className="app-container episodes-title"
                 />
             </div>
             <Container className="season-selector-container" styled>

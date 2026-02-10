@@ -115,3 +115,8 @@
         display: none;
     }
 }
+@media (max-width: 600px) {
+    .swiper.top-10-media-swiper {
+        padding-bottom: 10px;
+    }
+}
