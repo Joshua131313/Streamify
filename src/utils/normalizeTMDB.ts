@@ -1,3 +1,4 @@
+import type { TMediaType } from "../types/tmdb";
 import type { TMDBMedia, TMDBMovieMedia, TMDBRawMedia, TMDBShowMedia } from "../types/TMDBMediaType";
 import type { TMDBRawMovie } from "../types/TMDBMovieType";
 import type { TMDBRawShow } from "../types/TMDBShowType";
@@ -107,19 +108,31 @@ export function normalizeShow(show: TMDBRawShow): TMDBShowMedia {
 
 export const normalizeTMDBMedia = (
   items: TMDBRawMedia[] = [],
-  count?: number
+  params?: {
+    defaultMediaType?: TMediaType,
+    count?: number,
+  }
 ): TMDBMedia[] => {
+  const count = params?.count;
+  const defaultMediaType = params?.defaultMediaType;
   const filtered = items.filter(
     (x) =>
-      (x.media_type === "movie" || x.media_type === "tv") &&
+      (x.media_type !== "person") &&
       Boolean(x.backdrop_path)
   );
 
-  const normalized = filtered.map((x) =>
-    x.media_type === "movie"
-      ? normalizeMovie(x as TMDBRawMovie)
-      : normalizeShow(x as TMDBRawShow)
-  );
+  const normalized = filtered.map((x) => {
+    if(x.media_type) {
+      return x.media_type === "movie"
+        ? normalizeMovie(x as TMDBRawMovie)
+        : normalizeShow(x as TMDBRawShow)
+    }
+    else {
+      return defaultMediaType === "movie" 
+        ? normalizeMovie(x as TMDBRawMovie)
+        : normalizeShow(x as TMDBRawShow)
+    }
+  });
 
   return typeof count === "number"
     ? normalized.slice(0, count)

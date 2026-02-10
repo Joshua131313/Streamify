@@ -26,7 +26,6 @@ export const MediaLayout = ({media, isLoading, error, mediaType, containerId, ch
     const shouldPlay = searchParams.has("play");
 
 
-
     if(isLoading || !media) {
         return <div className="loading"></div>
     }
@@ -47,6 +46,7 @@ export const MediaLayout = ({media, isLoading, error, mediaType, containerId, ch
                 <RecommendationMedia 
                     mediaType={mediaType}
                     mediaId={media.id}
+                    genre={media?.genres?.[0]?.id ?? 0}
                 />
             </div>
         </MediaLayoutProvider>

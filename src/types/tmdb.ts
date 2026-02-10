@@ -6,7 +6,7 @@ export type TStreamCategories = "top10" | "trending" | "top_rated" | "byGenre" |
 
 export type TStreamProviders = "netflix" | "prime" | "max" | "disney" | "appletv" | "paramount"
 
-export type TMediaType = "movie" | "tv";
+export type TMediaType = "movie" | "tv"| "person";
 
 export type TMediaRailVariant = "normal" | "top10"
 

@@ -13,6 +13,7 @@ export interface MediaMetaBadgesProps {
 
 export const MediaMetaBadges = (props: MediaMetaBadgesProps) => {
     const { genre_ids, vote_average, date, genresLimit = genre_ids?.length } = props
+
     const genresRow = genre_ids?.slice(0, genresLimit).map(genreId => {
         return (
             <MediaBadge 
@@ -21,6 +22,7 @@ export const MediaMetaBadges = (props: MediaMetaBadgesProps) => {
             />
         )
     })
+    
     return (
         <div className="media-meta-badges">
             <div className="general-badges">

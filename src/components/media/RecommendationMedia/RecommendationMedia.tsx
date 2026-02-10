@@ -7,10 +7,11 @@ import "./RecommendationMedia.css"
 interface Props {
     mediaType: TMediaType;
     mediaId: number;
+    genre: number;
 }
 
-export const RecommendationMedia = ({mediaId, mediaType}: Props) => {
-    const { media: recommended } = useRecommendedMedia({mediaId, mediaType, count: 15});
+export const RecommendationMedia = ({mediaId, mediaType, genre}: Props) => {
+    const { media: recommended } = useRecommendedMedia({mediaId, mediaType, genre, count: 15});
     const recommendedRow = recommended.map(media => {
         return (
             <MediaCard media={media}/>

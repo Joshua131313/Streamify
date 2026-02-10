@@ -14,7 +14,7 @@ export const useTMDBQuery = <T = any>({
 }: TMDBQueryProps) => {
     
   return useQuery<T>({
-    queryKey: ["tmdb", endpoint, params],
+    queryKey: ["tmdb", endpoint, JSON.stringify(params)],
     queryFn: async () => {
       const res = await axios.get(
         `https://api.themoviedb.org/3${endpoint}`,

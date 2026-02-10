@@ -95,7 +95,6 @@ export const Trailer = (props : Props) => {
         }, 5000)
     }
 
-
     return (
        <div ref={trailerContainerRef} className={`trailer trailer-hovered`}onMouseMove={handleMouseMove} onMouseOver={handleMouseOver} onMouseLeave={handleMouseLeave}>
         <div className="trailer-controls">
@@ -114,7 +113,7 @@ export const Trailer = (props : Props) => {
                 <TMDBImg type="logo" size="w500" path={media.logo_path} />
                 <MediaMetaBadges 
                     date={media.date}
-                    genre_ids={media.genre_ids}
+                    genre_ids={media.genres?.map(g => g.id)}
                     vote_average={media.vote_average}
                 />
                 <div className="description">

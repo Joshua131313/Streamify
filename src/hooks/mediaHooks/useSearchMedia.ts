@@ -24,14 +24,9 @@ export const useSearchMedia = (searchType: TMediaType | "multi") : MediaSearchQu
         },
         enabled: !!search
     })
-    const inferredMediaType = searchType === "movie" || searchType === "tv" ? searchType : undefined;
     const media = useMemo(() => {
         const results = query.data?.results || [];
-        const normalizedInput = inferredMediaType ? 
-            results.map((item) => ({...item, media_type: inferredMediaType})) // inject media_type since tmdb will not attach it if searching for specifically movie or tv
-            : 
-            results
-        return normalizeTMDBMedia(normalizedInput);
+        return normalizeTMDBMedia(results, {defaultMediaType: searchType === "movie" ? "movie" : "tv"});
     }, [query.data?.results]);
     
     return {

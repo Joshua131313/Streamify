@@ -52,14 +52,9 @@ export const useMediaBrowse = (page: number) : MediaBrowseResult => {
         params,
     })
 
-    const inferredMediaType = mediaType === "movie" || mediaType === "tv" ? mediaType : undefined;
     const media = useMemo(() => {
         const results = query.data?.results || [];
-        const normalizedInput = inferredMediaType ? 
-            results.map((item) => ({...item, media_type: inferredMediaType})) // inject media_type since tmdb will not attach it if searching for specifically movie or tv
-            : 
-            results
-        return normalizeTMDBMedia(normalizedInput);
+        return normalizeTMDBMedia(results);
     }, [query.data?.results]);
 
 

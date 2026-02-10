@@ -53,12 +53,11 @@ export const useInfiniteMediaBrowse = () => {
 
   const media =
     query.data?.pages
-      .flatMap(p => p.results)
-      .map(item => ({ ...item, media_type: mediaType })) ?? [];
+      .flatMap(p => p.results);
 
   return {
     ...query,
-    media: normalizeTMDBMedia(media),
+    media: normalizeTMDBMedia(media, {defaultMediaType: mediaType}),
     genre,
   };
 };

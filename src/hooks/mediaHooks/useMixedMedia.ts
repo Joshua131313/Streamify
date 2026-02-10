@@ -13,7 +13,7 @@ export const useMixedMedia = (
   });
 
   const media = useMemo(() => {
-    return normalizeTMDBMedia(query.data?.results, count);
+    return normalizeTMDBMedia(query.data?.results, {count});
   }, [query.data?.results, count]);
 
   return {
