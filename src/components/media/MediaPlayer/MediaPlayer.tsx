@@ -61,9 +61,18 @@ export const MediaPlayer = ({ modal = true} : { modal?: boolean}) => {
                 return;
             }
             const type = data?.data.event;
-
             if (type === "pause") {
                 document.body.classList.add("paused");
+                // update episode and season if changed
+                if(data.data.mediaType === "tv") {
+                    const episode = data.data.episode;
+                    const season = data.data.season;
+                    if(episode != searchParams.get("episode") || season != searchParams.get("season")) {
+                        searchParams.set("episode", episode);
+                        searchParams.set("season", season);
+                        setSearchParams(searchParams);
+                    }
+                }
             }
 
             if (type === "play") {
