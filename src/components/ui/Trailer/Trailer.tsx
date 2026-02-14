@@ -1,12 +1,12 @@
 import type { YouTubeProps } from "react-youtube";
 import "./Trailer.css"
 import YouTube from "react-youtube";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TMDBImg } from "../TMDBImg/TMDBImg";
 import {  FaDownload, FaLongArrowAltLeft, FaPlus, FaVolumeMute } from "react-icons/fa";
 import { Icon } from "../Icon/Icon";
 import { FaVolumeHigh } from "react-icons/fa6";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { MediaMetaBadges, type MediaMetaBadgesProps } from "../MediaMetaBadges/MediaMetaBadges";
 import { PlayButton } from "../Button/PlayButton";
 import type { TMediaType } from "../../../types/tmdb.ts";
@@ -15,6 +15,7 @@ import { SaveMediaButton } from "../Button/SaveMediaButton.tsx";
 import type { TMDBMedia } from "../../../types/TMDBMediaType.ts";
 import { useMediaLayoutContext } from "../../layout/MediaLayout/MediaLayoutContext.tsx";
 import { getOfficialYoutubeTrailerId } from "../../../utils/helpers.ts";
+import { useLocalStorage } from "../../../hooks/utilHooks/useLocalStorage.ts";
 
 interface Props {
     // backdrop_path: string;
@@ -28,6 +29,8 @@ interface Props {
 }
 
 export const Trailer = (props : Props) => {
+    const [searchParams] = useSearchParams();
+    const { set } = useLocalStorage()
     // const { backdrop_path, trailer_id, logo_path, mediaMetaBadgesProps, description, mediaId, mediaType } = props;
     const { media, mediaType } = useMediaLayoutContext();
     const [playing, setPlaying] = useState(false);
@@ -94,7 +97,6 @@ export const Trailer = (props : Props) => {
             el.classList.remove("trailer-hovered");
         }, 5000)
     }
-
     return (
        <div ref={trailerContainerRef} className={`trailer trailer-hovered`}onMouseMove={handleMouseMove} onMouseOver={handleMouseOver} onMouseLeave={handleMouseLeave}>
         <div className="trailer-controls">

@@ -7,11 +7,12 @@ import "./MediaPlayer.css"
 import { YouAreWatching } from "./YouAreWatching"
 import { useMediaLayoutContext } from "../../layout/MediaLayout/MediaLayoutContext"
 import { EpisodeSelector } from "./EpisodeSelector"
+import { useLocalStorage } from "../../../hooks/utilHooks/useLocalStorage"
 
 export const MediaPlayer = ({ modal = true} : { modal?: boolean}) => {
     const [searchParams, setSearchParams] = useSearchParams();
     const { media, mediaType } = useMediaLayoutContext();
-
+    const { set } = useLocalStorage();
     const cancelPlay = () => {
         searchParams.delete("play");
         searchParams.delete("season");
@@ -67,6 +68,8 @@ export const MediaPlayer = ({ modal = true} : { modal?: boolean}) => {
             if (type === "pause") {
                 document.body.classList.add("paused");
                 // update episode and season if changed
+                // logic only useful when using default episode selector from player
+                // currently implemented a custom episode selector so this is useless
                 if(data.data.mediaType === "tv") {
                     const episode = data.data.episode;
                     const season = data.data.season;
@@ -87,7 +90,13 @@ export const MediaPlayer = ({ modal = true} : { modal?: boolean}) => {
         return () => window.removeEventListener("message", handleMessage);
     }, []);
 
-
+    useEffect(() => {
+        if(mediaType === "tv") {
+            const episode = searchParams.get("episode");
+            const season = searchParams.get("season");
+            set(media.id.toString(), {season, episode});
+        }
+    }, [searchParams, mediaType, media])
 
     const Player = () => {
         return (
