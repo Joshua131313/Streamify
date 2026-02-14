@@ -22,10 +22,11 @@ export const MediaPlayer = ({ modal = true} : { modal?: boolean}) => {
         if(mediaType === "tv") {
             const season = searchParams.get("season");
             const episode = searchParams.get("episode");
-            return `https://www.vidking.net/embed/tv/${media.id}/${season}/${episode}?autoPlay=true&episodeSelector=true&color=D81F26`
+            return `https://vidsrc-embed.ru/embed/tv/${media.id}/${season}/${episode}?autoplay=1&episodeselector=true&color-D81F26`
         }
-        return `https://www.vidking.net/embed/${mediaType}/${media.id}?autoPlay=true&color=D81F26`
+        return `https://vidsrc-embed.ru/embed/${mediaType}/${media.id}?autoplay=1&color-D81F26`
     }
+    
     useEffect(() => {
         if(modal) {
             document.body.classList.add("player-open");
@@ -50,6 +51,7 @@ export const MediaPlayer = ({ modal = true} : { modal?: boolean}) => {
             "https://www.vidking.to",
             "https://www.vidking.pro",
             "https://www.vidking.net",
+            "https://vidsrc-embed.ru"
         ];
 
         const handleMessage = (event: MessageEvent) => {

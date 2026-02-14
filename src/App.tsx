@@ -3,10 +3,11 @@ import { AppProvider } from './context/AppContext';
 // @ts-ignore
 import 'swiper/css';
 import { useMouseIdle } from './hooks/utilHooks/useMouseIdle';
+import { useEffect } from 'react';
 
 function App() {
   useMouseIdle();
-  
+
   return (
     <AppProvider>
       <AppRouter />

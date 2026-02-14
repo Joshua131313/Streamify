@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { Container } from "../../components/layout/Container/Container";
@@ -15,16 +15,15 @@ import { MovieSeriesContainer } from "../../components/layout/Container/MovieSer
 import "./Browse.css";
 import { PageHeader } from "../../components/ui/PageHeader/PageHeader";
 import { getGenresByMedia } from "../../data/TMDBGenres";
-import { GenreFilter } from "../../components/ui/GenreFilter/GenreFilter";
+import { GenreFilter } from "../../components/ui/filters/GenreFilter";
+import { BrowseTypeFilter } from "../../components/ui/filters/BrowseTypeFilter";
 
 export const Browse = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
+
   const mediaType: TMediaType = searchParams.get("media") === "movie" ? "movie" : "tv";
 
-  const [browseType, setBrowseType] = useState<TLabelValue>({
-    value: "browse",
-    label: "Browse",
-  });
+  const browseType = searchParams.get("browseType")
 
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
@@ -32,15 +31,7 @@ export const Browse = () => {
 
   useInfiniteScroll(loadMoreRef, fetchNextPage, !!hasNextPage);
 
-  /** Update URL params */
-  const setParam = (param: string, value: string) => {
-    const params = new URLSearchParams(searchParams);
-    value ? params.set(param, value) : params.delete(param);
-    setSearchParams(params);
-  };
-
-
-  const isSeriesMode = mediaType === "movie" && browseType.value === "movie-series";
+  const isSeriesMode = mediaType === "movie" && browseType === "movie-series";
 
   return (
     <div className={`${mediaType === "movie" ? "movies-browse-page" : "shows-browse-page"} browse-page`}>
@@ -51,30 +42,7 @@ export const Browse = () => {
         controls={
           <>
           <GenreFilter mediaType={mediaType} includeAll/>
-          {/* <StyledSelect<TLabelValue, false>
-            options={[{ value: "", label: "All" }, ...getGenresByMedia(mediaType)]}
-            value={genre}
-            onChange={(opt) =>
-              setParam("genre", opt?.value ?? "")
-            }
-          /> */}
-
-          {/* Movie-only browse type */}
-          {mediaType === "movie" && (
-            <StyledSelect<TLabelValue, false>
-              options={[
-                { value: "browse", label: "Browse" },
-                { value: "movie-series", label: "Movie Series" },
-              ]}
-              value={browseType}
-              onChange={(opt) =>
-                setBrowseType({
-                  value: opt?.value ?? "browse",
-                  label: opt?.label ?? "Browse",
-                })
-              }
-            />
-          )}
+          {mediaType === "movie" && <BrowseTypeFilter />} 
           </>
         }
       />
