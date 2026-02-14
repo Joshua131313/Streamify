@@ -1,9 +1,9 @@
 import { providers } from "../data/providers";
-import type { TStreamCategories, TStreamProviders } from "../types/tmdb";
+import type { TMediaType, TStreamCategories, TStreamProviders } from "../types/tmdb";
 import type { TMDBVideo } from "../types/TMDBMediaType";
 
 export const getTMDBEndpointByCategory = (
-  type: "movie" | "tv",
+  type: TMediaType,
   category: TStreamCategories,
   genreId?: string,
   provider?: TStreamProviders | ""

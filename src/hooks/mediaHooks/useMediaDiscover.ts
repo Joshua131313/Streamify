@@ -4,11 +4,11 @@ import { getTMDBEndpointByCategory } from "../../utils/helpers";
 import type { TMDBRawMovie } from "../../types/TMDBMovieType";
 import type { TMDBRawShow } from "../../types/TMDBShowType";
 import type { TMDBMedia } from "../../types/TMDBMediaType";
-import type { TMDBListResponse, TMDBMediaQueryResult, TStreamCategories, TStreamProviders } from "../../types/tmdb";
+import type { TMDBListResponse, TMDBMediaQueryResult, TMediaType, TStreamCategories, TStreamProviders } from "../../types/tmdb";
 import type { UseQueryResult } from "@tanstack/react-query";
 
 interface Props {
-  mediaType: "movie" | "tv";
+  mediaType: TMediaType;
   category: TStreamCategories;
   genreId?: string;
   provider?: TStreamProviders | "";
