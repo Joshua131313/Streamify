@@ -21,11 +21,7 @@ body.player-open.modal-player {
     height: 50vh;
     border: none;
 }
-.player .icon {
-    position: absolute;
-    top: 10px;
-}
-.player .app-icon {
+.player .back-icon, .episode-selector-icon {
     position: fixed;
     top: calc(env(safe-area-inset-top, 0px) + 20px);
     left: 16px;
@@ -60,7 +56,67 @@ body.player-open.modal-player {
     max-width: 100%;
     object-fit: contain;
 }
+.episode-selector {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 70px;
+    padding-right: 20px;
+}
+.episode-selector-icon {
+    right: 10px;
+    left: initial;
+}
+.episode-selector .title-container {
+    display: none;
+}
+.episode-selector .episodes-container {
+}
+.inner-episode-selector {
+    max-width: 350px;
+    max-height: 600px;
+    overflow-y: auto;
+    padding: 20px;
+    background-color: var(--bg-primary);
+    border-radius: 20px;
+    z-index: 10;
 
+}
+.inner-episode-selector::-webkit-scrollbar{
+    width: 0;
+    height: 0;
+    display: none;             /* Chrome/Safari */
+}
+.inner-episode-selector .episode-card {
+    height: 70px;
+}
+.inner-episode-selector .episode-card img, .inner-episode-selector .episode-card .img-skeleton {
+    width: 100px;
+}
+.inner-episode-selector .episode-card .still-container .media-badge {
+    display: none;
+}
+.inner-episode-selector .episode-card .episode-info strong {
+    font-size: 12px;
+}
+.inner-episode-selector .episode-card .episode-info small {
+    font-size: 10px;
+}
+.inner-episode-selector .season-selector {
+    flex-wrap: wrap;
+}
+.inner-episode-selector .season-selector .select {
+    flex: 0 0 100%;
+}
+.inner-episode-selector .season-selector .input-container {
+    flex: 1
+}
+.inner-episode-selector > div {
+    padding: 0;
+}
 @supports not (height: 100dvh) {
   .player.modal-player {
     height: 100vh;

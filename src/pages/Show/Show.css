@@ -29,11 +29,13 @@
 .season-selector-container {
     position: sticky;
     top: 0px;
+    margin-bottom: 20px;
     z-index: 3;
 }
 .episodes-title.app-container {
     flex-direction: row;
     gap: 0;
+    margin-bottom: 20px;
 }
 @media (max-width: 700px) {
     .season-selector {

@@ -53,7 +53,7 @@ export const EpisodesContainer = ({show} : Props) => {
     
     return (
         <>
-            <div className="layout-container">
+            <div className="layout-container title-container">
                 <Title 
                     id="episodes"
                     title="Episodes"
