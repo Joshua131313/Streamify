@@ -5,7 +5,7 @@ import type { TMDBMedia } from "../../types/TMDBMediaType";
 import type { TMDBMediaQueryResult } from "../../types/tmdb";
 
 export const useHeroMedia = (
-  count: number = 5
+  count: number = 10
 ): TMDBMediaQueryResult => {
 
   const mixed = useMixedMedia("/trending/all/day", count);
