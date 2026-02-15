@@ -15,7 +15,6 @@ export const NextEpisodeIcon = () => {
         seasonNumber: season,
     });
     const setNextEpisode = () => {
-        console.log(episodeCount)
         if(!episodeCount) return;
         
         const next = new URLSearchParams(searchParams);
@@ -27,7 +26,6 @@ export const NextEpisodeIcon = () => {
         else {
             next.set("episode", String(episode + 1));
         }
-        console.log(searchParams)
         setSearchParams(next);
     }
 
