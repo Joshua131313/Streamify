@@ -5,7 +5,7 @@ import { RailsContainer } from "../../components/layout/Container/RailsContainer
 import { MovieSeriesContainer } from "../../components/layout/Container/MovieSeriesContainer/MovieSeriesContainer"
 import { useTMDBQuery } from "../../hooks/mediaHooks/tmdbHooks/useTMDBQuery"
 
-export const Home = ()  => {
+const Home = ()  => {
 
     return (
         <div className="home">
@@ -15,3 +15,4 @@ export const Home = ()  => {
         </div>
     )
 }
+export default Home;

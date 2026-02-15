@@ -19,8 +19,7 @@ import { EpisodesList } from "./EpisodesList";
 import { EpisodesProvider } from "./EpisodesProvider";
 
 
-
-export const Show = ()  => {
+const Show = ()  => {
     const { showId } = useParams();
     const { show, isLoading, error } = useShow({showId: showId!});
 
@@ -40,3 +39,4 @@ export const Show = ()  => {
         </MediaLayout>
     )
 }
+export default Show;

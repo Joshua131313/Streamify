@@ -28,7 +28,7 @@ export const selectOptions : Option[] = [
     }
 
 ]
-export const Search = () => {
+const Search = () => {
 
     const { media: trendingToday} = useMixedMedia("/trending/all/day", 20);
     const [option, setOption] = useState<Option>(selectOptions[0]);
@@ -99,7 +99,7 @@ export const Search = () => {
     )
 }
 
-
+export default Search;
 // import { useState } from "react"
 // import { Container } from "../../components/layout/Container/Container"
 // import { MediaCard } from "../../components/ui/MediaCard/MediaCard"

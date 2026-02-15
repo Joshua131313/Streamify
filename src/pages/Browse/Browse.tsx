@@ -17,8 +17,9 @@ import { PageHeader } from "../../components/ui/PageHeader/PageHeader";
 import { getGenresByMedia } from "../../data/TMDBGenres";
 import { GenreFilter } from "../../components/ui/filters/GenreFilter";
 import { BrowseTypeFilter } from "../../components/ui/filters/BrowseTypeFilter";
+import { Loader } from "../../components/ui/Loader/Loader";
 
-export const Browse = () => {
+const Browse = () => {
   const [searchParams] = useSearchParams();
 
   const mediaType: TMediaType = searchParams.get("media") === "movie" ? "movie" : "tv";
@@ -27,7 +28,7 @@ export const Browse = () => {
 
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  const { media, genre, fetchNextPage, hasNextPage } = useInfiniteMediaBrowse();
+  const { media, genre, fetchNextPage, hasNextPage, isLoading } = useInfiniteMediaBrowse();
 
   useInfiniteScroll(loadMoreRef, fetchNextPage, !!hasNextPage);
 
@@ -48,18 +49,22 @@ export const Browse = () => {
       />
 
       {/* Content */}
-      {isSeriesMode ? (
-        <MovieSeriesContainer genre={Number(genre?.value) || undefined} />
-      ) : (
-        <Container className="browse-results media-grid">
-          {media.map((m) => (
-            <MediaCard key={m.id} media={m} />
-          ))}
-        </Container>
-      )}
+      {isLoading ?
+       <Loader text="Media is loading..."/> :
+        isSeriesMode ? (
+          <MovieSeriesContainer genre={Number(genre?.value) || undefined} />
+        ) : (
+          <Container className="browse-results media-grid">
+            {media.map((m) => (
+              <MediaCard key={m.id} media={m} />
+            ))}
+          </Container>
+        )
+      }
 
       {/* Infinite scroll trigger */}
       <div ref={loadMoreRef} style={{ height: 1 }} />
     </div>
   );
 };
+export default Browse;

@@ -7,7 +7,7 @@ import type { TMDBMedia } from "../../types/TMDBMediaType";
 import { MediaCard } from "../../components/ui/MediaCard/MediaCard";
 import "./SavedMedia.css"
 
-export const SavedMedia = () => {
+const SavedMedia = () => {
 
     const { get } = useLocalStorage();
     const savedMedia = get<TMDBMedia[]>("savedMedia", []);
@@ -39,3 +39,4 @@ export const SavedMedia = () => {
         </div>
     )
 }
+export default SavedMedia;

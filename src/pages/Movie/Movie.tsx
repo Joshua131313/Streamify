@@ -2,7 +2,7 @@ import { useParams } from "react-router-dom";
 import { useMovie } from "../../hooks/mediaHooks/movieHooks/useMovie";
 import { MediaLayout } from "../../components/layout/MediaLayout/MediaLayout";
 
-export const Movie = ()  => {
+const Movie = ()  => {
     const { movieId } = useParams();
     const { movie, isLoading, error } = useMovie({movieId: movieId!});
 
@@ -13,3 +13,4 @@ export const Movie = ()  => {
         </MediaLayout>
     )
 }
+export default Movie;
