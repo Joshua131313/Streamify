@@ -11,8 +11,12 @@ import { FaDirections, FaSearch, FaSort, FaSortAmountDownAlt, FaSortAmountUpAlt 
 import "./Show.css"
 import { Icon } from "../../components/ui/Icon/Icon";
 import { StyledSelect } from "../../components/ui/StyledSelect/StyledSelect";
-import { EpisodesContainer } from "./EpisodesContainer";
 import { MediaLayoutProvider } from "../../components/layout/MediaLayout/MediaLayoutContext";
+import { useEpisodes } from "../../hooks/mediaHooks/showHooks/useEpisodes";
+import { Title } from "../../components/ui/Title/Title";
+import { EpisodesControls } from "./EpisodesControls";
+import { EpisodesList } from "./EpisodesList";
+import { EpisodesProvider } from "./EpisodesProvider";
 
 
 
@@ -21,13 +25,18 @@ export const Show = ()  => {
     const { show, isLoading, error } = useShow({showId: showId!});
 
     return (
-        <MediaLayout  media={show!} error={error} isLoading={isLoading} mediaType="tv">
-            {
-                show && 
-                <EpisodesContainer 
-                    show={show}
-                />
-            }
+        <MediaLayout media={show!} error={error} isLoading={isLoading} mediaType="tv">
+            <EpisodesProvider show={show!}>
+                <div className="layout-container title-container">
+                    <Title 
+                        id="episodes"
+                        title="Episodes"
+                        className="app-container episodes-title"
+                    />
+                </div>
+                <EpisodesControls />
+                <EpisodesList />
+            </EpisodesProvider>
         </MediaLayout>
     )
 }

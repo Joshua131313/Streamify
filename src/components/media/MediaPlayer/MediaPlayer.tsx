@@ -1,4 +1,4 @@
-import { FaLongArrowAltLeft } from "react-icons/fa"
+import { FaChevronRight, FaLongArrowAltLeft } from "react-icons/fa"
 import { Icon } from "../../ui/Icon/Icon"
 import { createPortal } from "react-dom"
 import { useSearchParams } from "react-router-dom"
@@ -101,7 +101,7 @@ export const MediaPlayer = ({ modal = true} : { modal?: boolean}) => {
     const Player = () => {
         return (
             <div className={`player ${modal ? "modal-player" : ""}`} role="dialog" aria-modal="true">
-                {modal && <Icon className="back-icon" Icon={FaLongArrowAltLeft} onClick={cancelPlay}/>}
+                {modal && <Icon className="back-icon player-control-icon" Icon={FaLongArrowAltLeft} onClick={cancelPlay}/>}
                 <YouAreWatching />
                 {mediaType === "tv" && <EpisodeSelector />}
                 <iframe 

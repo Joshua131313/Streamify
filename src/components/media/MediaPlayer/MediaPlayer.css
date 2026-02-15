@@ -21,11 +21,31 @@ body.player-open.modal-player {
     height: 50vh;
     border: none;
 }
-.player .back-icon, .episode-selector-icon {
+.player .player-control-icon {
     position: fixed;
     top: calc(env(safe-area-inset-top, 0px) + 20px);
     left: 16px;
-    z-index: 10000;   
+    z-index: 10000; 
+    opacity: 0;  
+}
+.player:hover .player-control-icon {
+    opacity: 1;
+}
+@media (hover: none) {
+    .player:hover .player-control-icon {
+        opacity: 1;
+    }
+}
+
+.player .next-episode-icon {
+    left: initial;
+    top: initial;
+    bottom: calc(env(safe-area-inset-top, 0px) + 80px);
+    right: 16px;
+}
+.player .episode-selector-icon {
+    right: 16px;
+    left: initial;
 }
 .paused.idle .player iframe {
     filter: brightness(50%);
@@ -66,14 +86,13 @@ body.player-open.modal-player {
     padding-top: 70px;
     padding-right: 20px;
 }
-.episode-selector-icon {
-    right: 10px;
-    left: initial;
-}
+
 .episode-selector .title-container {
     display: none;
 }
-.episode-selector .episodes-container {
+.episode-selector .episodes-list .container-content {
+    height: initial;
+    overflow-y:initial;
 }
 .inner-episode-selector {
     max-width: 350px;
@@ -83,7 +102,6 @@ body.player-open.modal-player {
     background-color: var(--bg-primary);
     border-radius: 20px;
     z-index: 10;
-
 }
 
 .inner-episode-selector .episode-card {
@@ -112,6 +130,9 @@ body.player-open.modal-player {
 }
 .inner-episode-selector > div {
     padding: 0;
+}
+.next-episode-icon {
+
 }
 @supports not (height: 100dvh) {
   .player.modal-player {
