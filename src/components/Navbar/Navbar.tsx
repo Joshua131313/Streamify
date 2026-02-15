@@ -42,7 +42,7 @@ export const NavLinks = () => {
     return (
         <div className="nav-links">
             {navLinks.map(link => {
-                return <AppNavLink {...link}/>
+                return <AppNavLink {...link} key={link.path}/>
             })}
         </div>
     )

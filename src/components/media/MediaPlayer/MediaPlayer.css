@@ -2,7 +2,9 @@ body.player-open.modal-player {
   overscroll-behavior: none;
   touch-action: none;
 }
-
+.player {
+    background-color: var(--bg-primary);
+}
 .player.modal-player {
     z-index: 10;
     width: 100%;

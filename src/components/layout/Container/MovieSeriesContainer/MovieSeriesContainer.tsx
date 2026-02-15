@@ -13,7 +13,7 @@ export const MovieSeriesContainer = ({onlyFeatured, genre} : {onlyFeatured?: boo
         }
     }).map(movieSeriesID => {
         return (
-            <MovieSeries movieSeriesID={movieSeriesID} />
+            <MovieSeries key={movieSeriesID.id} movieSeriesID={movieSeriesID} />
         )
     })
 

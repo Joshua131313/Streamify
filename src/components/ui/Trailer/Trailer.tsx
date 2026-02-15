@@ -1,7 +1,7 @@
 import type { YouTubeProps } from "react-youtube";
 import "./Trailer.css"
 import YouTube from "react-youtube";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { TMDBImg } from "../TMDBImg/TMDBImg";
 import {  FaDownload, FaLongArrowAltLeft, FaPlus, FaVolumeMute } from "react-icons/fa";
 import { Icon } from "../Icon/Icon";
@@ -38,8 +38,8 @@ export const Trailer = (props : Props) => {
     const playerRef = useRef<any>(null);
     const trailerContainerRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
-    const trailerId = getOfficialYoutubeTrailerId(media.videos ?? [])
-    const opts: YouTubeProps["opts"] = {
+    const trailerId = useMemo(() => getOfficialYoutubeTrailerId(media.videos ?? []), [media.videos]);
+    const opts: YouTubeProps["opts"] = useMemo(() => ({
         width: "100%",
         height: "100%",
         playerVars: {
@@ -51,9 +51,10 @@ export const Trailer = (props : Props) => {
             disablekb: 1,
             playsinline: 1,
             loop: 1,
-            playlist: trailerId, 
+            playlist: trailerId,
         },
-    };
+    }), [trailerId]);
+
 
     const onReady: YouTubeProps["onReady"] = (e) => {
         playerRef.current = e.target;

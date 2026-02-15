@@ -14,7 +14,7 @@ export const RecommendationMedia = ({mediaId, mediaType, genre}: Props) => {
     const { media: recommended } = useRecommendedMedia({mediaId, mediaType, genre, count: 15});
     const recommendedRow = recommended.map(media => {
         return (
-            <MediaCard media={media}/>
+            <MediaCard media={media} key={media.id}/>
         )
     })
 
