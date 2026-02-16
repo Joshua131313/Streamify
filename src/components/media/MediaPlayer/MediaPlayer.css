@@ -133,9 +133,7 @@ body.player-open.modal-player {
 .inner-episode-selector > div {
     padding: 0;
 }
-.next-episode-icon {
 
-}
 @supports not (height: 100dvh) {
   .player.modal-player {
     height: 100vh;

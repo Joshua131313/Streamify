@@ -115,6 +115,7 @@ export const Trailer = (props : Props) => {
                 <div className="img-placeholder"></div>
                 <TMDBImg type="logo" size="w500" path={media.logo_path} />
                 <MediaMetaBadges 
+                    mediaType={media.mediaType}
                     date={media.date}
                     genre_ids={media.genres?.map(g => g.id)}
                     vote_average={media.vote_average}

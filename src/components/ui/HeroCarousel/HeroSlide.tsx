@@ -18,6 +18,7 @@ export const HeroSlide = (props: Props) => {
                 <div className="inner-slide-content">
                     <TMDBImg type="logo" size="w500" path={media.logo_path ?? ""} />
                     <MediaMetaBadges 
+                        mediaType={media.mediaType}
                         date={media.date}
                         genre_ids={media.genre_ids ?? []}
                         vote_average={media.vote_average}
