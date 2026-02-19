@@ -4,7 +4,7 @@
   gap: 10px;
 
   padding: 12px 22px;
-  border-radius: 10px;
+  border-radius: var(--border-radius);
   font-size: var(--font-sm);
   font-weight: 600;
   background-color: #f3f3f3;

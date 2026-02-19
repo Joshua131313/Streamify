@@ -48,20 +48,12 @@ export const MediaPlayer = ({ modal = true} : { modal?: boolean}) => {
     }, [modal]);
 
     useEffect(() => {
-        const allowedOrigins = [
-            "https://www.vidking.cc",
-            "https://www.vidking.to",
-            "https://www.vidking.pro",
-            "https://www.vidking.net",
-            "https://vidsrc-embed.ru"
-        ];
-
         const handleMessage = (event: MessageEvent) => {
-            if (!allowedOrigins.includes(event.origin)) return;
             let data: any;
             try {
                 data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
             } catch {
+
                 return;
             }
             const type = data?.data.event;

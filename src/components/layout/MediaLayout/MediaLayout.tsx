@@ -11,6 +11,7 @@ import { Actors } from "../../media/Actors/Actors";
 import { createPortal } from "react-dom";
 import { MediaPlayer } from "../../media/MediaPlayer/MediaPlayer";
 import { MediaLayoutProvider } from "./MediaLayoutContext";
+import { Loader } from "../../ui/Loader/Loader";
 
 interface Props {
     media: TMDBMedia;
@@ -27,7 +28,7 @@ export const MediaLayout = ({media, isLoading, error, mediaType, containerId, ch
 
 
     if(isLoading || !media) {
-        return <div className="loading"></div>
+        return <Loader fullScreen showLogo={false}/>
     }
     return (
         <MediaLayoutProvider media={media} mediaType={mediaType}>

@@ -4,12 +4,13 @@ import "./Loader.css";
 interface Props {
   fullScreen?: boolean;
   text?: string;
+  showLogo?: boolean;
 }
 
-export const Loader = ({ fullScreen = false, text }: Props) => {
+export const Loader = ({ fullScreen = false, showLogo = true, text }: Props) => {
   return (
     <div className={`loader ${fullScreen ? "fullscreen" : ""}`}>
-        {fullScreen && <div className="logo">Streamify</div>}
+        {fullScreen && showLogo && <div className="logo">Streamify</div>}
         <div className="spinner" />
         {text && <p className="loader-text">{text}</p>}
     </div>

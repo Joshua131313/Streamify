@@ -21,9 +21,11 @@ export const MediaMetaBadges = (props: MediaMetaBadgesProps) => {
     const genresRow = genre_ids?.slice(0, genresLimit).map(genreId => {
         const El = mediaType ? Link : Fragment
         return (
-            <El to={`discover?media=${mediaType}&genre=${genreId}`}>
+            <El
+                 key={genreId}
+                 to={`/discover?media=${mediaType}&genre=${genreId}`}
+             >
                 <MediaBadge 
-                    key={genreId}
                     text={TMDB_GENRES.find((x : TGenre)=> x.value === genreId.toString())?.label ?? ""}
                 />
             </El>

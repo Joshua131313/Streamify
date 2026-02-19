@@ -30,7 +30,7 @@
     cursor: pointer;
     border: solid 1px transparent;
     transition: all 0.3s;
-    border-radius: 5px;
+    border-radius: calc(var(--border-radius) / 2);
 }
 
 .nav-link:hover, .nav-link-active {

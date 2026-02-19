@@ -68,12 +68,16 @@
 .inner-trailer-info > * {
     margin-bottom: 20px;
 }
-.inner-trailer-info img {
+.inner-trailer-info img, .inner-trailer-info .img-skeleton {
     max-width: 100%;
     max-height: 80px;
     width: auto;
     object-fit: contain;
     transition: all 0.8s;
+}
+.inner-trailer-info .img-skeleton {
+    height: 80px;
+    width: 100px;
 }
 .trailer .media-meta-badges {
     flex-direction: column;
@@ -95,7 +99,7 @@
     height: 80px;
     width: 50px;
 }
-.idle .trailer .inner-trailer-info img {
+.idle .trailer .inner-trailer-info img, .idle .trailer .inner-trailer-info .img-skeleton {
     transform: translateX(-10%) scale(0.8);
     bottom: 50px;
     position: absolute;

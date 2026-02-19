@@ -3,5 +3,5 @@
     background-color: var(--accent-primary);
     align-self: stretch;
     margin-right: 10px;
-    border-radius: 20px;
+    border-radius: calc(var(--border-radius) * 2);
 }

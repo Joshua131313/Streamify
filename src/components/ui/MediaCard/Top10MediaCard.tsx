@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import type { TMDBMedia } from "../../../types/TMDBMediaType";
 import "./MediaCard.css"
+import { TMDBImg } from "../TMDBImg/TMDBImg";
 
 interface Props {
     media: TMDBMedia;
@@ -13,9 +14,10 @@ export const Top10MediaCard = (props : Props) => {
         <Link to={`/${media.mediaType}/${media.id}`}>
             <div className="top10-media-card media-card">
                 <span className="rank-number">{rank}</span>
-                <img 
-                    src={`https://image.tmdb.org/t/p/original${media.poster_path}`} 
-                    alt={media.title} 
+                <TMDBImg 
+                    path={media.poster_path}
+                    type="poster"
+                    size="w500"
                 />
             </div>
         </Link>

@@ -76,6 +76,7 @@ html, body {
   --media-card-height: 300px;
 
   --max-container-width: 1400px;
+  --border-radius: 10px;
 }
 
 input {
@@ -130,7 +131,7 @@ img { object-fit: cover; }
 }
 ::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
-  border-radius: 10px;
+  border-radius: var(--border-radius);
 }
 
 /* Selection highlight */
@@ -155,7 +156,7 @@ img { object-fit: cover; }
   flex-direction: column;
 }
 .sb { justify-content: space-between; }
-.br { border-radius: 5px; }
+.br { border-radius: calc(var(--border-radius)); }
 .spacer1 { height: 100px; }
 
 /* Loading */
@@ -180,7 +181,7 @@ img { object-fit: cover; }
 details {
   border: 1px solid var(--text-primary);
   color: var(--text-primary);
-  border-radius: 5px;
+  border-radius: calc(var(--border-radius) / 2)
 }
 details > summary {
   list-style: none;

@@ -6,7 +6,7 @@
 .media-badge {
     border: solid 1px var(--border-white);
     padding: 5px 10px;
-    border-radius: 20px;
+    border-radius: calc(var(--border-radius) * 2);
     font-size: var(--font-sm);
     display: flex;
     align-items: center;

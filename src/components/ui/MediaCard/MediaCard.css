@@ -4,21 +4,23 @@
     position: relative;
     height: var(--media-card-height);
     overflow: hidden;
-        border-radius: 10px;
+        border-radius: var(--border-radius);
 
 }
 .media-card img, .media-skeleton-card {
-    border-radius: 10px;
+    border-radius: var(--border-radius);
 }
 
 .media-skeleton-card {
   background-color: var(--bg-alt);
-  border-radius: 12px;
+  border-radius: var(--border-radius);
   transition: all 0.3s;
   animation: skeleton 2.2s infinite
 }
 
-
+.media-card a {
+    width: 100%;
+}
 .media-card.top10-media-card {
     overflow: initial;
 }
@@ -101,7 +103,7 @@
     height: 125px;
     gap: 10px;
     background-color: var(--bg-alt);
-    border-radius: 10px;
+    border-radius: var(--border-radius);
     border: solid 1px transparent;
     transition: all 0.3s;
 }
@@ -135,7 +137,7 @@
     height: 100%;
 }
 .episode-card img, .episode-card .img-skeleton {
-    border-radius: 10px;
+    border-radius: var(--border-radius);
     width: 200px;
     height: 100%;
 }
@@ -171,7 +173,7 @@
     border: solid 1px var(--border);
     padding: 5px;
     font-size: var(--font-xs);
-    border-radius: 5px;
+    border-radius: calc(var(--border-radius) / 2);
     background-color: var(--bg-alt);
 }
 .still-container .time, .still-container .rating {
