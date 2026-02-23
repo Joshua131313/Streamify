@@ -8,14 +8,15 @@ import { MediaBadge } from "../MediaMetaBadges/MediaBadge";
 
 interface Props {
     episode: TEpisode;
+    isSelected: boolean;
 }
 
 export const EpisodeCard = (props: Props) => {
-    const { episode } = props;
+    const { episode, isSelected } = props;
     return (
         <Link 
             to={`?play&season=${episode.season_number}&episode=${episode.episode_number}`} 
-            className="episode-card"
+            className={`episode-card ${isSelected ? "episode-card-selected" : ""}`}
         >
             <div className="still-container">
                 <MediaBadge className="time" Icon={FaClock} text={`${episode.runtime?.toString() ?? 0} min`}/>

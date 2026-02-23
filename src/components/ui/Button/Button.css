@@ -13,6 +13,7 @@
   border: none;
   color: var(--bg-primary);
   backdrop-filter: blur(6px);
+  border: solid 1px transparent;
 }
 .button svg {
     margin-right: 10px;
@@ -22,7 +23,7 @@
     transform: scale(1.1);
 }
 .button.secondary {
-    background-color: transparent;
+    background-color: var(--bg-transparent);
     border: solid 1px var(--border);
     color: var(--text-primary);
 }

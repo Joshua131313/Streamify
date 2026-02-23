@@ -1,11 +1,12 @@
+import { useSearchParams } from "react-router-dom";
 import { Container } from "../../components/layout/Container/Container";
 import { EpisodeCard } from "../../components/ui/MediaCard/EpisodeCard";
 import { EpisodeSkeletonCard } from "../../components/ui/MediaCard/SkeletonCards/EpisodeSkeletonCard";
 import { useEpisodesContext } from "./EpisodesProvider";
 
 export const EpisodesList = () => {
-    const { episodes, isLoading, search, direction } = useEpisodesContext();
-
+    const { episodes, isLoading, search, direction, currentEpisode } = useEpisodesContext();
+    // const episode = 
     const filtered = episodes
         ?.filter(
             (e) =>
@@ -21,7 +22,7 @@ export const EpisodesList = () => {
           <EpisodeSkeletonCard key={i} />
     )) 
     const episodesRow = filtered.map((ep) => (
-        <EpisodeCard key={ep.id} episode={ep} />
+        <EpisodeCard key={ep.id} episode={ep} isSelected={currentEpisode === ep.episode_number}/>
     ))
 
   return (

@@ -88,6 +88,12 @@
     gap: 20px;
     align-items: center;
 }
+.trailer-action-buttons .app-icon {
+    width: 41.6px;
+    height:  41.6px;
+    font-size: var(--font-md);
+    border-radius: var(--border-radius);
+}
 .trailer-hovered {
 
 }

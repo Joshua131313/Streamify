@@ -2,6 +2,7 @@ import { createContext, useContext, useState } from "react";
 import { useEpisodes } from "../../hooks/mediaHooks/showHooks/useEpisodes";
 import type { TMDBShowMedia } from "../../types/TMDBMediaType";
 import type { TEpisode } from "../../types/TMDBShowType";
+import { useSearchParams } from "react-router-dom";
 
 /* ---------- Context Type ---------- */
 interface EpisodesContextType {
@@ -17,6 +18,8 @@ interface EpisodesContextType {
 
   direction: "asc" | "desc";
   setDirection: (d: "asc" | "desc") => void;
+
+  currentEpisode: number;
 }
 
 interface Props {
@@ -27,7 +30,10 @@ interface Props {
 const EpisodesContext = createContext<EpisodesContextType | null>(null);
 
 export const EpisodesProvider = ({ show, children }: Props) => {
-    const [seasonNumber, setSeasonNumber] = useState(1);
+    const [searchParams] = useSearchParams();
+    const currentEpisode = Number(searchParams.get("episode") ?? 0);
+    const currentSeason = Number(searchParams.get("season") ?? 1);
+    const [seasonNumber, setSeasonNumber] = useState(Number(currentSeason));
     const [search, setSearch] = useState("");
     const [direction, setDirection] = useState<"asc" | "desc">("asc");
 
@@ -51,6 +57,8 @@ export const EpisodesProvider = ({ show, children }: Props) => {
 
             direction,
             setDirection,
+
+            currentEpisode
             }}
         >
             {children}

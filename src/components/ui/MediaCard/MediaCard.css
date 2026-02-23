@@ -7,6 +7,7 @@
         border-radius: var(--border-radius);
 
 }
+
 .media-card img, .media-skeleton-card {
     border-radius: var(--border-radius);
 }
@@ -110,7 +111,7 @@
 .episode-skeleton-card {
       animation: skeleton 2.2s infinite
 }
-.episode-card:hover {
+.episode-card:hover, .episode-card-selected {
     border: solid 1px var(--accent-primary);
 }
 .episode-card:hover strong {
@@ -162,6 +163,8 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
 }
 .still-container .app-icon:hover {
     transform: translate(-50%, -50%);

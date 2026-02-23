@@ -26,7 +26,7 @@ html, body {
   --bg-secondary: #13161B;
   --bg-surface: #191919;
   --bg-surface-hover: #1d1d1d;
-  --bg-transparent: hsla(0, 0%, 100%, 0.053);
+  --bg-transparent: hsla(0, 0%, 83%, 0.134);
   --bg-alt: #282828;
   /* Accents */
   --accent-primary: #D81F26;
