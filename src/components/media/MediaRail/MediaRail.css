@@ -58,7 +58,7 @@
     font-weight: 900;
     line-height: 1;
     color: transparent;
-    -webkit-text-stroke: 6px var(--accent-primary);
+    -webkit-text-stroke: 3px var(--accent-primary);
 
     opacity: 0.9;
 
