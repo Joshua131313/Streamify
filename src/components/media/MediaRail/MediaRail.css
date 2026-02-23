@@ -53,25 +53,23 @@
     transition: all 0.3s;
 }
 .top10-title {
-  font-size: 80px;
-  font-weight: 900;
-  letter-spacing: 4px;
 
-  /* Make inside transparent */
-  color: var(--bg-primary);
+    font-size: 90px;
+    font-weight: 900;
+    line-height: 1;
+    color: transparent;
+    -webkit-text-stroke: 6px var(--accent-primary);
 
-  /* Outline stroke */
-  -webkit-text-stroke: 1px #ff2a2a;
-  -webkit-text-fill-color: var(--bg-primary); /* 👈 Samsung fix */
-  /* Neon glow */
-  text-shadow:
-    0 0 6px rgba(255, 0, 0, 0.6),
-    0 0 14px rgba(255, 0, 0, 0.4),
-    0 0 26px rgba(255, 0, 0, 0.2);
+    opacity: 0.9;
 
-  /* Depth shadow */
-  filter: drop-shadow(0 6px 10px rgba(0,0,0,0.8));
+    z-index: 10;
+    pointer-events: none;
+
+    /* depth */
+    filter: drop-shadow(0 6px 12px rgba(0,0,0,0.9));
+    letter-spacing: 4px;
 }
+
 .swiper-select {
     display: none;
 }
