@@ -3,6 +3,7 @@ import { useEpisodes } from "../../hooks/mediaHooks/showHooks/useEpisodes";
 import type { TMDBShowMedia } from "../../types/TMDBMediaType";
 import type { TEpisode } from "../../types/TMDBShowType";
 import { useSearchParams } from "react-router-dom";
+import { useLocalStorage } from "../../hooks/utilHooks/useLocalStorage";
 
 /* ---------- Context Type ---------- */
 interface EpisodesContextType {
@@ -31,8 +32,11 @@ const EpisodesContext = createContext<EpisodesContextType | null>(null);
 
 export const EpisodesProvider = ({ show, children }: Props) => {
     const [searchParams] = useSearchParams();
+    const { get } = useLocalStorage();
+    const defaultSeason = get(String(show.id ?? ""), {season: 1, episode: 0});
     const currentEpisode = Number(searchParams.get("episode") ?? 0);
-    const currentSeason = Number(searchParams.get("season") ?? 1);
+    // if user selected an episode, the season will be based on that, otherwise it will default to last watched season 
+    const currentSeason = Number(searchParams.get("season") ?? defaultSeason.season);
     const [seasonNumber, setSeasonNumber] = useState(Number(currentSeason));
     const [search, setSearch] = useState("");
     const [direction, setDirection] = useState<"asc" | "desc">("asc");

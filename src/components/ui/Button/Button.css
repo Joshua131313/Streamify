@@ -24,7 +24,7 @@
 }
 .button.secondary {
     background-color: var(--bg-transparent);
-    border: solid 1px var(--border);
+    border: solid 1px var(--border-white);
     color: var(--text-primary);
 }
 @media (max-width: 600px) {
