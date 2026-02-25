@@ -28,7 +28,7 @@ interface TMDBPersn {
   gender: number;
   credit_id: string;
 }
-interface TMDBCrewPerson extends TMDBPersn {
+export interface TMDBCrewPerson extends TMDBPersn {
   department: string;
   job: string;
 }

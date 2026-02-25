@@ -1,0 +1,61 @@
+
+.credits .container-content {
+    grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
+    display: grid;
+    gap: 10px;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+.credit-card {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    padding: 10px;
+    transition: all 0.3s;
+}
+.credit-card strong {
+    transition: all 0.3s;
+    word-break: break-all;
+    font-size: var(--font-sm);
+}
+.credit-card:hover {
+    border: solid 1px var(--accent-primary);
+}
+.credit-card:hover strong {
+    color: var(--accent-primary);
+}
+.credit-card {
+    background-color: var(--bg-alt);
+    align-items: center;
+    border: solid 1px var(--border-white);
+    border-radius: var(--border-radius);
+    flex-direction: column;
+    height: 225px;
+    overflow-y: auto;
+}
+.credit-card img, .credit-card .img-skeleton {
+    width: 80px;
+    height: 100px;
+    border-radius: var(--border-radius);
+}
+.credit-info {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.credit-info small {
+    color: var(--text-muted);
+}
+.user-circle {
+    width: 80px;
+    color: var(--accent-primary);
+    height: 100px;
+}
+/* @media(max-width: 600px) {
+    .credits .container-content {
+        display: flex;
+        flex-direction: column;
+    }
+} */

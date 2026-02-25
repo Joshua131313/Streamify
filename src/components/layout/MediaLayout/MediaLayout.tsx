@@ -12,6 +12,8 @@ import { createPortal } from "react-dom";
 import { MediaPlayer } from "../../media/MediaPlayer/MediaPlayer";
 import { MediaLayoutProvider } from "./MediaLayoutContext";
 import { Loader } from "../../ui/Loader/Loader";
+import { Crew } from "../../media/Credits/Crew";
+import { Cast } from "../../media/Credits/Cast";
 
 interface Props {
     media: TMDBMedia;
@@ -25,7 +27,6 @@ interface Props {
 export const MediaLayout = ({media, isLoading, error, mediaType, containerId, children} : Props) => {
     const [searchParams] = useSearchParams()
     const shouldPlay = searchParams.has("play");
-
 
     if(isLoading || !media) {
         return <Loader fullScreen showLogo={false}/>
@@ -41,8 +42,11 @@ export const MediaLayout = ({media, isLoading, error, mediaType, containerId, ch
                 <div className="media-layout-content">
                     {children}
                 </div>
-                <Actors 
-                    actors={media.credits?.cast}
+                <Crew 
+                    crew={media.credits?.crew}
+                />
+                <Cast 
+                    cast={media.credits?.cast}
                 />
                 <RecommendationMedia 
                     mediaType={mediaType}
