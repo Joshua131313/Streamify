@@ -27,6 +27,7 @@
     flex-direction: column;
     gap: 0.75rem;
     max-width: 900px;
+    padding: 20px 0;
 }
 
 /* NAME */
@@ -58,8 +59,8 @@
     color: var(--text-muted);
     line-height: 1.7;
     font-size: var(--font-md);
-
-    max-width: 70ch;
+    max-height: 400px;
+    overflow-y: auto;
 }
 
 /* ACCENT LINE UNDER HEADER */
