@@ -16,6 +16,7 @@ export const Crew = ({ crew }: Props) => {
       getName={(person) => person.name}
       getSubtitle={(person) => person.job}
       getProfilePath={(person) => person.profile_path}
+      getId={(person) => person.id}
     />
   );
 };

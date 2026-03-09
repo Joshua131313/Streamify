@@ -3,6 +3,7 @@ import { AppLayout } from "../components/layout/AppLayout"
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { lazy, Suspense } from "react"
 import { Loader } from "../components/ui/Loader/Loader"
+import { PersonPage } from "../pages/Person/Person";
 
 const Home = lazy(() => import("../pages/Home/Home"));
 const Movie = lazy(() => import("../pages/Movie/Movie"));
@@ -21,6 +22,7 @@ const router = createBrowserRouter([
       { path: "search", element: <Search /> },
       { path: "discover", element: <Browse /> },
       { path: "saved", element: <SavedMedia /> },
+      { path: "person/:id", element: <PersonPage /> },
     ],
   },
 ]);

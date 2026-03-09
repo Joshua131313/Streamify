@@ -1,0 +1,102 @@
+.person-header {
+    display: flex;
+    gap: 2.5rem;
+    margin-top: 80px;
+}
+.person-header .container-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+/* PERSON IMAGE */
+
+.person-header img {
+    width: 280px;
+    height: 420px;
+    object-fit: cover;
+    margin-bottom: 20px;
+    border-radius: var(--border-radius);
+    margin: auto;
+}
+
+/* PERSON INFO */
+
+.person-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-width: 900px;
+}
+
+/* NAME */
+
+.person-details h1 {
+    font-size: var(--font-4xl);
+    font-weight: 700;
+    color: var(--text-primary);
+
+    margin-bottom: 0.75rem;
+}
+
+/* META INFO */
+
+.person-details p {
+    font-size: var(--font-md);
+    color: var(--text-body);
+    line-height: 1.5;
+}
+
+.person-details strong {
+    color: var(--text-primary);
+}
+
+/* BIOGRAPHY */
+
+.person-bio {
+    margin-top: 1rem;
+    color: var(--text-muted);
+    line-height: 1.7;
+    font-size: var(--font-md);
+
+    max-width: 70ch;
+}
+
+/* ACCENT LINE UNDER HEADER */
+
+.person-details h1::after {
+    content: "";
+    display: block;
+
+    width: 60px;
+    height: 4px;
+
+    background: var(--accent-primary);
+    margin-top: 8px;
+
+    border-radius: 2px;
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 900px) {
+    .person-details p {
+        font-size: var(--font-sm);
+    }
+}
+@media (max-width: 750px) {
+    .person-header .container-content {
+        display: flex;
+        flex-direction: column;
+    }
+    .person-header img { 
+        width: 220px;
+        height: 360px;
+    }
+}
+@media (max-width: 600px) {
+    .person-header img { 
+        width: 180px;
+        height: 260px;
+    }
+}

@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { TMDBImg } from "../../ui/TMDBImg/TMDBImg";
 import { FaUserCircle } from "react-icons/fa";
 
@@ -6,13 +7,14 @@ interface Props {
     name: string;
     subtitle?: string;
     profilePath: string | null;
+    id: number;
 }
 
 export const CreditCard = (props: Props) => {
-    const { name, subtitle, profilePath } = props;
+    const { name, subtitle, profilePath, id } = props;
 
     return (
-        <a target="_blank" href={`https://www.google.com/search?q=${name}`}>
+        <Link to={`/person/${id}`}>
             <div className="credit-card">
                 {profilePath ?
                     <TMDBImg type="profile" size="w185" path={profilePath} />
@@ -24,6 +26,6 @@ export const CreditCard = (props: Props) => {
                     {subtitle && <small>{subtitle}</small>}
                 </div>
             </div>
-        </a>
+        </Link>
     )
 }

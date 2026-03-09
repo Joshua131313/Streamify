@@ -27,6 +27,9 @@ interface TMDBPersn {
   id: number;
   gender: number;
   credit_id: string;
+  place_of_birth: string;
+  birthday: string;
+  biography: string;
 }
 export interface TMDBCrewPerson extends TMDBPersn {
   department: string;
@@ -36,6 +39,7 @@ export interface TMDBCastPerson  extends TMDBPersn{
   cast_id: number;
   character: string;
 }
+export type TMDBPersonCredit = TMDBCastPerson | TMDBCrewPerson;
 export interface TMDBMediaCredits {
   cast: TMDBCastPerson[];
   crew: TMDBCrewPerson[];

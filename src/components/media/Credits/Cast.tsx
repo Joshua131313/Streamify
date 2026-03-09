@@ -16,6 +16,7 @@ export const Cast = ({ cast }: Props) => {
             getName={(person) => person.name}
             getSubtitle={(person) => person.character}
             getProfilePath={(person) => person.profile_path}
+            getId={(person) => person.id}
         />
     );
 };

@@ -7,7 +7,6 @@ import { Icon } from "../../ui/Icon/Icon";
 import { FaLongArrowAltLeft } from "react-icons/fa";
 import { useEffect } from "react";
 import { RecommendationMedia } from "../../media/RecommendationMedia/RecommendationMedia";
-import { Actors } from "../../media/Actors/Actors";
 import { createPortal } from "react-dom";
 import { MediaPlayer } from "../../media/MediaPlayer/MediaPlayer";
 import { MediaLayoutProvider } from "./MediaLayoutContext";

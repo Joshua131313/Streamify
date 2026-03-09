@@ -11,6 +11,7 @@ interface CreditsListProps<T> {
     getName: (item: T) => string;
     getSubtitle: (item: T) => string | undefined;
     getProfilePath: (item: T) => string | null;
+    getId: (item: T) => number;
 }
 
 export const CreditsList = <T,>({
@@ -22,6 +23,7 @@ export const CreditsList = <T,>({
     getName,
     getSubtitle,
     getProfilePath,
+    getId
 }: CreditsListProps<T>) => {
     return (
         <Credits title={title} className={className} containerId={containerId}>
@@ -31,6 +33,7 @@ export const CreditsList = <T,>({
                     name={getName(item)}
                     subtitle={getSubtitle(item)}
                     profilePath={getProfilePath(item)}
+                    id={getId(item)}
                 />
             ))}
         </Credits>
