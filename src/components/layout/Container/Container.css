@@ -27,7 +27,14 @@
     grid-template-columns: repeat(auto-fit, minmax(var(--media-card-width), 1fr));
     gap: 10px;
 }
-
+.container-header {
+    margin-top: 40px;
+}
+.container-header .app-icon {
+    width: 40px;
+    height: 40px;
+    font-size: var(--font-lg);
+}
 @media(max-width: 1400px) {
     .app-container {
         padding: 0 10px;

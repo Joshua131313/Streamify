@@ -9,11 +9,16 @@ type MediaSearchQueryResult = TMDBMediaQueryResult & {
     search: string;
     setSearch: React.Dispatch<React.SetStateAction<string>>;
     executeSearch: () => void;
+    hasSearched: boolean;
 }
 export const useSearchMedia = (mediaType: TMediaType | "multi") : MediaSearchQueryResult => {
     const [bufferedSearch, setBufferedSearch] = useState<string>("")
     const [search, setSearch] = useState<string>("");
+    const [hasSearched, setHasSearched] = useState(false);
+
     const executeSearch = () => {
+        if(!bufferedSearch.trim()) return;
+        setHasSearched(true)
         setSearch(bufferedSearch)
     }
     const query = useTMDBQuery<TMDBListResponse>({
@@ -34,6 +39,7 @@ export const useSearchMedia = (mediaType: TMediaType | "multi") : MediaSearchQue
         media,
         search: bufferedSearch, 
         setSearch: setBufferedSearch,
-        executeSearch
+        executeSearch,
+        hasSearched
     }
 }

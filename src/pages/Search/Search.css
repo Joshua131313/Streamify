@@ -1,3 +1,20 @@
 .search-page .page-header-container {
     margin-top: 0;
 }
+.no-results {
+    text-align: center;
+    padding: 40px;
+    opacity: 0.8;
+    gap: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    grid-column: 1 / -1
+}
+.no-results-trending-today-title {
+    grid-column: 1 / -1;
+}
+.no-results .app-icon {
+    pointer-events: none;
+}

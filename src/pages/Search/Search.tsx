@@ -9,11 +9,13 @@ import { FaSearch } from "react-icons/fa"
 import { useSearchMedia } from "../../hooks/mediaHooks/useSearchMedia"
 import type { TMediaType } from "../../types/tmdb"
 import { PageHeader } from "../../components/ui/PageHeader/PageHeader"
+import { Icon } from "../../components/ui/Icon/Icon"
+import { Title } from "../../components/ui/Title/Title"
 export type Option = {
     value: TMediaType | "multi";
     label: string;
 };
-export const selectOptions : Option[] = [
+export const selectOptions: Option[] = [
     {
         value: "multi",
         label: "All",
@@ -30,33 +32,33 @@ export const selectOptions : Option[] = [
 ]
 const Search = () => {
 
-    const { media: trendingToday} = useMixedMedia("/trending/all/day", 20);
+    const { media: trendingToday } = useMixedMedia("/trending/all/day", 20);
     const [option, setOption] = useState<Option>(selectOptions[0]);
-    const { executeSearch, setSearch, search, media } = useSearchMedia(option.value);
+    const { executeSearch, setSearch, search, media, hasSearched } = useSearchMedia(option.value);
     const trendingTodayRow = trendingToday.map(media => {
         return (
-            <MediaCard media={media} key={media.id}/>
+            <MediaCard media={media} key={media.id} />
         )
     })
     const searchResultsRow = media.map(media => {
         return (
-            <MediaCard media={media} key={media.id}/>
+            <MediaCard media={media} key={media.id} />
         )
     })
 
     return (
         <div className="search-page">
-            <PageHeader 
+            <PageHeader
                 title="Browse Through The Catalog"
                 subTitle="Search through thousands of movies, TV shows and anime series"
                 controls={
                     <>
-                        <StyledSelect<Option, false> 
+                        <StyledSelect<Option, false>
                             options={selectOptions}
                             value={option}
-                            onChange={(opt) => setOption({label: opt?.label ?? "", value: opt?.value ?? "multi"})}
+                            onChange={(opt) => setOption({ label: opt?.label ?? "", value: opt?.value ?? "multi" })}
                         />
-                        <Input 
+                        <Input
                             autoFocus
                             Icon={FaSearch}
                             placeholder="Type here to search"
@@ -88,11 +90,34 @@ const Search = () => {
                     />
                 </Container>
             </Container> */}
-            <Container title={searchResultsRow.length ? "Search Results" : "Trending Today"} className="media-grid">
+            <Container
+                title={
+                    hasSearched
+                        ? media.length
+                            ? "Search Results"
+                            : "No Results Found"
+                        : "Trending Today"
+                }
+                className="media-grid"
+            >
                 {
-                    searchResultsRow.length ? 
-                    searchResultsRow :
-                    trendingTodayRow
+                    hasSearched ? (
+                        media.length ? (
+                            searchResultsRow
+                        ) : (
+                            <>
+                            <div className="no-results">
+                                <Icon Icon={FaSearch} />
+                                <h2>No results found for:</h2>
+                                <p>{search}</p>
+                            </div>
+                            <Title className="no-results-trending-today-title" title="Browse Trending Today"/>
+                            {trendingTodayRow}
+                            </>
+                        )
+                    ) : (
+                        trendingTodayRow
+                    )
                 }
             </Container>
         </div>
@@ -158,17 +183,17 @@ export default Search;
 
 //     return (
 //         <div className="search-page">
-//             <PageHeader 
+//             <PageHeader
 //                 title="Browse Through The Catalog"
 //                 subTitle="Search through thousands of movies, TV shows and anime series"
 //                 controls={
 //                     <>
-//                         <StyledSelect<Option, false> 
+//                         <StyledSelect<Option, false>
 //                             options={selectOptions}
 //                             value={option}
 //                             onChange={(opt) => setOption({label: opt?.label ?? "", value: opt?.value ?? "multi"})}
 //                         />
-//                         <Input 
+//                         <Input
 //                             autoFocus
 //                             Icon={FaSearch}
 //                             placeholder="Type here to search"
@@ -186,7 +211,7 @@ export default Search;
 //             />
 //             <Container title={searchResultsRow.length ? "Search Results" : "Trending Today"} className="media-grid">
 //                 {
-//                     searchResultsRow.length ? 
+//                     searchResultsRow.length ?
 //                     searchResultsRow :
 //                     trendingTodayRow
 //                 }

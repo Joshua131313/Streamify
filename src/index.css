@@ -148,12 +148,13 @@ img { object-fit: cover; }
 .flex { display: flex; }
 .flex-row {
   display: flex;
-  align-items: center;
-  justify-content: center;
 }
 .flex-col {
   display: flex;
   flex-direction: column;
+}
+.ac {
+  align-items: center;
 }
 .sb { justify-content: space-between; }
 .br { border-radius: calc(var(--border-radius)); }

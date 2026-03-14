@@ -13,7 +13,7 @@ export const Credits = (props: Props ) => {
     const { containerId, title, className } = props;
 
     return (
-        <Container title={title} className={`credits ${className}`} containerId={containerId}>
+        <Container accordionMode title={title} className={`credits ${className}`} containerId={containerId}>
             {props.children}
         </Container>
     )

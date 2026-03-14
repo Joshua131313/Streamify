@@ -3,14 +3,17 @@ import { Button } from "./Button"
 import type { TMediaType } from "../../../types/tmdb";
 import { Link } from "react-router-dom";
 import { useLocalStorage } from "../../../hooks/utilHooks/useLocalStorage";
+import { Icon } from "../Icon/Icon";
 
 interface Props {
     mediaType: TMediaType;
     mediaId: number;
+    variant?: "icon" | "button";
+    className?: string;
 }
 
 export const PlayButton = (props : Props) => {
-    const { mediaType, mediaId } = props;
+    const { mediaType, mediaId, variant = "button", className } = props;
     const { get } = useLocalStorage();
     
     const playUrl = () => {
@@ -25,11 +28,17 @@ export const PlayButton = (props : Props) => {
     }
 
     return (
-        <Link to={playUrl()}>
-            <Button className="play-button">
-                <FaPlay />
-                Play
-            </Button>
+        <Link to={playUrl()} className={`play-button ${className}`}>
+            {variant === "button" ?
+                <Button className="play-button">
+                    <FaPlay />
+                    Play
+                </Button>
+                :
+                <Icon 
+                    Icon={FaPlay}
+                />
+            }
         </Link>
     )
 }
