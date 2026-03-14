@@ -1,7 +1,7 @@
 .search-page .page-header-container {
     margin-top: 0;
 }
-.no-results {
+.no-results, .search-loading {
     text-align: center;
     padding: 40px;
     opacity: 0.8;
@@ -17,4 +17,35 @@
 }
 .no-results .app-icon {
     pointer-events: none;
+}
+
+.search-history-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.search-history-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  margin-top: 8px;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+  z-index: 50;
+}
+
+.search-history-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.search-history-item:hover, .search-history-item.highlighted {
+  background: var(--bg-alt);
 }
