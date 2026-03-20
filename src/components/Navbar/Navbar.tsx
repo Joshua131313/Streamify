@@ -2,38 +2,50 @@ import { Logo } from "../ui/Logo/Logo"
 import { Container } from "../layout/Container/Container"
 import "./Navbar.css"
 import { FaFilm, FaHome, FaSearch, FaSquarespace, FaTv } from "react-icons/fa"
-import { FaCubesStacked } from "react-icons/fa6"
+import { FaBasketball, FaCubesStacked } from "react-icons/fa6"
 import { NavLink } from "react-router-dom"
 import { Mobilebar } from "./Mobilebar"
 import type { IconType } from "react-icons"
 import { AppNavLink } from "./AppNavLink"
 import { BsBookmarkFill } from "react-icons/bs"
 
-const navLinks : {path: string, Icon: IconType, label: string}[] = [
+const saved = {
+        path: "/saved",
+        Icon: BsBookmarkFill,
+        label: "Saved",
+        className: "saved"
+}
+const navLinks : {path: string, Icon: IconType, label: string, className: string}[] = [
     {
         path: "/",
         Icon: FaHome,
-        label: "Discover"
+        label: "Discover",
+        className: ""
     },
     {
         path: "/discover?media=movie",
         Icon: FaFilm,
-        label: "Movies"
+        label: "Movies",
+        className: ""
     },
     {
         path: "/discover?media=tv",
         Icon: FaTv,
-        label: "Shows"
+        label: "Shows",
+        className: ""
     },
     {
-        path: "/saved",
-        Icon: BsBookmarkFill,
-        label: "Saved"
+        path: "/sports",
+        Icon: FaBasketball,
+        label: "Sports",
+        className: ""
     },
+    saved,
     {
         path: "/search",
         Icon: FaSearch,
-        label: "Search"
+        label: "Search",
+        className: ""
     },
 
 ]
@@ -53,6 +65,12 @@ export const Navbar = ()  => {
         <>
         <Container className="navbar">
             <Logo />
+            <AppNavLink 
+                className={saved.className}
+                Icon={saved.Icon}
+                label={saved.label}
+                path={saved.path}
+            />
             <NavLinks />
         </Container>
         <Mobilebar />

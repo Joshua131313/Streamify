@@ -11,6 +11,7 @@ const Show = lazy(() => import("../pages/Show/Show"));
 const Search = lazy(() => import("../pages/Search/Search"));
 const Browse = lazy(() => import("../pages/Browse/Browse"));
 const SavedMedia = lazy(() => import("../pages/SavedMedia/SavedMedia"));
+const Sports = lazy(() => import("../pages/Sports/Sports"));
 
 const router = createBrowserRouter([
   {
@@ -23,6 +24,7 @@ const router = createBrowserRouter([
       { path: "discover", element: <Browse /> },
       { path: "saved", element: <SavedMedia /> },
       { path: "person/:id", element: <PersonPage /> },
+      { path: "sports", element: <Sports /> }
     ],
   },
 ]);

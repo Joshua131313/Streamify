@@ -1,0 +1,5 @@
+.sports-grid .container-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(var(--game-card-width), 1fr));
+    gap: 20px;
+}

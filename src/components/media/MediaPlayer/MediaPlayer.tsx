@@ -8,6 +8,7 @@ import { YouAreWatching } from "./YouAreWatching"
 import { useMediaLayoutContext } from "../../layout/MediaLayout/MediaLayoutContext"
 import { EpisodeSelector } from "./EpisodeSelector"
 import { useLocalStorage } from "../../../hooks/utilHooks/useLocalStorage"
+import { AppPlayer } from "../../ui/AppPlayer/AppPlayer"
 
 export const MediaPlayer = ({ modal = true} : { modal?: boolean}) => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -29,24 +30,6 @@ export const MediaPlayer = ({ modal = true} : { modal?: boolean}) => {
         return `https://vidsrc-embed.ru/embed/${mediaType}/${media.id}?autoplay=1&color-D81F26`
     }
     
-    useEffect(() => {
-        if(modal) {
-            document.body.classList.add("player-open");
-            const scrollY = window.scrollY;
-            document.body.style.position = "fixed";
-            document.body.style.top = `-${scrollY}px`;
-            document.body.style.width = "100%";
-            return () => {
-                const scrollY = document.body.style.top;
-                document.body.style.position = "";
-                document.body.style.top = "";
-                document.body.style.width = "";
-                window.scrollTo(0, parseInt(scrollY || "0") * -1);
-                document.body.classList.remove("player-open");
-            };
-        }
-    }, [modal]);
-
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
             let data: any;
@@ -90,26 +73,14 @@ export const MediaPlayer = ({ modal = true} : { modal?: boolean}) => {
         }
     }, [searchParams, mediaType, media])
 
-    const Player = () => {
-        return (
-            <div className={`player ${modal ? "modal-player" : ""}`} role="dialog" aria-modal="true">
-                {modal && <Icon className="back-icon player-control-icon" Icon={FaLongArrowAltLeft} onClick={cancelPlay}/>}
-                <YouAreWatching />
-                {mediaType === "tv" && <EpisodeSelector />}
-                <iframe 
-                    src={getMediaSrc()} 
-                    allowFullScreen
-                />
-            </div>
-        )
-    }
-
     return (
-        modal ?
-        createPortal(
-            <Player />
-        , document.body
-        )
-        : <Player />
+        <AppPlayer 
+            cancelPlay={cancelPlay}
+            modal={modal}
+            src={getMediaSrc()}
+        >
+            <YouAreWatching />
+            {mediaType === "tv" && <EpisodeSelector />}
+        </AppPlayer>
     )
 }
