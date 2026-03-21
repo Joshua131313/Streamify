@@ -2,6 +2,8 @@ export type IGame = {
   date: string;
   game: string;
   stream: string;
+  channel: number;
+  streamProvider: TStreamProvider;
   homeTeam: {
     name: string;
     logo: string;
@@ -12,5 +14,6 @@ export type IGame = {
   };
 };
 
+export type TStreamProvider = "sharkstreams";
 
 export type IGames = IGame[];

@@ -70,12 +70,13 @@
 }
 
 /* Watch button */
-.watch-btn {
+.game-card .watch-button button {
     align-items: center;
     justify-content: center;
+    width: 100%;
 }
 
-.watch-btn:hover {
+.game-card .watch-button:hover button {
     transform: initial;
     filter: brightness(90%);
 }

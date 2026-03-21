@@ -81,6 +81,24 @@ export default async function handler(req, res) {
         const match = watch.match(/'(https:\/\/[^']+)'/);
         if (match) stream = match[1];
       }
+      let channel = null;
+      let streamProvider = null;
+
+      if (stream) {
+        // extract channel
+        const channelMatch = stream.match(/channel=(\d+)/);
+        if (channelMatch) {
+          channel = channelMatch[1];
+        }
+
+        // extract domain (stream type)
+        try {
+          const url = new URL(stream);
+          streamProvider = url.hostname.replace("www.", "").split(".")[0];
+        } catch {
+          streamProvider = null;
+        }
+      }
 
       if (game) {
         const [homeTeam, awayTeam] = game.split(" vs ");
@@ -89,6 +107,8 @@ export default async function handler(req, res) {
           date: isoDate,
           game,
           stream,
+          channel,
+          streamProvider,
           homeTeam: {
             name: homeTeam,
             logo: getLogo(homeTeam)

@@ -1,4 +1,4 @@
-import type { IGames } from "../types/sports";
+import  {type IGames, type TStreamProvider } from "../types/sports";
 import { DateTime } from "luxon";
 
 export const getGameStatus = (date: string) => {
@@ -24,3 +24,13 @@ export const filterGames = (games: IGames, search: string): IGames => {
         }
     })
 }
+
+export const streamTypeToStreamBaseURL = (streamType: TStreamProvider) => {
+    switch(streamType) {
+        case "sharkstreams": 
+            return "https://sharkstreams.net/player.php?"
+    }
+}
+export const getStreamURL = (streamType: TStreamProvider, channel: number) => {
+    return streamTypeToStreamBaseURL(streamType) + `&channel=${channel}`
+} 

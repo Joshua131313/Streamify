@@ -8,11 +8,21 @@ import { AppPlayer } from "../../components/ui/AppPlayer/AppPlayer";
 import "./Sports.css"
 import { Input } from "../../components/ui/Input/Input";
 import { FaSearch } from "react-icons/fa";
-import { filterGames } from "../../utils/sports";
+import { filterGames, getStreamURL } from "../../utils/sports";
+import { useSearchParams } from "react-router-dom";
+import type { TStreamProvider } from "../../types/sports";
 
 const Sports = () => {
     const { games, error, search, setSearch } = useGames();
-    const [playerSrc, setPlayerSrc] = useState("");
+    const [searchParams, setSearchParams] = useSearchParams();
+    const provider = searchParams.get("provider");
+    const channel = Number(searchParams.get("channel"));
+
+    const cancelWatch = () => {
+        searchParams.delete("provider");
+        searchParams.delete("channel");
+        setSearchParams(searchParams, {replace: true});
+    }
 
     return (
         <div className="sports-page">
@@ -31,15 +41,14 @@ const Sports = () => {
             />
             <Container title="NBA" className="sports-grid">
                 {filterGames(games, search).map((game, index) => (
-                    <GameCard showTag={false} key={index} game={game} setPlayerSrc={setPlayerSrc}/>
+                    <GameCard showTag={false} key={index} game={game} />
                 ))}
             </Container>
             {
-                playerSrc &&
+                channel && provider &&
                 <AppPlayer
-                    cancelPlay={() => setPlayerSrc("")}
-                    src={playerSrc}
-
+                    cancelPlay={cancelWatch}
+                    src={getStreamURL(provider as TStreamProvider, channel)}
                 />
             }
         </div>

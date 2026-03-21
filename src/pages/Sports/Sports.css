@@ -3,3 +3,6 @@
     grid-template-columns: repeat(auto-fit, minmax(var(--game-card-width), 1fr));
     gap: 20px;
 }
+.sports-page .header-controls .container-content {
+    grid-template-columns: 1fr;
+}

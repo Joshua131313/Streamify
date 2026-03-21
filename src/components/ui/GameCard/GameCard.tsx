@@ -3,14 +3,14 @@ import type { IGame } from "../../../types/sports";
 import "./GameCard.css"
 import { Button } from "../Button/Button";
 import { getGameStatus } from "../../../utils/sports";
+import { WatchButton } from "../Button/WatchButton";
 
 type Props = {
     game: IGame;
-    setPlayerSrc: (s: string) => void;
     showTag?: boolean;
 };
 
-const GameCard: React.FC<Props> = ({ game, setPlayerSrc, showTag }) => {
+const GameCard: React.FC<Props> = ({ game, showTag }) => {
 
     
     return (
@@ -42,9 +42,11 @@ const GameCard: React.FC<Props> = ({ game, setPlayerSrc, showTag }) => {
                     </div>
                 </div>
             </div>
-            <Button className="watch-btn" onClick={() => setPlayerSrc(game.stream + "&autoplay=1")}>
-                Watch
-            </Button>
+            <WatchButton 
+                variant="button"
+                channel={game.channel}
+                streamProvider={game.streamProvider}
+            />
         </div>
     );
 };
