@@ -3,11 +3,12 @@ import { Container } from "../../components/layout/Container/Container"
 import GameCard from "../../components/ui/GameCard/GameCard";
 import { PageHeader } from "../../components/ui/PageHeader/PageHeader";
 import { Title } from "../../components/ui/Title/Title"
-import { filterGames, useGames } from "../../hooks/sportsHooks/useGames"
+import { useGames } from "../../hooks/sportsHooks/useGames"
 import { AppPlayer } from "../../components/ui/AppPlayer/AppPlayer";
 import "./Sports.css"
 import { Input } from "../../components/ui/Input/Input";
 import { FaSearch } from "react-icons/fa";
+import { filterGames } from "../../utils/sports";
 
 const Sports = () => {
     const { games, error, search, setSearch } = useGames();

@@ -1,22 +1,6 @@
 import { useEffect, useState } from "react"
 import { type IGames } from "../../types/sports"
 
-export const filterGames = (games: IGames, search: string): IGames => {
-    return games.filter(game => {
-        const searchNormalized = search.toLocaleLowerCase().trim();
-        const awayTeamNormalized = game.awayTeam.name.toLocaleLowerCase();
-        const homeTeamNormalized = game.homeTeam.name.toLocaleLowerCase();
-        const gameNormalized = game.game.toLocaleLowerCase();
-        if (
-            awayTeamNormalized.includes(searchNormalized) ||
-            homeTeamNormalized.includes(searchNormalized) ||
-            gameNormalized.includes(searchNormalized)
-        ) {
-            return game;
-        }
-    })
-}
-
 export const useGames = () => {
     const [games, setGames] = useState<IGames>([]);
     const [search, setSearch] = useState("");

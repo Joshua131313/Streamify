@@ -40,7 +40,6 @@ const NBA_TEAM_IDS = {
 };
 
 function getLogo(team) {
-  console.log(team)
   const id = NBA_TEAM_IDS[team];
   if (!id) return null;
 
@@ -72,15 +71,10 @@ export default async function handler(req, res) {
       const game = $(el).find(".ch-name").text().trim();
       const watch = $(el).find(".hd-link").first().attr("onclick");
 
-      const isoDate = dateRaw.replace(" ", "T");
-      const gameDate = new Date(isoDate);
-      const now = new Date();
+      const isoDate = dateRaw.replace(" ", "T")
+
 
       // ✅ simple logic
-      const status = gameDate.getTime() <= now.getTime()
-        ? "live"
-        : "not_started";
-
       let stream = null;
 
       if (watch) {
@@ -94,7 +88,6 @@ export default async function handler(req, res) {
         games.push({
           date: isoDate,
           game,
-          status,
           stream,
           homeTeam: {
             name: homeTeam,

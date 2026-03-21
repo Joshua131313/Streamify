@@ -2,6 +2,7 @@ import React from "react";
 import type { IGame } from "../../../types/sports";
 import "./GameCard.css"
 import { Button } from "../Button/Button";
+import { getGameStatus } from "../../../utils/sports";
 
 type Props = {
     game: IGame;
@@ -17,7 +18,7 @@ const GameCard: React.FC<Props> = ({ game, setPlayerSrc, showTag }) => {
             <div className="inner-game-card">
                 <div className="game-card-badges">
                     {
-                        game.status === "live" ?
+                        getGameStatus(game.date) === "live" ?
                             <div className="live-badge">● LIVE</div>
                         :
                             <div className="not-started-badge">Not started</div>
