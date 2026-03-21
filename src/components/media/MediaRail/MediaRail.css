@@ -36,6 +36,7 @@
 
 .rail-tabs .tab {
     cursor: pointer;
+    align-self: flex-end;
 }
 .active-tab {
     color: var(--accent-primary);
