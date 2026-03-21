@@ -9,11 +9,18 @@ type Props = {
 };
 
 const GameCard: React.FC<Props> = ({ game, setPlayerSrc }) => {
+
+    
     return (
         <div className="game-card">
             <div className="inner-game-card">
                 <div className="game-card-badges">
-                    <div className="live-badge">● LIVE</div>
+                    {
+                        game.status === "live" ?
+                            <div className="live-badge">● LIVE</div>
+                        :
+                            <div className="not-started-badge">Not started</div>
+                    }
                     <div className="sport-tag">Basketball</div>
                 </div>
 

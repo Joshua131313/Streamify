@@ -24,12 +24,15 @@
 }
 
 /* LIVE badge */
-.live-badge {
+.live-badge, .not-started-badge {
     background: #ff3b3b;
     padding: 4px 10px;
     border-radius: 999px;
     font-size: 12px;
     font-weight: bold;
+}
+.not-started-badge {
+    background: rgba(255, 255, 255, 0.2);
 }
 
 /* Sport tag */

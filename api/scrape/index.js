@@ -68,10 +68,18 @@ export default async function handler(req, res) {
     const games = [];
 
     $(".row").each((i, el) => {
-      const date = $(el).find(".ch-date").text().trim();
+      const dateRaw = $(el).find(".ch-date").text().trim();
       const game = $(el).find(".ch-name").text().trim();
-
       const watch = $(el).find(".hd-link").first().attr("onclick");
+
+      const isoDate = dateRaw.replace(" ", "T");
+      const gameDate = new Date(isoDate);
+      const now = new Date();
+
+      // ✅ simple logic
+      const status = gameDate.getTime() <= now.getTime()
+        ? "live"
+        : "not_started";
 
       let stream = null;
 
@@ -84,8 +92,9 @@ export default async function handler(req, res) {
         const [homeTeam, awayTeam] = game.split(" vs ");
 
         games.push({
-          date,
+          date: isoDate,
           game,
+          status,
           stream,
           homeTeam: {
             name: homeTeam,

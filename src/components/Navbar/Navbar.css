@@ -89,8 +89,12 @@
 .mobile-bar-spacer {
     display: none;
 }
-
-@media (max-width: 700px) {
+@media (max-width: 850px) {
+    .nav-links {
+        gap: 10px;
+    }
+}
+@media (max-width: 775px) {
     .navbar .nav-links {
         display: none;
     }
