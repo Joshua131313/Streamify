@@ -10,6 +10,7 @@
     transition: transform 0.3s ease;
     justify-content: space-between;
     gap: 20px;
+    max-width: 300px;
 }
 
 .inner-game-card {
@@ -24,24 +25,17 @@
 }
 
 /* LIVE badge */
-.live-badge, .not-started-badge {
+.live-badge, .not-started-badge, .sport-tag {
     background: #ff3b3b;
     padding: 4px 10px;
-    border-radius: 999px;
-    font-size: 12px;
+    border-radius: 40px;
+    font-size: var(--font-xs);
     font-weight: bold;
 }
-.not-started-badge {
+.not-started-badge, .sport-tag {
     background: rgba(255, 255, 255, 0.2);
 }
 
-/* Sport tag */
-.sport-tag {
-    background: rgba(255, 255, 255, 0.2);
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: 12px;
-}
 
 /* Logos */
 .logos {
@@ -54,8 +48,8 @@
 }
 
 .logos img {
-    width: 90px;
-    height: 90px;
+    width: 70px;
+    height: 70px;
     object-fit: contain;
 }
 
@@ -66,12 +60,14 @@
 
 /* Title */
 .game-title {
-    font-size: var(--font-md);
+    font-size: var(--font-sm);
     font-weight: 600;
     margin-bottom: 10px;
 }
 
-.game-time {}
+.game-time {
+    font-size: var(--font-sm);
+}
 
 /* Watch button */
 .watch-btn {
@@ -83,21 +79,36 @@
     transform: initial;
     filter: brightness(90%);
 }
-
-@media (max-width: 700px) {
+@media (max-width: 800px) {
     :root {
-        --game-card-width: 220px;
+        --game-card-width: 200px;
     }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 700px) {
     :root {
         --game-card-width: 180px;
     }
-
     .logos img {
         width: 60px;
         height: 60px;
+    }
+}
+@media (max-width: 650px) {
+    .game-card-badges {
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+    }
+}
+@media (max-width: 600px) {
+    :root {
+        --game-card-width: 160px;
+    }
+
+    .logos img {
+        width: 50px;
+        height: 50px;
         object-fit: contain;
     }
 }

@@ -6,9 +6,10 @@ import { Button } from "../Button/Button";
 type Props = {
     game: IGame;
     setPlayerSrc: (s: string) => void;
+    showTag?: boolean;
 };
 
-const GameCard: React.FC<Props> = ({ game, setPlayerSrc }) => {
+const GameCard: React.FC<Props> = ({ game, setPlayerSrc, showTag }) => {
 
     
     return (
@@ -21,7 +22,7 @@ const GameCard: React.FC<Props> = ({ game, setPlayerSrc }) => {
                         :
                             <div className="not-started-badge">Not started</div>
                     }
-                    <div className="sport-tag">Basketball</div>
+                    {showTag && <div className="sport-tag">Basketball</div>}
                 </div>
 
                 {/* Logos */}
