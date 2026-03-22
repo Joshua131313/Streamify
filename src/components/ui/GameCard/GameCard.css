@@ -25,14 +25,14 @@
 }
 
 /* LIVE badge */
-.live-badge, .not-started-badge, .sport-tag {
+.live-badge, .not-started-badge, .status-tag {
     background: #ff3b3b;
     padding: 4px 10px;
     border-radius: 40px;
     font-size: var(--font-xs);
     font-weight: bold;
 }
-.not-started-badge, .sport-tag {
+.not-started-badge, .status-tag {
     background: rgba(255, 255, 255, 0.2);
 }
 .team {

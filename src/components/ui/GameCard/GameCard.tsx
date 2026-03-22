@@ -35,6 +35,16 @@ interface Props {
 
 const GameCard: React.FC<Props> = ({ game, showSportName }) => {
     const isLive = game.status === "LIVE";
+    const showScore = (game: GameProps, key: "awayTeam" | "homeTeam") => {
+        return game[key].score !== undefined && (game.status === "FINAL" || game.status === "LIVE") // score is not null and game is either finished or live
+    }
+
+    const getPeriod = () => {
+        switch (game.sportName) {
+            case "Basketball":
+                return ""
+        }
+    }
 
     return (
         <div className="game-card">
@@ -52,8 +62,17 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
                         <div className="not-started-badge">Upcoming</div>
                     )}
 
-                    {showSportName && (
-                        <div className="sport-tag">{game.sportName}</div>
+                    {game.status === "LIVE" ? (
+                        <div className="status-tag">{game.periodNumber} {game.clock && ": " + game.clock}</div>
+                    )
+                        :(
+                        <div className="status-tag">
+                            {new Date(game.startTime).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                            })}
+                        </div>
+
                     )}
                 </div>
 
@@ -61,7 +80,7 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
                 <div className="logos">
                     <div className="team">
                         <img src={game.homeTeam.logo} alt={game.homeTeam.name} />
-                        {(game.homeTeam.score !== undefined && game.status === "LIVE") ? (
+                        {(showScore(game, "homeTeam")) ? (
                             <div className="score">{game.homeTeam.score}</div>
                         ) : (
                             <div className="score ghost-score">-</div>
@@ -73,7 +92,7 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
 
                     <div className="team">
                         <img src={game.awayTeam.logo} alt={game.awayTeam.name} />
-                        {(game.awayTeam.score !== undefined && game.status === "LIVE") ? (
+                        {(showScore(game, "awayTeam")) ? (
                             <div className="score">{game.awayTeam.score}</div>
                         ) : (
                             <div className="score ghost-score">-</div>
@@ -86,23 +105,14 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
                     <div className="game-title">{game.title}</div>
 
                     {/* time OR live info */}
-                    {!isLive ? (
+                    {/* {!isLive && (
                         <div className="game-time">
                             {new Date(game.startTime).toLocaleDateString([], {
                                 hour: "2-digit",
                                 minute: "2-digit",
                             })}
                         </div>
-                    ) : (
-                        <div className="live-info">
-                            <span>
-                                {game.period && `${game.period}, `}
-                                {game.periodNumber && `Period: ${game.periodNumber}`}
-                            </span>
-                            {game.period && <span>{game.period}, Period: {game.periodNumber}</span>}
-                            {game.clock && <span> • {game.clock}</span>}
-                        </div>
-                    )}
+                    )} */}
                 </div>
             </div>
 

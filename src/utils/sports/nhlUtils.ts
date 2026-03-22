@@ -50,7 +50,7 @@ export const mapNHLToGameProps = (game: NHLGame): GameProps => {
         },
 
         period: game.periodDescriptor?.periodType,
-        periodNumber: String(game.periodDescriptor?.number),
+        periodNumber: "P" + String(game.periodDescriptor?.number),
         sportName: "Hockey",
         channel: teamsMap[game.awayTeam.abbrev as keyof typeof teamsMap]?.id + "-vs-" + teamsMap[game.homeTeam.abbrev as keyof typeof teamsMap]?.id,
         streamProvider: "embedsports"
