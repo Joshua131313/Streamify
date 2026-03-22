@@ -4,10 +4,10 @@ import type { TMediaType } from "../../../types/tmdb";
 import { Link } from "react-router-dom";
 import { useLocalStorage } from "../../../hooks/utilHooks/useLocalStorage";
 import { Icon } from "../Icon/Icon";
-import type { TStreamProvider } from "../../../types/sports";
+import type { TStreamProvider } from "../../../types/sports/sportsTypes";
 
 interface Props {
-    channel: number;
+    channel: string;
     variant?: "icon" | "button";
     className?: string;
     streamProvider: TStreamProvider;

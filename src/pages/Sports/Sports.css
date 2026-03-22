@@ -6,3 +6,33 @@
 .sports-page .header-controls .container-content {
     grid-template-columns: 1fr;
 }
+.quick-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+    justify-content: center;
+}
+.quick-filter {
+    background-color: var(--bg-primary);
+    padding: 5px 15px;
+    border-radius: 100px;
+    font-size: var(--font-xs);
+    cursor: pointer;
+    transition: all 0.3s;
+}
+.quick-filter:active {
+    transform: scale(0.95);
+}
+.quick-filter.active {
+    background-color: var(--accent-primary);
+}
+.quick-filter.active:hover {
+    background-color: var(--accent-hover);
+}
+.quick-filter:hover {
+    background-color: var(--bg-secondary);
+}
+.header-controls .container-content .quick-filters {
+    height: initial;
+}

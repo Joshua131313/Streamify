@@ -8,7 +8,7 @@ export type TStreamProviders = "netflix" | "prime" | "max" | "disney" | "appletv
 
 export type TMediaType = "movie" | "tv"| "person";
 
-export type TMediaRailVariant = "normal" | "top10"
+export type TRailVariant = "normal" | "top10"
 
 export interface TMDBListResponse {
   results: TMDBRawMedia[];

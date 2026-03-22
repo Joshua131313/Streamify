@@ -1,0 +1,58 @@
+import type { GameProps } from "../../components/ui/GameCard/GameCard";
+import { teamsMap } from "../../data/sports/nhlData";
+import type { NHLGame, ScheduleResponse } from "../../types/sports/nhlTypes";
+
+export const buildEmbedUrl = (awayId: string, homeId: string) =>
+    `https://embedsports.top/embed/admin/ppv-${awayId}-vs-${homeId}/1`;
+
+// Extract all games from response
+export const extractGames = (data: ScheduleResponse): NHLGame[] =>
+    data.gameWeek.flatMap(day => day.games);
+
+export const mapNHLToGameProps = (game: NHLGame): GameProps => {
+    const mapStatus = (): GameProps["status"] => {
+        switch (game.gameState) {
+            case "LIVE":
+            case "CRIT":
+                return "LIVE";
+            case "PRE":
+                return "PRE";
+            case "FUT":
+                return "FUT";
+            case "OFF":
+            case "FINAL":
+                return "FINAL";
+            default:
+                return "FUT";
+        }
+    };
+
+    const homeTeamname = game.homeTeam.placeName.default + " " + game.homeTeam.commonName.default;
+    const awawyTeamName = game.awayTeam.placeName.default + " " + game.awayTeam.commonName.default;
+
+    return {
+        id: game.id,
+        title: `${awawyTeamName} vs ${homeTeamname}`,
+
+        startTime: game.startTimeUTC,
+        status: mapStatus(),
+
+        homeTeam: {
+            name: homeTeamname,
+            logo: game.homeTeam.logo,
+            score: game.homeTeam.score,
+        },
+
+        awayTeam: {
+            name: awawyTeamName,
+            logo: game.awayTeam.logo,
+            score: game.awayTeam.score,
+        },
+
+        period: game.periodDescriptor?.periodType,
+        periodNumber: String(game.periodDescriptor?.number),
+        sportName: "Hockey",
+        channel: teamsMap[game.awayTeam.abbrev as keyof typeof teamsMap]?.id + "-vs-" + teamsMap[game.homeTeam.abbrev as keyof typeof teamsMap]?.id,
+        streamProvider: "embedsports"
+    };
+};

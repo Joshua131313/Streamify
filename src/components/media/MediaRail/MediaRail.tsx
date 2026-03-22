@@ -1,4 +1,5 @@
-import type { TMediaRailVariant, TMediaType, TStreamCategories } from "../../../types/tmdb";
+import type { TMediaType, TStreamCategories } from "../../../types/tmdb";
+import type { TSwiperVariant } from "../../ui/AppSwiper/AppSwiper";
 import { MediaRailProvider } from "./MediaRailContext";
 import { MediaRailHeader } from "./MediaRailHeader";
 import { MediaRailSwiper } from "./MediaRailSwiper";
@@ -7,7 +8,7 @@ interface Props {
     title: string;
     category: TStreamCategories;
     mediaType: TMediaType;
-    variant?: TMediaRailVariant;
+    variant?: TSwiperVariant;
 }
 
 export const MediaRail = (props : Props) => {

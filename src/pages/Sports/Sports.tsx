@@ -1,27 +1,90 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Container } from "../../components/layout/Container/Container"
 import GameCard from "../../components/ui/GameCard/GameCard";
 import { PageHeader } from "../../components/ui/PageHeader/PageHeader";
 import { Title } from "../../components/ui/Title/Title"
-import { useGames } from "../../hooks/sportsHooks/useGames"
 import { AppPlayer } from "../../components/ui/AppPlayer/AppPlayer";
 import "./Sports.css"
 import { Input } from "../../components/ui/Input/Input";
 import { FaSearch } from "react-icons/fa";
-import { filterGames, getStreamURL } from "../../utils/sports";
 import { useSearchParams } from "react-router-dom";
-import type { TStreamProvider } from "../../types/sports";
+import { useNBAGames } from "../../hooks/sportsHooks/useNBAGames";
+import { mapNBAToGameProps } from "../../utils/sports/nbaUtils";
+import type { TStreamProvider } from "../../types/sports/sportsTypes";
+import { useSports } from "../../context/SportsContext";
+import { filterGames, getStreamURL } from "../../utils/sports/sportsUtils";
+import { mapNHLToGameProps } from "../../utils/sports/nhlUtils";
+import { AppSwiper } from "../../components/ui/AppSwiper/AppSwiper";
+import { SwiperSkeletonCard } from "../../components/ui/MediaCard/SkeletonCards/MediaSkeletonCard";
+
+export type QuickFilter = {
+    label: string;
+    value: string;
+    type: "status" | "league" | "sport";
+    default?: boolean;
+};
+
+export const quickFilters: QuickFilter[] = [
+    // status
+    { label: "Live", value: "LIVE", type: "status", default: true },
+    { label: "Pre Game", value: "PRE", type: "status" },
+    { label: "Upcoming", value: "FUT", type: "status", default: true },
+    { label: "Finished", value: "FINAL", type: "status" },
+
+    // league
+    { label: "NBA", value: "NBA", type: "league", default: true, },
+    { label: "NHL", value: "NHL", type: "league", default: true },
+
+    // sport
+    // { label: "Basketball", value: "Basketball", type: "sport" },
+    // { label: "Hockey", value: "Hockey", type: "sport" },
+];
 
 const Sports = () => {
-    const { games, error, search, setSearch } = useGames();
+    const { nbaGames, nbaGamesLoading, nhlGames, nhlGamesLoading, search, setSearch } = useSports();
     const [searchParams, setSearchParams] = useSearchParams();
     const provider = searchParams.get("provider");
-    const channel = Number(searchParams.get("channel"));
-
+    const channel = searchParams.get("channel");
+    const [filters, setFilters] = useState<QuickFilter[]>(quickFilters.filter(x=> x.default))
     const cancelWatch = () => {
         searchParams.delete("provider");
         searchParams.delete("channel");
-        setSearchParams(searchParams, {replace: true});
+        setSearchParams(searchParams, { replace: true });
+    }
+    console.log("bb",nbaGames)
+    const nbaGameCards = useMemo(() => {
+        return filterGames(
+            nbaGames.map(mapNBAToGameProps),
+            search,
+            filters
+        );
+    }, [nbaGames, search, filters]);
+    console.log("nba", nbaGames)
+    const nhlGameCards = useMemo(() => {
+        return filterGames(
+            nhlGames.map(mapNHLToGameProps),
+            search,
+            filters
+        );
+    }, [nhlGames, search, filters]);
+
+    const handleClickFilter = (filter: QuickFilter) => {
+        if (filters.some(x => x.value === filter.value)) {
+            setFilters(prev => prev.filter(x => x.value !== filter.value));
+        }
+        else {
+            setFilters(prev => [...prev, filter])
+        }
+    }
+
+    const FilteredContainer = ({type, title, children} : {type: string, title: string, children: React.ReactNode}) => {
+        return ( 
+            filters.some(x => x.value === type) ? 
+            <Container title={title}>
+                {children}
+            </Container>
+            : null
+        )
     }
 
     return (
@@ -30,26 +93,54 @@ const Sports = () => {
                 title="Browse Sports"
                 subTitle="Explore all live sports games"
                 controls={
-                <>
-                    <Input 
-                        placeholder="Search sports..."
-                        Icon={FaSearch}
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
-                </>}
+                    <>
+                        <Input
+                            placeholder="Search sports..."
+                            Icon={FaSearch}
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                        />
+                        <div className="quick-filters">
+                            {quickFilters.map(filter => (
+                                <div className={`${filters.some(x => x.value === filter.value) ? "active" : ""} quick-filter`} onClick={() => handleClickFilter(filter)}>
+                                    {filter.label}
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                }
             />
-            <Container title="NBA" className="sports-grid">
-                {filterGames(games, search).map((game, index) => (
-                    <GameCard showTag={false} key={index} game={game} />
-                ))}
-            </Container>
-            {
-                channel && provider &&
-                <AppPlayer
-                    cancelPlay={cancelWatch}
-                    src={getStreamURL(provider as TStreamProvider, channel)}
+            <FilteredContainer type="NBA" title="NBA">
+                <AppSwiper
+                    isLoading={nbaGamesLoading}
+                    items={nbaGameCards}
+                    renderItem={(game) => (
+                        <GameCard key={game.id} showSportName={false} game={game} />
+                    )}
+                    skeleton={<SwiperSkeletonCard className="game-card-skeleton" />}
                 />
+            </FilteredContainer>
+            
+            <FilteredContainer type="NHL" title="NHL">
+                {/* {nhlGameCards.map((game, index) => (
+                    <GameCard showSportName={false} key={index} game={(game)} />
+                ))} */}
+                <AppSwiper
+                    isLoading={nhlGamesLoading}
+                    items={nhlGameCards}
+                    renderItem={(game) => (
+                        <GameCard key={game.id} showSportName={false} game={game} />
+                    )}
+                    skeleton={<SwiperSkeletonCard className="game-card-skeleton" />}
+                />
+            </FilteredContainer>
+            {
+                channel && provider ?
+                    <AppPlayer
+                        cancelPlay={cancelWatch}
+                        src={getStreamURL(provider as TStreamProvider, channel)}
+                    />
+                    : null
             }
         </div>
     )

@@ -4,10 +4,12 @@
     position: relative;
     height: var(--media-card-height);
     overflow: hidden;
-        border-radius: var(--border-radius);
-
+    border-radius: var(--border-radius);
 }
-
+.media-skeleton-card.game-card-skeleton {
+    width: var(--game-card-width);
+    height: 275px;
+}
 .media-card img, .media-skeleton-card {
     border-radius: var(--border-radius);
 }
