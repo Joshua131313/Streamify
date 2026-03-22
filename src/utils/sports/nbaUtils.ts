@@ -3,30 +3,6 @@ import type { GameStatus, TStreamProvider } from "../../types/sports/sportsTypes
 import type { INBAGame } from "../../types/sports/nbaTypes";
 import type { GameProps } from "../../components/ui/GameCard/GameCard";
 
-
-export const getNBAGameStatus = (date: string): GameStatus => {
-    const gameTime = DateTime.fromISO(date, { zone: "America/Toronto" });
-    const now = DateTime.now().setZone("America/Toronto");
-
-    const diffInMinutes = now.diff(gameTime, "minutes").minutes;
-
-    if (diffInMinutes < 0) {
-        const minutesUntilStart = Math.abs(diffInMinutes);
-
-        if (minutesUntilStart <= 30) {
-            return "PRE";
-        }
-
-        return "FUT";
-    }
-
-    if (diffInMinutes <= 240) {
-        return "LIVE";
-    }
-
-    return "FINAL";
-};
-
 export const mapStatus = (status: string, date: string): GameStatus => {
   if (status === "In Progress") return "LIVE";
   if (status === "Halftime") return "HALFTIME";
@@ -47,8 +23,8 @@ export const mapStatus = (status: string, date: string): GameStatus => {
 
 export const mapNBAToGameProps = (game: INBAGame): GameProps => {
   // safer title (use abbreviations if available)
-  const title = `${game.awayTeam.abbreviation ?? game.awayTeam.name} vs ${
-    game.homeTeam.abbreviation ?? game.homeTeam.name
+  const title = `${game.homeTeam.name} vs ${
+    game.awayTeam.name
   }`;
 
   return {

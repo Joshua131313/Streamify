@@ -32,7 +32,7 @@ export const mapNHLToGameProps = (game: NHLGame): GameProps => {
 
     return {
         id: game.id,
-        title: `${awawyTeamName} vs ${homeTeamname}`,
+        title: `${homeTeamname} vs ${awawyTeamName}`,
 
         startTime: game.startTimeUTC,
         status: mapStatus(),
