@@ -1,10 +1,11 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import type { TLabelValue, TMediaRailVariant, TMediaType, TStreamCategories, TStreamProviders } from "../../../types/tmdb";
+import type { TLabelValue, TMediaType, TStreamCategories, TStreamProviders } from "../../../types/tmdb";
+import type { TSwiperVariant } from "../../ui/AppSwiper/AppSwiper";
 
 type MediaRailState = {
     title: string;
     category: TStreamCategories;
-    variant: TMediaRailVariant;
+    variant: TSwiperVariant;
     mediaType: TMediaType;
     setMediaType: (mediaType: TMediaType) => void;
     activeTab: TLabelValue | null;
@@ -25,7 +26,7 @@ export const MediaRailProvider = ({
     children 
 } : { 
     category: TStreamCategories, 
-    variant: TMediaRailVariant,
+    variant: TSwiperVariant,
     mediaType: TMediaType, 
     title: string;
     children: React.ReactNode
