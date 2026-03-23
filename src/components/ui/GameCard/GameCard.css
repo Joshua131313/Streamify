@@ -1,3 +1,8 @@
+:root {
+  --game-card-width: 280px;
+  /* --game-card-height: 300px; */
+}
+
 .game-card {
     position: relative;
     border-radius: 20px;
@@ -11,7 +16,11 @@
     justify-content: space-between;
     gap: 20px;
     width: var(--game-card-width);
-    height: var(--game-card-height);
+    /* height: var(--game-card-height); */
+}
+.media-skeleton-card.game-card-skeleton {
+    width: var(--game-card-width);
+    height: 210px;
 }
 
 .inner-game-card {

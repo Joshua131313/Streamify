@@ -15,11 +15,11 @@ export const MovieSeries = (props: Props) => {
     const { movies, seriesBackdropPath, seriesPosterPath } = useMovieCollection(movieSeriesID.id);
     const moviesRow = movies.map(movie => {
         return (
-            <MediaCard media={movie} key={movie.id}/>
+            <MediaCard media={movie} key={movie.id} />
         )
     })
     return (
-        <Container className="movie-series media-grid" title={movieSeriesID.name}>
+        <Container className="movie-series media-grid" title={movieSeriesID.name} backdropImg={movieSeriesID.backdrop}>
             {/* <TMDBImg 
                 path={seriesBackdropPath}
             /> */}

@@ -98,21 +98,6 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
                         )}
                     </div>
                 </div>
-
-                {/* 🔥 Info */}
-                <div className="game-info">
-                    <div className="game-title">{game.title}</div>
-
-                    {/* time OR live info */}
-                    {/* {!isLive && (
-                        <div className="game-time">
-                            {new Date(game.startTime).toLocaleDateString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                            })}
-                        </div>
-                    )} */}
-                </div>
             </div>
 
             {/* 🔥 Watch button */}

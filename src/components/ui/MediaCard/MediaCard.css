@@ -1,4 +1,10 @@
-.media-card, .media-skeleton-card {
+:root {
+    --media-card-width: 200px;
+    --media-card-height: 300px;
+}
+
+.media-card,
+.media-skeleton-card {
     width: var(--media-card-width);
     display: flex;
     position: relative;
@@ -6,35 +12,37 @@
     overflow: hidden;
     border-radius: var(--border-radius);
 }
-.media-skeleton-card.game-card-skeleton {
-    width: var(--game-card-width);
-    height: 275px;
-}
-.media-card img, .media-skeleton-card {
+
+
+
+.media-card img,
+.media-skeleton-card {
     border-radius: var(--border-radius);
 }
 
 .media-skeleton-card {
-  background-color: var(--bg-alt);
-  border-radius: var(--border-radius);
-  transition: all 0.3s;
-  animation: skeleton 2.2s infinite
+    background-color: var(--bg-alt);
+    border-radius: var(--border-radius);
+    transition: all 0.3s;
+    animation: skeleton 2.2s infinite
 }
 
 .media-card .media-card-content {
     width: 100%;
 }
-.media-card .play-button {
 
-}
+.media-card .play-button {}
+
 .media-card.top10-media-card {
     overflow: initial;
 }
+
 .media-card img {
     width: 100%;
     height: 100%;
     transition: all 0.3s;
 }
+
 .media-info {
     position: absolute;
     bottom: -60px;
@@ -44,67 +52,78 @@
     opacity: 0;
     padding: 0 10px 5px 10px;
 }
+
 .media-card:hover .media-info {
     bottom: 0px;
     opacity: 1;
 }
+
 .media-card:hover img {
     transform: scale(1.1);
 }
+
 .media-card.top10-media-card:hover img {
     transform: initial;
 }
+
 .media-title {
     font-weight: bold;
     font-size: var(--font-md);
 }
+
 .media-card .media-card-overlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 60%;
-  background: linear-gradient(transparent, rgba(0,0,0,0.85));
-  pointer-events: none;
-  opacity: 0;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60%;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+    pointer-events: none;
+    opacity: 0;
 }
+
 .media-card:hover .media-card-overlay {
     opacity: 1;
 }
+
 .top10-media-card:hover .rank-number {
     color: var(--accent-primary);
     opacity: 1;
 }
+
 .rank-number {
-  position: absolute;
-  left: -60px;
-  bottom: -10px;
+    position: absolute;
+    left: -60px;
+    bottom: -10px;
 
-  font-size: 140px;
-  font-weight: 900;
-  line-height: 1;
+    font-size: 140px;
+    font-weight: 900;
+    line-height: 1;
 
-  color: transparent;
-  -webkit-text-stroke: 6px var(--accent-primary);
+    color: transparent;
+    -webkit-text-stroke: 6px var(--accent-primary);
 
-  opacity: 0.9;
+    opacity: 0.9;
 
-  z-index: 10;
-  pointer-events: none;
+    z-index: 10;
+    pointer-events: none;
 
-  /* depth */
-  filter: drop-shadow(0 6px 12px rgba(0,0,0,0.9));
+    /* depth */
+    filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.9));
 }
+
 .media-rating {
     display: flex;
     align-items: center;
     gap: 3px;
 }
+
 .media-rating svg {
     color: var(--yellow);
 }
 
-.episode-card, .episode-skeleton-card {
+.episode-card,
+.episode-skeleton-card {
     display: flex;
     height: 125px;
     gap: 10px;
@@ -113,15 +132,20 @@
     border: solid 1px transparent;
     transition: all 0.3s;
 }
+
 .episode-skeleton-card {
-      animation: skeleton 2.2s infinite
+    animation: skeleton 2.2s infinite
 }
-.episode-card:hover, .episode-card-selected {
+
+.episode-card:hover,
+.episode-card-selected {
     border: solid 1px var(--accent-primary);
 }
+
 .episode-card:hover strong {
     color: var(--accent-primary);
 }
+
 .episode-card .episode-info {
     padding: 10px;
     display: flex;
@@ -130,23 +154,30 @@
     width: 100%;
     overflow-y: auto;
 }
+
 .episode-info::-webkit-scrollbar {
     width: 0;
 }
+
 .episode-info small {
     color: var(--text-muted);
 }
+
 .episode-card img {
     filter: brightness(85%);
 }
+
 .still-container {
     height: 100%;
 }
-.episode-card img, .episode-card .img-skeleton {
+
+.episode-card img,
+.episode-card .img-skeleton {
     border-radius: var(--border-radius);
     width: 200px;
     height: 100%;
 }
+
 .episode-badges {
     display: flex;
     gap: 10px;
@@ -156,9 +187,11 @@
     position: sticky;
     margin-top: auto;
 }
+
 .episode-badges .media-badge {
     background-color: var(--bg-alt);
 }
+
 .episode-badges .media-badge {
     font-size: var(--font-xs);
 }
@@ -171,9 +204,11 @@
     width: 40px;
     height: 40px;
 }
+
 .still-container .app-icon:hover {
     transform: translate(-50%, -50%);
 }
+
 .still-container .episode-number {
     position: absolute;
     bottom: 5px;
@@ -184,18 +219,24 @@
     border-radius: calc(var(--border-radius) / 2);
     background-color: var(--bg-alt);
 }
-.still-container .time, .still-container .rating {
+
+.still-container .time,
+.still-container .rating {
     position: absolute;
     z-index: 1;
     left: 5px;
 }
+
 .still-container .rating {
     top: 5px;
 }
+
 .still-container .time {
     bottom: 5px;
 }
-.media-card .save-media-button, .media-card .play-button {
+
+.media-card .save-media-button,
+.media-card .play-button {
     position: absolute;
     right: 10px;
     opacity: 0;
@@ -203,20 +244,27 @@
     top: -10px;
     transition: all 0.3s;
 }
+
 .media-card .play-button {
     left: 10px;
     right: initial;
 }
-.media-card:hover .save-media-button, .media-card:hover .play-button {
+
+.media-card:hover .save-media-button,
+.media-card:hover .play-button {
     pointer-events: all;
     opacity: 1;
     top: 5px;
 }
+
 .media-card:hover img {
     filter: opacity(90%);
 }
+
 @media (hover: none) and (pointer: coarse) {
-   .media-card .save-media-button, .media-card .play-button {
+
+    .media-card .save-media-button,
+    .media-card .play-button {
         pointer-events: all;
         opacity: 1;
         top: 5px;
@@ -234,67 +282,85 @@
         --media-card-width: 175px;
         --media-card-height: 275px;
     }
+
     .episode-card {
         height: 100px;
     }
-    .episode-card .still-container img, .episode-card .still-container .img-skeleton {
+
+    .episode-card .still-container img,
+    .episode-card .still-container .img-skeleton {
         width: 150px;
     }
 }
+
 @media (max-width: 600px) {
     :root {
         --media-card-width: 150px;
         --media-card-height: 250px;
     }
+
     .episode-info strong {
         font-size: var(--font-sm);
     }
+
     .episode-info small {
         font-size: var(--font-xs);
     }
+
     .rank-number {
         font-size: 100px;
     }
+
     .media-title {
         font-size: var(--font-sm);
     }
+
     .media-card .app-icon {
         width: 40px;
         height: 40px;
         font-size: var(--font-md);
     }
 }
+
 @media (max-width: 500px) {
     :root {
         --media-card-width: 130px;
         --media-card-height: 220px;
     }
+
     .episode-card {
         height: 90px;
     }
-    .episode-card .still-container img, .episode-card .still-container .img-skeleton {
+
+    .episode-card .still-container img,
+    .episode-card .still-container .img-skeleton {
         width: 125px;
     }
 }
+
 @media (max-width: 440px) {
     :root {
         --media-card-width: 120px;
         --media-card-height: 225px;
     }
+
     .media-card .app-icon {
         width: 35px;
         height: 35px;
         font-size: var(--font-sm);
     }
 }
+
 @media (max-width: 400px) {
     :root {
         --media-card-width: 110px;
         --media-card-height: 200px;
     }
+
     .media-title {
         font-size: var(--font-xs);
     }
+
     .media-info {
         font-size: var(--font-xs);
     }
@@ -305,26 +371,33 @@
         --media-card-width: 100px;
         --media-card-height: 190px;
     }
+
     .media-card .app-icon {
         width: 30px;
         height: 30px;
         font-size: var(--font-xs);
     }
 }
+
 @media (max-width: 340px) {
     :root {
         --media-card-width: 90px;
         --media-card-height: 180px;
     }
 }
+
 @keyframes skeleton-pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
 }
+
 /* @media (hover: none) and (pointer: coarse) {
     .media-card img {
         filter: brightness(80%);

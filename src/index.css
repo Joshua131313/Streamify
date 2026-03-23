@@ -72,12 +72,6 @@ html, body {
   /* Paddoing */
   --container-padding: 4rem;
 
-  /* card */
-  --media-card-width: 200px;
-  --media-card-height: 300px;
-  --game-card-width: 280px;
-  --game-card-height: 300px;
-
   --max-container-width: 1400px;
   --border-radius: 10px;
 }

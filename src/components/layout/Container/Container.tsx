@@ -12,15 +12,16 @@ interface Props {
     containerId?: string;
     styled?: boolean;
     accordionMode?: boolean;
+    backdropImg?: string;
 }
 
 export const Container = (props : Props) => {
 
-    const { title, className, containerId, styled, accordionMode = false } = props
+    const { title, className, containerId, styled, accordionMode = false, backdropImg } = props
     const [expanded, setExpanded] = useState(false);
 
     return (
-        <div  className={`app-container ${className}`} id={containerId}>
+        <div className={`app-container ${className}`} id={containerId}>
             {
             title && 
                 <div className="container-header flex-row sb ac" onClick={() => accordionMode && setExpanded(!expanded)}>
@@ -33,6 +34,9 @@ export const Container = (props : Props) => {
                     }
                 </div>
             }
+            {backdropImg && 
+                <img className="backdrop-img" src={backdropImg}/>
+            }
             <div className={`container-content ${styled ? "styled" : ""}`}>
                 {(!accordionMode || expanded) && 
                     // if accordionMode enabled then it must be expanded to be visible
@@ -40,6 +44,7 @@ export const Container = (props : Props) => {
                     props.children
                 }
             </div>
+    
         </div>
     )
 }

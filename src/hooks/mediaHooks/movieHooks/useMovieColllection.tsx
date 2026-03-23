@@ -35,6 +35,7 @@ export const useMovieCollection = (collectionId : number) : UseMovieResult => {
             .filter((m) => Boolean(m.backdrop_path))
             .map((m) => normalizeMovie(m))
     }, [query.data?.parts])
+    console.log(query.data)
     // const { data, ...queryWithoutData } = query
     return {
         ...query,
