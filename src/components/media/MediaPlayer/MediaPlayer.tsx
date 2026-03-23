@@ -6,9 +6,9 @@ import { useEffect } from "react"
 import "./MediaPlayer.css"
 import { YouAreWatching } from "./YouAreWatching"
 import { useMediaLayoutContext } from "../../layout/MediaLayout/MediaLayoutContext"
-import { EpisodeSelector } from "./EpisodeSelector"
 import { useLocalStorage } from "../../../hooks/utilHooks/useLocalStorage"
 import { AppPlayer } from "../../ui/AppPlayer/AppPlayer"
+import { EpisodeSelector } from "./EpisodeSelector"
 
 export const MediaPlayer = ({ modal = true} : { modal?: boolean}) => {
     const [searchParams, setSearchParams] = useSearchParams();
