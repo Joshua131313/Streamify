@@ -2,17 +2,12 @@ import { useMemo, useState } from "react";
 import { Container } from "../../components/layout/Container/Container"
 import GameCard from "../../components/ui/GameCard/GameCard";
 import { PageHeader } from "../../components/ui/PageHeader/PageHeader";
-import { Title } from "../../components/ui/Title/Title"
-import { AppPlayer } from "../../components/ui/AppPlayer/AppPlayer";
 import "./Sports.css"
 import { Input } from "../../components/ui/Input/Input";
 import { FaSearch } from "react-icons/fa";
-import { useSearchParams } from "react-router-dom";
-import { useNBAGames } from "../../hooks/sportsHooks/useNBAGames";
 import { mapNBAToGameProps } from "../../utils/sports/nbaUtils";
-import type { TStreamProvider } from "../../types/sports/sportsTypes";
 import { useSports } from "../../context/SportsContext";
-import { filterGames, getStreamURL } from "../../utils/sports/sportsUtils";
+import { filterGames } from "../../utils/sports/sportsUtils";
 import { mapNHLToGameProps } from "../../utils/sports/nhlUtils";
 import { AppSwiper } from "../../components/ui/AppSwiper/AppSwiper";
 import { SwiperSkeletonCard } from "../../components/ui/MediaCard/SkeletonCards/MediaSkeletonCard";
@@ -42,16 +37,9 @@ export const quickFilters: QuickFilter[] = [
 
 const Sports = () => {
     const { nbaGames, nbaGamesLoading, nhlGames, nhlGamesLoading, search, setSearch } = useSports();
-    const [searchParams, setSearchParams] = useSearchParams();
-    const provider = searchParams.get("provider");
-    const channel = searchParams.get("channel");
+
     const [filters, setFilters] = useState<QuickFilter[]>(quickFilters.filter(x=> x.default))
-    const cancelWatch = () => {
-        searchParams.delete("provider");
-        searchParams.delete("channel");
-        setSearchParams(searchParams, { replace: true });
-    }
-    console.log("bb",nbaGames)
+
     const nbaGameCards = useMemo(() => {
         return filterGames(
             nbaGames.map(mapNBAToGameProps),
@@ -59,7 +47,6 @@ const Sports = () => {
             filters
         );
     }, [nbaGames, search, filters]);
-    console.log("nba", nbaGames)
     const nhlGameCards = useMemo(() => {
         return filterGames(
             nhlGames.map(mapNHLToGameProps),
@@ -134,14 +121,7 @@ const Sports = () => {
                     skeleton={<SwiperSkeletonCard className="game-card-skeleton" />}
                 />
             </FilteredContainer>
-            {
-                channel && provider ?
-                    <AppPlayer
-                        cancelPlay={cancelWatch}
-                        src={getStreamURL(provider as TStreamProvider, channel)}
-                    />
-                    : null
-            }
+            
         </div>
     )
 }

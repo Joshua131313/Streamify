@@ -9,7 +9,7 @@ import "./Person.css"
 
 const IMG = "https://image.tmdb.org/t/p/w500";
 
-export const PersonPage = () => {
+const PersonPage = () => {
     const { id } = useParams();
 
     const { data: person, isLoading } = usePerson(id!);
@@ -58,3 +58,4 @@ export const PersonPage = () => {
         </Container>
     );
 };
+export default PersonPage

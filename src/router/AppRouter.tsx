@@ -3,8 +3,6 @@ import { AppLayout } from "../components/layout/AppLayout"
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { lazy, Suspense } from "react"
 import { Loader } from "../components/ui/Loader/Loader"
-import { PersonPage } from "../pages/Person/Person";
-import { SportsProvider } from "../context/SportsContext";
 
 const Home = lazy(() => import("../pages/Home/Home"));
 const Movie = lazy(() => import("../pages/Movie/Movie"));
@@ -12,7 +10,8 @@ const Show = lazy(() => import("../pages/Show/Show"));
 const Search = lazy(() => import("../pages/Search/Search"));
 const Browse = lazy(() => import("../pages/Browse/Browse"));
 const SavedMedia = lazy(() => import("../pages/SavedMedia/SavedMedia"));
-const Sports = lazy(() => import("../pages/Sports/Sports"));
+const PersonPage = lazy(() => import("../pages/Person/Person"));
+const SportsPage = lazy(() => import("../pages/Sports/SportsPage"));
 
 const router = createBrowserRouter([
   {
@@ -25,7 +24,7 @@ const router = createBrowserRouter([
       { path: "discover", element: <Browse /> },
       { path: "saved", element: <SavedMedia /> },
       { path: "person/:id", element: <PersonPage /> },
-      { path: "sports", element:  <SportsProvider><Sports /></SportsProvider> }
+      { path: "sports", element:   <SportsPage />}
     ],
   },
 ]);
