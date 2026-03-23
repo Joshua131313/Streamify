@@ -14,7 +14,6 @@ export const usePersonCredits = (personId: string) => {
     endpoint: `/person/${personId}/combined_credits`,
   });
 
-  console.log(query.data)
   const media = useMemo((): TMDBMedia[] => {
 
     if (!query.data) return [];

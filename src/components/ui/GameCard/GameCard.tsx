@@ -38,7 +38,6 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
         return game[key].score !== undefined && (game.status === "FINAL" || game.status === "LIVE" || game.status === "HALFTIME") // score is not null and game is either finished or live
     }
 
-
     return (
         <div className="game-card">
             <div className="inner-game-card">

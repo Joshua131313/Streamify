@@ -14,7 +14,7 @@ const PersonPage = () => {
 
     const { data: person, isLoading } = usePerson(id!);
     const { media } = usePersonCredits(id!);
-    console.log(person)
+
     if (isLoading || !person) return <Loader fullScreen />
 
     return (

@@ -6,6 +6,7 @@ import type { GameProps } from "../../components/ui/GameCard/GameCard";
 export const mapStatus = (status: string, date: string): GameStatus => {
   if (status === "In Progress") return "LIVE";
   if (status === "Halftime") return "HALFTIME";
+  if (status === "End of Period") return "LIVE";
   if (status === "Final") return "FINAL";
 
   // Scheduled → decide PRE or FUT

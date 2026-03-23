@@ -10,7 +10,6 @@ const fetchGames = async (): Promise<NHLGame[]> => {
     if (!res.ok) throw new Error("Failed to fetch games");
 
     const data: ScheduleResponse = await res.json();
-    console.log("data", data)
     return extractGames(data);
 };
 
