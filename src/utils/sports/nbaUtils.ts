@@ -57,7 +57,7 @@ export const mapNBAToGameProps = (game: INBAGame): GameProps => {
       : undefined,
 
     clock: game.clock ?? undefined,
-
+    gameLink: game.gameLink ?? "",
     // 🎥 stream
     streamProvider: (game.streamProvider as TStreamProvider) ?? "sharkstreams",
     channel: game.channel ? String(game.channel) : "",

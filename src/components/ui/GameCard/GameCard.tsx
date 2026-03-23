@@ -2,6 +2,7 @@ import React from "react";
 import "./GameCard.css";
 import { WatchButton } from "../Button/WatchButton";
 import type { GameStatus, TStreamProvider } from "../../../types/sports/sportsTypes";
+import ExternalGameInfoButton from "../Button/ExternalGameInfoButton";
 
 export interface GameTeam {
     name: string;
@@ -22,7 +23,7 @@ export interface GameProps {
     period?: string;
     periodNumber?: string;
     clock?: string;
-
+    gameLink: string;
     sportName: "Basketball" | "Hockey";
     streamProvider: TStreamProvider;
     channel: string;
@@ -57,15 +58,15 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
                     {(game.status === "LIVE" || game.status === "HALFTIME") ? (
                         <div className="status-tag">{game.periodNumber} {game.clock && ": " + game.clock}</div>
                     )
-                        :(
-                        <div className="status-tag">
-                            {new Date(game.startTime).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                            })}
-                        </div>
+                        : (
+                            <div className="status-tag">
+                                {new Date(game.startTime).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                })}
+                            </div>
 
-                    )}
+                        )}
                 </div>
 
                 {/* 🔥 Logos + Score */}
@@ -109,11 +110,14 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
             </div>
 
             {/* 🔥 Watch button */}
-            <WatchButton
-                variant="button"
-                channel={game.channel}
-                streamProvider={game.streamProvider}
-            />
+            <div className="game-card-buttons flex-row">
+                <ExternalGameInfoButton url={game.gameLink} />
+                <WatchButton
+                    variant="button"
+                    channel={game.channel}
+                    streamProvider={game.streamProvider}
+                />
+            </div>
         </div>
     );
 };

@@ -48,7 +48,7 @@ export const mapNHLToGameProps = (game: NHLGame): GameProps => {
             logo: game.awayTeam.logo,
             score: game.awayTeam.score,
         },
-
+        gameLink: `https://www.nhl.com${game.gameCenterLink}`,
         period: game.periodDescriptor?.periodType,
         periodNumber: "P" + String(game.periodDescriptor?.number),
         sportName: "Hockey",

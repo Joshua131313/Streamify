@@ -1,20 +1,20 @@
 .button {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-
-  padding: 12px 22px;
-  border-radius: var(--border-radius);
-  font-size: var(--font-sm);
-  font-weight: 600;
-  background-color: #f3f3f3;
-  cursor: pointer;
-  transition: all .18s ease;
-  border: none;
-  color: var(--bg-primary);
-  backdrop-filter: blur(6px);
-  border: solid 1px transparent;
+    gap: 5px;
+    padding: 12px 22px;
+    border-radius: var(--border-radius);
+    font-size: var(--font-sm);
+    font-weight: 600;
+    background-color: #f3f3f3;
+    cursor: pointer;
+    transition: all .18s ease;
+    border: none;
+    color: var(--bg-primary);
+    backdrop-filter: blur(6px);
+    border: solid 1px transparent;
+    display: flex;
+    align-items: center;
 }
+
 .button svg {
     margin-right: 10px;
 }
@@ -22,11 +22,47 @@
 .button:hover {
     transform: scale(1.1);
 }
+
 .button.secondary {
     background-color: var(--bg-transparent);
     border: solid 1px var(--border-white);
     color: var(--text-primary);
 }
+
+.button.espn {
+    background-color: var(--espn-red);
+    color: #fff;
+}
+
+.button.espn:hover,
+.button.gamecenter {
+    transform: initial;
+}
+
+.button.espn img {
+    width: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.button.gamecenter {
+    display: flex;
+    align-items: center;
+    padding-top: 0;
+    padding-bottom: 0;
+    justify-content: center;
+}
+
+.button.gamecenter img {
+    width: 30px;
+}
+
+@media (max-width: 800px) {
+    .watch-button svg {
+        display: none;
+    }
+}
+
 @media (max-width: 600px) {
     .button {
         font-size: var(--font-xs);

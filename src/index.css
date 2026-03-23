@@ -32,7 +32,8 @@ html, body {
   --accent-primary: #D81F26;
   --accent-hover: #FF2D36;
   --accent-subtle: #8A1119;
-
+  /*  sites color */
+  --espn-red: #dd0000;
   /* Text */
   --text-primary: #F5F5F5;
   --text-body: #C7C7C7;

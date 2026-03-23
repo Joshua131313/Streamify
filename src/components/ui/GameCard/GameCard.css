@@ -97,6 +97,13 @@
     transform: initial;
     filter: brightness(90%);
 }
+.game-card-buttons {
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+.game-card-buttons > a {
+    width: calc((var(--game-card-width) - 50px) / 2);
+}
 @media (max-width: 800px) {
     :root {
         --game-card-width: 260px;
