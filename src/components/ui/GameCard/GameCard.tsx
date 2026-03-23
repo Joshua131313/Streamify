@@ -34,17 +34,10 @@ interface Props {
 }
 
 const GameCard: React.FC<Props> = ({ game, showSportName }) => {
-    const isLive = game.status === "LIVE";
     const showScore = (game: GameProps, key: "awayTeam" | "homeTeam") => {
-        return game[key].score !== undefined && (game.status === "FINAL" || game.status === "LIVE") // score is not null and game is either finished or live
+        return game[key].score !== undefined && (game.status === "FINAL" || game.status === "LIVE" || game.status === "HALFTIME") // score is not null and game is either finished or live
     }
 
-    const getPeriod = () => {
-        switch (game.sportName) {
-            case "Basketball":
-                return ""
-        }
-    }
 
     return (
         <div className="game-card">
@@ -52,8 +45,8 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
 
                 {/* 🔥 Badges */}
                 <div className="game-card-badges">
-                    {game.status === "LIVE" ? (
-                        <div className="live-badge">● LIVE</div>
+                    {(game.status === "LIVE" || game.status === "HALFTIME") ? (
+                        <div className="live-badge">● {game.status}</div>
                     ) : game.status === "PRE" ? (
                         <div className="not-started-badge">Pre Game</div>
                     ) : game.status === "FINAL" ? (
@@ -62,7 +55,7 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
                         <div className="not-started-badge">Upcoming</div>
                     )}
 
-                    {game.status === "LIVE" ? (
+                    {(game.status === "LIVE" || game.status === "HALFTIME") ? (
                         <div className="status-tag">{game.periodNumber} {game.clock && ": " + game.clock}</div>
                     )
                         :(

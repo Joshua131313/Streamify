@@ -52,7 +52,7 @@ export const useNBAGames = () => {
     },
     refetchInterval: 30000
   });
-
+console.log("nba g", data)
   return {
     nbaGames: data,
     nbaGamesLoading: isLoading,
