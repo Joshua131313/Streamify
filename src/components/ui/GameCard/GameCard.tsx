@@ -38,7 +38,24 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
     const showScore = (game: GameProps, key: "awayTeam" | "homeTeam") => {
         return game[key].score !== undefined && (game.status === "FINAL" || game.status === "LIVE" || game.status === "HALFTIME") // score is not null and game is either finished or live
     }
-
+    const StatusBadge = () => {
+        if (game.status === "LIVE" || game.status === "HALFTIME") {
+            return <div className="status-tag">{game.periodNumber} {game.clock && ": " + game.clock}</div>
+        }
+        else if (game.status === "FINAL") {
+            return null;
+        }
+        else {
+            return (
+                <div className="status-tag">
+                    {new Date(game.startTime).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                    })}
+                </div>
+            )
+        }
+    }
     return (
         <div className="game-card">
             <div className="inner-game-card">
@@ -55,18 +72,7 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
                         <div className="not-started-badge">Upcoming</div>
                     )}
 
-                    {(game.status === "LIVE" || game.status === "HALFTIME") ? (
-                        <div className="status-tag">{game.periodNumber} {game.clock && ": " + game.clock}</div>
-                    )
-                        : (
-                            <div className="status-tag">
-                                {new Date(game.startTime).toLocaleTimeString([], {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                })}
-                            </div>
-
-                        )}
+                    <StatusBadge />
                 </div>
 
                 {/* 🔥 Logos + Score */}
