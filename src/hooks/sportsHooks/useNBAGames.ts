@@ -8,11 +8,12 @@ export const useNBAGames = () => {
         queryKey: ["nba-games"],
         queryFn: async () => {
             const API_URL = import.meta.env.VITE_API_URL || "";
-            const res = await fetch(`${API_URL}/api/scrape`);
+            const res = await fetch(`${API_URL}/api/nba`);
             return res.json();
         },
         refetchInterval: 30000
     });
+    console.log(data)
     return {
         nbaGames: data,
         nbaGamesLoading: isLoading,

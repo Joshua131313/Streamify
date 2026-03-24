@@ -1,11 +1,10 @@
-import type { GameProps } from "../../components/ui/GameCard/GameCard";
 import type { QuickFilter } from "../../pages/Sports/Sports";
-import type { TStreamProvider } from "../../types/sports/sportsTypes"
+import type { GameProps, TStreamProvider } from "../../types/sports/sportsTypes"
 
 export const getStreamURL = (streamType: TStreamProvider, channel: string) => {
     switch (streamType) {
-        case "sharkstreams":
-            return `https://sharkstreams.net/player.php?channel=${channel}`
+        case "trendy47":
+            return `https://v2.trendy47.com/event/ppv-${channel}`
         case "embedsports":
             return `https://embedsports.top/embed/admin/ppv-${channel}/1`
     }

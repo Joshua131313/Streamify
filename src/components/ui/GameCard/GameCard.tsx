@@ -1,33 +1,14 @@
-import React from "react";
+import React, { useContext, useState } from "react";
 import "./GameCard.css";
-import { WatchButton } from "../Button/WatchButton";
-import type { GameStatus, TStreamProvider } from "../../../types/sports/sportsTypes";
+import { getWatchURL, WatchButton } from "../Button/WatchButton";
+import type { GameProps, GameStatus, TStreamProvider } from "../../../types/sports/sportsTypes";
 import ExternalGameInfoButton from "../Button/ExternalGameInfoButton";
+import { useSports } from "../../../context/SportsContext";
+import { useContextMenu } from "../../../context/ContextMenu";
+import type { ContextMenuOption } from "../../../types";
+import { FaBell, FaCubes, FaExternalLinkAlt, FaPlay, FaThLarge } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
-export interface GameTeam {
-    name: string;
-    logo: string;
-    score?: number;
-}
-
-export interface GameProps {
-    id?: string | number;
-    title: string;
-
-    homeTeam: GameTeam;
-    awayTeam: GameTeam;
-
-    startTime: string;
-    status: GameStatus;
-
-    period?: string;
-    periodNumber?: string;
-    clock?: string;
-    gameLink: string;
-    sportName: "Basketball" | "Hockey";
-    streamProvider: TStreamProvider;
-    channel: string;
-}
 
 interface Props {
     game: GameProps;
@@ -35,9 +16,79 @@ interface Props {
 }
 
 const GameCard: React.FC<Props> = ({ game, showSportName }) => {
+    const { setQuickWatch } = useSports();
+    const { openMenu } = useContextMenu();
+    const navigate = useNavigate();
+    const mediaCardContextOptions: ContextMenuOption[] = [
+        {
+            key: "watch",
+            value: "Watch",
+            icon: FaPlay,
+            onClick: () => navigate(getWatchURL({ channel: game.channel, streamProvider: game.streamProvider }))
+        },
+        {
+            key: "multi-watch",
+            value: "Multi-Watch",
+            icon: FaThLarge,
+            onClick: () => setQuickWatch(prev => [...prev, game]),
+        },
+        {
+            key: "new-tab",
+            value: "Watch in New Tab",
+            icon: FaExternalLinkAlt,
+            onClick: () => {
+                const url = getWatchURL({
+                    channel: game.channel,
+                    streamProvider: game.streamProvider
+                });
+
+                window.open(url, "_blank", "noopener,noreferrer");
+            }
+        },
+        {
+            key: "notify",
+            value: "Notify when live",
+            icon: FaBell,
+            onClick: () => addNotification(),
+        }
+    ]
+    // dummy notifications system for now
+    const addNotification = () => {
+        // 1. Ask permission
+        if (Notification.permission === "default") {
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    schedule();
+                }
+            });
+        } else if (Notification.permission === "granted") {
+            schedule();
+        } else {
+            alert("Notifications are blocked");
+        }
+        function schedule() {
+            const gameTime = new Date(game.startTime).getTime();
+            const now = Date.now();
+
+            const delay = gameTime - now;
+
+            if (delay <= 0) {
+                alert("Game already started");
+                return;
+            }
+
+            setTimeout(() => {
+                new Notification(`${game.homeTeam.name} vs ${game.awayTeam.name}`, {
+                    body: "Game is starting now!",
+                });
+            }, delay);
+
+        }
+    };
     const showScore = (game: GameProps, key: "awayTeam" | "homeTeam") => {
         return game[key].score !== undefined && (game.status === "FINAL" || game.status === "LIVE" || game.status === "HALFTIME") // score is not null and game is either finished or live
     }
+
     const StatusBadge = () => {
         if (game.status === "LIVE" || game.status === "HALFTIME") {
             return <div className="status-tag">{game.periodNumber} {game.clock && ": " + game.clock}</div>
@@ -56,6 +107,7 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
             )
         }
     }
+
     return (
         <div className="game-card">
             <div className="inner-game-card">
@@ -107,6 +159,10 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
                     variant="button"
                     channel={game.channel}
                     streamProvider={game.streamProvider}
+                    onContextMenu={(e) => openMenu({
+                        options: mediaCardContextOptions,
+                        e
+                    })}
                 />
             </div>
         </div>

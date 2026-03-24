@@ -1,8 +1,9 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, type Dispatch, type SetStateAction } from "react";
 import type { INBAGame } from "../types/sports/nbaTypes";
 import type { NHLGame } from "../types/sports/nhlTypes";
 import { useNBAGames } from "../hooks/sportsHooks/useNBAGames";
 import { useNHLGames } from "../hooks/sportsHooks/useNHLGames";
+import { type GameProps } from "../types/sports/sportsTypes";
 
 
 interface SportsContextType {
@@ -18,11 +19,16 @@ interface SportsContextType {
 
     nbaGamesLoading: boolean;
     nbaGamesError: unknown;
+
+    quickWatch: GameProps[];
+    setQuickWatch: Dispatch<SetStateAction<GameProps[]>>
 }
 const SportsContext = createContext<SportsContextType | null>(null);
 
 export const SportsProvider = ({ children } : { children: React.ReactNode}) => {
     const [search, setSearch] = useState("");
+    
+    const [quickWatch, setQuickWatch] = useState<GameProps[]>([]);
 
     const {
         nbaGames,
@@ -48,7 +54,9 @@ export const SportsProvider = ({ children } : { children: React.ReactNode}) => {
                 nhlGamesLoading, 
                 search,
                 setSearch, 
-                todaysNHLGames
+                todaysNHLGames,
+                quickWatch,
+                setQuickWatch
             }}
         >
             {children}

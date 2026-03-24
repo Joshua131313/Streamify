@@ -1,7 +1,7 @@
 import { DateTime } from "luxon";
-import type { GameStatus, TStreamProvider } from "../../types/sports/sportsTypes";
+import type { GameProps, GameStatus, TStreamProvider } from "../../types/sports/sportsTypes";
 import type { INBAGame } from "../../types/sports/nbaTypes";
-import type { GameProps } from "../../components/ui/GameCard/GameCard";
+import { nbaTeamsMap } from "../../data/sports/nbaData";
 
 export const mapStatus = (status: string, date: string): GameStatus => {
   if (status === "In Progress") return "LIVE";
@@ -59,8 +59,8 @@ export const mapNBAToGameProps = (game: INBAGame): GameProps => {
     clock: game.clock ?? undefined,
     gameLink: game.gameLink ?? "",
     // 🎥 stream
-    streamProvider: (game.streamProvider as TStreamProvider) ?? "sharkstreams",
-    channel: game.channel ? String(game.channel) : "",
+    streamProvider: (game.streamProvider as TStreamProvider) ?? "trendy47",
+    channel: nbaTeamsMap[game.awayTeam.abbreviation as keyof typeof nbaTeamsMap]?.id + "-vs-" + nbaTeamsMap[game.homeTeam.abbreviation as keyof typeof nbaTeamsMap]?.id,
 
     sportName: "Basketball",
   };

@@ -4,13 +4,16 @@ import { AppProvider } from './context/AppContext';
 import 'swiper/css';
 import { useMouseIdle } from './hooks/utilHooks/useMouseIdle';
 import { useEffect } from 'react';
+import { ContextMenuProvider } from './context/ContextMenu';
 
 function App() {
   useMouseIdle();
 
   return (
     <AppProvider>
-      <AppRouter />
+      <ContextMenuProvider>
+        <AppRouter />
+      </ContextMenuProvider>
     </AppProvider>
   )
 }
