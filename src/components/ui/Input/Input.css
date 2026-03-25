@@ -12,6 +12,7 @@
     outline: none;
     transition: all 0.3s;
     color: var(--text-body);
+    height: 100%;
 }
 .input-container.has-icon input {
     padding-left: 30px;

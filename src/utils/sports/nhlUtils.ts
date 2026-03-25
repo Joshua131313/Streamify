@@ -41,12 +41,14 @@ export const mapNHLToGameProps = (game: NHLGame): GameProps => {
             name: homeTeamname,
             logo: game.homeTeam.logo,
             score: game.homeTeam.score,
+            abbrev: game.homeTeam.abbrev
         },
 
         awayTeam: {
             name: awawyTeamName,
             logo: game.awayTeam.logo,
             score: game.awayTeam.score,
+            abbrev: game.awayTeam.abbrev
         },
         gameLink: `https://www.nhl.com${game.gameCenterLink}`,
         period: game.periodDescriptor?.periodType,

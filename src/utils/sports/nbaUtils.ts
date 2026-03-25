@@ -41,12 +41,14 @@ export const mapNBAToGameProps = (game: INBAGame): GameProps => {
       name: game.homeTeam.name,
       logo: game.homeTeam.logo,
       score: game.homeTeam.score, // ✅ include score
+      abbrev: game.homeTeam.abbreviation
     },
 
     awayTeam: {
       name: game.awayTeam.name,
       logo: game.awayTeam.logo,
       score: game.awayTeam.score, // ✅ include score
+      abbrev: game.awayTeam.abbreviation
     },
 
     // 🔥 real live info

@@ -8,6 +8,7 @@ import { useContextMenu } from "../../../context/ContextMenu";
 import type { ContextMenuOption } from "../../../types";
 import { FaBell, FaCubes, FaExternalLinkAlt, FaPlay, FaThLarge } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import { useMultiWatch } from "../../../context/MultiWatchContext";
 
 
 interface Props {
@@ -16,7 +17,7 @@ interface Props {
 }
 
 const GameCard: React.FC<Props> = ({ game, showSportName }) => {
-    const { setQuickWatch } = useSports();
+    const { toggleGameInMultiWatch, isGameInMultiWatch } = useMultiWatch();
     const { openMenu } = useContextMenu();
     const navigate = useNavigate();
     const mediaCardContextOptions: ContextMenuOption[] = [
@@ -28,9 +29,9 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
         },
         {
             key: "multi-watch",
-            value: "Multi-Watch",
+            value: isGameInMultiWatch(game) ? "Remove from Multi-Watch" : "Add to Multi-Watch",
             icon: FaThLarge,
-            onClick: () => setQuickWatch(prev => [...prev, game]),
+            onClick: () => toggleGameInMultiWatch(game),
         },
         {
             key: "new-tab",
@@ -109,7 +110,12 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
     }
 
     return (
-        <div className="game-card">
+        <div className="game-card"
+            onContextMenu={(e) => openMenu({
+                options: mediaCardContextOptions,
+                e
+            })}
+        >
             <div className="inner-game-card">
 
                 {/* 🔥 Badges */}
@@ -159,10 +165,6 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
                     variant="button"
                     channel={game.channel}
                     streamProvider={game.streamProvider}
-                    onContextMenu={(e) => openMenu({
-                        options: mediaCardContextOptions,
-                        e
-                    })}
                 />
             </div>
         </div>

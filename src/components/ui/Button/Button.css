@@ -20,7 +20,7 @@
 }
 
 .button:hover {
-    transform: scale(1.1);
+    filter: brightness(90%);
 }
 
 .button.secondary {

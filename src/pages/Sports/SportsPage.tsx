@@ -1,17 +1,18 @@
-import { SportsProvider } from "../../context/SportsContext"
-import Sports from "./Sports"
-import { SportsPlayer } from "./SportsPlayer"
+import { QuickWatchProvider } from "../../context/MultiWatchContext";
+import { SportsProvider } from "../../context/SportsContext";
+import Sports from "./Sports";
+import { SportsPlayer } from "./SportsPlayer";
 
 
 const SportsPage = () => {
-
     return (
         <>
-        <SportsPlayer />
-        <SportsProvider>
-            <Sports/>
-        </SportsProvider>
+            <SportsPlayer />
+            <SportsProvider>
+
+                <Sports />
+            </SportsProvider>
         </>
-    )
-}
+    );
+};
 export default SportsPage;

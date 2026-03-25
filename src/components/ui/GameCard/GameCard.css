@@ -102,10 +102,7 @@
     width: 100%;
 }
 
-.game-card .watch-button:hover button {
-    transform: initial;
-    filter: brightness(90%);
-}
+
 .game-card-buttons {
     justify-content: space-between;
     flex-wrap: wrap;

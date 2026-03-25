@@ -4,12 +4,14 @@ import type { NHLGame } from "../types/sports/nhlTypes";
 import { useNBAGames } from "../hooks/sportsHooks/useNBAGames";
 import { useNHLGames } from "../hooks/sportsHooks/useNHLGames";
 import { type GameProps } from "../types/sports/sportsTypes";
+import { mapNBAToGameProps } from "../utils/sports/nbaUtils";
+import { mapNHLToGameProps } from "../utils/sports/nhlUtils";
 
 
 interface SportsContextType {
-    nbaGames: INBAGame[];
-    nhlGames: NHLGame[];
-    todaysNHLGames: NHLGame[];
+    nbaGames: GameProps[];
+    nhlGames: GameProps[];
+    todaysNHLGames: GameProps[];
 
     search: string;
     setSearch: (value: string) => void;
@@ -19,16 +21,11 @@ interface SportsContextType {
 
     nbaGamesLoading: boolean;
     nbaGamesError: unknown;
-
-    quickWatch: GameProps[];
-    setQuickWatch: Dispatch<SetStateAction<GameProps[]>>
 }
 const SportsContext = createContext<SportsContextType | null>(null);
 
 export const SportsProvider = ({ children } : { children: React.ReactNode}) => {
     const [search, setSearch] = useState("");
-    
-    const [quickWatch, setQuickWatch] = useState<GameProps[]>([]);
 
     const {
         nbaGames,
@@ -46,17 +43,15 @@ export const SportsProvider = ({ children } : { children: React.ReactNode}) => {
     return (
         <SportsContext.Provider
             value={{
-                nbaGames,
+                nbaGames: nbaGames.map(mapNBAToGameProps),
                 nbaGamesError: nbaError,
                 nbaGamesLoading,
-                nhlGames: todaysNHLGames,
+                nhlGames: nhlGames.map(mapNHLToGameProps),
                 nhlGamesError: nhlError, 
                 nhlGamesLoading, 
                 search,
                 setSearch, 
-                todaysNHLGames,
-                quickWatch,
-                setQuickWatch
+                todaysNHLGames: todaysNHLGames.map(mapNHLToGameProps),
             }}
         >
             {children}

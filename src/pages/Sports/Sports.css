@@ -1,11 +1,16 @@
+:root {
+    --multi-watch-game-width: 350px;
+}
 .sports-grid .container-content {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(var(--game-card-width), 1fr));
     gap: 20px;
 }
+
 .sports-page .header-controls .container-content {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr auto;
 }
+
 .quick-filters {
     display: flex;
     flex-wrap: wrap;
@@ -13,6 +18,7 @@
     margin-top: 10px;
     justify-content: center;
 }
+
 .quick-filter {
     background-color: var(--bg-primary);
     padding: 5px 15px;
@@ -21,18 +27,106 @@
     cursor: pointer;
     transition: all 0.3s;
 }
+
 .quick-filter:active {
     transform: scale(0.95);
 }
+
 .quick-filter.active {
     background-color: var(--accent-primary);
 }
+
 .quick-filter.active:hover {
     background-color: var(--accent-hover);
 }
+
 .quick-filter:hover {
     background-color: var(--bg-secondary);
 }
+
 .header-controls .container-content .quick-filters {
     height: initial;
+}
+
+.multi-watch-window {
+    width: 100%;
+    height: 100%;
+    background: var(--bg-primary);
+    border-radius: 10px;
+    overflow: auto;
+    z-index: 999;
+    pointer-events: auto;
+    box-shadow: var(--shadow-base);
+    transition: all 0.3s;
+}
+.multi-watch-header-controls {
+    display: flex;
+    gap: 10px;
+}
+.multi-watch-header-controls div {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+}
+.multi-watch-header-controls div:hover {
+    background-color: var(--bg-transparent);
+}
+.multi-watch-header-controls .multi-watch-close-control:hover {
+    background-color: var(--accent-primary);
+}
+.multi-watch-header {
+    padding-left: 16px;
+    background: #222;
+    cursor: grab;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.multi-watch-content {
+    gap: 10px;
+    padding: 10px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(var(--multi-watch-game-width), 1fr));
+}
+.multi-game {
+    display: flex;
+    flex-direction: column;
+    background-color: var(--bg-secondary);
+    padding: 10px;
+    border-radius: 10px;
+    aspect-ratio: 16 / 9;
+}
+.multi-game a:hover {
+    text-decoration: underline;
+}
+.multi-game iframe {
+    border: none;
+    border-radius: 10px;
+    width: 100%;
+    height: 100%;
+}
+.multi-game-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-direction: row;
+    margin-bottom: 10px;
+}
+.multi-game-header a {
+    margin-bottom: 0;
+}
+.multi-game-header svg {
+    cursor: pointer;
+}
+.multi-watch-icon {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
 }

@@ -1,7 +1,7 @@
 import { FaPlay } from "react-icons/fa"
 import { Button } from "./Button"
 import type { TMediaType } from "../../../types/tmdb";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useLocalStorage } from "../../../hooks/utilHooks/useLocalStorage";
 import { Icon } from "../Icon/Icon";
 import type { TStreamProvider } from "../../../types/sports/sportsTypes";
@@ -11,7 +11,7 @@ interface Props {
     variant?: "icon" | "button";
     className?: string;
     streamProvider: TStreamProvider;
-    onContextMenu: (e: any) => void;
+    onContextMenu?: (e: any) => void;
 }
 export const getWatchURL = ({
     streamProvider,
@@ -22,8 +22,12 @@ export const getWatchURL = ({
 
 export const WatchButton = (props: Props) => {
     const { channel, className, variant, streamProvider, onContextMenu } = props;
+    const navigate = useNavigate();
+   
     return (
-        <Link onContextMenu={onContextMenu}
+        <Link 
+            onClick={() => navigate(getWatchURL({ channel, streamProvider }))} 
+            onContextMenu={onContextMenu && onContextMenu}
             to={getWatchURL({
                 channel,
                 streamProvider

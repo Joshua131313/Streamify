@@ -3,6 +3,7 @@ export type GameStatus = "LIVE" | "PRE" | "FUT" | "FINAL" | "HALFTIME";
 
 export interface GameTeam {
     name: string;
+    abbrev: string;
     logo: string;
     score?: number;
 }
@@ -25,3 +26,29 @@ export interface GameProps {
     streamProvider: TStreamProvider;
     channel: string;
 }
+
+export const DefaultGamePropsTeam: GameTeam = {
+    name: "",
+    abbrev: "",
+    logo: "",
+    score: undefined
+};
+
+export const DefaultGameProps: GameProps = {
+    id: undefined,
+    title: "",
+
+    homeTeam: DefaultGamePropsTeam,
+    awayTeam: DefaultGamePropsTeam,
+
+    startTime: "",
+    status: "PRE", 
+
+    period: undefined,
+    periodNumber: undefined,
+    clock: undefined,
+    gameLink: "",
+    sportName: "Basketball",
+    streamProvider: "embedsports", 
+    channel: ""
+};
