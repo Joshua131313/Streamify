@@ -12,25 +12,28 @@ interface Props {
     className?: string;
     streamProvider: TStreamProvider;
     onContextMenu?: (e: any) => void;
+    additionalParams?: string;
 }
 export const getWatchURL = ({
     streamProvider,
-    channel
-}: { streamProvider: string, channel: string }) => {
-    return `?provider=${streamProvider}&channel=${channel}`
+    channel,
+    additionalParams = ""
+}: { streamProvider: string, channel: string, additionalParams?: string }) => {
+    return `?provider=${streamProvider}&channel=${channel}${additionalParams}`
 }
 
 export const WatchButton = (props: Props) => {
-    const { channel, className, variant, streamProvider, onContextMenu } = props;
+    const { channel, className, variant, streamProvider, onContextMenu, additionalParams = "" } = props;
     const navigate = useNavigate();
    
     return (
         <Link 
-            onClick={() => navigate(getWatchURL({ channel, streamProvider }))} 
+            onClick={() => navigate(getWatchURL({ channel, streamProvider, additionalParams }))} 
             onContextMenu={onContextMenu && onContextMenu}
             to={getWatchURL({
                 channel,
-                streamProvider
+                streamProvider,
+                additionalParams
             })}
             className={`play-button watch-button ${className}`}>
             {variant === "button" ?

@@ -13,6 +13,8 @@ import { AppSwiper } from "../../components/ui/AppSwiper/AppSwiper";
 import { SwiperSkeletonCard } from "../../components/ui/MediaCard/SkeletonCards/MediaSkeletonCard";
 import { Button } from "../../components/ui/Button/Button";
 import { useMultiWatch } from "../../context/MultiWatchContext";
+import { sportStreams } from "../../data/sports/sportsData";
+import { ChannelCard } from "../../components/ui/ChannelCard/ChannelCard";
 
 export type QuickFilter = {
     label: string;
@@ -33,6 +35,7 @@ export const quickFilters: QuickFilter[] = [
     { label: "NHL", value: "NHL", type: "league", default: true },
 
     // sport
+    { label: "TV", value: "TV", type: "sport", default: true }
     // { label: "Basketball", value: "Basketball", type: "sport" },
     // { label: "Hockey", value: "Hockey", type: "sport" },
 ];
@@ -42,6 +45,7 @@ const Sports = () => {
     const { adjustMultiWatchWindow, multiWatchWindowState } = useMultiWatch()
     const [filters, setFilters] = useState<QuickFilter[]>(quickFilters.filter(x=> x.default))
     const {  } = useMultiWatch();
+
     const nbaGameCards = useMemo(() => {
         return filterGames(
             nbaGames,
@@ -49,6 +53,7 @@ const Sports = () => {
             filters
         );
     }, [nbaGames, search, filters]);
+
     const nhlGameCards = useMemo(() => {
         return filterGames(
             todaysNHLGames,
@@ -103,6 +108,16 @@ const Sports = () => {
                     </>
                 }
             />
+            <FilteredContainer type="TV" title="Sports Channels">
+                <AppSwiper
+                    isLoading={nbaGamesLoading}
+                    items={sportStreams}
+                    renderItem={(stream) => (
+                        <ChannelCard stream={stream} key={stream.provider} />
+                    )}
+                    skeleton={<SwiperSkeletonCard className="game-card-skeleton" />}
+                />
+            </FilteredContainer>
             <FilteredContainer type="NBA" title="NBA">
                 <AppSwiper
                     isLoading={nbaGamesLoading}

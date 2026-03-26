@@ -130,3 +130,23 @@
     bottom: 20px;
     right: 20px;
 }
+.channels-controls {
+    position: absolute;
+    z-index: 10000;
+    bottom: 50%;
+    transform: translateY(-50%);
+    right: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.channels-controls .input-container {
+    width: 50px;
+    height: 50px;
+}
+.channels-controls .input-container input {
+    padding: 0;
+    width: 100%;
+    text-align: center;    
+    border-radius: 50%;
+}

@@ -1,5 +1,16 @@
-export type TStreamProvider = "trendy47" | "embedsports";
+export type TStreamProvider = 
+    "trendy47"  // nba providers
+    | "embedsports" // nhl providers
+    | "rippleplays" | "shd247" | "prostreams" | "streamscenter"; // tv channel providers
 export type GameStatus = "LIVE" | "PRE" | "FUT" | "FINAL" | "HALFTIME";
+
+export interface SportStream {
+        baseUrl: string;
+        extension: string;
+        defaultChannel: string;
+        title: string;
+        provider: TStreamProvider;
+}
 
 export interface GameTeam {
     name: string;

@@ -12,6 +12,7 @@ import { MultiWatchContent } from "./MultiWatchContent";
 
 export const MultiWatch = () => {
     const { multiWatch, multiWatchWindowState, removeGameFromMultiWatch, adjustMultiWatchWindow, adjustMultiWindowSize, adjustMultiWindowPosition } = useMultiWatch();
+    
     useEffect(() => {
         if (multiWatchWindowState.windowState === "fullscreen") {
             document.body.style.overflow = "hidden";

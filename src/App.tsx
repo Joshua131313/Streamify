@@ -17,7 +17,8 @@ function App() {
       <ContextMenuProvider>
         <QuickWatchProvider>
        
-          <SportsProvider>   <MultiWatch />
+          <SportsProvider>   
+            <MultiWatch />
             <AppRouter />
           </SportsProvider>
         </QuickWatchProvider>

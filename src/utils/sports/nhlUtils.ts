@@ -2,8 +2,8 @@ import { teamsMap } from "../../data/sports/nhlData";
 import type { NHLGame, ScheduleResponse } from "../../types/sports/nhlTypes";
 import type { GameProps } from "../../types/sports/sportsTypes";
 
-export const buildEmbedUrl = (awayId: string, homeId: string) =>
-    `https://embedsports.top/embed/admin/ppv-${awayId}-vs-${homeId}/1`;
+// export const buildEmbedUrl = (awayId: string, homeId: string) =>
+//     `https://embedsports.top/embed/admin/ppv-${awayId}-vs-${homeId}/1`;
 
 // Extract all games from response
 export const extractGames = (data: ScheduleResponse): NHLGame[] =>

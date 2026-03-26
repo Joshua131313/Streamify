@@ -1,3 +1,6 @@
+const nhlStreams = [
+    "https://embedsports.top/embed/admin/ppv-team1id-vs-team2-id/1"
+]
 export const teamsMap = {
     ANA: { abbreviation: "ANA", teamName: "Anaheim Ducks", id: "anaheim-ducks", logo: "https://assets.nhle.com/logos/nhl/svg/ANA_light.svg", conference: "West", division: "Pacific" },
     UTA: { abbreviation: "UTA", teamName: "Utah Mammoth", id: "utah-mammoth", logo: "https://assets.nhle.com/logos/nhl/svg/UTM_light.svg", conference: "West", division: "Central" }, 

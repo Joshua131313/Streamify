@@ -1,12 +1,35 @@
+import { sportStreams } from "../../data/sports/sportsData";
 import type { QuickFilter } from "../../pages/Sports/Sports";
 import type { GameProps, TStreamProvider } from "../../types/sports/sportsTypes"
 
+
+const sportsStreamsMap = Object.fromEntries(
+    sportStreams.map(s => [s.provider, s])
+);
+export const formatChannel = (channel: string, provider: string) => {
+    const num = Number(channel);
+    if (isNaN(num)) return channel;
+
+    if (provider === "shd247") {
+        return String(num).padStart(3, "0");
+    }
+
+    return String(num);
+};
 export const getStreamURL = (streamType: TStreamProvider, channel: string) => {
     switch (streamType) {
+        // nba streams
         case "trendy47":
             return `https://v2.trendy47.com/event/ppv-${channel}`
+        // nhl streams
         case "embedsports":
             return `https://embedsports.top/embed/admin/ppv-${channel}/1`
+        // tv channel streams
+        default: {
+            const stream = sportsStreamsMap[streamType];
+            if (!stream) return "";
+            return `${stream.baseUrl}${channel}${stream.extension || ""}`
+        }
     }
 }
 export const filterGames = (

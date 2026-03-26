@@ -38,7 +38,6 @@ export const AppPlayer = (props : Props) => {
             <div className={`player ${modal ? "modal-player" : ""}`} role="dialog" aria-modal="true">
                 {modal && <Icon className="back-icon player-control-icon" Icon={FaLongArrowAltLeft} onClick={cancelPlay}/>}
                 {children}
-                {children}
                 <iframe 
                     src={src} 
                     allowFullScreen

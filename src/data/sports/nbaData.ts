@@ -1,3 +1,9 @@
+
+const nbaStreams = [
+  "https://topstreams.info/iframe/nba/lakers",
+  "https://v2.trendy47.com/event/ppv-team1id-vs-team2-id"
+]
+
 export const nbaTeamsMap = {
   ATL: { abbreviation: "ATL", teamName: "Atlanta Hawks", id: "atlanta-hawks", logo: "https://cdn.nba.com/logos/nba/1610612737/global/L/logo.svg", conference: "East", division: "Southeast" },
   BOS: { abbreviation: "BOS", teamName: "Boston Celtics", id: "boston-celtics", logo: "https://cdn.nba.com/logos/nba/1610612738/global/L/logo.svg", conference: "East", division: "Atlantic" },
@@ -9,7 +15,7 @@ export const nbaTeamsMap = {
   IND: { abbreviation: "IND", teamName: "Indiana Pacers", id: "indiana-pacers", logo: "https://cdn.nba.com/logos/nba/1610612754/global/L/logo.svg", conference: "East", division: "Central" },
   MIA: { abbreviation: "MIA", teamName: "Miami Heat", id: "miami-heat", logo: "https://cdn.nba.com/logos/nba/1610612748/global/L/logo.svg", conference: "East", division: "Southeast" },
   MIL: { abbreviation: "MIL", teamName: "Milwaukee Bucks", id: "milwaukee-bucks", logo: "https://cdn.nba.com/logos/nba/1610612749/global/L/logo.svg", conference: "East", division: "Central" },
-  NY: { abbreviation: "NYK", teamName: "New York Knicks", id: "new-york-knicks", logo: "https://cdn.nba.com/logos/nba/1610612752/global/L/logo.svg", conference: "East", division: "Atlantic" },
+  NY:  { abbreviation: "NYK", teamName: "New York Knicks", id: "new-york-knicks", logo: "https://cdn.nba.com/logos/nba/1610612752/global/L/logo.svg", conference: "East", division: "Atlantic" },
   ORL: { abbreviation: "ORL", teamName: "Orlando Magic", id: "orlando-magic", logo: "https://cdn.nba.com/logos/nba/1610612753/global/L/logo.svg", conference: "East", division: "Southeast" },
   PHI: { abbreviation: "PHI", teamName: "Philadelphia 76ers", id: "philadelphia-76ers", logo: "https://cdn.nba.com/logos/nba/1610612755/global/L/logo.svg", conference: "East", division: "Atlantic" },
   TOR: { abbreviation: "TOR", teamName: "Toronto Raptors", id: "toronto-raptors", logo: "https://cdn.nba.com/logos/nba/1610612761/global/L/logo.svg", conference: "East", division: "Atlantic" },
@@ -23,11 +29,11 @@ export const nbaTeamsMap = {
   LAL: { abbreviation: "LAL", teamName: "Los Angeles Lakers", id: "los-angeles-lakers", logo: "https://cdn.nba.com/logos/nba/1610612747/global/L/logo.svg", conference: "West", division: "Pacific" },
   MEM: { abbreviation: "MEM", teamName: "Memphis Grizzlies", id: "memphis-grizzlies", logo: "https://cdn.nba.com/logos/nba/1610612763/global/L/logo.svg", conference: "West", division: "Southwest" },
   MIN: { abbreviation: "MIN", teamName: "Minnesota Timberwolves", id: "minnesota-timberwolves", logo: "https://cdn.nba.com/logos/nba/1610612750/global/L/logo.svg", conference: "West", division: "Northwest" },
-  NO: { abbreviation: "NOP", teamName: "New Orleans Pelicans", id: "new-orleans-pelicans", logo: "https://cdn.nba.com/logos/nba/1610612740/global/L/logo.svg", conference: "West", division: "Southwest" },
+  NO:  { abbreviation: "NOP", teamName: "New Orleans Pelicans", id: "new-orleans-pelicans", logo: "https://cdn.nba.com/logos/nba/1610612740/global/L/logo.svg", conference: "West", division: "Southwest" },
   OKC: { abbreviation: "OKC", teamName: "Oklahoma City Thunder", id: "oklahoma-city-thunder", logo: "https://cdn.nba.com/logos/nba/1610612760/global/L/logo.svg", conference: "West", division: "Northwest" },
   PHX: { abbreviation: "PHX", teamName: "Phoenix Suns", id: "phoenix-suns", logo: "https://cdn.nba.com/logos/nba/1610612756/global/L/logo.svg", conference: "West", division: "Pacific" },
   POR: { abbreviation: "POR", teamName: "Portland Trail Blazers", id: "portland-trail-blazers", logo: "https://cdn.nba.com/logos/nba/1610612757/global/L/logo.svg", conference: "West", division: "Northwest" },
   SAC: { abbreviation: "SAC", teamName: "Sacramento Kings", id: "sacramento-kings", logo: "https://cdn.nba.com/logos/nba/1610612758/global/L/logo.svg", conference: "West", division: "Pacific" },
-  SA:   { abbreviation: "SA",   teamName: "San Antonio Spurs", id: "san-antonio-spurs", logo: "https://cdn.nba.com/logos/nba/1610612759/global/L/logo.svg", conference: "West", division: "Southwest" },
-  UTAH: { abbreviation: "UTAH", teamName: "Utah Jazz", id: "utah-jazz", logo: "https://cdn.nba.com/logos/nba/1610612762/global/L/logo.svg", conference: "West", division: "Northwest" }
+  SA:  { abbreviation: "SA",   teamName: "San Antonio Spurs", id: "san-antonio-spurs", logo: "https://cdn.nba.com/logos/nba/1610612759/global/L/logo.svg", conference: "West", division: "Southwest" },
+  UTAH:{ abbreviation: "UTAH", teamName: "Utah Jazz", id: "utah-jazz", logo: "https://cdn.nba.com/logos/nba/1610612762/global/L/logo.svg", conference: "West", division: "Northwest" }
 };
