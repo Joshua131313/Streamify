@@ -1,5 +1,5 @@
 import { FaPlay } from "react-icons/fa";
-import type { SportStream } from "../../../types/sports/sportsTypes"
+import type { ChannelStream } from "../../../types/sports/sportsTypes"
 import { Button } from "../Button/Button";
 import { Input } from "../Input/Input";
 import { useState } from "react";
@@ -9,7 +9,7 @@ import "./ChannelCard.css"
 import { formatChannel } from "../../../utils/sports/sportsUtils";
 
 interface Props {
-    stream: SportStream;
+    stream: ChannelStream;
 }
 
 export const ChannelCard = (props: Props) => {
@@ -28,8 +28,8 @@ export const ChannelCard = (props: Props) => {
                 <WatchButton 
                     channel={formatChannel(String(channel) || "", stream.provider!)}
                     streamProvider={stream.provider}
-                    additionalParams="&tv=1"
                     variant="button"
+                    isTV
                 />
             </div>
         </div>

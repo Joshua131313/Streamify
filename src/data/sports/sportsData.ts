@@ -1,7 +1,7 @@
-import type { SportStream } from "../../types/sports/sportsTypes";
+import type { ChannelStream } from "../../types/sports/sportsTypes";
 
 // tv channels
-export const sportStreams : SportStream[] = [
+export const channelStreams : ChannelStream[] = [
     {
         baseUrl: "https://rippleplays.shop/newhub/stream-", //https://rippleplays.shop/newhub/stream-1.php
         extension: ".php",
@@ -31,3 +31,4 @@ export const sportStreams : SportStream[] = [
         provider: "prostreams"
     }
 ]
+

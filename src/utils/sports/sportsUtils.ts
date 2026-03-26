@@ -1,10 +1,12 @@
-import { sportStreams } from "../../data/sports/sportsData";
+import { nbaStreams } from "../../data/sports/nbaData";
+import { nhlStreams } from "../../data/sports/nhlData";
+import { channelStreams } from "../../data/sports/sportsData";
 import type { QuickFilter } from "../../pages/Sports/Sports";
-import type { GameProps, TStreamProvider } from "../../types/sports/sportsTypes"
+import type { GameProps, Leagues, TStreamProvider } from "../../types/sports/sportsTypes"
 
 
 const sportsStreamsMap = Object.fromEntries(
-    sportStreams.map(s => [s.provider, s])
+    channelStreams.map(s => [s.provider, s])
 );
 export const formatChannel = (channel: string, provider: string) => {
     const num = Number(channel);
@@ -16,6 +18,18 @@ export const formatChannel = (channel: string, provider: string) => {
 
     return String(num);
 };
+
+export const getSportStream = (league : Leagues) => {
+    switch (league) {
+        case "NBA":
+            return nbaStreams;
+        case "NHL":
+            return nhlStreams;
+        default:
+            return [];
+    }
+}
+
 export const getStreamURL = (streamType: TStreamProvider, channel: string) => {
     switch (streamType) {
         // nba streams
@@ -32,6 +46,7 @@ export const getStreamURL = (streamType: TStreamProvider, channel: string) => {
         }
     }
 }
+
 export const filterGames = (
     games: GameProps[],
     search: string,

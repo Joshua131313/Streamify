@@ -18,14 +18,13 @@ const CheckboxOption = (props: any) => {
   );
 };
 export const MultiWatchContentEmpty = () => {
-    const { nbaGames, todaysNHLGames } = useSports();
+    const { allOfTodaysGames } = useSports();
     const { multiWatch, addGameToMultiWatch } = useMultiWatch();
 
     const [selectedGames, setSelectedGames] = useState<any[]>([]);
 
-    const allGames = [...nbaGames, ...todaysNHLGames];
 
-    const options = allGames
+    const options = allOfTodaysGames
         .filter((g) => !multiWatch.some((mw) => mw.id === g.id))
         .map((g) => ({
             value: g,

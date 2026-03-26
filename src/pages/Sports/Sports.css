@@ -87,6 +87,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    cursor: default !important;
 }
 
 .multi-watch-content {
@@ -130,23 +131,29 @@
     bottom: 20px;
     right: 20px;
 }
-.channels-controls {
-    position: absolute;
+.stream-controls {
+    position: fixed;
     z-index: 10000;
-    bottom: 50%;
+    top: 50%;
     transform: translateY(-50%);
     right: 10px;
     display: flex;
     flex-direction: column;
     gap: 10px;
 }
-.channels-controls .input-container {
+.stream-controls .input-container {
     width: 50px;
     height: 50px;
 }
-.channels-controls .input-container input {
+.stream-controls .input-container input {
     padding: 0;
     width: 100%;
     text-align: center;    
     border-radius: 50%;
+}
+.alt-streams {
+    position: fixed;
+    top: 20px;
+    z-index: 1000;
+    right: 20px;
 }

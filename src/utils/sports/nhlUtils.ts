@@ -53,8 +53,6 @@ export const mapNHLToGameProps = (game: NHLGame): GameProps => {
         gameLink: `https://www.nhl.com${game.gameCenterLink}`,
         period: game.periodDescriptor?.periodType,
         periodNumber: "P" + String(game.periodDescriptor?.number),
-        sportName: "Hockey",
-        channel: teamsMap[game.awayTeam.abbrev as keyof typeof teamsMap]?.id + "-vs-" + teamsMap[game.homeTeam.abbrev as keyof typeof teamsMap]?.id,
-        streamProvider: "embedsports"
+        leagueName: "NHL",
     };
 };

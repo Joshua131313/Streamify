@@ -34,13 +34,9 @@ export interface NBABroadcast {
 export interface INBAGame {
   // 🔑 core
   id: string;
-  season?: number;
-  gameType?: number;
 
   // ⏱ time
   date: string;
-  startTimeUTC: string;
-  timezone?: string;
 
   // 📍 venue
   venue?: {
@@ -51,7 +47,6 @@ export interface INBAGame {
 
   // 📊 status
   status: NBAGameStatus;
-  rawStatus: string; // ESPN original
   clock?: string;
 
   // 🏀 teams
@@ -64,11 +59,7 @@ export interface INBAGame {
   // 📺 broadcast
   broadcasts?: NBABroadcast[];
 
-  // 🔗 links
+  // 🔗 link
   gameLink?: string;
 
-  // 🎥 STREAM (your addition)
-  stream?: string | null;
-  channel?: string | null;
-  streamProvider?: string | null;
 }

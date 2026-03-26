@@ -1,15 +1,18 @@
 export type TStreamProvider = 
-    "trendy47"  // nba providers
+    "trendy47" | "topstreams" // nba providers
     | "embedsports" // nhl providers
     | "rippleplays" | "shd247" | "prostreams" | "streamscenter"; // tv channel providers
-export type GameStatus = "LIVE" | "PRE" | "FUT" | "FINAL" | "HALFTIME";
 
-export interface SportStream {
-        baseUrl: string;
-        extension: string;
-        defaultChannel: string;
-        title: string;
-        provider: TStreamProvider;
+
+export type GameStatus = "LIVE" | "PRE" | "FUT" | "FINAL" | "HALFTIME";
+export type Leagues = "NBA" | "NHL";
+
+export interface ChannelStream {
+    baseUrl: string;
+    extension: string;
+    defaultChannel: string;
+    title: string;
+    provider: TStreamProvider;
 }
 
 export interface GameTeam {
@@ -33,9 +36,16 @@ export interface GameProps {
     periodNumber?: string;
     clock?: string;
     gameLink: string;
-    sportName: "Basketball" | "Hockey";
-    streamProvider: TStreamProvider;
-    channel: string;
+    leagueName: Leagues;
+}
+
+
+type StreamBuilder = (game: GameProps) => string;
+
+export type SportStream = {
+    provider: TStreamProvider;
+    buildStreamUrl: StreamBuilder;
+    buildChannel: StreamBuilder;
 }
 
 export const DefaultGamePropsTeam: GameTeam = {
@@ -59,7 +69,6 @@ export const DefaultGameProps: GameProps = {
     periodNumber: undefined,
     clock: undefined,
     gameLink: "",
-    sportName: "Basketball",
-    streamProvider: "embedsports", 
-    channel: ""
+    leagueName: "NBA",
 };
+

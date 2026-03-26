@@ -32,7 +32,7 @@ export const mapNBAToGameProps = (game: INBAGame): GameProps => {
     id: game.id,
 
     title,
-    startTime: game.startTimeUTC ?? game.date,
+    startTime: game.date,
 
     // 🔥 use backend status (don’t recompute)
     status: mapStatus(game.status, game.date),
@@ -60,10 +60,6 @@ export const mapNBAToGameProps = (game: INBAGame): GameProps => {
 
     clock: game.clock ?? undefined,
     gameLink: game.gameLink ?? "",
-    // 🎥 stream
-    streamProvider: (game.streamProvider as TStreamProvider) ?? "trendy47",
-    channel: nbaTeamsMap[game.awayTeam.abbreviation as keyof typeof nbaTeamsMap]?.id + "-vs-" + nbaTeamsMap[game.homeTeam.abbreviation as keyof typeof nbaTeamsMap]?.id,
-
-    sportName: "Basketball",
+    leagueName: "NBA",
   };
 };

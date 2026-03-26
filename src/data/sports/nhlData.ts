@@ -1,9 +1,24 @@
-const nhlStreams = [
-    "https://embedsports.top/embed/admin/ppv-team1id-vs-team2-id/1"
+import type { SportStream } from "../../types/sports/sportsTypes";
+
+export const nhlStreams: SportStream[] = [
+    {
+        provider: "embedsports",
+        buildStreamUrl: (game) => {
+            const homeId = teamsMap[game.homeTeam.abbrev as keyof typeof teamsMap]?.id;
+            const awayId = teamsMap[game.awayTeam.abbrev as keyof typeof teamsMap]?.id;
+            return `https://embedsports.top/embed/admin/ppv-${awayId}-vs-${homeId}/1`;
+        },
+        buildChannel: (game) => {
+            const homeId = teamsMap[game.homeTeam.abbrev as keyof typeof teamsMap]?.id;
+            const awayId = teamsMap[game.awayTeam.abbrev as keyof typeof teamsMap]?.id;
+            return `${awayId}-vs-${homeId}`;
+        },
+    }
 ]
+
 export const teamsMap = {
     ANA: { abbreviation: "ANA", teamName: "Anaheim Ducks", id: "anaheim-ducks", logo: "https://assets.nhle.com/logos/nhl/svg/ANA_light.svg", conference: "West", division: "Pacific" },
-    UTA: { abbreviation: "UTA", teamName: "Utah Mammoth", id: "utah-mammoth", logo: "https://assets.nhle.com/logos/nhl/svg/UTM_light.svg", conference: "West", division: "Central" }, 
+    UTA: { abbreviation: "UTA", teamName: "Utah Mammoth", id: "utah-mammoth", logo: "https://assets.nhle.com/logos/nhl/svg/UTM_light.svg", conference: "West", division: "Central" },
     BOS: { abbreviation: "BOS", teamName: "Boston Bruins", id: "boston-bruins", logo: "https://assets.nhle.com/logos/nhl/svg/BOS_light.svg", conference: "East", division: "Atlantic" },
     BUF: { abbreviation: "BUF", teamName: "Buffalo Sabres", id: "buffalo-sabres", logo: "https://assets.nhle.com/logos/nhl/svg/BUF_light.svg", conference: "East", division: "Atlantic" },
     CGY: { abbreviation: "CGY", teamName: "Calgary Flames", id: "calgary-flames", logo: "https://assets.nhle.com/logos/nhl/svg/CGY_light.svg", conference: "West", division: "Pacific" },

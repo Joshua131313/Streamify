@@ -1,7 +1,16 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query";
+import type { INBAGame } from "../../types/sports/nbaTypes";
 
-export const useNBAGames = () => {
+interface UseNbaGames {
+    nbaGames: INBAGame[];
+    nbaGamesLoading: boolean;
+    error: any;
+    search: string;
+    setSearch: React.Dispatch<React.SetStateAction<string>>;
+}
+
+export const useNBAGames = () : UseNbaGames => {
     const [search, setSearch] = useState("");
 
     const { data = [], isLoading, error } = useQuery({
@@ -13,7 +22,7 @@ export const useNBAGames = () => {
         },
         refetchInterval: 30000
     });
-    console.log(data)
+    console.log(data[0])
     return {
         nbaGames: data,
         nbaGamesLoading: isLoading,

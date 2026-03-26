@@ -1,6 +1,6 @@
 import { FaX } from "react-icons/fa6";
 import { useMultiWatch } from "../../context/MultiWatchContext";
-import { getStreamURL } from "../../utils/sports/sportsUtils";
+import { getSportStream, getStreamURL } from "../../utils/sports/sportsUtils";
 
 
 
@@ -17,7 +17,7 @@ export const MultiWatchContent = () => {
                         </a>
                         <FaX onClick={() => removeGameFromMultiWatch(g)} />
                     </div>
-                    <iframe allowFullScreen src={getStreamURL(g.streamProvider, g.channel)} />
+                    <iframe allowFullScreen src={getSportStream(g.leagueName)[0].buildStreamUrl(g)} />
                 </div>
             ))}
         </>

@@ -13,7 +13,7 @@ import { AppSwiper } from "../../components/ui/AppSwiper/AppSwiper";
 import { SwiperSkeletonCard } from "../../components/ui/MediaCard/SkeletonCards/MediaSkeletonCard";
 import { Button } from "../../components/ui/Button/Button";
 import { useMultiWatch } from "../../context/MultiWatchContext";
-import { sportStreams } from "../../data/sports/sportsData";
+import { channelStreams } from "../../data/sports/sportsData";
 import { ChannelCard } from "../../components/ui/ChannelCard/ChannelCard";
 
 export type QuickFilter = {
@@ -110,8 +110,7 @@ const Sports = () => {
             />
             <FilteredContainer type="TV" title="Sports Channels">
                 <AppSwiper
-                    isLoading={nbaGamesLoading}
-                    items={sportStreams}
+                    items={channelStreams}
                     renderItem={(stream) => (
                         <ChannelCard stream={stream} key={stream.provider} />
                     )}

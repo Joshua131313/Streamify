@@ -15,7 +15,7 @@ export default async function handler(req, res) {
                 id: event.id,
 
                 date: event.date,
-
+                
                 status: event.status.type.description,
                 clock: event.status.displayClock,
                 period: {

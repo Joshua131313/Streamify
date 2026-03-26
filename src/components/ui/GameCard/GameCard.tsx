@@ -9,6 +9,7 @@ import type { ContextMenuOption } from "../../../types";
 import { FaBell, FaCubes, FaExternalLinkAlt, FaPlay, FaThLarge } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useMultiWatch } from "../../../context/MultiWatchContext";
+import { getSportStream } from "../../../utils/sports/sportsUtils";
 
 
 interface Props {
@@ -20,12 +21,17 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
     const { toggleGameInMultiWatch, isGameInMultiWatch } = useMultiWatch();
     const { openMenu } = useContextMenu();
     const navigate = useNavigate();
+    const defaultSportSteam = getSportStream(game.leagueName)[0];
+    const defaultSportStreamChannel = defaultSportSteam.buildChannel(game);
+    const defaultSportStreamProvider = defaultSportSteam.provider;
+    const watchURL = getWatchURL({ league: game.leagueName, channel: defaultSportStreamChannel, streamProvider: defaultSportStreamProvider });
+    
     const mediaCardContextOptions: ContextMenuOption[] = [
         {
             key: "watch",
             value: "Watch",
             icon: FaPlay,
-            onClick: () => navigate(getWatchURL({ channel: game.channel, streamProvider: game.streamProvider }))
+            onClick: () => navigate(watchURL)
         },
         {
             key: "multi-watch",
@@ -38,12 +44,7 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
             value: "Watch in New Tab",
             icon: FaExternalLinkAlt,
             onClick: () => {
-                const url = getWatchURL({
-                    channel: game.channel,
-                    streamProvider: game.streamProvider
-                });
-
-                window.open(url, "_blank", "noopener,noreferrer");
+                window.open(watchURL, "_blank", "noopener,noreferrer");
             }
         },
         {
@@ -163,8 +164,9 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
                 <ExternalGameInfoButton url={game.gameLink} />
                 <WatchButton
                     variant="button"
-                    channel={game.channel}
-                    streamProvider={game.streamProvider}
+                    gameId={String(game.id) ?? ""}
+                    streamProvider={defaultSportStreamProvider}
+                    league={game.leagueName}
                 />
             </div>
         </div>

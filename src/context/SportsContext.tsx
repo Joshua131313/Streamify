@@ -1,17 +1,17 @@
-import { createContext, useContext, useState, type Dispatch, type SetStateAction } from "react";
+import { createContext, useContext, useState } from "react";
 import type { INBAGame } from "../types/sports/nbaTypes";
 import type { NHLGame } from "../types/sports/nhlTypes";
 import { useNBAGames } from "../hooks/sportsHooks/useNBAGames";
 import { useNHLGames } from "../hooks/sportsHooks/useNHLGames";
-import { type GameProps } from "../types/sports/sportsTypes";
+import { type GameProps, type Leagues } from "../types/sports/sportsTypes";
 import { mapNBAToGameProps } from "../utils/sports/nbaUtils";
 import { mapNHLToGameProps } from "../utils/sports/nhlUtils";
-
 
 interface SportsContextType {
     nbaGames: GameProps[];
     nhlGames: GameProps[];
     todaysNHLGames: GameProps[];
+    allOfTodaysGames: GameProps[];
 
     search: string;
     setSearch: (value: string) => void;
@@ -21,10 +21,14 @@ interface SportsContextType {
 
     nbaGamesLoading: boolean;
     nbaGamesError: unknown;
+
+    // 🔥 NEW
+    getGameById: (league: Leagues, id: string) => GameProps | undefined;
 }
+
 const SportsContext = createContext<SportsContextType | null>(null);
 
-export const SportsProvider = ({ children } : { children: React.ReactNode}) => {
+export const SportsProvider = ({ children }: { children: React.ReactNode }) => {
     const [search, setSearch] = useState("");
 
     const {
@@ -32,7 +36,7 @@ export const SportsProvider = ({ children } : { children: React.ReactNode}) => {
         error: nbaError,
         nbaGamesLoading
     } = useNBAGames();
-    
+
     const {
         games: nhlGames,
         todaysGames: todaysNHLGames,
@@ -40,29 +44,58 @@ export const SportsProvider = ({ children } : { children: React.ReactNode}) => {
         error: nhlError
     } = useNHLGames();
 
+    const mappedNBAGames = nbaGames.map(mapNBAToGameProps);
+    const mappedNHLGames = nhlGames.map(mapNHLToGameProps);
+    const mappedTodaysNHLGames = todaysNHLGames.map(mapNHLToGameProps);
+
+    const allOfTodaysGames = [
+        ...mappedNBAGames,
+        ...mappedTodaysNHLGames
+    ];
+
+    // 🔥 CENTRALIZED GAME LOOKUP
+    const getGameById = (league: Leagues, id: string) => {
+        if (league === "NBA") {
+            return mappedNBAGames.find(g => g.id == id);
+        }
+
+        if (league === "NHL") {
+            console.log(mappedNHLGames)
+            return mappedNHLGames.find(g => g.id == id);
+        }
+
+        return undefined;
+    };
+
     return (
         <SportsContext.Provider
             value={{
-                nbaGames: nbaGames.map(mapNBAToGameProps),
+                nbaGames: mappedNBAGames,
                 nbaGamesError: nbaError,
                 nbaGamesLoading,
-                nhlGames: nhlGames.map(mapNHLToGameProps),
-                nhlGamesError: nhlError, 
-                nhlGamesLoading, 
+
+                nhlGames: mappedNHLGames,
+                nhlGamesError: nhlError,
+                nhlGamesLoading,
+
+                todaysNHLGames: mappedTodaysNHLGames,
+                allOfTodaysGames,
+
                 search,
-                setSearch, 
-                todaysNHLGames: todaysNHLGames.map(mapNHLToGameProps),
+                setSearch,
+
+                getGameById // ✅ exposed
             }}
         >
             {children}
         </SportsContext.Provider>
-    )
-}
+    );
+};
 
 export const useSports = () => {
     const ctx = useContext(SportsContext);
-    if(!ctx) {
+    if (!ctx) {
         throw new Error("useSports must be used inside SportsProvider");
     }
     return ctx;
-}
+};

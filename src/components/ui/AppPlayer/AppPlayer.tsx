@@ -1,7 +1,7 @@
 import { FaLongArrowAltLeft } from "react-icons/fa"
 import { Icon } from "../Icon/Icon"
 import { createPortal } from "react-dom"
-import { useEffect } from "react"
+import React, { useEffect, useRef } from "react"
 import "./AppPlayer.css"
 
 interface Props {
@@ -10,49 +10,58 @@ interface Props {
     cancelPlay: () => void;
     src: string;
 }
+export const AppPlayer = React.memo((props: Props) => {
+    const { modal = true, children, cancelPlay, src } = props;
 
-export const AppPlayer = (props : Props) => {
-    const { modal = true, children, cancelPlay, src } = props
+    const iframeRef = useRef<HTMLIFrameElement>(null);
 
     useEffect(() => {
-        if(modal) {
+        if (iframeRef.current && iframeRef.current.src !== src) {
+            iframeRef.current.src = src;
+        }
+    }, [src]);
+
+    useEffect(() => {
+        if (modal) {
             document.body.classList.add("player-open");
             const scrollY = window.scrollY;
+
             document.body.style.position = "fixed";
             document.body.style.top = `-${scrollY}px`;
             document.body.style.width = "100%";
+
             return () => {
                 const scrollY = document.body.style.top;
+
                 document.body.style.position = "";
                 document.body.style.top = "";
                 document.body.style.width = "";
+
                 window.scrollTo(0, parseInt(scrollY || "0") * -1);
                 document.body.classList.remove("player-open");
             };
         }
     }, [modal]);
 
-
     const Player = () => {
         return (
-            <div className={`player ${modal ? "modal-player" : ""}`} role="dialog" aria-modal="true">
-                {modal && <Icon className="back-icon player-control-icon" Icon={FaLongArrowAltLeft} onClick={cancelPlay}/>}
-                {children}
-                <iframe 
-                    src={src} 
-                    allowFullScreen
-                    
-                />
-            </div>
-        )
-    }
+            <div className={`player ${modal ? "modal-player" : ""}`}>
+                {modal && (
+                    <Icon
+                        className="back-icon player-control-icon"
+                        Icon={FaLongArrowAltLeft}
+                        onClick={cancelPlay}
+                    />
+                )}
 
-    return (
-        modal ?
-        createPortal(
-            <Player />
-        , document.body
-        )
-        : <Player />
-    )
-}
+                {children}
+
+                <iframe src={src} ref={iframeRef} allowFullScreen />
+            </div>
+        );
+    };
+
+    return modal
+        ? createPortal(<Player />, document.body)
+        : <Player />;
+});
