@@ -157,3 +157,9 @@
     z-index: 1000;
     right: 20px;
 }
+.multi-watch-empty span {
+    display: block;
+}
+.multi-watch-empty > * {
+    margin-bottom: 10px;
+}

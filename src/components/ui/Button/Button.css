@@ -52,7 +52,13 @@
     padding-bottom: 0;
     justify-content: center;
 }
-
+.button:disabled {
+    background-color: var(--bg-transparent);
+    cursor: no-drop;
+}
+.button:disabled:hover {
+    filter: initial;
+}
 .button.gamecenter img {
     width: 30px;
 }
