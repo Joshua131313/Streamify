@@ -1,3 +1,7 @@
 .styled-select__control {
     height: 100%;
 }
+.styled-select__option {
+    display: flex !important;
+    align-items: center;
+}

@@ -32,10 +32,10 @@ const styles = {
   option: (base: any, state: any) => ({
     ...base,
     backgroundColor: state.isSelected
-      ? "rgba(220, 38, 38, 0.15)" // 🔴 selected (subtle red)
+      ? "rgba(220, 38, 38, 0.2)" // 🔴 selected (subtle red)
       : state.isFocused
-      ? "var(--bg-surface-hover)" // hover
-      : "transparent",
+        ? "var(--bg-surface-hover)" // hover
+        : "transparent",
     color: "white",
     cursor: "pointer",
     ":active": {
@@ -58,6 +58,28 @@ const styles = {
   input: (base: any) => ({
     ...base,
     color: "white",
+  }),
+  multiValue: (base: any) => ({
+    ...base,
+    backgroundColor: "rgba(220, 38, 38, 0.2)", // subtle red
+    borderRadius: "6px",
+    padding: "2px 4px",
+  }),
+
+  multiValueLabel: (base: any) => ({
+    ...base,
+    color: "white",
+    fontSize: "13px",
+  }),
+
+  multiValueRemove: (base: any) => ({
+    ...base,
+    color: "#f87171",
+    cursor: "pointer",
+    ":hover": {
+      backgroundColor: "var(--accent-primary)",
+      color: "white",
+    },
   }),
 };
 

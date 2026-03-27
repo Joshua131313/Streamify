@@ -12,7 +12,7 @@ import { MultiWatchContent } from "./MultiWatchContent";
 
 export const MultiWatch = () => {
     const { multiWatch, multiWatchWindowState, removeGameFromMultiWatch, adjustMultiWatchWindow, adjustMultiWindowSize, adjustMultiWindowPosition } = useMultiWatch();
-    
+
     useEffect(() => {
         if (multiWatchWindowState.windowState === "fullscreen") {
             document.body.style.overflow = "hidden";
@@ -27,23 +27,33 @@ export const MultiWatch = () => {
 
     return (
         <>
-            {!(multiWatchWindowState.windowState === "minimized" ||
-                multiWatchWindowState.windowState === "closed"
-            ) &&
+            {!(multiWatchWindowState.windowState === "closed") &&
                 <Rnd
-                    bounds="window"
                     dragHandleClassName="multi-watch-header"
-                    style={{ zIndex: 999 }}
-
+                    className={`${multiWatchWindowState.windowState === "minimized" ? "minimized-window" : "multi-watch-window-parent"}`}
                     onResizeStop={(e, direction, ref, delta, position) => {
                         adjustMultiWindowSize(ref.offsetWidth, ref.offsetHeight);
                         adjustMultiWindowPosition(position.x, position.y);
                     }}
+                    onDragStart={(e: any) => {
+                        if (multiWatchWindowState.windowState === "fullscreen") {
+                            const mouseX = e.clientX;
+                            const mouseY = e.clientY;
 
+                            const width = multiWatchWindowState.lastWindowOpenedSize.w;
+
+                            adjustMultiWatchWindow("opened");
+
+                            adjustMultiWindowPosition(
+                                mouseX - width / 2,
+                                mouseY - 20
+                            );
+                        }
+                    }}
                     onDragStop={(e, d) => {
                         adjustMultiWindowPosition(d.x, d.y);
                     }}
-
+                    style={{ position: "fixed" }}
                     size={{
                         width:
                             multiWatchWindowState.windowState === "fullscreen"
@@ -72,14 +82,14 @@ export const MultiWatch = () => {
                         <div className="multi-watch-header">
                             <span>Multi Watch</span>
                             <div className="multi-watch-header-controls">
-                                <div>
-                                    <FaMinus onClick={() => adjustMultiWatchWindow("minimized")} />
+                                <div onClick={() => adjustMultiWatchWindow("minimized")}>
+                                    <FaMinus />
                                 </div>
                                 <div onClick={() => adjustMultiWatchWindow(multiWatchWindowState.windowState === "fullscreen" ? "opened" : "fullscreen")}>
                                     {multiWatchWindowState.windowState === "fullscreen" ?
                                         <FaRegWindowRestore />
                                         :
-                                        <BsSquare onClick={() => adjustMultiWatchWindow("fullscreen")} />
+                                        <BsSquare />
                                     }
                                 </div>
                                 <div className="multi-watch-close-control" onClick={() => adjustMultiWatchWindow("closed")}>
