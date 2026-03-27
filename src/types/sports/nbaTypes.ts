@@ -1,3 +1,5 @@
+import type { nbaTeamsMap } from "../../data/sports/nbaData";
+
 export type NBAGameStatus =
   | "SCHEDULED"
   | "PRE"
@@ -8,7 +10,7 @@ export type NBAGameStatus =
 export interface NBATeam {
   id: string;
   name: string;
-  abbreviation: string;
+  abbreviation: keyof typeof nbaTeamsMap;
   logo: string;
 
   score: number;

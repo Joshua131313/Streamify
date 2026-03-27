@@ -4,10 +4,13 @@ import type { TMediaType } from "../../../types/tmdb";
 import { Link, useNavigate } from "react-router-dom";
 import { useLocalStorage } from "../../../hooks/utilHooks/useLocalStorage";
 import { Icon } from "../Icon/Icon";
-import type { Leagues, TStreamProvider } from "../../../types/sports/sportsTypes";
+import type { Leagues, TeamAbbrevs, TStreamProvider } from "../../../types/sports/sportsTypes";
+import type { nbaTeamsMap } from "../../../data/sports/nbaData";
+import type { nhlTeamsMap } from "../../../data/sports/nhlData";
 
 interface Props {
-    gameId?: string;
+    awayTeamAbbrev: TeamAbbrevs;
+    homeTeamAbbrev: TeamAbbrevs;
     channel?: string;
     variant?: "icon" | "button";
     className?: string;
@@ -18,17 +21,12 @@ interface Props {
 }
 export const getWatchURL = ({
     league,
-    gameId,
+    awayTeamAbbrev,
+    homeTeamAbbrev,
     streamProvider,
     channel,
     isTV = false
-}: {
-    league?: Leagues;
-    gameId?: string;
-    streamProvider: string;
-    channel?: string;
-    isTV?: boolean;
-}) => {
+}: Omit<Props, "onContextMenu" | "variant">) => {
     const params = new URLSearchParams();
 
     params.set("provider", streamProvider);
@@ -40,16 +38,17 @@ export const getWatchURL = ({
     } else {
         // 🎮 Game mode
         if (league) params.set("league", league);
-        if (gameId) params.set("gameId", gameId);
+        if (awayTeamAbbrev) params.set("away", awayTeamAbbrev);
+        if (homeTeamAbbrev) params.set("home", homeTeamAbbrev);
     }
 
     return `?${params.toString()}`;
 };
 
 export const WatchButton = (props: Props) => {
-    const { gameId, className, variant, channel, streamProvider, onContextMenu, isTV = false, league } = props;
+    const { awayTeamAbbrev, homeTeamAbbrev, className, variant, channel, streamProvider, onContextMenu, isTV = false, league } = props;
     const navigate = useNavigate();
-    const watchURL = getWatchURL({ channel, league, gameId, streamProvider, isTV })
+    const watchURL = getWatchURL({ channel, league, awayTeamAbbrev, homeTeamAbbrev, streamProvider, isTV })
     return (
         <Link
             onClick={() => navigate(watchURL)}

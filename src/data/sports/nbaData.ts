@@ -5,33 +5,40 @@
 // ]
 
 import type { SportStream } from "../../types/sports/sportsTypes";
+import { getSlug } from "./sportsData";
 
 export const nbaStreams: SportStream[] = [
   {
     provider: "trendy47",
-    buildChannel: (game) => {
-      const homeId = nbaTeamsMap[game.homeTeam.abbrev as keyof typeof nbaTeamsMap]?.id;
-      const awayId = nbaTeamsMap[game.awayTeam.abbrev as keyof typeof nbaTeamsMap]?.id;
+    buildChannel: ({awayTeamAbbrev, homeTeamAbbrev}) => {
+      const homeId = nbaTeamsMap[homeTeamAbbrev as keyof typeof nbaTeamsMap]?.id;
+      const awayId = nbaTeamsMap[awayTeamAbbrev as keyof typeof nbaTeamsMap]?.id;
       return `${awayId}-vs-${homeId}`
     },
-    buildStreamUrl: (game) => {
-      const homeId = nbaTeamsMap[game.homeTeam.abbrev as keyof typeof nbaTeamsMap]?.id;
-      const awayId = nbaTeamsMap[game.awayTeam.abbrev as keyof typeof nbaTeamsMap]?.id;
+    buildStreamUrl: ({awayTeamAbbrev, homeTeamAbbrev}) => {
+      const homeId = nbaTeamsMap[homeTeamAbbrev as keyof typeof nbaTeamsMap]?.id;
+      const awayId = nbaTeamsMap[awayTeamAbbrev as keyof typeof nbaTeamsMap]?.id;
       return `https://v2.trendy47.com/event/ppv-${awayId}-vs-${homeId}`;
-    }
+    },
   },
   {
     provider: "topstreams",
-    buildChannel: (game) => {
-      const parts = game.homeTeam.name.split(" ");
-      const teamSlug = parts[parts.length - 1].toLowerCase();
-      return teamSlug
+    buildChannel: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
+      if (homeTeamAbbrev in nbaTeamsMap) {
+        const teamName = nbaTeamsMap[homeTeamAbbrev as keyof typeof nbaTeamsMap].teamName;
+        return getSlug(teamName);
+      }
+      return "";
     },
-    buildStreamUrl: (game) => {
-      const parts = game.homeTeam.name.split(" ");
-      const teamSlug = parts[parts.length - 1].toLowerCase();
+    buildStreamUrl: ({homeTeamAbbrev}) => {
+      if (homeTeamAbbrev in nbaTeamsMap) {
+        const teamName = nbaTeamsMap[homeTeamAbbrev as keyof typeof nbaTeamsMap].teamName;
+        const slug = getSlug(teamName);
 
-      return `https://topstreams.info/iframe/nba/${teamSlug}`;
+        return `https://topstreams.info/iframe/nba/${slug}`;
+      }
+
+      return "";
     }
   }
 ]

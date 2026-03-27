@@ -17,7 +17,11 @@ export const MultiWatchContent = () => {
                         </a>
                         <FaX onClick={() => removeGameFromMultiWatch(g)} />
                     </div>
-                    <iframe allowFullScreen src={getSportStream(g.leagueName)[0].buildStreamUrl(g)} />
+                    <iframe allowFullScreen src={
+                        getSportStream(g.leagueName)[0].buildStreamUrl({
+                            awayTeamAbbrev: g.awayTeam.abbrev,
+                            homeTeamAbbrev: g.homeTeam.abbrev
+                    })} />
                 </div>
             ))}
         </>

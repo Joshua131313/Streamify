@@ -2,6 +2,8 @@
 // NHL API TYPES (ALL-IN-ONE)
 // =========================
 
+import type { nhlTeamsMap } from "../../data/sports/nhlData";
+
 // -----------
 // CORE TYPES
 // -----------
@@ -24,7 +26,7 @@ export interface NHLTeam {
     placeName: NHLTeamName;
     placeNameWithPreposition: NHLTeamName;
 
-    abbrev: string;
+    abbrev: keyof typeof nhlTeamsMap;
 
     logo: string;
     darkLogo: string;

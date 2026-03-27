@@ -1,3 +1,6 @@
+import type { nbaTeamsMap } from "../../data/sports/nbaData";
+import type { nhlTeamsMap } from "../../data/sports/nhlData";
+
 export type TStreamProvider = 
     "trendy47" | "topstreams" // nba providers
     | "embedsports" // nhl providers
@@ -6,6 +9,8 @@ export type TStreamProvider =
 
 export type GameStatus = "LIVE" | "PRE" | "FUT" | "FINAL" | "HALFTIME";
 export type Leagues = "NBA" | "NHL";
+
+export type TeamAbbrevs = keyof typeof nbaTeamsMap | keyof typeof nhlTeamsMap | "";
 
 export interface ChannelStream {
     baseUrl: string;
@@ -17,7 +22,7 @@ export interface ChannelStream {
 
 export interface GameTeam {
     name: string;
-    abbrev: string;
+    abbrev: TeamAbbrevs;
     logo: string;
     score?: number;
 }
@@ -40,7 +45,10 @@ export interface GameProps {
 }
 
 
-type StreamBuilder = (game: GameProps) => string;
+type StreamBuilder = (params: {
+    homeTeamAbbrev: TeamAbbrevs;
+    awayTeamAbbrev: TeamAbbrevs;
+}) => string;
 
 export type SportStream = {
     provider: TStreamProvider;

@@ -1,4 +1,3 @@
-import { teamsMap } from "../../data/sports/nhlData";
 import type { NHLGame, ScheduleResponse } from "../../types/sports/nhlTypes";
 import type { GameProps } from "../../types/sports/sportsTypes";
 

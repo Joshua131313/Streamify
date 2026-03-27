@@ -5,7 +5,7 @@ import {
     getStreamURL
 } from "../../utils/sports/sportsUtils";
 import { AppPlayer } from "../../components/ui/AppPlayer/AppPlayer";
-import type { Leagues, TStreamProvider, GameProps } from "../../types/sports/sportsTypes";
+import type { Leagues, TeamAbbrevs, TStreamProvider } from "../../types/sports/sportsTypes";
 import { Icon } from "../../components/ui/Icon/Icon";
 import { FaChevronDown, FaChevronUp } from "react-icons/fa";
 import { Input } from "../../components/ui/Input/Input";
@@ -20,8 +20,9 @@ export const SportsPlayer = () => {
     // 🔹 Params
     const provider = searchParams.get("provider");
     const channel = searchParams.get("channel");
-    const gameId = searchParams.get("gameId");
     const league = searchParams.get("league") as Leagues | null;
+    const awayTeamAbbrev = searchParams.get("away") as TeamAbbrevs;
+    const homeTeamAbbrev = searchParams.get("home") as TeamAbbrevs;
 
     const isTV = searchParams.get("tv") === "1";
 
@@ -38,21 +39,6 @@ export const SportsPlayer = () => {
             setInputValue(channel || "");
         }
     }, [channel]);
-
-    // 🔥 Freeze game
-    const [stableGame, setStableGame] = useState<GameProps | null>(null);
-
-    useEffect(() => {
-        setStableGame(null);
-    }, [gameId]);
-
-    useEffect(() => {
-        if (!stableGame && league && gameId) {
-            const g = getGameById(league, gameId);
-            console.log(g)
-            if (g) setStableGame(g);
-        }
-    }, [league, gameId, stableGame, getGameById]);
 
     // 🔥 Channel update
     const updateChannel = (newChannel: string) => {
@@ -89,45 +75,32 @@ export const SportsPlayer = () => {
         const newParams = new URLSearchParams(searchParams);
         newParams.delete("provider");
         newParams.delete("channel");
-        newParams.delete("gameId");
         newParams.delete("league");
+        newParams.delete("away");
+        newParams.delete("home");
         newParams.delete("tv");
         setSearchParams(newParams, { replace: true });
     };
 
-    // 🔥 FINAL SOURCE STATE (KEY FIX)
-    const [playerSrc, setPlayerSrc] = useState<string | null>(null);
+    // 🔥 SIMPLE SOURCE LOGIC (original style)
+    let src: string | null = null;
 
-    useEffect(() => {
-        let newSrc: string | null = null;
+    if (isTV) {
+        if (provider && channel) {
+            src = getStreamURL(provider as TStreamProvider, channel);
+        }
+    } else {
+        if (provider && league) {
+            const stream = allStreams.find(s => s.provider === provider);
 
-        if (isTV) {
-            if (provider && channel) {
-                newSrc = getStreamURL(provider as TStreamProvider, channel);
-            }
-        } else {
-            if (provider && stableGame && league) {
-                const stream = allStreams.find(s => s.provider === provider);
-                if (stream) {
-                    newSrc = stream.buildStreamUrl(stableGame);
-                }
+            if (stream) {
+                src = stream.buildStreamUrl({awayTeamAbbrev, homeTeamAbbrev});
             }
         }
+    }
 
-        // ✅ update only when needed
-        if (newSrc && newSrc !== playerSrc) {
-            setPlayerSrc(newSrc);
-        }
-
-        // ✅ clear player when params gone
-        if (!newSrc) {
-            setPlayerSrc(null);
-        }
-
-    }, [isTV, provider, channel, stableGame, league]);
-
-    // ❌ No player → remove completely
-    if (!playerSrc) return null;
+    // ❌ No player → remove
+    if (!src) return null;
 
     return (
         <>
@@ -148,7 +121,7 @@ export const SportsPlayer = () => {
             {/* 🎥 Player */}
             <AppPlayer
                 cancelPlay={cancelWatch}
-                src={playerSrc}
+                src={src}
             />
 
             {/* 📺 TV Controls */}

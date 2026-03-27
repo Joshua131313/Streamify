@@ -22,10 +22,9 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
     const { openMenu } = useContextMenu();
     const navigate = useNavigate();
     const defaultSportSteam = getSportStream(game.leagueName)[0];
-    const defaultSportStreamChannel = defaultSportSteam.buildChannel(game);
     const defaultSportStreamProvider = defaultSportSteam.provider;
-    const watchURL = getWatchURL({ league: game.leagueName, channel: defaultSportStreamChannel, streamProvider: defaultSportStreamProvider });
-    
+    const watchURL = getWatchURL({ league: game.leagueName, awayTeamAbbrev: game.awayTeam.abbrev, homeTeamAbbrev: game.homeTeam.abbrev, streamProvider: defaultSportStreamProvider });
+
     const mediaCardContextOptions: ContextMenuOption[] = [
         {
             key: "watch",
@@ -164,7 +163,8 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
                 <ExternalGameInfoButton url={game.gameLink} />
                 <WatchButton
                     variant="button"
-                    gameId={String(game.id) ?? ""}
+                    awayTeamAbbrev={game.awayTeam.abbrev}
+                    homeTeamAbbrev={game.homeTeam.abbrev}
                     streamProvider={defaultSportStreamProvider}
                     league={game.leagueName}
                 />

@@ -1,5 +1,8 @@
 import type { ChannelStream } from "../../types/sports/sportsTypes";
 
+export const getSlug = (name: string) => name.split(" ").slice(-1)[0];
+
+
 // tv channels
 export const channelStreams : ChannelStream[] = [
     {
