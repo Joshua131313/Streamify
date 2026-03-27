@@ -33,7 +33,7 @@ export const nbaStreams: SportStream[] = [
     buildStreamUrl: ({homeTeamAbbrev}) => {
       if (homeTeamAbbrev in nbaTeamsMap) {
         const teamName = nbaTeamsMap[homeTeamAbbrev as keyof typeof nbaTeamsMap].teamName;
-        const slug = getSlug(teamName);
+        const slug = getSlug(teamName).toLowerCase();
 
         return `https://topstreams.info/iframe/nba/${slug}`;
       }

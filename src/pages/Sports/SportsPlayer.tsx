@@ -11,12 +11,9 @@ import { FaChevronDown, FaChevronUp } from "react-icons/fa";
 import { Input } from "../../components/ui/Input/Input";
 import { useState, useEffect } from "react";
 import { Button } from "../../components/ui/Button/Button";
-import { useSports } from "../../context/SportsContext";
 
 export const SportsPlayer = () => {
     const [searchParams, setSearchParams] = useSearchParams();
-    const { getGameById } = useSports();
-
     // 🔹 Params
     const provider = searchParams.get("provider");
     const channel = searchParams.get("channel");
