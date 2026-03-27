@@ -9,8 +9,8 @@ import type { nbaTeamsMap } from "../../../data/sports/nbaData";
 import type { nhlTeamsMap } from "../../../data/sports/nhlData";
 
 interface Props {
-    awayTeamAbbrev: TeamAbbrevs;
-    homeTeamAbbrev: TeamAbbrevs;
+    awayTeamAbbrev?: TeamAbbrevs;
+    homeTeamAbbrev?: TeamAbbrevs;
     channel?: string;
     variant?: "icon" | "button";
     className?: string;
