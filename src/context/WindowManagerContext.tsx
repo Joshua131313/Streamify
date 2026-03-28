@@ -49,7 +49,7 @@ export const WindowManagerProvider = ({
         const OFFSET_STEP = 30;
 
         const x = 100 + spawnOffset * OFFSET_STEP;
-        const y = 100 + spawnOffset * OFFSET_STEP;
+        const y = window.scrollY + (100 + spawnOffset * OFFSET_STEP);
 
         spawnOffset++;
 
