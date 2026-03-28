@@ -1,3 +1,4 @@
+import { mlbStreams } from "../../data/sports/mlbData";
 import { nbaStreams } from "../../data/sports/nbaData";
 import { nhlStreams } from "../../data/sports/nhlData";
 import { channelStreams } from "../../data/sports/sportsData";
@@ -25,6 +26,8 @@ export const getSportStream = (league : Leagues) => {
             return nbaStreams;
         case "NHL":
             return nhlStreams;
+        case "MLB": 
+            return mlbStreams;
         default:
             return [];
     }

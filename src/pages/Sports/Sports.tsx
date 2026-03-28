@@ -33,6 +33,7 @@ export const quickFilters: QuickFilter[] = [
     // league
     { label: "NBA", value: "NBA", type: "league", default: true, },
     { label: "NHL", value: "NHL", type: "league", default: true },
+    { label: "MLB", value: "MLB", type: "league", default: true },
 
     // sport
     { label: "TV", value: "TV", type: "sport", default: true }
@@ -41,7 +42,16 @@ export const quickFilters: QuickFilter[] = [
 ];
 
 const Sports = () => {
-    const { nbaGames, nbaGamesLoading, todaysNHLGames, nhlGamesLoading, search, setSearch } = useSports();
+    const { 
+        nbaGames, 
+        nbaGamesLoading, 
+        nhlGames, 
+        nhlGamesLoading,
+        mlbGames,
+        mlbGamesLoading, 
+        search, 
+        setSearch 
+    } = useSports();
     const { adjustMultiWatchWindow, multiWatchWindowState } = useMultiWatch()
     const [filters, setFilters] = useState<QuickFilter[]>(quickFilters.filter(x=> x.default))
     const {  } = useMultiWatch();
@@ -53,14 +63,20 @@ const Sports = () => {
             filters
         );
     }, [nbaGames, search, filters]);
-
-    const nhlGameCards = useMemo(() => {
+    const mlbGameCards = useMemo(() => {
         return filterGames(
-            todaysNHLGames,
+            mlbGames,
             search,
             filters
         );
-    }, [todaysNHLGames, search, filters]);
+    }, [nbaGames, search, filters]);
+    const nhlGameCards = useMemo(() => {
+        return filterGames(
+            nhlGames,
+            search,
+            filters
+        );
+    }, [nhlGames, search, filters]);
 
     const handleClickFilter = (filter: QuickFilter) => {
         if (filters.some(x => x.value === filter.value)) {
@@ -135,6 +151,16 @@ const Sports = () => {
                 <AppSwiper
                     isLoading={nhlGamesLoading}
                     items={nhlGameCards}
+                    renderItem={(game) => (
+                        <GameCard key={game.id} showSportName={false} game={game} />
+                    )}
+                    skeleton={<SwiperSkeletonCard className="game-card-skeleton" />}
+                />
+            </FilteredContainer>
+            <FilteredContainer type="MLB" title="MLB">
+                <AppSwiper
+                    isLoading={mlbGamesLoading}
+                    items={mlbGameCards}
                     renderItem={(game) => (
                         <GameCard key={game.id} showSportName={false} game={game} />
                     )}

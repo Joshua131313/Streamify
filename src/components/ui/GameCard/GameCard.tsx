@@ -92,6 +92,9 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
 
     const StatusBadge = () => {
         if (game.status === "LIVE" || game.status === "HALFTIME") {
+            if (game.leagueName === "MLB") {
+                return <div className="status-tag">{game.clock?.toUpperCase()} {game.periodNumber}</div>
+            }
             return <div className="status-tag">{game.periodNumber} {game.clock && ": " + game.clock}</div>
         }
         else if (game.status === "FINAL") {

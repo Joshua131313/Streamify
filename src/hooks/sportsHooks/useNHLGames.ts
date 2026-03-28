@@ -1,42 +1,29 @@
 import { useQuery } from "@tanstack/react-query";
-import type { NHLGame, ScheduleResponse } from "../../types/sports/nhlTypes";
-import { extractGames } from "../../utils/sports/nhlUtils";
-import { DateTime } from "luxon";
+import type { INHLGame } from "../../types/sports/nhlTypes";
 
-const fetchGames = async (): Promise<NHLGame[]> => {
-    const API_URL = import.meta.env.VITE_API_URL || "";
-    const res = await fetch(`${API_URL}/api/nhl`);
+interface UseNHLGames {
+  games: INHLGame[];
+  isLoading: boolean;
+  error: any;
+}
 
-    if (!res.ok) throw new Error("Failed to fetch games");
+export const useNHLGames = (): UseNHLGames => {
+  const { data = [], isLoading, error } = useQuery({
+    queryKey: ["nhl-games"],
+    queryFn: async () => {
+      const API_URL = import.meta.env.VITE_API_URL || "";
+      const res = await fetch(`${API_URL}/api/nhl`);
 
-    const data: ScheduleResponse = await res.json();
-    return extractGames(data);
-};
+      if (!res.ok) throw new Error("Failed to fetch NHL games");
 
-export const useNHLGames = () => {
-    const {
-        data: games = [],
-        isLoading,
-        error,
-    } = useQuery({
-        queryKey: ["nhl-games"],
-        queryFn: fetchGames,
+      return res.json();
+    },
+    refetchInterval: 30000,
+  });
 
-        staleTime: 1000 * 60 * 5,
-        refetchInterval: 30000,
-        refetchOnWindowFocus: false,
-    });
-
-    const todaysGames = games.filter(game =>
-        DateTime.fromISO(game.startTimeUTC)
-            .toLocal()
-            .hasSame(DateTime.now(), "day")
-    );
-
-    return {
-        games,
-        todaysGames,
-        isLoading,
-        error,
-    };
+  return {
+    games: data,
+    isLoading: isLoading,
+    error,
+  };
 };

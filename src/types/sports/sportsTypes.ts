@@ -1,16 +1,22 @@
+import type { mlbTeamsMap } from "../../data/sports/mlbData";
 import type { nbaTeamsMap } from "../../data/sports/nbaData";
 import type { nhlTeamsMap } from "../../data/sports/nhlData";
 
 export type TStreamProvider = 
     "trendy47" | "topstreams" // nba providers
     | "embedsports" // nhl providers
+    | "mlbwebcast" | "embedsports-d" | "pooembed" // mlb providers
     | "rippleplays" | "shd247" | "prostreams" | "streamscenter"; // tv channel providers
 
 
 export type GameStatus = "LIVE" | "PRE" | "FUT" | "FINAL" | "HALFTIME";
-export type Leagues = "NBA" | "NHL";
+export type Leagues = "NBA" | "NHL" | "MLB";
 
-export type TeamAbbrevs = keyof typeof nbaTeamsMap | keyof typeof nhlTeamsMap | "";
+export type TeamAbbrevs = 
+        keyof typeof nbaTeamsMap | 
+        keyof typeof nhlTeamsMap | 
+        keyof typeof mlbTeamsMap |
+        "";
 
 export interface ChannelStream {
     baseUrl: string;

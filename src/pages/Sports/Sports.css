@@ -137,11 +137,7 @@
     bottom: 20px;
     right: 20px;
 }
-@media (max-width: 775px) {
-    .multi-watch-icon {
-        bottom: 90px;
-    }
-}
+
 .stream-controls {
     position: fixed;
     z-index: 10000;
@@ -279,4 +275,13 @@
 .styled-select__multi-value__remove:hover {
   background: #dc2626;
   color: white;
+}
+.active-provider.button {
+    background-color: var(--accent-primary);
+}
+
+@media (max-width: 775px) {
+    .multi-watch-icon {
+        bottom: 90px;
+    }
 }

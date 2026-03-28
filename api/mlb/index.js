@@ -1,7 +1,7 @@
 export default async function handler(req, res) {
   try {
     const response = await fetch(
-      "https://site.web.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard"
+      "https://site.web.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard"
     );
 
     const data = await response.json();
@@ -15,27 +15,38 @@ export default async function handler(req, res) {
 
       if (!home || !away) return null;
 
-      const status = event.status;
+      // 🔥 Extract inning half
+      const detail = event.status?.type?.detail || "";
+      const lower = detail.toLowerCase();
+
+      let inningHalf = null;
+
+      if (lower.includes("top")) inningHalf = "top";
+      else if (lower.includes("bottom")) inningHalf = "bottom";
+      else if (lower.includes("mid")) inningHalf = "mid";
+      else if (lower.includes("end")) inningHalf = "end";
 
       return {
         id: event.id,
+
         date: event.date,
 
-        status: status.type.description,
-        state: status.type.state,
+        status: event.status.type.description,
+        state: event.status.type.state, // "pre" | "in" | "post"
 
-        clock: status.displayClock,
+        clock: event.status.displayClock,
 
         period: {
-          current: status.period,
-          type:
-            status.type.name === "STATUS_OVERTIME"
-              ? "OT"
-              : status.type.name === "STATUS_SHOOTOUT"
-                ? "SO"
-                : "REG",
-          isHalftime: status.type.description === "Intermission"
+          current: event.status.period, // inning number
+          type: event.status.type.name,
+          inningHalf,
+          isHalftime: false
         },
+        // 🔥 Optional nice display (can remove if not needed)
+        inningDisplay:
+          inningHalf && event.status.period
+            ? `${inningHalf.charAt(0).toUpperCase() + inningHalf.slice(1)} ${event.status.period}`
+            : null,
 
         homeTeam: {
           id: home.team.id,
@@ -67,6 +78,6 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "failed to fetch nhl games" });
+    res.status(500).json({ error: "failed to fetch mlb games" });
   }
 }

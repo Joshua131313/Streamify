@@ -32,8 +32,30 @@ export const MultiWatch = () => {
                     dragHandleClassName="multi-watch-header"
                     className={`${multiWatchWindowState.windowState === "minimized" ? "minimized-window" : "multi-watch-window-parent"}`}
                     onResizeStop={(e, direction, ref, delta, position) => {
-                        adjustMultiWindowSize(ref.offsetWidth, ref.offsetHeight);
-                        adjustMultiWindowPosition(position.x, position.y);
+                        const SCROLLBAR_WIDTH = 15; // 🔥 your requirement
+
+                        const viewportWidth = window.innerWidth - SCROLLBAR_WIDTH;
+                        const viewportHeight = window.innerHeight;
+
+                        let width = ref.offsetWidth;
+                        let height = ref.offsetHeight;
+                        let x = position.x;
+                        let y = position.y;
+
+                        // 🔥 Clamp size
+                        if (width > viewportWidth) width = viewportWidth;
+                        if (height > viewportHeight) height = viewportHeight;
+
+                        // 🔥 Clamp position (keep fully visible)
+                        if (x + width > viewportWidth) x = viewportWidth - width;
+                        if (y + height > viewportHeight) y = viewportHeight - height;
+
+                        // 🔥 Prevent top/left overflow
+                        if (x < 0) x = 0;
+                        if (y < 0) y = 0;
+
+                        adjustMultiWindowSize(width, height);
+                        adjustMultiWindowPosition(x, y);
                     }}
                     onDragStart={(e: any) => {
                         if (multiWatchWindowState.windowState === "fullscreen") {
@@ -51,9 +73,12 @@ export const MultiWatch = () => {
                         }
                     }}
                     onDragStop={(e, d) => {
-                        adjustMultiWindowPosition(d.x, d.y);
+                        const clampedY = Math.max(0, d.y); // 🔥 prevents going above top
+                        const clampedX = Math.max(0, d.x); // optional (prevents left overflow)
+
+                        adjustMultiWindowPosition(clampedX, clampedY);
                     }}
-                    style={{ position: "fixed" }}
+
                     size={{
                         width:
                             multiWatchWindowState.windowState === "fullscreen"

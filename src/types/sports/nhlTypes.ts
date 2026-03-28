@@ -1,131 +1,59 @@
 // =========================
-// NHL API TYPES (ALL-IN-ONE)
+// NHL TYPES (ESPN NORMALIZED)
 // =========================
 
 import type { nhlTeamsMap } from "../../data/sports/nhlData";
 
 // -----------
-// CORE TYPES
+// STATUS
 // -----------
 
-export type NHLGameState = "FUT" | "PRE" | "LIVE" | "CRIT" | "OFF" | "FINAL";
+export type NHLGameState = "pre" | "in" | "post";
 
-export interface NHLTeamName {
-    default: string;
-    fr?: string;
+// -----------
+// PERIOD
+// -----------
+
+export interface NHLPeriod {
+  current: number;
+  type: "REG" | "OT" | "SO";
+  isHalftime: boolean;
 }
 
-export interface Odds {
-    providerId: number;
-    value: string;
-}
+// -----------
+// TEAM
+// -----------
 
 export interface NHLTeam {
-    id: number;
-    commonName: NHLTeamName;
-    placeName: NHLTeamName;
-    placeNameWithPreposition: NHLTeamName;
-
-    abbrev: keyof typeof nhlTeamsMap;
-
-    logo: string;
-    darkLogo: string;
-
-    radioLink: string;
-
-    score?: number;
-
-    // optional depending on context
-    awaySplitSquad?: boolean;
-    homeSplitSquad?: boolean;
-    odds?: Odds[];
-}
-
-export interface NHLBroadcast {
-    id: number;
-    market: string;
-    countryCode: string;
-    network: string;
-    sequenceNumber: number;
-}
-
-export interface NHLVenue {
-    default: string;
-}
-
-export interface NHLPeriodDescriptor {
-    number: number;
-    periodType: "REG" | "OT" | "SO";
-    maxRegulationPeriods: number;
+  id: string;
+  name: string;
+  abbreviation: keyof typeof nhlTeamsMap;
+  logo: string;
+  score: number;
 }
 
 // -----------
-// GAME
+// GAME (🔥 MAIN TYPE)
 // -----------
 
-export interface NHLGame {
-    streamProvider: "embedsports";
-    id: number;
-    season: number;
-    gameType: number;
+export interface INHLGame {
+  id: string;
 
-    venue: NHLVenue;
-    neutralSite: boolean;
+  date: string;
 
-    startTimeUTC: string;
-    easternUTCOffset: string;
-    venueUTCOffset: string;
-    venueTimezone: string;
+  status: string; // "In Progress", etc.
+  state: NHLGameState;
 
-    gameState: NHLGameState;
-    gameScheduleState: string;
+  clock?: string;
 
-    tvBroadcasts: NHLBroadcast[];
+  period: NHLPeriod;
 
-    awayTeam: NHLTeam;
-    homeTeam: NHLTeam;
+  homeTeam: NHLTeam;
+  awayTeam: NHLTeam;
 
-    periodDescriptor: NHLPeriodDescriptor;
+  venue?: string | null;
 
-    gameCenterLink: string;
+  broadcasts?: string[];
 
-    // optional
-    ticketsLink?: string;
-    ticketsLinkFr?: string;
+  gameLink?: string | null;
 }
-
-// -----------
-// DAY
-// -----------
-
-export interface GameDay {
-    date: string;
-    dayAbbrev: string;
-    numberOfGames: number;
-    datePromo: any[];
-    games: NHLGame[];
-}
-
-// -----------
-// RESPONSE
-// -----------
-
-export interface ScheduleResponse {
-    nextStartDate: string;
-    previousStartDate: string;
-    gameWeek: GameDay[];
-}
-
-// =========================
-// OPTIONAL HELPERS (🔥 USEFUL)
-// =========================
-
-export interface ParsedGame {
-    away: NHLTeam;
-    home: NHLTeam;
-    embedUrl: string;
-}
-
-// Build embed link (matches your use case)
-
-// Example fetch function

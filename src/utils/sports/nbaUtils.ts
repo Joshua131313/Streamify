@@ -1,7 +1,6 @@
 import { DateTime } from "luxon";
-import type { GameProps, GameStatus, TStreamProvider } from "../../types/sports/sportsTypes";
+import type { GameProps, GameStatus } from "../../types/sports/sportsTypes";
 import type { INBAGame } from "../../types/sports/nbaTypes";
-import { nbaTeamsMap } from "../../data/sports/nbaData";
 
 export const mapStatus = (status: string, date: string): GameStatus => {
   if (status === "In Progress") return "LIVE";

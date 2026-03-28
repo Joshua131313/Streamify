@@ -104,12 +104,13 @@ export const SportsPlayer = () => {
             {/* 🔁 Provider switch */}
             {allStreams.length > 0 && (
                 <div className="alt-streams">
-                    {allStreams.map(stream => (
+                    {allStreams.map((stream, i) => (
                         <Button
+                            className={provider === stream.provider ? "active-provider" : ""}
                             key={stream.provider}
                             onClick={() => switchProvider(stream.provider)}
                         >
-                            {stream.provider}
+                            Stream {i + 1}
                         </Button>
                     ))}
                 </div>

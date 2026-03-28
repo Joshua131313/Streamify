@@ -1,16 +1,17 @@
 import { createContext, useContext, useState } from "react";
 import type { INBAGame } from "../types/sports/nbaTypes";
-import type { NHLGame } from "../types/sports/nhlTypes";
 import { useNBAGames } from "../hooks/sportsHooks/useNBAGames";
 import { useNHLGames } from "../hooks/sportsHooks/useNHLGames";
 import { type GameProps, type Leagues } from "../types/sports/sportsTypes";
 import { mapNBAToGameProps } from "../utils/sports/nbaUtils";
 import { mapNHLToGameProps } from "../utils/sports/nhlUtils";
+import { useMLBGames } from "../hooks/sportsHooks/useMLBGames";
+import { mapMLBToGameProps } from "../utils/sports/mlbUtils";
 
 interface SportsContextType {
     nbaGames: GameProps[];
     nhlGames: GameProps[];
-    todaysNHLGames: GameProps[];
+    mlbGames: GameProps[];
     allOfTodaysGames: GameProps[];
 
     search: string;
@@ -22,8 +23,10 @@ interface SportsContextType {
     nbaGamesLoading: boolean;
     nbaGamesError: unknown;
 
-    // 🔥 NEW
-    getGameById: (league: Leagues, id: string) => GameProps | undefined;
+    mlbGamesLoading: boolean;
+    mlbGamesError: unknown;
+
+    // getGameById: (league: Leagues, id: string) => GameProps | undefined;
 }
 
 const SportsContext = createContext<SportsContextType | null>(null);
@@ -39,33 +42,40 @@ export const SportsProvider = ({ children }: { children: React.ReactNode }) => {
 
     const {
         games: nhlGames,
-        todaysGames: todaysNHLGames,
         isLoading: nhlGamesLoading,
         error: nhlError
     } = useNHLGames();
 
+    const {
+        games: mlbGames,
+        isLoading: mlbGamesLoading,
+        error: mlbError,
+    } = useMLBGames();
+
     const mappedNBAGames = nbaGames.map(mapNBAToGameProps);
     const mappedNHLGames = nhlGames.map(mapNHLToGameProps);
-    const mappedTodaysNHLGames = todaysNHLGames.map(mapNHLToGameProps);
+    const mappedMLBGames = mlbGames.map(mapMLBToGameProps);
+
 
     const allOfTodaysGames = [
         ...mappedNBAGames,
-        ...mappedTodaysNHLGames
+        ...mappedNHLGames,
+        ...mappedMLBGames
     ];
 
     // 🔥 CENTRALIZED GAME LOOKUP
-    const getGameById = (league: Leagues, id: string) => {
-        if (league === "NBA") {
-            return mappedNBAGames.find(g => g.id == id);
-        }
+    // const getGameById = (league: Leagues, id: string) => {
+    //     if (league === "NBA") {
+    //         return mappedNBAGames.find(g => g.id == id);
+    //     }
 
-        if (league === "NHL") {
-            console.log(mappedNHLGames)
-            return mappedNHLGames.find(g => g.id == id);
-        }
+    //     if (league === "NHL") {
+    //         console.log(mappedNHLGames)
+    //         return mappedNHLGames.find(g => g.id == id);
+    //     }
 
-        return undefined;
-    };
+    //     return undefined;
+    // };
 
     return (
         <SportsContext.Provider
@@ -77,14 +87,17 @@ export const SportsProvider = ({ children }: { children: React.ReactNode }) => {
                 nhlGames: mappedNHLGames,
                 nhlGamesError: nhlError,
                 nhlGamesLoading,
-
-                todaysNHLGames: mappedTodaysNHLGames,
+                
+                mlbGames: mappedMLBGames,
+                mlbGamesError: mlbError,
+                mlbGamesLoading,
+                
                 allOfTodaysGames,
 
                 search,
                 setSearch,
 
-                getGameById // ✅ exposed
+                // getGameById 
             }}
         >
             {children}

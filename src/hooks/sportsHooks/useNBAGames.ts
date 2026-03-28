@@ -6,12 +6,9 @@ interface UseNbaGames {
     nbaGames: INBAGame[];
     nbaGamesLoading: boolean;
     error: any;
-    search: string;
-    setSearch: React.Dispatch<React.SetStateAction<string>>;
 }
 
 export const useNBAGames = () : UseNbaGames => {
-    const [search, setSearch] = useState("");
 
     const { data = [], isLoading, error } = useQuery({
         queryKey: ["nba-games"],
@@ -22,12 +19,10 @@ export const useNBAGames = () : UseNbaGames => {
         },
         refetchInterval: 30000
     });
-    console.log(data[0])
+    
     return {
         nbaGames: data,
         nbaGamesLoading: isLoading,
         error,
-        search,
-        setSearch
     };
 };

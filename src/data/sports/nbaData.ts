@@ -10,12 +10,12 @@ import { getSlug } from "./sportsData";
 export const nbaStreams: SportStream[] = [
   {
     provider: "trendy47",
-    buildChannel: ({awayTeamAbbrev, homeTeamAbbrev}) => {
+    buildChannel: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
       const homeId = nbaTeamsMap[homeTeamAbbrev as keyof typeof nbaTeamsMap]?.id;
       const awayId = nbaTeamsMap[awayTeamAbbrev as keyof typeof nbaTeamsMap]?.id;
       return `${awayId}-vs-${homeId}`
     },
-    buildStreamUrl: ({awayTeamAbbrev, homeTeamAbbrev}) => {
+    buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
       const homeId = nbaTeamsMap[homeTeamAbbrev as keyof typeof nbaTeamsMap]?.id;
       const awayId = nbaTeamsMap[awayTeamAbbrev as keyof typeof nbaTeamsMap]?.id;
       return `https://v2.trendy47.com/event/ppv-${awayId}-vs-${homeId}`;
@@ -30,7 +30,7 @@ export const nbaStreams: SportStream[] = [
       }
       return "";
     },
-    buildStreamUrl: ({homeTeamAbbrev}) => {
+    buildStreamUrl: ({ homeTeamAbbrev }) => {
       if (homeTeamAbbrev in nbaTeamsMap) {
         const teamName = nbaTeamsMap[homeTeamAbbrev as keyof typeof nbaTeamsMap].teamName;
         const slug = getSlug(teamName).toLowerCase();
