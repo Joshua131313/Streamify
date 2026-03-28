@@ -56,7 +56,7 @@ export const nbaTeamsMap = {
   MIL: { abbreviation: "MIL", teamName: "Milwaukee Bucks", id: "milwaukee-bucks", logo: "https://cdn.nba.com/logos/nba/1610612749/global/L/logo.svg", conference: "East", division: "Central" },
   NY: { abbreviation: "NYK", teamName: "New York Knicks", id: "new-york-knicks", logo: "https://cdn.nba.com/logos/nba/1610612752/global/L/logo.svg", conference: "East", division: "Atlantic" },
   ORL: { abbreviation: "ORL", teamName: "Orlando Magic", id: "orlando-magic", logo: "https://cdn.nba.com/logos/nba/1610612753/global/L/logo.svg", conference: "East", division: "Southeast" },
-  PHI: { abbreviation: "PHI", teamName: "Philadelphia 76ers", id: "philadelphia-76ers", logo: "https://cdn.nba.com/logos/nba/1610612755/global/L/logo.svg", conference: "East", division: "Atlantic" },
+  PHI: { abbreviation: "PHI", teamName: "Philadelphia 76ers", id: "philadelphia-76-ers", logo: "https://cdn.nba.com/logos/nba/1610612755/global/L/logo.svg", conference: "East", division: "Atlantic" },
   TOR: { abbreviation: "TOR", teamName: "Toronto Raptors", id: "toronto-raptors", logo: "https://cdn.nba.com/logos/nba/1610612761/global/L/logo.svg", conference: "East", division: "Atlantic" },
   WAS: { abbreviation: "WAS", teamName: "Washington Wizards", id: "washington-wizards", logo: "https://cdn.nba.com/logos/nba/1610612764/global/L/logo.svg", conference: "East", division: "Southeast" },
 

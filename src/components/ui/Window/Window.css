@@ -1,0 +1,138 @@
+/* =========================
+   WINDOW SYSTEM (REUSABLE)
+   ========================= */
+
+.window-shell {
+    width: 100%;
+    height: 100%;
+    background: var(--bg-secondary);
+    border-radius: 10px;
+    overflow: auto;
+    pointer-events: auto;
+    box-shadow: var(--shadow-base);
+    transition: all 0.3s;
+}
+
+/* HEADER */
+.window-header {
+    padding-left: 16px;
+    background: #222;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    cursor: initial;
+}
+
+
+/* CONTROLS */
+.window-controls {
+    display: flex;
+}
+
+.window-controls div {
+    width: 40px;
+    height: 40px;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    cursor: pointer;
+}
+
+.window-controls div:hover {
+    background-color: var(--bg-transparent);
+}
+
+/* CLOSE BUTTON */
+.window-controls .window-close:hover {
+    background-color: var(--accent-primary);
+}
+
+/* CONTENT */
+.window-content {
+    padding: 10px;
+    height: calc(100% - 40px);
+    width: 100%;
+}
+.window-minimized {
+    opacity: 0;
+    z-index: -1;
+    pointer-events: none;
+}
+.window-minimized .window-shell {
+    pointer-events: none;
+}
+/* =========================
+   MINIMIZED ICON
+   ========================= */
+
+.window-minimized-icon {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000
+}
+.window-minimized-icon.active .app-icon {
+    background-color: var(--accent-primary);
+} 
+/* =========================
+   MULTI WATCH GRID (kept specific)
+   ========================= */
+
+.multi-watch-content {
+    gap: 10px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(var(--multi-watch-game-width), 1fr));
+}
+
+/* GAME CARD */
+.multi-game {
+    display: flex;
+    flex-direction: column;
+    background-color: var(--bg-surface);
+    padding: 10px;
+    border-radius: 10px;
+    aspect-ratio: 16 / 9;
+}
+
+ iframe {
+    border: none;
+    border-radius: 10px;
+    width: 100%;
+    height: 100%;
+}
+
+.multi-game-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.multi-game-header svg {
+    cursor: pointer;
+}
+
+/* EMPTY STATE */
+.multi-watch-empty span {
+    display: block;
+}
+
+.multi-watch-empty > * {
+    margin-bottom: 10px;
+}
+
+.player-window, .player-window iframe {
+    width: 100%;
+    height: 100%;
+}
+.player-window-icon img {
+    width: calc(var(--app-icon-dimension) / 2);
+    height: calc(var(--app-icon-dimension) / 2);
+}

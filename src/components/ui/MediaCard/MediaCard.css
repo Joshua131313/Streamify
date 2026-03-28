@@ -201,8 +201,8 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 40px;
-    height: 40px;
+    width: calc(var(--app-icon-dimension) - 10px);
+    height: calc(var(--app-icon-dimension) - 10px);
 }
 
 .still-container .app-icon:hover {
@@ -316,8 +316,8 @@
     }
 
     .media-card .app-icon {
-        width: 40px;
-        height: 40px;
+        width: calc(var(--app-icon-dimension) - 10px);
+        height: calc(var(--app-icon-dimension) - 10px);
         font-size: var(--font-md);
     }
 }
@@ -373,8 +373,8 @@
     }
 
     .media-card .app-icon {
-        width: 30px;
-        height: 30px;
+        width: calc(var(--app-icon-dimension) - 20px);
+        height: calc(var(--app-icon-dimension) - 20px);
         font-size: var(--font-xs);
     }
 }

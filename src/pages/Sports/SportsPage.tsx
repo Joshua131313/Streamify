@@ -1,4 +1,3 @@
-import { QuickWatchProvider } from "../../context/MultiWatchContext";
 import { SportsProvider } from "../../context/SportsContext";
 import Sports from "./Sports";
 import { SportsPlayer } from "./SportsPlayer";

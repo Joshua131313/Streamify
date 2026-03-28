@@ -1,6 +1,7 @@
 import { DateTime } from "luxon";
 import type { IMLBGame } from "../../types/sports/mlbTypes";
 import type { GameProps, GameStatus } from "../../types/sports/sportsTypes";
+import { mapESPNStatus } from "./sportsUtils";
 
 export const mapMLBStatus = (
   status: string,
@@ -36,7 +37,7 @@ export const mapMLBToGameProps = (game: IMLBGame): GameProps => {
     title,
     startTime: game.date,
 
-    status: mapMLBStatus(game.status, game.date, game.state),
+    status: mapESPNStatus(game.status, game.date, game.state),
 
     homeTeam: {
       name: game.homeTeam.name,

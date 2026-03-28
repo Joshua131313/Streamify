@@ -5,9 +5,11 @@ import 'swiper/css';
 import { useMouseIdle } from './hooks/utilHooks/useMouseIdle';
 import { useEffect } from 'react';
 import { ContextMenuProvider } from './context/ContextMenu';
-import { QuickWatchProvider } from './context/MultiWatchContext';
 import { SportsProvider } from './context/SportsContext';
 import { MultiWatch } from './pages/Sports/MultiWatch';
+import { MultiWatchProvider } from './context/MultiWatchContext';
+import { WindowManagerProvider } from './context/WindowManagerContext';
+import { WindowRenderer } from './components/ui/Window/WindowRenderer';
 
 function App() {
   useMouseIdle();
@@ -15,13 +17,14 @@ function App() {
   return (
     <AppProvider>
       <ContextMenuProvider>
-        <QuickWatchProvider>
-       
-          <SportsProvider>   
-            <MultiWatch />
-            <AppRouter />
-          </SportsProvider>
-        </QuickWatchProvider>
+        <WindowManagerProvider>
+          <MultiWatchProvider>
+            <SportsProvider>
+              <WindowRenderer />
+              <AppRouter />
+            </SportsProvider>
+          </MultiWatchProvider>
+        </WindowManagerProvider>
       </ContextMenuProvider>
     </AppProvider>
   )

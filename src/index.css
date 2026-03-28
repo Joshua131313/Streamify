@@ -75,7 +75,9 @@ html, body {
   --max-container-width: 1400px;
   --border-radius: 10px;
 }
-
+body.dragging {
+  user-select: none;
+}
 input {
   font-size: 16px;
 }

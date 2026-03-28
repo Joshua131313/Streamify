@@ -89,8 +89,8 @@
     align-items: center;
 }
 .trailer-action-buttons .app-icon {
-    width: 41.6px;
-    height:  41.6px;
+    width: calc(var(--app-icon-dimension) - 8.4px);
+    height:  calc(var(--app-icon-dimension) - 8.4px);
     font-size: var(--font-md);
     border-radius: var(--border-radius);
 }

@@ -1,15 +1,16 @@
-import React, { useContext, useState } from "react";
+import React from "react";
 import "./GameCard.css";
 import { getWatchURL, WatchButton } from "../Button/WatchButton";
-import type { GameProps, GameStatus, TStreamProvider } from "../../../types/sports/sportsTypes";
+import type { GameProps } from "../../../types/sports/sportsTypes";
 import ExternalGameInfoButton from "../Button/ExternalGameInfoButton";
-import { useSports } from "../../../context/SportsContext";
 import { useContextMenu } from "../../../context/ContextMenu";
 import type { ContextMenuOption } from "../../../types";
-import { FaBell, FaCubes, FaExternalLinkAlt, FaPlay, FaThLarge } from "react-icons/fa";
+import { FaBell, FaExternalLinkAlt, FaEyeSlash, FaPlay, FaThLarge } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useMultiWatch } from "../../../context/MultiWatchContext";
 import { getSportStream } from "../../../utils/sports/sportsUtils";
+import { DateTime } from "luxon";
+import { useWindowManager } from "../../../context/WindowManagerContext";
 
 
 interface Props {
@@ -19,6 +20,7 @@ interface Props {
 
 const GameCard: React.FC<Props> = ({ game, showSportName }) => {
     const { toggleGameInMultiWatch, isGameInMultiWatch } = useMultiWatch();
+    const { openWindow, minimizeWindow, windowIsOpen, windows } = useWindowManager();
     const { openMenu } = useContextMenu();
     const navigate = useNavigate();
     const defaultSportSteam = getSportStream(game.leagueName)[0];
@@ -33,11 +35,26 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
             onClick: () => navigate(watchURL)
         },
         {
+            key: "new-window",
+            value: windowIsOpen(watchURL) ? "Hide watch window" : "Watch in New Window",
+            icon: windowIsOpen(watchURL) ? FaEyeSlash : FaPlay,
+            onClick: () => {
+                const state = windows[watchURL]?.windowState;
+
+                if (state === "opened" || state === "fullscreen") {
+                    minimizeWindow(watchURL);
+                } else {
+                    openWindow(watchURL);
+                }
+            }
+        },
+        {
             key: "multi-watch",
             value: isGameInMultiWatch(game) ? "Remove from Multi-Watch" : "Add to Multi-Watch",
             icon: FaThLarge,
             onClick: () => toggleGameInMultiWatch(game),
         },
+
         {
             key: "new-tab",
             value: "Watch in New Tab",
@@ -130,7 +147,7 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
                     ) : game.status === "FINAL" ? (
                         <div className="not-started-badge">Final</div>
                     ) : (
-                        <div className="not-started-badge">Upcoming</div>
+                        <div className="not-started-badge">Starts {DateTime.fromISO(game.startTime).toRelative()}</div>
                     )}
 
                     <StatusBadge />

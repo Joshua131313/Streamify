@@ -1,20 +1,8 @@
 import type { INHLGame } from "../../types/sports/nhlTypes";
 import type { GameProps } from "../../types/sports/sportsTypes";
+import { mapESPNStatus } from "./sportsUtils";
 
 export const mapNHLToGameProps = (game: INHLGame): GameProps => {
-  const mapStatus = (): GameProps["status"] => {
-    switch (game.state) {
-      case "in":
-        return "LIVE";
-      case "pre":
-        return "PRE";
-      case "post":
-        return "FINAL";
-      default:
-        return "FUT";
-    }
-  };
-
   return {
     id: game.id,
 
@@ -22,7 +10,7 @@ export const mapNHLToGameProps = (game: INHLGame): GameProps => {
 
     startTime: game.date,
 
-    status: mapStatus(),
+    status: mapESPNStatus(game.status, game.date, game.state),
 
     homeTeam: {
       name: game.homeTeam.name,

@@ -1,6 +1,7 @@
 import { DateTime } from "luxon";
 import type { GameProps, GameStatus } from "../../types/sports/sportsTypes";
 import type { INBAGame } from "../../types/sports/nbaTypes";
+import { mapESPNStatus } from "./sportsUtils";
 
 export const mapStatus = (status: string, date: string): GameStatus => {
   if (status === "In Progress") return "LIVE";
@@ -34,7 +35,7 @@ export const mapNBAToGameProps = (game: INBAGame): GameProps => {
     startTime: game.date,
 
     // 🔥 use backend status (don’t recompute)
-    status: mapStatus(game.status, game.date),
+    status: mapESPNStatus(game.status, game.date),
 
     homeTeam: {
       name: game.homeTeam.name,

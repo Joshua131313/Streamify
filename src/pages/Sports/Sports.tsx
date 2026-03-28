@@ -5,16 +5,14 @@ import { PageHeader } from "../../components/ui/PageHeader/PageHeader";
 import "./Sports.css"
 import { Input } from "../../components/ui/Input/Input";
 import { FaSearch, FaThLarge } from "react-icons/fa";
-import { mapNBAToGameProps } from "../../utils/sports/nbaUtils";
 import { useSports } from "../../context/SportsContext";
 import { filterGames } from "../../utils/sports/sportsUtils";
-import { mapNHLToGameProps } from "../../utils/sports/nhlUtils";
 import { AppSwiper } from "../../components/ui/AppSwiper/AppSwiper";
 import { SwiperSkeletonCard } from "../../components/ui/MediaCard/SkeletonCards/MediaSkeletonCard";
 import { Button } from "../../components/ui/Button/Button";
-import { useMultiWatch } from "../../context/MultiWatchContext";
 import { channelStreams } from "../../data/sports/sportsData";
 import { ChannelCard } from "../../components/ui/ChannelCard/ChannelCard";
+import { useWindow } from "../../hooks/utilHooks/useWindow";
 
 export type QuickFilter = {
     label: string;
@@ -52,9 +50,9 @@ const Sports = () => {
         search, 
         setSearch 
     } = useSports();
-    const { adjustMultiWatchWindow, multiWatchWindowState } = useMultiWatch()
     const [filters, setFilters] = useState<QuickFilter[]>(quickFilters.filter(x=> x.default))
-    const {  } = useMultiWatch();
+    
+    const { open } = useWindow("multiwatch");
 
     const nbaGameCards = useMemo(() => {
         return filterGames(
@@ -110,7 +108,7 @@ const Sports = () => {
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
-                        <Button onClick={() => adjustMultiWatchWindow(multiWatchWindowState.lastWindowState === "closed" ? "opened" : multiWatchWindowState.lastWindowState)}>
+                        <Button onClick={() => open()}>
                             <FaThLarge /> 
                             Multi-Watch
                         </Button>

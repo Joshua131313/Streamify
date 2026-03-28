@@ -60,11 +60,6 @@
     box-shadow: var(--shadow-base);
     transition: all 0.3s;
 }
-.minimized-window {
-    opacity: 0;
-    pointer-events: none;
-    z-index: -1;
-}
 .multi-watch-header-controls {
     display: flex;
     gap: 10px;
@@ -96,11 +91,12 @@
     cursor: default !important;
 }
 
-.multi-watch-content {
+.multi-watch .window-content {
     gap: 10px;
     padding: 10px;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(var(--multi-watch-game-width), 1fr));
+    height: initial;
 }
 .multi-game {
     display: flex;
