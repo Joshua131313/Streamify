@@ -68,7 +68,9 @@ export const mlbStreams: SportStream[] = [
             if (!home || !away) return "";
             const homeAbbrev = home.abbreviation.toLowerCase();
             const awayAbbrev = away.abbreviation.toLowerCase();
-            return `https://pooembed.eu/embed/mlb/2026-03-27/${awayAbbrev}-${homeAbbrev}#autoplay=true`
+            const today = new Date().toLocaleDateString("en-CA");
+
+            return `https://pooembed.eu/embed/nhl/${today}/${awayAbbrev}-${homeAbbrev}#autoplay=true`;
         }
     },
 ];

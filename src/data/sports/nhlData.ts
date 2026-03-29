@@ -2,6 +2,20 @@ import type { SportStream } from "../../types/sports/sportsTypes";
 
 export const nhlStreams: SportStream[] = [
     {
+        provider: "embedsports-d",
+        buildStreamUrl: ({awayTeamAbbrev, homeTeamAbbrev}) => {
+            const homeId = nhlTeamsMap[homeTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
+            const awayId = nhlTeamsMap[awayTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
+            // return `https://embedsports.top/embed/admin/ppv-${awayId}-vs-${homeId}/1`;
+            return `https://embedsports.me/nhl/${homeId}-vs-${awayId}-stream-1`;
+        },
+        buildChannel: ({awayTeamAbbrev, homeTeamAbbrev}) => {
+            const homeId = nhlTeamsMap[homeTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
+            const awayId = nhlTeamsMap[awayTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
+            return `${homeId}-vs-${awayId}`;
+        },
+    },
+    {
         provider: "embedsports",
         buildStreamUrl: ({awayTeamAbbrev, homeTeamAbbrev}) => {
             const homeId = nhlTeamsMap[homeTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
@@ -13,7 +27,8 @@ export const nhlStreams: SportStream[] = [
             const awayId = nhlTeamsMap[awayTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
             return `${awayId}-vs-${homeId}`;
         },
-    }
+    },
+
 ]
 
 export const nhlTeamsMap = {
