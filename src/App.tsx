@@ -21,7 +21,9 @@ function App() {
           <MultiWatchProvider>
             <SportsProvider>
               <WindowRenderer />
-              <AppRouter />
+              <div className="body">
+                <AppRouter />
+              </div>
             </SportsProvider>
           </MultiWatchProvider>
         </WindowManagerProvider>

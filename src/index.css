@@ -75,6 +75,16 @@ html, body {
   --max-container-width: 1400px;
   --border-radius: 10px;
 }
+body {
+  overflow: hidden;
+  height: 100dvh;
+  max-height: 100dvh;
+}
+.body {
+  overflow-y: auto;
+  height: 100dvh;
+
+}
 body.dragging {
   user-select: none;
 }

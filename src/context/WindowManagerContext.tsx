@@ -173,21 +173,21 @@ export const WindowManagerProvider = ({
             };
         });
 
-    useEffect(() => {
-        const hasFullscreen = Object.values(windows).some(
-            (w) => w.windowState === "fullscreen"
-        );
+    // useEffect(() => {
+    //     const hasFullscreen = Object.values(windows).some(
+    //         (w) => w.windowState === "fullscreen"
+    //     );
 
-        if (hasFullscreen) {
-            document.body.style.overflow = "hidden";
-        } else {
-            document.body.style.overflow = "";
-        }
+    //     if (hasFullscreen) {
+    //         document.body.style.overflow = "hidden";
+    //     } else {
+    //         document.body.style.overflow = "";
+    //     }
 
-        return () => {
-            document.body.style.overflow = "";
-        };
-    }, [windows]);
+    //     return () => {
+    //         document.body.style.overflow = "";
+    //     };
+    // }, [windows]);
 
     return (
         <WindowManagerContext.Provider

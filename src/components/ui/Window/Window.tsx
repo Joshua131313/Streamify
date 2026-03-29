@@ -69,7 +69,7 @@ export const Window = ({ id, title, children, minimizedIcon, className }: Props)
                 ref={rndRef}
                 dragHandleClassName="window-header"
                 cancel=".window-controls"
-                style={{ zIndex: appWindow.zIndex, position: appWindow.windowState === "fullscreen" ? "absolute" : "fixed" }}
+                style={{ zIndex: appWindow.zIndex}}
                 className={`${className} ${appWindow.windowState === "minimized" ? "window-minimized" : ""}`}
                 size={{
                     width:
