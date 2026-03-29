@@ -5,7 +5,7 @@ import { BsSquare } from "react-icons/bs";
 
 import "./Window.css";
 import { useWindow } from "../../../hooks/utilHooks/useWindow";
-import { useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 
 interface Props {
     id: string;
@@ -27,7 +27,7 @@ export const Window = ({ id, title, children, minimizedIcon, className }: Props)
         open,
         getWindowIndex
     } = useWindow(id);
-    
+
     const rndRef = useRef<Rnd | null>(null);
 
     if (!appWindow) return null;
@@ -37,7 +37,7 @@ export const Window = ({ id, title, children, minimizedIcon, className }: Props)
             <div
                 style={{
                     bottom: 55 * (getWindowIndex()) + 20
-                }} 
+                }}
                 className={`window-minimized-icon ${appWindow.windowState === "minimized" ? " active" : ""}`}
                 onClick={toggleWindow}
             >
@@ -64,127 +64,127 @@ export const Window = ({ id, title, children, minimizedIcon, className }: Props)
 
     return (
         <>
-        <Rnd 
-            key={id}
-            ref={rndRef}
-            dragHandleClassName="window-header"
-            cancel=".window-controls"
-            style={{ zIndex: appWindow.zIndex, position: "fixed" }}
-            className={`${className} ${appWindow.windowState === "minimized" ? "window-minimized" : ""}`}
-            size={{
-                width:
-                    appWindow.windowState === "fullscreen"
-                        ? window.innerWidth
-                        : appWindow.size.w,
-                height:
-                    appWindow.windowState === "fullscreen"
-                        ? window.innerHeight
-                        : appWindow.size.h,
-            }}
+            <Rnd
+                key={`${id}`}
+                ref={rndRef}
+                dragHandleClassName="window-header"
+                cancel=".window-controls"
+                style={{ zIndex: appWindow.zIndex, position: appWindow.windowState === "fullscreen" ? "absolute" : "fixed" }}
+                className={`${className} ${appWindow.windowState === "minimized" ? "window-minimized" : ""}`}
+                size={{
+                    width:
+                        appWindow.windowState === "fullscreen"
+                            ? window.innerWidth
+                            : appWindow.size.w,
+                    height:
+                        appWindow.windowState === "fullscreen"
+                            ? window.innerHeight
+                            : appWindow.size.h,
+                }}
 
-            position={{
-                x: appWindow.windowState === "fullscreen" ? window.scrollX : appWindow.position.x,
-                y: appWindow.windowState === "fullscreen" ? window.scrollY : appWindow.position.y,
-            }}
+                position={{
+                    x: appWindow.windowState === "fullscreen" ? window.scrollX : appWindow.position.x,
+                    y: appWindow.windowState === "fullscreen" ? window.scrollY : appWindow.position.y,
+                }}
 
-            onResizeStop={(e, dir, ref, delta, pos) => {
-                const SCROLLBAR_WIDTH = 15;
+                onResizeStop={(e, dir, ref, delta, pos) => {
+                    const SCROLLBAR_WIDTH = 15;
 
-                const viewportWidth = window.innerWidth - SCROLLBAR_WIDTH;
-                const viewportHeight = window.innerHeight;
+                    const viewportWidth = window.innerWidth - SCROLLBAR_WIDTH;
+                    const viewportHeight = window.innerHeight;
 
-                let width = ref.offsetWidth;
-                let height = ref.offsetHeight;
-                let x = pos.x;
-                let y = pos.y;
+                    let width = ref.offsetWidth;
+                    let height = ref.offsetHeight;
+                    let x = pos.x;
+                    let y = pos.y;
 
-                if (width > viewportWidth) width = viewportWidth;
-                if (height > viewportHeight) height = viewportHeight;
+                    if (width > viewportWidth) width = viewportWidth;
+                    if (height > viewportHeight) height = viewportHeight;
 
-                if (x + width > viewportWidth) x = viewportWidth - width;
-                if (y + height > viewportHeight) y = viewportHeight - height;
+                    if (x + width > viewportWidth) x = viewportWidth - width;
+                    if (y + height > viewportHeight) y = viewportHeight - height;
 
-                if (x < 0) x = 0;
-                if (y < 0) y = 0;
+                    if (x < 0) x = 0;
+                    if (y < 0) y = 0;
 
-                setSize(width, height);
-                setPosition(x, y);
-            }}
+                    setSize(width, height);
+                    setPosition(x, y);
+                }}
 
-            onDragStop={(e, d) => {
-                document.body.classList.remove("dragging");
+                onDragStop={(e, d) => {
+                    document.body.classList.remove("dragging");
 
-                const clampedX = Math.max(0, d.x);
-                const clampedY = Math.max(0, d.y);
+                    const clampedX = Math.max(0, d.x);
+                    const clampedY = Math.max(0, d.y);
 
-                setPosition(clampedX, clampedY);
-            }}
+                    setPosition(clampedX, clampedY);
+                }}
 
-            // ✅ FULLSCREEN DRAG EXIT (same as old)
-            onDragStart={(e: any) => {
-                document.body.classList.add("dragging");
-                if (appWindow.windowState === "fullscreen") {
-                    const mouseX = e.clientX;
-                    const mouseY = e.clientY;
+                // ✅ FULLSCREEN DRAG EXIT (same as old)
+                onDragStart={(e: any) => {
+                    document.body.classList.add("dragging");
+                    if (appWindow.windowState === "fullscreen") {
+                        const mouseX = e.clientX;
+                        const mouseY = e.clientY;
 
-                    const width = appWindow.size.w;
+                        const width = appWindow.size.w;
 
-                    open();
+                        open();
 
-                    setPosition(mouseX - width / 2, mouseY - 20);
-                }
-            }}
-            onMouseDown={bringToFront}
-            dragAxis="both"
-            minWidth={250}
-            minHeight={150}
-        >
-            <div className="window-shell">
-                {/* HEADER */}
-                <div className="window-header">
-                    <span>{title}</span>
+                        setPosition(mouseX - width / 2, mouseY - 20);
+                    }
+                }}
+                onMouseDown={bringToFront}
+                dragAxis="both"
+                minWidth={250}
+                minHeight={150}
+            >
+                <div className="window-shell">
+                    {/* HEADER */}
+                    <div className="window-header">
+                        <span>{title}</span>
 
-                    <div className="window-controls">
-                        <div
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                minimize();
-                            }}
-                        >
-                            <FaMinus />
-                        </div>
+                        <div className="window-controls">
+                            <div
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    minimize();
+                                }}
+                            >
+                                <FaMinus />
+                            </div>
 
-                        <div
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                toggleFullscreen();
-                                bringToFront();
-                            }}
-                        >
-                            {appWindow.windowState === "fullscreen" ? (
-                                <FaRegWindowRestore />
-                            ) : (
-                                <BsSquare />
-                            )}
-                        </div>
+                            <div
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleFullscreen();
+                                    bringToFront();
+                                }}
+                            >
+                                {appWindow.windowState === "fullscreen" ? (
+                                    <FaRegWindowRestore />
+                                ) : (
+                                    <BsSquare />
+                                )}
+                            </div>
 
-                        <div
-                            className="window-close"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                close();
-                            }}
-                        >
-                            <FaX />
+                            <div
+                                className="window-close"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    close();
+                                }}
+                            >
+                                <FaX />
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                {/* CONTENT */}
-                <div className="window-content">{children}</div>
-            </div>
-        </Rnd>
-        <WindowMinimizedIcon />
+                    {/* CONTENT */}
+                    <div className="window-content">{children}</div>
+                </div>
+            </Rnd>
+            <WindowMinimizedIcon />
         </>
     );
 };

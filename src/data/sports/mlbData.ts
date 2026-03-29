@@ -117,8 +117,8 @@ export const mlbTeamsMap = {
     },
 
     // AL CENTRAL
-    CWS: {
-        abbreviation: "CWS",
+    CHW: {
+        abbreviation: "CHW",
         teamName: "Chicago White Sox",
         id: "chicago-white-sox",
         logo: "https://www.mlbstatic.com/team-logos/145.svg",

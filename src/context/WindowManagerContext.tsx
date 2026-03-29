@@ -178,7 +178,11 @@ export const WindowManagerProvider = ({
             (w) => w.windowState === "fullscreen"
         );
 
-        document.body.style.overflow = hasFullscreen ? "hidden" : "";
+        if (hasFullscreen) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "";
+        }
 
         return () => {
             document.body.style.overflow = "";
