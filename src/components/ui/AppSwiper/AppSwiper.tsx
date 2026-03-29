@@ -10,7 +10,7 @@ interface AppSwiperProps<T> {
     renderItem: (item: T, index: number) => React.ReactNode;
     isLoading?: boolean;
     skeleton?: React.ReactNode;
-    variant?: TSwiperVariant
+    variant?: TSwiperVariant;
 }
 
 export const AppSwiper = <T,>({
@@ -47,10 +47,12 @@ export const AppSwiper = <T,>({
             >
                 {isLoading
                     ? Array.from({ length: 5 }).map((_, i) => (
-                        <SwiperSlide key={i}>{skeleton}</SwiperSlide>
+                        <SwiperSlide key={`skeleton-${i}`}>{skeleton}</SwiperSlide>
                     ))
                     : items.map((item, i) => (
-                        <SwiperSlide key={i}>{renderItem(item, i)}</SwiperSlide>
+                        <SwiperSlide key={i}>
+                            {renderItem(item, i)}
+                        </SwiperSlide>
                     ))}
             </Swiper>
         </div>

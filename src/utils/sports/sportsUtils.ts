@@ -11,7 +11,7 @@ const sportsStreamsMap = Object.fromEntries(
     channelStreams.map(s => [s.provider, s])
 );
 
-export const extractStreamInfoFromURL = (url : string) => {
+export const extractStreamInfoFromURL = (url: string) => {
     const params = new URLSearchParams(url);
     const leagueName = params.get("league") as Leagues;
     const awayAbbrev = params.get("away") as TeamAbbrevs;
@@ -139,3 +139,12 @@ export const filterGames = (
         return matchesSearch && matchesStatus;
     });
 };
+
+export const gameIsWatchable = (startTime: string, gameStatus: GameStatus): boolean => {
+    const now = Date.now();
+    const gameTime = new Date(startTime).getTime();
+
+    const oneHour = 60 * 60 * 1000;
+
+    return !(gameStatus === "FUT" && gameTime - now > oneHour) && !(gameStatus === "FINAL" && now - gameTime > oneHour);
+}

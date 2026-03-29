@@ -5,6 +5,7 @@ import {
     useState,
     type ReactNode,
 } from "react";
+import { useLocalStorage } from "../hooks/utilHooks/useLocalStorage";
 
 export type WindowState = "closed" | "minimized" | "fullscreen" | "opened";
 
@@ -35,7 +36,8 @@ interface WindowManagerContextType {
 
 const WindowManagerContext =
     createContext<WindowManagerContextType | null>(null);
-
+    
+const STORAGE_KEY = "window-manager";
 let zCounter = 999;
 let spawnOffset = 0;
 
@@ -44,8 +46,9 @@ export const WindowManagerProvider = ({
 }: {
     children: ReactNode;
 }) => {
-    const [windows, setWindows] = useState<WindowMap>({});
-    const createWindowIfMissing = (id: string): WindowData => {
+    const { get, set } = useLocalStorage();
+    const [windows, setWindows] = useState<WindowMap>(() => get<WindowMap>(STORAGE_KEY, {}));
+    const createWindowIfMissing = (): WindowData => {
         const OFFSET_STEP = 30;
 
         const x = 100 + spawnOffset * OFFSET_STEP;
@@ -75,7 +78,7 @@ export const WindowManagerProvider = ({
 
     const updateWindow = (id: string, updater: (w: WindowData) => WindowData) => {
         setWindows((prev) => {
-            const existing = prev[id] || createWindowIfMissing(id);
+            const existing = prev[id] || createWindowIfMissing();
 
             return {
                 ...prev,
@@ -188,6 +191,13 @@ export const WindowManagerProvider = ({
     //         document.body.style.overflow = "";
     //     };
     // }, [windows]);
+    useEffect(() => {
+        const timeout = setTimeout(() => {
+            set(STORAGE_KEY, windows);
+        }, 100);
+
+        return () => clearTimeout(timeout);
+    }, [windows]);
 
     return (
         <WindowManagerContext.Provider

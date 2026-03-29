@@ -6,6 +6,7 @@ import { components } from "react-select";
 import { Button } from "../../components/ui/Button/Button";
 import "./Sports.css"
 import { FaCheck } from "react-icons/fa";
+import { gameIsWatchable } from "../../utils/sports/sportsUtils";
 
 const CheckboxOption = (props: any) => {
     const { isSelected, data } = props;
@@ -54,7 +55,7 @@ export const MultiWatchContentEmpty = () => {
 
 
     const options = allOfTodaysGames
-        .filter((g) => !multiWatch.some((mw) => mw.id === g.id))
+        .filter((g) => !multiWatch.some((mw) => mw.id === g.id) && gameIsWatchable(g.startTime, g.status))
         .map((g) => ({
             value: g,
             label: `${g.homeTeam.name} vs ${g.awayTeam.name}`, // keep for fallback/search

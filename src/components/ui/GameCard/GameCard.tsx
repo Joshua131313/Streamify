@@ -8,7 +8,7 @@ import type { ContextMenuOption } from "../../../types";
 import { FaBell, FaExternalLinkAlt, FaEyeSlash, FaPlay, FaThLarge } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useMultiWatch } from "../../../context/MultiWatchContext";
-import { getSportStream } from "../../../utils/sports/sportsUtils";
+import { gameIsWatchable, getSportStream } from "../../../utils/sports/sportsUtils";
 import { DateTime } from "luxon";
 import { useWindowManager } from "../../../context/WindowManagerContext";
 
@@ -26,50 +26,59 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
     const defaultSportSteam = getSportStream(game.leagueName)[0];
     const defaultSportStreamProvider = defaultSportSteam.provider;
     const watchURL = getWatchURL({ league: game.leagueName, awayTeamAbbrev: game.awayTeam.abbrev, homeTeamAbbrev: game.homeTeam.abbrev, streamProvider: defaultSportStreamProvider });
-
+    const showPlayButtons = gameIsWatchable(game.startTime, game.status);
+    
     const mediaCardContextOptions: ContextMenuOption[] = [
-        {
-            key: "watch",
-            value: "Watch",
-            icon: FaPlay,
-            onClick: () => navigate(watchURL)
-        },
-        {
-            key: "new-window",
-            value: windowIsOpen(watchURL) ? "Hide watch window" : "Watch in New Window",
-            icon: windowIsOpen(watchURL) ? FaEyeSlash : FaPlay,
-            onClick: () => {
-                const state = windows[watchURL]?.windowState;
+        ...(showPlayButtons
+            ? [
+                {
+                    key: "watch",
+                    value: "Watch",
+                    icon: FaPlay,
+                    onClick: () => navigate(watchURL),
+                },
+                {
+                    key: "new-window",
+                    value: windowIsOpen(watchURL)
+                        ? "Hide watch window"
+                        : "Watch in New Window",
+                    icon: windowIsOpen(watchURL) ? FaEyeSlash : FaPlay,
+                    onClick: () => {
+                        const state = windows[watchURL]?.windowState;
 
-                if (state === "opened" || state === "fullscreen") {
-                    minimizeWindow(watchURL);
-                } else {
-                    openWindow(watchURL);
-                }
-            }
-        },
-        {
-            key: "multi-watch",
-            value: isGameInMultiWatch(game) ? "Remove from Multi-Watch" : "Add to Multi-Watch",
-            icon: FaThLarge,
-            onClick: () => toggleGameInMultiWatch(game),
-        },
+                        if (state === "opened" || state === "fullscreen") {
+                            minimizeWindow(watchURL);
+                        } else {
+                            openWindow(watchURL);
+                        }
+                    },
+                },
+                {
+                    key: "multi-watch",
+                    value: isGameInMultiWatch(game)
+                        ? "Remove from Multi-Watch"
+                        : "Add to Multi-Watch",
+                    icon: FaThLarge,
+                    onClick: () => toggleGameInMultiWatch(game),
+                },
+                {
+                    key: "new-tab",
+                    value: "Watch in New Tab",
+                    icon: FaExternalLinkAlt,
+                    onClick: () => {
+                        window.open(watchURL, "_blank", "noopener,noreferrer");
+                    },
+                },
+            ]
+            : []),
 
-        {
-            key: "new-tab",
-            value: "Watch in New Tab",
-            icon: FaExternalLinkAlt,
-            onClick: () => {
-                window.open(watchURL, "_blank", "noopener,noreferrer");
-            }
-        },
         {
             key: "notify",
             value: "Notify when live",
             icon: FaBell,
             onClick: () => addNotification(),
-        }
-    ]
+        },
+    ];
     // dummy notifications system for now
     const addNotification = () => {
         // 1. Ask permission
@@ -128,7 +137,6 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
             )
         }
     }
-
     return (
         <div className="game-card"
             onContextMenu={(e) => openMenu({
@@ -147,7 +155,7 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
                     ) : game.status === "FINAL" ? (
                         <div className="not-started-badge">Final</div>
                     ) : (
-                        <div className="not-started-badge">Starts {DateTime.fromISO(game.startTime).toRelative()}</div>
+                        <div className="not-started-badge">{DateTime.fromISO(game.startTime).toRelative()}</div>
                     )}
 
                     <StatusBadge />
@@ -179,15 +187,18 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
             </div>
 
             {/* 🔥 Watch button */}
-            <div className="game-card-buttons flex-row">
+            <div className={`game-card-buttons ${!showPlayButtons ? "single" : ""}`}>
                 <ExternalGameInfoButton url={game.gameLink} />
-                <WatchButton
-                    variant="button"
-                    awayTeamAbbrev={game.awayTeam.abbrev}
-                    homeTeamAbbrev={game.homeTeam.abbrev}
-                    streamProvider={defaultSportStreamProvider}
-                    league={game.leagueName}
-                />
+                {
+                    showPlayButtons &&
+                    <WatchButton
+                        variant="button"
+                        awayTeamAbbrev={game.awayTeam.abbrev}
+                        homeTeamAbbrev={game.homeTeam.abbrev}
+                        streamProvider={defaultSportStreamProvider}
+                        league={game.leagueName}
+                    />
+                }
             </div>
         </div>
     );

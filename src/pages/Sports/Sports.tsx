@@ -18,23 +18,23 @@ export type QuickFilter = {
     label: string;
     value: string;
     type: "status" | "league" | "sport";
-    default?: boolean;
+    defaultDisabled?: boolean;
 };
 
 export const quickFilters: QuickFilter[] = [
     // status
-    { label: "Live", value: "LIVE", type: "status", default: true },
+    { label: "Live", value: "LIVE", type: "status" },
     { label: "Pre Game", value: "PRE", type: "status" },
-    { label: "Upcoming", value: "FUT", type: "status", default: true },
+    { label: "Upcoming", value: "FUT", type: "status" },
     { label: "Finished", value: "FINAL", type: "status" },
 
     // league
-    { label: "NBA", value: "NBA", type: "league", default: true, },
-    { label: "NHL", value: "NHL", type: "league", default: true },
-    { label: "MLB", value: "MLB", type: "league", default: true },
+    { label: "NBA", value: "NBA", type: "league" },
+    { label: "NHL", value: "NHL", type: "league" },
+    { label: "MLB", value: "MLB", type: "league",  },
 
     // sport
-    { label: "TV", value: "TV", type: "sport", default: true }
+    { label: "TV", value: "TV", type: "sport" }
     // { label: "Basketball", value: "Basketball", type: "sport" },
     // { label: "Hockey", value: "Hockey", type: "sport" },
 ];
@@ -50,7 +50,7 @@ const Sports = () => {
         search, 
         setSearch 
     } = useSports();
-    const [filters, setFilters] = useState<QuickFilter[]>(quickFilters.filter(x=> x.default))
+    const [filters, setFilters] = useState<QuickFilter[]>(quickFilters.filter(x=> !x.defaultDisabled))
     
     const { open } = useWindow("multiwatch");
 
@@ -136,7 +136,7 @@ const Sports = () => {
                     isLoading={nbaGamesLoading}
                     items={nbaGameCards}
                     renderItem={(game) => (
-                        <GameCard key={game.id} showSportName={false} game={game} />
+                        <GameCard showSportName={false} game={game} />
                     )}
                     skeleton={<SwiperSkeletonCard className="game-card-skeleton" />}
                 />

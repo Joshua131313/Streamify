@@ -21,7 +21,8 @@ function App() {
           <MultiWatchProvider>
             <SportsProvider>
               <WindowRenderer />
-              <div className="body">
+              {/* fake body container to allow windows to be "position fixed" */}
+              <div className="body"> 
                 <AppRouter />
               </div>
             </SportsProvider>

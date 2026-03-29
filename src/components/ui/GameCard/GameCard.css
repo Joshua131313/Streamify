@@ -41,6 +41,7 @@
     border-radius: 40px;
     font-size: var(--font-xs);
     font-weight: bold;
+    text-transform: capitalize;
 }
 .not-started-badge, .status-tag {
     background: rgba(255, 255, 255, 0.2);
@@ -102,13 +103,16 @@
     width: 100%;
 }
 
-
+.game-card-buttons.single {
+    grid-template-columns: 1fr;
+}
 .game-card-buttons {
-    justify-content: space-between;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
 }
 .game-card-buttons > a {
-    width: calc((var(--game-card-width) - 50px) / 2);
+    width: 100%
 }
 @media (max-width: 800px) {
     :root {
