@@ -8,12 +8,13 @@ import { Mobilebar } from "./Mobilebar"
 import type { IconType } from "react-icons"
 import { AppNavLink } from "./AppNavLink"
 import { BsBookmarkFill } from "react-icons/bs"
+import { UserIcon } from "../ui/User/UserIcon"
 
 const saved = {
         path: "/saved",
         Icon: BsBookmarkFill,
         label: "Saved",
-        className: "saved"
+        className: "saved",
 }
 const navLinks : {path: string, Icon: IconType, label: string, className: string}[] = [
     {
@@ -65,13 +66,16 @@ export const Navbar = ()  => {
         <>
         <Container className="navbar">
             <Logo />
+
+            <NavLinks />
+            {/* only shown in mobile navbar */}
             <AppNavLink 
                 className={saved.className}
                 Icon={saved.Icon}
                 label={saved.label}
                 path={saved.path}
             />
-            <NavLinks />
+            <UserIcon />
         </Container>
         <Mobilebar />
         </>

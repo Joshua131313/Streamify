@@ -18,7 +18,6 @@ export type QuickFilter = {
     label: string;
     value: string;
     type: "status" | "league" | "sport";
-    defaultDisabled?: boolean;
 };
 
 export const quickFilters: QuickFilter[] = [
@@ -34,7 +33,7 @@ export const quickFilters: QuickFilter[] = [
     { label: "MLB", value: "MLB", type: "league",  },
 
     // sport
-    { label: "TV", value: "TV", type: "sport" }
+    { label: "TV", value: "TV", type: "league" }
     // { label: "Basketball", value: "Basketball", type: "sport" },
     // { label: "Hockey", value: "Hockey", type: "sport" },
 ];
@@ -50,7 +49,7 @@ const Sports = () => {
         search, 
         setSearch 
     } = useSports();
-    const [filters, setFilters] = useState<QuickFilter[]>(quickFilters.filter(x=> !x.defaultDisabled))
+    const [filters, setFilters] = useState<QuickFilter[]>([])
     
     const { open } = useWindow("multiwatch");
 
@@ -67,7 +66,7 @@ const Sports = () => {
             search,
             filters
         );
-    }, [nbaGames, search, filters]);
+    }, [mlbGames, search, filters]);
     const nhlGameCards = useMemo(() => {
         return filterGames(
             nhlGames,
@@ -87,7 +86,7 @@ const Sports = () => {
 
     const FilteredContainer = ({type, title, children} : {type: string, title: string, children: React.ReactNode}) => {
         return ( 
-            filters.some(x => x.value === type) ? 
+            (!(filters.filter(f => f.type === "league").length > 0 )|| filters.some(x => x.value === type) )? 
             <Container title={title}>
                 {children}
             </Container>

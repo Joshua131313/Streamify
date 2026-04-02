@@ -115,6 +115,8 @@ export const filterGames = (
 ): GameProps[] => {
     const searchNormalized = search.toLowerCase().trim();
 
+    if(filters.length == 0) return games;
+
     return games.filter(game => {
         // 🔍 SEARCH
         const matchesSearch =
@@ -139,6 +141,7 @@ export const filterGames = (
         return matchesSearch && matchesStatus;
     });
 };
+
 
 export const gameIsWatchable = (startTime: string, gameStatus: GameStatus): boolean => {
     const now = Date.now();

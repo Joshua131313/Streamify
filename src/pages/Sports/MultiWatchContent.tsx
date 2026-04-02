@@ -11,11 +11,13 @@ export const MultiWatchContent = () => {
         <>
             {multiWatch.map((g) => (
                 <div className="multi-game" key={g.id}>
-                    <div className="multi-game-header">
+                    <div className="multi-game-header window-controls">
                         <a className="game-title" href={g.gameLink} target="__blank">
                             {g.homeTeam.abbrev} vs {g.awayTeam.abbrev}
                         </a>
-                        <FaX onClick={() => removeGameFromMultiWatch(g)} />
+                       <div className="window-close">
+                         <FaX onClick={() => removeGameFromMultiWatch(g)} />
+                       </div>
                     </div>
                     <iframe allowFullScreen src={
                         getSportStream(g.leagueName)[0].buildStreamUrl({

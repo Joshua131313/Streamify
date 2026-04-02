@@ -42,8 +42,8 @@ export const mlbStreams: SportStream[] = [
             const away = mlbTeamsMap[awayTeamAbbrev as keyof typeof mlbTeamsMap];
 
             if (!home || !away) return "";
-            const homeSlug = getSlug(home.teamName);
-            const awaySlug = getSlug(away.teamName);
+            const homeSlug = getSlug(home.teamName).toLowerCase();
+            const awaySlug = getSlug(away.teamName).toLowerCase();
             return `https://embedsports.top/embed/delta/live_mlb_${homeSlug}-${awaySlug}-live-streaming-1197515286/1#player=clappr`
         }
     },
@@ -70,7 +70,7 @@ export const mlbStreams: SportStream[] = [
             const awayAbbrev = away.abbreviation.toLowerCase();
             const today = new Date().toLocaleDateString("en-CA");
 
-            return `https://pooembed.eu/embed/nhl/${today}/${awayAbbrev}-${homeAbbrev}#autoplay=true`;
+            return `https://pooembed.eu/embed/mlb/${today}/${awayAbbrev}-${homeAbbrev}#autoplay=true`;
         }
     },
 ];

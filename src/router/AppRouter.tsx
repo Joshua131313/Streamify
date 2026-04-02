@@ -3,6 +3,8 @@ import { AppLayout } from "../components/layout/AppLayout"
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { lazy, Suspense } from "react"
 import { Loader } from "../components/ui/Loader/Loader"
+import { Auth } from "../pages/Auth/Auth";
+import { Login } from "../pages/Auth/Login";
 
 const Home = lazy(() => import("../pages/Home/Home"));
 const Movie = lazy(() => import("../pages/Movie/Movie"));
@@ -18,15 +20,22 @@ const router = createBrowserRouter([
     element: <AppLayout />,
     children: [
       { path: "/", element: <Home /> },
-      { path: "movie/:movieId", element: <Movie /> },
-      { path: "tv/:showId", element: <Show /> },
+
       { path: "search", element: <Search /> },
       { path: "discover", element: <Browse /> },
       { path: "saved", element: <SavedMedia /> },
       { path: "person/:id", element: <PersonPage /> },
-      { path: "sports", element:   <SportsPage />}
+      { path: "sports", element:   <SportsPage />},
     ],
   },
+  {
+    element: <AppLayout hideNav />,
+    children: [
+      { path: "movie/:movieId", element: <Movie /> },
+      { path: "tv/:showId", element: <Show /> },
+      { path: "login", element:  <Login />},
+    ]
+  }
 ]);
 
 export const AppRouter = () => {

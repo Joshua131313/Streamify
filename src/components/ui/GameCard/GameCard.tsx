@@ -27,7 +27,7 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
     const defaultSportStreamProvider = defaultSportSteam.provider;
     const watchURL = getWatchURL({ league: game.leagueName, awayTeamAbbrev: game.awayTeam.abbrev, homeTeamAbbrev: game.homeTeam.abbrev, streamProvider: defaultSportStreamProvider });
     const showPlayButtons = gameIsWatchable(game.startTime, game.status);
-    
+
     const mediaCardContextOptions: ContextMenuOption[] = [
         ...(showPlayButtons
             ? [
@@ -72,12 +72,16 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
             ]
             : []),
 
-        {
-            key: "notify",
-            value: "Notify when live",
-            icon: FaBell,
-            onClick: () => addNotification(),
-        },
+        ...((game.status === "PRE" || game.status === "FUT") ?
+            [
+                {
+                    key: "notify",
+                    value: "Notify when live",
+                    icon: FaBell,
+                    onClick: () => addNotification(),
+                },
+            ] : []
+        )
     ];
     // dummy notifications system for now
     const addNotification = () => {
@@ -190,7 +194,7 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
             <div className={`game-card-buttons ${!showPlayButtons ? "single" : ""}`}>
                 <ExternalGameInfoButton url={game.gameLink} />
                 {
-                    showPlayButtons &&
+                    true &&
                     <WatchButton
                         variant="button"
                         awayTeamAbbrev={game.awayTeam.abbrev}

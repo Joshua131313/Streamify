@@ -48,7 +48,9 @@
 .window-controls div:hover {
     background-color: var(--bg-transparent);
 }
-
+.window-controls .window-close {
+    border-top-right-radius: 10px;
+}
 /* CLOSE BUTTON */
 .window-controls .window-close:hover {
     background-color: var(--accent-primary);
@@ -106,17 +108,6 @@
     border-radius: 10px;
     width: 100%;
     height: 100%;
-}
-
-.multi-game-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 10px;
-}
-
-.multi-game-header svg {
-    cursor: pointer;
 }
 
 /* EMPTY STATE */

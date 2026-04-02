@@ -1,21 +1,7 @@
 import type { SportStream } from "../../types/sports/sportsTypes";
 
 export const nhlStreams: SportStream[] = [
-    {
-        provider: "embedsports-d",
-        buildStreamUrl: ({awayTeamAbbrev, homeTeamAbbrev}) => {
-            const homeId = nhlTeamsMap[homeTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
-            const awayId = nhlTeamsMap[awayTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
-            // return `https://embedsports.top/embed/admin/ppv-${awayId}-vs-${homeId}/1`;
-            return `https://embedsports.me/nhl/${homeId}-vs-${awayId}-stream-1`;
-        },
-        buildChannel: ({awayTeamAbbrev, homeTeamAbbrev}) => {
-            const homeId = nhlTeamsMap[homeTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
-            const awayId = nhlTeamsMap[awayTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
-            return `${homeId}-vs-${awayId}`;
-        },
-    },
-    {
+        {
         provider: "embedsports",
         buildStreamUrl: ({awayTeamAbbrev, homeTeamAbbrev}) => {
             const homeId = nhlTeamsMap[homeTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
@@ -28,6 +14,22 @@ export const nhlStreams: SportStream[] = [
             return `${awayId}-vs-${homeId}`;
         },
     },
+    {
+        provider: "embedsports-d",
+        buildStreamUrl: ({awayTeamAbbrev, homeTeamAbbrev}) => {
+            const homeId = nhlTeamsMap[homeTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
+            const awayId = nhlTeamsMap[awayTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
+            // return `https://embedsports.top/embed/admin/ppv-${awayId}-vs-${homeId}/1`;
+            console.log(homeTeamAbbrev)
+            return `https://embedsports.me/nhl/${homeId}-vs-${awayId}-stream-1`;
+        },
+        buildChannel: ({awayTeamAbbrev, homeTeamAbbrev}) => {
+            const homeId = nhlTeamsMap[homeTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
+            const awayId = nhlTeamsMap[awayTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
+            return `${homeId}-vs-${awayId}`;
+        },
+    },
+
 
 ]
 
@@ -45,20 +47,20 @@ export const nhlTeamsMap = {
     DET: { abbreviation: "DET", teamName: "Detroit Red Wings", id: "detroit-red-wings", logo: "https://assets.nhle.com/logos/nhl/svg/DET_light.svg", conference: "East", division: "Atlantic" },
     EDM: { abbreviation: "EDM", teamName: "Edmonton Oilers", id: "edmonton-oilers", logo: "https://assets.nhle.com/logos/nhl/svg/EDM_light.svg", conference: "West", division: "Pacific" },
     FLA: { abbreviation: "FLA", teamName: "Florida Panthers", id: "florida-panthers", logo: "https://assets.nhle.com/logos/nhl/svg/FLA_light.svg", conference: "East", division: "Atlantic" },
-    LAK: { abbreviation: "LAK", teamName: "Los Angeles Kings", id: "los-angeles-kings", logo: "https://assets.nhle.com/logos/nhl/svg/LAK_light.svg", conference: "West", division: "Pacific" },
+    LA: { abbreviation: "LA", teamName: "Los Angeles Kings", id: "los-angeles-kings", logo: "https://assets.nhle.com/logos/nhl/svg/LAK_light.svg", conference: "West", division: "Pacific" },
     MIN: { abbreviation: "MIN", teamName: "Minnesota Wild", id: "minnesota-wild", logo: "https://assets.nhle.com/logos/nhl/svg/MIN_light.svg", conference: "West", division: "Central" },
     MTL: { abbreviation: "MTL", teamName: "Montreal Canadiens", id: "montreal-canadiens", logo: "https://assets.nhle.com/logos/nhl/svg/MTL_light.svg", conference: "East", division: "Atlantic" },
     NSH: { abbreviation: "NSH", teamName: "Nashville Predators", id: "nashville-predators", logo: "https://assets.nhle.com/logos/nhl/svg/NSH_light.svg", conference: "West", division: "Central" },
-    NJD: { abbreviation: "NJD", teamName: "New Jersey Devils", id: "new-jersey-devils", logo: "https://assets.nhle.com/logos/nhl/svg/NJD_light.svg", conference: "East", division: "Metropolitan" },
+    NJ: { abbreviation: "NJ", teamName: "New Jersey Devils", id: "new-jersey-devils", logo: "https://assets.nhle.com/logos/nhl/svg/NJD_light.svg", conference: "East", division: "Metropolitan" },
     NYI: { abbreviation: "NYI", teamName: "New York Islanders", id: "new-york-islanders", logo: "https://assets.nhle.com/logos/nhl/svg/NYI_light.svg", conference: "East", division: "Metropolitan" },
     NYR: { abbreviation: "NYR", teamName: "New York Rangers", id: "new-york-rangers", logo: "https://assets.nhle.com/logos/nhl/svg/NYR_light.svg", conference: "East", division: "Metropolitan" },
     OTT: { abbreviation: "OTT", teamName: "Ottawa Senators", id: "ottawa-senators", logo: "https://assets.nhle.com/logos/nhl/svg/OTT_light.svg", conference: "East", division: "Atlantic" },
     PHI: { abbreviation: "PHI", teamName: "Philadelphia Flyers", id: "philadelphia-flyers", logo: "https://assets.nhle.com/logos/nhl/svg/PHI_light.svg", conference: "East", division: "Metropolitan" },
     PIT: { abbreviation: "PIT", teamName: "Pittsburgh Penguins", id: "pittsburgh-penguins", logo: "https://assets.nhle.com/logos/nhl/svg/PIT_light.svg", conference: "East", division: "Metropolitan" },
-    SJS: { abbreviation: "SJS", teamName: "San Jose Sharks", id: "san-jose-sharks", logo: "https://assets.nhle.com/logos/nhl/svg/SJS_light.svg", conference: "West", division: "Pacific" },
+    SJ: { abbreviation: "SJ", teamName: "San Jose Sharks", id: "san-jose-sharks", logo: "https://assets.nhle.com/logos/nhl/svg/SJS_light.svg", conference: "West", division: "Pacific" },
     SEA: { abbreviation: "SEA", teamName: "Seattle Kraken", id: "seattle-kraken", logo: "https://assets.nhle.com/logos/nhl/svg/SEA_light.svg", conference: "West", division: "Pacific" },
     STL: { abbreviation: "STL", teamName: "St. Louis Blues", id: "st-louis-blues", logo: "https://assets.nhle.com/logos/nhl/svg/STL_light.svg", conference: "West", division: "Central" },
-    TBL: { abbreviation: "TBL", teamName: "Tampa Bay Lightning", id: "tampa-bay-lightning", logo: "https://assets.nhle.com/logos/nhl/svg/TBL_light.svg", conference: "East", division: "Atlantic" },
+    TB: { abbreviation: "TB", teamName: "Tampa Bay Lightning", id: "tampa-bay-lightning", logo: "https://assets.nhle.com/logos/nhl/svg/TBL_light.svg", conference: "East", division: "Atlantic" },
     TOR: { abbreviation: "TOR", teamName: "Toronto Maple Leafs", id: "toronto-maple-leafs", logo: "https://assets.nhle.com/logos/nhl/svg/TOR_light.svg", conference: "East", division: "Atlantic" },
     VAN: { abbreviation: "VAN", teamName: "Vancouver Canucks", id: "vancouver-canucks", logo: "https://assets.nhle.com/logos/nhl/svg/VAN_light.svg", conference: "West", division: "Pacific" },
     VGK: { abbreviation: "VGK", teamName: "Vegas Golden Knights", id: "vegas-golden-knights", logo: "https://assets.nhle.com/logos/nhl/svg/VGK_light.svg", conference: "West", division: "Pacific" },

@@ -1,5 +1,8 @@
 .input-container {
     position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
 }
 .input-container .icon {
     position: absolute;
@@ -8,7 +11,7 @@
     background-color: var(--input-bg);
     border: solid 1px var(--border);
     padding: 15px 25px;
-    border-radius: calc(var(--border-radius) / 2);
+    border-radius: var(--border-radius);
     outline: none;
     transition: all 0.3s;
     color: var(--text-body);
@@ -31,4 +34,9 @@ input:focus {
     z-index: 1;
     font-size: var(--font-xs);
     left: 10px;
+}
+.error {
+    font-size: var(--font-xs);
+    color: var(--accent-primary);
+    display: flex;
 }
