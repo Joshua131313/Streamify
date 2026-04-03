@@ -22,7 +22,16 @@ export const useLocalStorage = () => {
     set(key, updated);
     return updated;
   };
+  const upsertShowHistory = (key: string, newItem: any) => {
+    const current = JSON.parse(localStorage.getItem(key) || "[]");
 
+    const updated = [
+      ...current.filter((item: any) => item.showId !== newItem.showId),
+      newItem
+    ];
+
+    localStorage.setItem(key, JSON.stringify(updated));
+  };
   // ---------- REMOVE ITEM ----------
   const remove = <T>(
     key: string,
@@ -68,5 +77,5 @@ export const useLocalStorage = () => {
     localStorage.removeItem(key);
   };
 
-  return { get, set, append, remove, has, clear };
+  return { get, set, append, remove, has, clear, upsertShowHistory };
 };

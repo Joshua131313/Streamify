@@ -84,3 +84,12 @@ form button {
 .auth-providers .button svg {
     margin-right: 0;
 }
+.forgot-password-link {
+    text-align: right;
+    font-size: var(--font-xs);
+    margin-bottom: 10px;
+    color: var(--text-muted);
+}
+.forgot-password-link:hover {
+    color: var(--accent-hover);
+}

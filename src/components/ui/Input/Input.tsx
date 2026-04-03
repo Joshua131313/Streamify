@@ -12,7 +12,7 @@ export const Input = ({ Icon, error, ...inputProps }: Props) => {
     <div className={`input-container ${Icon ? "has-icon" : ""}`}>
       {Icon && <Icon className="icon" />}
       <input type="text" {...inputProps} />
-      {error && <span className="error">Error</span>}
+      {error && <span className="error">{error}</span>}
     </div>
   );
 };

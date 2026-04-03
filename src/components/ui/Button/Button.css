@@ -13,8 +13,11 @@
     border: solid 1px transparent;
     display: flex;
     align-items: center;
+    height: 46px;
 }
-
+.button div {
+    
+}
 .button svg {
     margin-right: 10px;
 }
@@ -62,7 +65,10 @@
 .button.gamecenter img {
     width: 30px;
 }
-
+.button .loader .spinner {
+    width: 20px;
+    height: 20px;
+}
 @media (max-width: 800px) {
     .watch-button svg {
         display: none;

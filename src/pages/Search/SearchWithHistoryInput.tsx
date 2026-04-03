@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { FaSearch } from "react-icons/fa";
 import { Input } from "../../components/ui/Input/Input";
 import "./Search.css";
+import type { SearchMediaHistory } from "../../types/storage";
 
 type Props = {
     value: string;
@@ -13,7 +14,7 @@ const HISTORY_KEY = "search-history";
 
 export const SearchWithHistory = ({ value, onChange, onSearch }: Props) => {
 
-    const [history, setHistory] = useState<string[]>([]);
+    const [history, setHistory] = useState<SearchMediaHistory[]>([]);
     const [open, setOpen] = useState(false);
     const [highlighted, setHighlighted] = useState<number>(-1);
 
@@ -30,7 +31,7 @@ export const SearchWithHistory = ({ value, onChange, onSearch }: Props) => {
         const trimmed = term.trim();
         if (!trimmed) return;
 
-        const updated = [trimmed, ...history.filter(h => h !== trimmed)].slice(0, 8);
+        const updated = [{searchValue: trimmed, timeStamp: new Date()}, ...history.filter(h => h.searchValue !== trimmed)].slice(0, 8);
 
         setHistory(updated);
         localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
@@ -49,7 +50,7 @@ export const SearchWithHistory = ({ value, onChange, onSearch }: Props) => {
     };
 
     const filtered = history.filter(h =>
-        h.toLowerCase().includes(value.toLowerCase())
+        h.searchValue.toLowerCase().includes(value.toLowerCase())
     );
 
     useEffect(() => {
@@ -87,7 +88,7 @@ export const SearchWithHistory = ({ value, onChange, onSearch }: Props) => {
 
         if (e.key === "Enter") {
             if (highlighted >= 0) {
-                handleSearch(filtered[highlighted]);
+                handleSearch(filtered[highlighted].searchValue);
             } else {
                 handleSearch(value);
             }
@@ -116,16 +117,16 @@ export const SearchWithHistory = ({ value, onChange, onSearch }: Props) => {
 
                     {filtered.map((item, index) => (
                         <div
-                            key={item}
+                            key={item.searchValue}
                             className={`search-history-item ${highlighted === index ? "highlighted" : ""
                                 }`}
                             onMouseDown={(e) => {
                                 e.preventDefault();
-                                handleSearch(item);
+                                handleSearch(item.searchValue);
                             }}
                         >
                             <FaSearch />
-                            <span>{item}</span>
+                            <span>{item.searchValue}</span>
                         </div>
                     ))}
 

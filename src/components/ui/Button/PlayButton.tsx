@@ -4,6 +4,7 @@ import type { TMediaType } from "../../../types/tmdb";
 import { Link } from "react-router-dom";
 import { useLocalStorage } from "../../../hooks/utilHooks/useLocalStorage";
 import { Icon } from "../Icon/Icon";
+import type { ShowHistory } from "../../../types/storage";
 
 interface Props {
     mediaType: TMediaType;
@@ -22,8 +23,9 @@ export const PlayButton = (props : Props) => {
             return base;
         }
         else {
-            const lastEpisode = get(mediaId.toString(), {season: 1, episode: 1});
-            return base + `&season=${lastEpisode.season}&episode=${lastEpisode.episode}`
+            const showHistory = get<ShowHistory[]>("showHistory", []);
+            const lastEpisode = showHistory.find(x => x.showId === mediaId) ?? {episode: 1, season: 1};
+            return base + `&season=${lastEpisode?.season}&episode=${lastEpisode?.episode}`
         }
     }
 

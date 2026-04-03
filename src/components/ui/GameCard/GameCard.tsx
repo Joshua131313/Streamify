@@ -194,7 +194,7 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
             <div className={`game-card-buttons ${!showPlayButtons ? "single" : ""}`}>
                 <ExternalGameInfoButton url={game.gameLink} />
                 {
-                    true &&
+                    showPlayButtons &&
                     <WatchButton
                         variant="button"
                         awayTeamAbbrev={game.awayTeam.abbrev}

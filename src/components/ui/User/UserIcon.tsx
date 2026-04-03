@@ -6,10 +6,10 @@ import { Link } from "react-router-dom";
 
 
 export const UserIcon = () => {
-    const { user } = useAuthProvider();
+    const { user, logout } = useAuthProvider();
     if (user) {
         return (
-            <div className="user-icon">
+            <div className="user-icon" onClick={logout}>
                 <Icon Icon={FaUser} />
             </div>
         )

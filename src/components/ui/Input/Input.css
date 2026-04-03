@@ -24,7 +24,7 @@
     color: var(--text-muted)
 }
 input:focus {
-    border: solid 1px red;
+    border: solid 1px var(--accent-primary);
 }
 .input-container .icon {
     position: absolute;
@@ -35,8 +35,22 @@ input:focus {
     font-size: var(--font-xs);
     left: 10px;
 }
+input:focus + .error {
+    border: solid 1px var(--accent-primary);
+}
 .error {
     font-size: var(--font-xs);
     color: var(--accent-primary);
     display: flex;
+    margin-top: 5px;
+    position: absolute;
+    bottom: -50%;
+    transform: translateY(-50%);
+    right: 10px;
+    border: solid 1px var(--border);
+    border-radius: 20px;
+    background-color: var(--bg-primary);
+    padding: 5px;
+    z-index: 10;
+    transition: all 0.3s;
 }

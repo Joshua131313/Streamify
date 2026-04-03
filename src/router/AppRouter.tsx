@@ -5,6 +5,7 @@ import { lazy, Suspense } from "react"
 import { Loader } from "../components/ui/Loader/Loader"
 import { Auth } from "../pages/Auth/Auth";
 import { Login } from "../pages/Auth/Login";
+import { Register } from "../pages/Auth/Register";
 
 const Home = lazy(() => import("../pages/Home/Home"));
 const Movie = lazy(() => import("../pages/Movie/Movie"));
@@ -34,6 +35,7 @@ const router = createBrowserRouter([
       { path: "movie/:movieId", element: <Movie /> },
       { path: "tv/:showId", element: <Show /> },
       { path: "login", element:  <Login />},
+      { path: "register", element:  <Register />},
     ]
   }
 ]);

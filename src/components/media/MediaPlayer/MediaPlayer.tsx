@@ -13,7 +13,7 @@ import { EpisodeSelector } from "./EpisodeSelector"
 export const MediaPlayer = ({ modal = true} : { modal?: boolean}) => {
     const [searchParams, setSearchParams] = useSearchParams();
     const { media, mediaType } = useMediaLayoutContext();
-    const { set } = useLocalStorage();
+    const { set, upsertShowHistory } = useLocalStorage();
     const cancelPlay = () => {
         searchParams.delete("play");
         searchParams.delete("season");
@@ -69,7 +69,13 @@ export const MediaPlayer = ({ modal = true} : { modal?: boolean}) => {
         if(mediaType === "tv") {
             const episode = searchParams.get("episode");
             const season = searchParams.get("season");
-            set(media.id.toString(), {season, episode});
+            // set(media.id.toString(), {season, episode});
+            upsertShowHistory("showHistory", {
+                showId: media.id,
+                season,
+                episode,
+                updatedAt: new Date()
+            })
         }
     }, [searchParams, mediaType, media])
 
