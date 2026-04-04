@@ -10,6 +10,7 @@ import {
     sendPasswordResetEmail,
     updateProfile,
     getAdditionalUserInfo,
+    FacebookAuthProvider,
 } from "firebase/auth";
 import { auth } from "../firebase/firebase";
 import { createUserDocument } from "../firebase/auth";
@@ -21,7 +22,7 @@ type User = {
     uid?: string;
 } | null;
 
-export type ProviderType = "google" | "apple";
+export type ProviderType = "google" | "facebook";
 
 interface AuthContextType {
     user: User;
@@ -71,7 +72,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (providerType === "google") {
             provider = new GoogleAuthProvider();
         } else {
-            provider = new OAuthProvider("apple.com");
+            provider = new FacebookAuthProvider();
         }
 
         const result = await signInWithPopup(auth, provider);
@@ -84,10 +85,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         let name = firebaseUser.displayName;
 
         if (!name) {
-            if (providerType === "apple") {
-                const profile = additionalInfo?.profile as { name?: string } | null;
+            if (providerType === "facebook") {
+                const profile = additionalInfo?.profile as {
+                    name?: string;
+                    first_name?: string;
+                    last_name?: string;
+                } | null;
 
-                name = profile?.name || "Apple User";
+                name =
+                    profile?.name ||
+                    `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim() ||
+                    "Facebook User";
+
             } else {
                 name = "User";
             }

@@ -3,9 +3,10 @@ import { Container } from "../../components/layout/Container/Container"
 import "./Auth.css"
 import { Button } from "../../components/ui/Button/Button";
 import GoogleIcon from "./GoogleIcon";
-import AppleIcon from "./AppleIcon";
 import { useAuthProvider, type ProviderType } from "../../context/AuthContext";
 import { useEffect } from "react";
+import FacebookIcon from "./FacebookIcon";
+
 interface Props {
     type: "login" | "register";
     children: React.ReactNode;
@@ -60,9 +61,9 @@ export const Auth = (props: Props) => {
                         <GoogleIcon />
                         <span>Continue with Google</span>
                     </Button>
-                    <Button className="secondary" onClick={() => handleLoginWithProvider("apple")}>
-                        <AppleIcon />
-                        <span>Continue with Apple</span>
+                    <Button className="secondary" onClick={() => handleLoginWithProvider("facebook")}>
+                        <FacebookIcon />
+                        <span>Continue with Facebook</span>
                     </Button>
                 </div>
             </div>
