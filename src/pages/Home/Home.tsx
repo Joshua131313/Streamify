@@ -4,14 +4,20 @@ import "./Home.css"
 import { RailsContainer } from "../../components/layout/Container/RailsContainer/RailsContainer"
 import { MovieSeriesContainer } from "../../components/layout/Container/MovieSeriesContainer/MovieSeriesContainer"
 import { useTMDBQuery } from "../../hooks/mediaHooks/tmdbHooks/useTMDBQuery"
+import { SEO } from "../../components/SEO"
 
-const Home = ()  => {
+const Home = () => {
 
     return (
         <div className="home">
+            <SEO 
+                title="Home"
+                description="Watch live sports streams on Streamify" 
+            />
+            
             <HeroCarousel />
             <RailsContainer />
-            <MovieSeriesContainer onlyFeatured/>
+            <MovieSeriesContainer onlyFeatured />
         </div>
     )
 }

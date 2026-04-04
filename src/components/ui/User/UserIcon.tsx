@@ -1,55 +1,70 @@
-import { FaBookmark, FaCog, FaHistory, FaSignOutAlt, FaUser } from "react-icons/fa";
-import { useAuthProvider } from "../../../context/AuthContext"
-import { Button } from "../Button/Button";
+import { FaBookmark, FaCog, FaHistory, FaSignOutAlt, FaUser, FaSignInAlt, FaUserPlus } from "react-icons/fa";
+import { useAuthProvider } from "../../../context/AuthContext";
 import { Icon } from "../Icon/Icon";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Dropdown } from "../Dropdown/Dropdown";
-import "./UserIcon.css"
+import "./UserIcon.css";
 
 export const UserIcon = () => {
     const { user, logout } = useAuthProvider();
-    const navigate = useNavigate()
-    if (user) {
-        return (
-            <Dropdown
-                dropdownOptions={[
-                    {
-                        icon: FaBookmark,
-                        key: "saved-media",
-                        onClick: () => navigate("/saved-media"),
-                        value: "Saved media"
-                    },
-                    {
-                        icon: FaHistory,
-                        key: "history",
-                        onClick: () => navigate("/history"),
-                        value: "Watch history"
-                    },
-                    {
-                        icon: FaSignOutAlt,
-                        key: "signout",
-                        onClick: () => logout(),
-                        value: "Sign out"
-                    },
-                    {
-                        icon: FaCog,
-                        key: "preferences",
-                        onClick: () => navigate("/settings"),
-                        value: "Preferences"
-                    },
-                ]}
-                title="Profile"
-                className="user-icon"
-            >
-                <Icon Icon={FaUser} />
-            </Dropdown>
-        )
-    }
-    else {
-        return (
-            <Link to={"/login"}>
-                <Button>Login</Button>
-            </Link>
-        )
-    }
-}
+    const navigate = useNavigate();
+
+    const isLoggedIn = !!user;
+
+    const commonOptions = [
+        {
+            icon: FaBookmark,
+            key: "saved-media",
+            onClick: () => navigate("/saved-media"),
+            value: "Saved media"
+        },
+        {
+            icon: FaHistory,
+            key: "history",
+            onClick: () => navigate("/history"),
+            value: "Watch history"
+        }
+    ];
+
+    const loggedInOptions = [
+        ...commonOptions,
+        {
+            icon: FaCog,
+            key: "preferences",
+            onClick: () => navigate("/settings"),
+            value: "Preferences"
+        },
+        {
+            icon: FaSignOutAlt,
+            key: "signout",
+            onClick: () => logout(),
+            value: "Sign out"
+        }
+    ];
+
+    const guestOptions = [
+        ...commonOptions,
+        {
+            icon: FaSignInAlt,
+            key: "login",
+            onClick: () => navigate("/login"),
+            value: "Login"
+        },
+        {
+            icon: FaUserPlus,
+            key: "register",
+            onClick: () => navigate("/register"),
+            value: "Register"
+        }
+    ];
+
+    return (
+        <Dropdown
+            dropdownOptions={isLoggedIn ? loggedInOptions : guestOptions}
+            title={isLoggedIn ? "Profile" : "Guest"}
+            className="user-icon"
+        >
+            <Icon Icon={FaUser} />
+        </Dropdown>
+    );
+};

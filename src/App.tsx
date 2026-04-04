@@ -11,10 +11,11 @@ import { MultiWatchProvider } from './context/MultiWatchContext';
 import { WindowManagerProvider } from './context/WindowManagerContext';
 import { WindowRenderer } from './components/ui/Window/WindowRenderer';
 import { AuthProvider } from './context/AuthContext';
+import { HelmetProvider } from 'react-helmet-async';
 
 function App() {
   useMouseIdle();
-// Add onboarding feature to ask favorite media genre, favorite sports team, 
+  // Add onboarding feature to ask favorite media genre, favorite sports team, 
   return (
     <AuthProvider>
       <AppProvider>
@@ -24,9 +25,11 @@ function App() {
               <SportsProvider>
                 <WindowRenderer />
                 {/* fake body container to allow windows to be "position fixed" */}
-                <div className="body">
-                  <AppRouter />
-                </div>
+                <HelmetProvider>
+                  <div className="body">
+                    <AppRouter />
+                  </div>
+                </HelmetProvider>
               </SportsProvider>
             </MultiWatchProvider>
           </WindowManagerProvider>
