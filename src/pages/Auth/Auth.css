@@ -11,6 +11,7 @@
     flex-direction: column;
     gap: 30px;
     grid-column: 2;
+    z-index: 1;
 }
 .auth-header {
     display: flex;
@@ -42,10 +43,12 @@ form input {
 form button {
     justify-content: center;
 }
-.auth .container-content {
+.body .auth .container-content {
     display: grid;
     grid-template-columns: 550px 450px;
     gap: 10px;
+    border-radius: 20px;
+    padding: 0;
 }
 .auth-bg {
     grid-column: 1;
@@ -53,6 +56,7 @@ form button {
 .auth .auth-bg img {
     width: 100%;
     height: 100%;
+    border-radius: 20px;
 }
 .divider {
     display: flex;
@@ -92,4 +96,48 @@ form button {
 }
 .forgot-password-link:hover {
     color: var(--accent-hover);
+}
+
+@media (max-width: 1100px) {
+    .body .auth .container-content {
+        grid-template-columns: 500px 400px;
+
+    }
+}
+@media (max-width: 1000px) {
+    .auth-form {
+        padding: 30px 30px;
+    }
+    .body .auth .container-content {
+        grid-template-columns: 450px 400px;
+    }
+}
+@media (max-width: 950px) {
+    .auth .container-content {
+        grid-template-columns: 400px 375px;
+    }
+}
+@media (max-width: 875px) {
+    .body .auth .container-content {
+        grid-template-columns: 350px 325px;
+    }
+}
+@media (max-width: 750px) {
+    .body .auth .container-content {
+        grid-template-columns: 1fr;
+    }
+}
+@media (max-width: 550px) {
+    .body .auth .container-content {
+        gap: 0;
+        display: flex;
+        width: 100%;
+        max-width: 400px;
+    }
+    .body .auth-bg {
+        display: none;
+    }
+    .auth-form {
+        width: 100%;
+    }
 }

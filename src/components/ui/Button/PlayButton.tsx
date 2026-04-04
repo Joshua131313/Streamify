@@ -23,7 +23,7 @@ export const PlayButton = (props : Props) => {
             return base;
         }
         else {
-            const showHistory = get<ShowHistory[]>("showHistory", []);
+            const showHistory = get<ShowHistory[]>("show-history", []);
             const lastEpisode = showHistory.find(x => x.showId === mediaId) ?? {episode: 1, season: 1};
             return base + `&season=${lastEpisode?.season}&episode=${lastEpisode?.episode}`
         }

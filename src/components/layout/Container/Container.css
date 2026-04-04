@@ -14,7 +14,7 @@
 .app-container .container-content.styled {
     background-color: var(--bg-surface);
     border: solid 1px var(--border);
-    border-radius: calc(var(--border-radius) / 2);
+    border-radius: var(--border-radius);
     padding: 20px;
 }
 .app-container .container-content {

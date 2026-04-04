@@ -66,11 +66,21 @@ export const mlbStreams: SportStream[] = [
             const away = mlbTeamsMap[awayTeamAbbrev as keyof typeof mlbTeamsMap];
 
             if (!home || !away) return "";
+
             const homeAbbrev = home.abbreviation.toLowerCase();
             const awayAbbrev = away.abbreviation.toLowerCase();
-            const today = new Date().toLocaleDateString("en-CA");
 
-            return `https://pooembed.eu/embed/mlb/${today}/${awayAbbrev}-${homeAbbrev}#autoplay=true`;
+            const now = new Date();
+            const adjustedDate = new Date(now);
+
+            // If it's between 12:00 AM and 5:59 AM, use the previous day
+            if (now.getHours() < 6) {
+                adjustedDate.setDate(adjustedDate.getDate() - 1);
+            }
+
+            const gameDay = adjustedDate.toLocaleDateString("en-CA");
+
+            return `https://pooembed.eu/embed/mlb/${gameDay}/${awayAbbrev}-${homeAbbrev}#autoplay=true`;
         }
     },
 ];

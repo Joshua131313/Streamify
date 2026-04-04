@@ -70,7 +70,7 @@ export const MediaPlayer = ({ modal = true} : { modal?: boolean}) => {
             const episode = searchParams.get("episode");
             const season = searchParams.get("season");
             // set(media.id.toString(), {season, episode});
-            upsertShowHistory("showHistory", {
+            upsertShowHistory("show-history", {
                 showId: media.id,
                 season,
                 episode,
