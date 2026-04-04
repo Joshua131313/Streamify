@@ -18,6 +18,7 @@ import { getGenresByMedia } from "../../data/TMDBGenres";
 import { GenreFilter } from "../../components/ui/filters/GenreFilter";
 import { BrowseTypeFilter } from "../../components/ui/filters/BrowseTypeFilter";
 import { Loader } from "../../components/ui/Loader/Loader";
+import { SEO } from "../../components/SEO";
 
 const Browse = () => {
   const [searchParams] = useSearchParams();
@@ -37,6 +38,10 @@ const Browse = () => {
   return (
     <div className={`${mediaType === "movie" ? "movies-browse-page" : "shows-browse-page"} browse-page`}>
       {/* Header + Controls */}
+      <SEO 
+        title={`Browse ${mediaType === "tv" ? "Shows" : "Movies"}`}
+        description="Browse movies and TV shows"
+      />
       <PageHeader 
         title={mediaType === "tv" ? "Browse TV Shows" : "Browse Movies"}
         subTitle={`Explore thousands of ${mediaType === "movie" ? "movies" : "show"} in the catalog.`}

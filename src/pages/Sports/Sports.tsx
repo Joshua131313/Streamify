@@ -13,6 +13,7 @@ import { Button } from "../../components/ui/Button/Button";
 import { channelStreams } from "../../data/sports/sportsData";
 import { ChannelCard } from "../../components/ui/ChannelCard/ChannelCard";
 import { useWindow } from "../../hooks/utilHooks/useWindow";
+import { SEO } from "../../components/SEO";
 
 export type QuickFilter = {
     label: string;
@@ -30,7 +31,7 @@ export const quickFilters: QuickFilter[] = [
     // league
     { label: "NBA", value: "NBA", type: "league" },
     { label: "NHL", value: "NHL", type: "league" },
-    { label: "MLB", value: "MLB", type: "league",  },
+    { label: "MLB", value: "MLB", type: "league", },
 
     // sport
     { label: "TV", value: "TV", type: "league" }
@@ -39,18 +40,18 @@ export const quickFilters: QuickFilter[] = [
 ];
 
 const Sports = () => {
-    const { 
-        nbaGames, 
-        nbaGamesLoading, 
-        nhlGames, 
+    const {
+        nbaGames,
+        nbaGamesLoading,
+        nhlGames,
         nhlGamesLoading,
         mlbGames,
-        mlbGamesLoading, 
-        search, 
-        setSearch 
+        mlbGamesLoading,
+        search,
+        setSearch
     } = useSports();
     const [filters, setFilters] = useState<QuickFilter[]>([])
-    
+
     const { open } = useWindow("multiwatch");
 
     const nbaGameCards = useMemo(() => {
@@ -84,18 +85,22 @@ const Sports = () => {
         }
     }
 
-    const FilteredContainer = ({type, title, children} : {type: string, title: string, children: React.ReactNode}) => {
-        return ( 
-            (!(filters.filter(f => f.type === "league").length > 0 )|| filters.some(x => x.value === type) )? 
-            <Container title={title}>
-                {children}
-            </Container>
-            : null
+    const FilteredContainer = ({ type, title, children }: { type: string, title: string, children: React.ReactNode }) => {
+        return (
+            (!(filters.filter(f => f.type === "league").length > 0) || filters.some(x => x.value === type)) ?
+                <Container title={title}>
+                    {children}
+                </Container>
+                : null
         )
     }
- 
+
     return (
         <div className="sports-page">
+            <SEO
+                title="Sports"
+                description="Explore all live sports"
+            />
             <PageHeader
                 title="Browse Sports"
                 subTitle="Explore all live sports games"
@@ -108,7 +113,7 @@ const Sports = () => {
                             onChange={(e) => setSearch(e.target.value)}
                         />
                         <Button onClick={() => open()}>
-                            <FaThLarge /> 
+                            <FaThLarge />
                             Multi-Watch
                         </Button>
                         <div className="quick-filters">
@@ -164,7 +169,7 @@ const Sports = () => {
                     skeleton={<SwiperSkeletonCard className="game-card-skeleton" />}
                 />
             </FilteredContainer>
-            
+
         </div>
     )
 }

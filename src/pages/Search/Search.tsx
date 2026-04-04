@@ -13,6 +13,7 @@ import { Icon } from "../../components/ui/Icon/Icon"
 import { Title } from "../../components/ui/Title/Title"
 import { SearchWithHistory } from "./SearchWithHistoryInput"
 import { Loader } from "../../components/ui/Loader/Loader"
+import { SEO } from "../../components/SEO"
 export type Option = {
     value: TMediaType | "multi";
     label: string;
@@ -51,6 +52,10 @@ const Search = () => {
 
     return (
         <div className="search-page">
+            <SEO
+                title="Search"
+                description="Search movies and TV shows"
+            />
             <PageHeader
                 title="Browse Through The Catalog"
                 subTitle="Search through thousands of movies, TV shows and anime series"

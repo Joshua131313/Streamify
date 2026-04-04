@@ -14,7 +14,6 @@ const Home = () => {
                 title="Home"
                 description="Watch live sports streams on Streamify" 
             />
-            
             <HeroCarousel />
             <RailsContainer />
             <MovieSeriesContainer onlyFeatured />

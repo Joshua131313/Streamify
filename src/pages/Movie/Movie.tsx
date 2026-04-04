@@ -9,7 +9,7 @@ const Movie = ()  => {
 
     return (
         <MediaLayout media={movie!} isLoading={isLoading} error={error} mediaType="movie">
-
+            
         </MediaLayout>
     )
 }
