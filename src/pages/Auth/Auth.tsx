@@ -61,10 +61,10 @@ export const Auth = (props: Props) => {
                         <GoogleIcon />
                         <span>Continue with Google</span>
                     </Button>
-                    <Button className="secondary" onClick={() => handleLoginWithProvider("facebook")}>
+                    {/* <Button className="secondary" onClick={() => handleLoginWithProvider("facebook")}>
                         <FacebookIcon />
                         <span>Continue with Facebook</span>
-                    </Button>
+                    </Button> */}
                 </div>
             </div>
         </Container>
