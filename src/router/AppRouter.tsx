@@ -6,6 +6,7 @@ import { Loader } from "../components/ui/Loader/Loader"
 import { Auth } from "../pages/Auth/Auth";
 import { Login } from "../pages/Auth/Login";
 import { Register } from "../pages/Auth/Register";
+import { useAuthProvider } from "../context/AuthContext";
 
 const Home = lazy(() => import("../pages/Home/Home"));
 const Movie = lazy(() => import("../pages/Movie/Movie"));
@@ -21,10 +22,9 @@ const router = createBrowserRouter([
     element: <AppLayout />,
     children: [
       { path: "/", element: <Home /> },
-
       { path: "search", element: <Search /> },
       { path: "discover", element: <Browse /> },
-      { path: "saved", element: <SavedMedia /> },
+      { path: "saved-media", element: <SavedMedia /> },
       { path: "person/:id", element: <PersonPage /> },
       { path: "sports", element:   <SportsPage />},
     ],
@@ -41,8 +41,12 @@ const router = createBrowserRouter([
 ]);
 
 export const AppRouter = () => {
+  const { loading } = useAuthProvider();
+  if(loading) {
+    return <Loader fullScreen text="Streamify is getting ready..."/>
+  }
   return (
-    <Suspense fallback={<Loader fullScreen text="Streamify is getting ready..."/>}>
+    <Suspense fallback={<Loader fullScreen text="Loading page..."/>}>
         <RouterProvider router={router} />
     </Suspense>
   );

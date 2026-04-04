@@ -1,10 +1,11 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { Container } from "../../components/layout/Container/Container"
 import "./Auth.css"
 import { Button } from "../../components/ui/Button/Button";
 import GoogleIcon from "./GoogleIcon";
 import AppleIcon from "./AppleIcon";
 import { useAuthProvider, type ProviderType } from "../../context/AuthContext";
+import { useEffect } from "react";
 interface Props {
     type: "login" | "register";
     children: React.ReactNode;
@@ -22,7 +23,7 @@ interface Props {
 
 export const Auth = (props: Props) => {
     const { childrenContainerClassName, title, type, onSubmit, header } = props;
-    const { loginWithProvider } = useAuthProvider()
+    const { loginWithProvider, user } = useAuthProvider();
     const navigate = useNavigate();
     const handleLoginWithProvider = async (provider: ProviderType) => {
         try {
@@ -33,8 +34,10 @@ export const Auth = (props: Props) => {
 
         }
     }
+
     return (
         <Container className="auth" styled>
+            {user && <Navigate to={"/"} />}
             <div className="auth-bg">
                 <img src="/images/auth-bg.jpg" />
             </div>

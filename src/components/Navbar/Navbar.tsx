@@ -10,12 +10,6 @@ import { AppNavLink } from "./AppNavLink"
 import { BsBookmarkFill } from "react-icons/bs"
 import { UserIcon } from "../ui/User/UserIcon"
 
-const saved = {
-        path: "/saved",
-        Icon: BsBookmarkFill,
-        label: "Saved",
-        className: "saved",
-}
 const navLinks : {path: string, Icon: IconType, label: string, className: string}[] = [
     {
         path: "/",
@@ -41,7 +35,6 @@ const navLinks : {path: string, Icon: IconType, label: string, className: string
         label: "Sports",
         className: ""
     },
-    saved,
     {
         path: "/search",
         Icon: FaSearch,
@@ -69,12 +62,6 @@ export const Navbar = ()  => {
 
             <NavLinks />
             {/* only shown in mobile navbar */}
-            <AppNavLink 
-                className={saved.className}
-                Icon={saved.Icon}
-                label={saved.label}
-                path={saved.path}
-            />
             <UserIcon />
         </Container>
         <Mobilebar />

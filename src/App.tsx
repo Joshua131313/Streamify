@@ -14,7 +14,7 @@ import { AuthProvider } from './context/AuthContext';
 
 function App() {
   useMouseIdle();
-
+// Add onboarding feature to ask favorite media genre, favorite sports team, 
   return (
     <AuthProvider>
       <AppProvider>

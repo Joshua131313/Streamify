@@ -4,7 +4,7 @@ import { getWatchURL, WatchButton } from "../Button/WatchButton";
 import type { GameProps } from "../../../types/sports/sportsTypes";
 import ExternalGameInfoButton from "../Button/ExternalGameInfoButton";
 import { useContextMenu } from "../../../context/ContextMenu";
-import type { ContextMenuOption } from "../../../types";
+import type { MenuOption } from "../../../types";
 import { FaBell, FaExternalLinkAlt, FaEyeSlash, FaPlay, FaThLarge } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useMultiWatch } from "../../../context/MultiWatchContext";
@@ -28,7 +28,7 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
     const watchURL = getWatchURL({ league: game.leagueName, awayTeamAbbrev: game.awayTeam.abbrev, homeTeamAbbrev: game.homeTeam.abbrev, streamProvider: defaultSportStreamProvider });
     const showPlayButtons = gameIsWatchable(game.startTime, game.status);
 
-    const mediaCardContextOptions: ContextMenuOption[] = [
+    const mediaCardContextOptions: MenuOption[] = [
         ...(showPlayButtons
             ? [
                 {

@@ -1,18 +1,17 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import type { ContextMenuOption } from "../types";
-import "./context.css";
+import type { MenuOption } from "../types";
 
 interface MenuState {
   x: number;
   y: number;
   visible: boolean;
-  options: ContextMenuOption[];
+  options: MenuOption[];
   callerElement: HTMLElement | null;
 }
 
 interface OpenMenuParams {
   e: React.MouseEvent<HTMLElement>;
-  options: ContextMenuOption[];
+  options: MenuOption[];
 }
 
 interface ContextMenuType {
