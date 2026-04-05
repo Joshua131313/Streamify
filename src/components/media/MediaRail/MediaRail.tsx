@@ -1,3 +1,4 @@
+import React from "react";
 import type { TMediaType, TStreamCategories } from "../../../types/tmdb";
 import type { TSwiperVariant } from "../../ui/AppSwiper/AppSwiper";
 import { MediaRailProvider } from "./MediaRailContext";
@@ -11,7 +12,7 @@ interface Props {
     variant?: TSwiperVariant;
 }
 
-export const MediaRail = (props : Props) => {
+const MediaRail = (props : Props) => {
     const { title, category, mediaType, variant = "normal" } = props
 
     return (
@@ -28,3 +29,4 @@ export const MediaRail = (props : Props) => {
         </MediaRailProvider>
     )
 }
+export default React.memo(MediaRail);

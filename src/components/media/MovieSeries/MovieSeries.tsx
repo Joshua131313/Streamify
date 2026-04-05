@@ -1,3 +1,4 @@
+import React from "react";
 import type { TMovieSeriesID } from "../../../data/movie-series";
 import { useMovieCollection } from "../../../hooks/mediaHooks/movieHooks/useMovieColllection";
 import { useTMDBQuery } from "../../../hooks/mediaHooks/tmdbHooks/useTMDBQuery";
@@ -10,7 +11,7 @@ interface Props {
     movieSeriesID: TMovieSeriesID;
 }
 
-export const MovieSeries = (props: Props) => {
+const MovieSeries = (props: Props) => {
     const { movieSeriesID } = props;
     const { movies, seriesBackdropPath, seriesPosterPath } = useMovieCollection(movieSeriesID.id);
     const moviesRow = movies.map(movie => {
@@ -27,3 +28,4 @@ export const MovieSeries = (props: Props) => {
         </Container>
     )
 }
+export default React.memo(MovieSeries);

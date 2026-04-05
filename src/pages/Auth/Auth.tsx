@@ -6,6 +6,7 @@ import GoogleIcon from "./GoogleIcon";
 import { useAuthProvider, type ProviderType } from "../../context/AuthContext";
 import { useEffect } from "react";
 import FacebookIcon from "./FacebookIcon";
+import { Logo } from "../../components/ui/Logo/Logo";
 
 interface Props {
     type: "login" | "register";
@@ -40,7 +41,7 @@ export const Auth = (props: Props) => {
         <Container className="auth" styled>
             {user && <Navigate to={"/"} />}
             <div className="auth-bg">
-                <img src="/images/auth-bg.jpg" />
+                <img className="auth-img" src="/images/auth-bg.jpg" />
             </div>
             <div className={`auth-form ${childrenContainerClassName}`}>
                 <div className="auth-header">

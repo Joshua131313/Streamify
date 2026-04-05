@@ -1,4 +1,4 @@
-import { MediaRail } from "../../../media/MediaRail/MediaRail"
+import MediaRail from "../../../media/MediaRail/MediaRail"
 import "./RailsContainer.css"
 
 export const RailsContainer = () => {

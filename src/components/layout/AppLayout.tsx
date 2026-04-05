@@ -3,6 +3,7 @@ import { Navbar } from "../Navbar/Navbar"
 import { Footer } from "./Footer/Footer"
 import { useScrollToTop } from "../../hooks/utilHooks/useScrollToTop";
 import { Loader } from "../ui/Loader/Loader";
+import { RouteProgress } from "../../router/RouteProgress";
 
 interface Props {
     hideNav?: boolean;
@@ -17,6 +18,8 @@ export const AppLayout = (props: Props) => {
     
     return (
         <>
+            <RouteProgress />
+
             {!hideNav && <Navbar />}
             <Outlet />
             {!hideFooter && <Footer />}

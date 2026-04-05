@@ -1,4 +1,10 @@
 .logo {
     font-size: var(--font-2xl);
     font-weight: bold;
+    display: flex;
+    align-items: center;
+}
+.logo img {
+    width: 40px;
+    height: 40px;
 }

@@ -53,11 +53,12 @@ form button {
 .auth-bg {
     grid-column: 1;
 }
-.auth .auth-bg img {
+.auth .auth-bg .auth-img {
     width: 100%;
     height: 100%;
     border-radius: 20px;
 }
+
 .divider {
     display: flex;
     justify-content: center;

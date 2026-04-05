@@ -229,3 +229,7 @@ details[open] > summary::before {
 .context-option:hover, .dropdown-option:hover {
     background-color: var(--accent-primary);
 }
+#nprogress .bar {
+  background: var(--accent-primary) !important;
+  height: 3px !important;
+}
