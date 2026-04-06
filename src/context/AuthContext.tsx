@@ -102,12 +102,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             }
         }
 
-        // ---------- UPDATE PROFILE IF MISSING ----------
         if (!firebaseUser.displayName && name) {
             await updateProfile(firebaseUser, { displayName: name });
         }
 
-        // ---------- NEW USER → CREATE DB ----------
         if (isNewUser) {
             await createUserDocument(
                 firebaseUser.uid,
@@ -151,6 +149,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const resetPassword = async (email: string) => {
         await sendPasswordResetEmail(auth, email);
     };
+    
 
     return (
         <AuthContext.Provider

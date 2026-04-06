@@ -38,6 +38,7 @@ const Search = () => {
     const { media: trendingToday } = useMixedMedia("/trending/all/day", 20);
     const [option, setOption] = useState<Option>(selectOptions[0]);
     const { executeSearch, setSearch, search, media, hasSearched, isLoading } = useSearchMedia(option.value);
+
     const trendingTodayRow = trendingToday.map(media => {
         return (
             <MediaCard media={media} key={media.id} />
@@ -66,14 +67,6 @@ const Search = () => {
                             value={option}
                             onChange={(opt) => setOption({ label: opt?.label ?? "", value: opt?.value ?? "multi" })}
                         />
-                        {/* <Input
-                            autoFocus
-                            Icon={FaSearch}
-                            placeholder="Type here to search"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && executeSearch()}
-                        /> */}
                         <SearchWithHistory
                             onChange={setSearch}
                             value={search}
@@ -82,27 +75,6 @@ const Search = () => {
                     </>
                 }
             />
-            {/* <Container className="search-container">
-                <div className="search-title">
-                    <h1>Browse Through The Catalog</h1>
-                    <span>Search through thousands of movies, TV shows and anime series</span>
-                </div>
-                <Container className="search-controls" styled>
-                    <StyledSelect<Option, false> 
-                        options={selectOptions}
-                        value={option}
-                        onChange={(opt) => setOption({label: opt?.label ?? "", value: opt?.value ?? "multi"})}
-                    />
-                    <Input 
-                        autoFocus
-                        Icon={FaSearch}
-                        placeholder="Type here to search"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && executeSearch()}
-                    />
-                </Container>
-            </Container> */}
             <Container
                 title={
                     hasSearched

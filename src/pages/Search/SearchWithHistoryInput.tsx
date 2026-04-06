@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { FaSearch } from "react-icons/fa";
 import { Input } from "../../components/ui/Input/Input";
 import "./Search.css";
-import type { SearchMediaHistory } from "../../types/storage";
+import { useSearchHistory } from "../../hooks/storageHooks/useSearchHistory";
+import { FaX } from "react-icons/fa6";
 
 type Props = {
     value: string;
@@ -10,48 +11,31 @@ type Props = {
     onSearch: (value: string) => void;
 };
 
-const HISTORY_KEY = "search-history";
-
 export const SearchWithHistory = ({ value, onChange, onSearch }: Props) => {
 
-    const [history, setHistory] = useState<SearchMediaHistory[]>([]);
+    const { filteredHistory, addSearch, setSearchTerm, deleteSearch } = useSearchHistory();
+
     const [open, setOpen] = useState(false);
     const [highlighted, setHighlighted] = useState<number>(-1);
 
     const wrapperRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        const saved = localStorage.getItem(HISTORY_KEY);
-        if (saved) {
-            setHistory(JSON.parse(saved));
-        }
-    }, []);
-
-    const saveHistory = (term: string) => {
-        const trimmed = term.trim();
-        if (!trimmed) return;
-
-        const updated = [{searchValue: trimmed, timeStamp: new Date()}, ...history.filter(h => h.searchValue !== trimmed)].slice(0, 8);
-
-        setHistory(updated);
-        localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
-    };
+        setSearchTerm(value);
+    }, [value, setSearchTerm]);
 
     const handleSearch = (term: string) => {
         const trimmed = term.trim();
-        if (!trimmed) return;
+        if (trimmed) {
+            addSearch(trimmed);
+        }
 
-        saveHistory(trimmed);
         onChange(trimmed);
         onSearch(trimmed);
 
         setOpen(false);
         setHighlighted(-1);
     };
-
-    const filtered = history.filter(h =>
-        h.searchValue.toLowerCase().includes(value.toLowerCase())
-    );
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -75,20 +59,20 @@ export const SearchWithHistory = ({ value, onChange, onSearch }: Props) => {
         if (e.key === "ArrowDown") {
             e.preventDefault();
             setHighlighted(prev =>
-                prev < filtered.length - 1 ? prev + 1 : 0
+                prev < filteredHistory.length - 1 ? prev + 1 : 0
             );
         }
 
         if (e.key === "ArrowUp") {
             e.preventDefault();
             setHighlighted(prev =>
-                prev > 0 ? prev - 1 : filtered.length - 1
+                prev > 0 ? prev - 1 : filteredHistory.length - 1
             );
         }
 
         if (e.key === "Enter") {
             if (highlighted >= 0) {
-                handleSearch(filtered[highlighted].searchValue);
+                handleSearch(filteredHistory[highlighted].searchValue);
             } else {
                 handleSearch(value);
             }
@@ -112,21 +96,34 @@ export const SearchWithHistory = ({ value, onChange, onSearch }: Props) => {
                 onKeyDown={handleKeyDown}
             />
 
-            {open && filtered.length > 0 && (
+            {open && filteredHistory.length > 0 && (
                 <div className="search-history-dropdown">
 
-                    {filtered.map((item, index) => (
+                    {filteredHistory.map((item, index) => (
                         <div
-                            key={item.searchValue}
-                            className={`search-history-item ${highlighted === index ? "highlighted" : ""
-                                }`}
+                            key={item.id || item.searchValue}
+                            className={`search-history-item ${highlighted === index ? "highlighted" : ""}`}
                             onMouseDown={(e) => {
                                 e.preventDefault();
                                 handleSearch(item.searchValue);
                             }}
                         >
-                            <FaSearch />
+                            <div className="search-icon">
+                                <FaSearch />
+                            </div>
                             <span>{item.searchValue}</span>
+                            <div
+                                className="delete-search"
+                                onMouseDown={(e) => {
+                                    e.stopPropagation();
+                                }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteSearch(item.id, item.searchValue);
+                                }}
+                            >
+                                <FaX />
+                            </div>
                         </div>
                     ))}
 

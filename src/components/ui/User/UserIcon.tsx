@@ -4,6 +4,7 @@ import { Icon } from "../Icon/Icon";
 import { useNavigate } from "react-router-dom";
 import { Dropdown } from "../Dropdown/Dropdown";
 import "./UserIcon.css";
+import { getInitials } from "../../../utils/helpers";
 
 export const UserIcon = () => {
     const { user, logout } = useAuthProvider();
@@ -61,10 +62,20 @@ export const UserIcon = () => {
     return (
         <Dropdown
             dropdownOptions={isLoggedIn ? loggedInOptions : guestOptions}
-            title={isLoggedIn ? "Profile" : "Guest"}
+            title={isLoggedIn ? (user.name ?? "Profile") : "Guest"}
+            subTitle={isLoggedIn ? (user.email ?? "") : ""}
             className="user-icon"
         >
-            <Icon Icon={FaUser} />
+            {
+                user?.image ? (
+                    <img src={user.image} alt="user" className="user-img" />
+                ) : user?.name ? (
+                    <span className="user-initials">{getInitials(user.name)}</span>
+                ) : (
+                    <Icon Icon={FaUser} />
+                )
+            }
+            {/* <Icon Icon={FaUser} /> */}
         </Dropdown>
     );
 };

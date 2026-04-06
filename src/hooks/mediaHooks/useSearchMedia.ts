@@ -21,7 +21,10 @@ export const useSearchMedia = (
     const executeSearch = (term?: string) => {
         const final = (term ?? bufferedSearch).trim()
 
-        if (!final) return
+        if (!final) {
+            setHasSearched(false);
+            return
+        }
 
         // 🟢 Prevent duplicate searches
         if (final === searchQuery) return

@@ -13,10 +13,18 @@
     width: 200px;
     transform: translateY(10px);
 }
-.dropdown-content strong {
+.dropdown-content .dropdown-header {
     padding: 10px;
     border-bottom: solid 1px var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
 }
+.dropdown-header small {
+    color: var(--text-muted);
+    font-size: var(--font-xs);
+}
+
 .dropdown-options {
     display: flex;
     flex-direction: column;

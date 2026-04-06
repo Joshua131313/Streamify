@@ -6,12 +6,13 @@ interface Props {
     children: React.ReactNode;
     dropdownOptions: MenuOption[];
     title: string;
+    subTitle?: string;
     className?: string;
 }
 
 
 export const Dropdown = (props: Props) => {
-    const { title, dropdownOptions, className } = props;
+    const { title, subTitle, dropdownOptions, className } = props;
     const menuRef = useRef<HTMLDivElement | null>(null);
     const [dropdown, setDropdown] = useState(false);
 
@@ -19,6 +20,7 @@ export const Dropdown = (props: Props) => {
         return (
             <div className="dropdown-option" onClick={() => {
                 option.onClick();
+                setDropdown(false)
             }}>
                 <option.icon />
                 <span>{option.value}</span>
@@ -49,7 +51,10 @@ export const Dropdown = (props: Props) => {
             {
                 dropdown &&
                 <div className="dropdown-content">
-                    <strong >{title}</strong>
+                    <div className="dropdown-header">
+                        <strong >{title}</strong>
+                        <small >{subTitle}</small>
+                    </div>
                     <div className="dropdown-options">
                         {dropdownOptionsRow}
                     </div>
