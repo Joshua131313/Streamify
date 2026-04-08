@@ -40,7 +40,6 @@ export type TMDBRawShow = {
   vote_average: number;
   vote_count: number;
   media_type: TMediaType;
-  // Detail endpoint extras
   created_by?: {
     id: number;
     credit_id: string;
@@ -96,7 +95,6 @@ export const TMDBNullShow: TMDBRawShow = {
   vote_average: 0,
   vote_count: 0,
 
-  // Detail endpoint extras
   created_by: [],
   episode_run_time: [],
   homepage: null,

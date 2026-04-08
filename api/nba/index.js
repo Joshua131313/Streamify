@@ -44,7 +44,6 @@ export default async function handler(req, res) {
 
                 broadcasts: comp.broadcasts?.map(b => b.names?.[0]),
 
-                // 🔥 ADD THIS
                 gameLink: event.links?.[0]?.href || null
             };
         });

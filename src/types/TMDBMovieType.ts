@@ -4,22 +4,21 @@ import type { TMDBLogo, TMDBMediaCredits, TMDBMovieMedia, TMDBVideo } from "./TM
 export type TMDBRawMovie = {
   adult: boolean;
   backdrop_path: string | null;
-  genre_ids?: number[]; // Present in list results
-  genres?: { id: number; name: string }[]; // Present in detail results
+  genre_ids?: number[];
+  genres?: { id: number; name: string }[]; 
   id: number;
   original_language: string;
   original_title: string;
   overview: string;
   popularity: number;
   poster_path: string | null;
-  release_date: string; // format: YYYY-MM-DD
+  release_date: string; 
   title: string;
   video?: boolean;
   vote_average: number;
   vote_count: number;
   media_type: TMediaType;
 
-  // Detail endpoint extras
   budget?: number;
   homepage?: string | null;
   imdb_id?: string | null;
@@ -67,7 +66,6 @@ export const TMDBNullMovie: TMDBRawMovie = {
   vote_average: 0,
   vote_count: 0,
 
-  // Detail endpoint extras
   budget: 0,
   homepage: null,
   imdb_id: null,

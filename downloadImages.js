@@ -47,8 +47,8 @@ const downloadAndCompress = (name, url) => {
           const filePath = path.join(folder, `${name}.jpg`);
 
           await sharp(buffer)
-            .resize({ width: 1920 }) // 🔥 key part (resize)
-            .jpeg({ quality: 75 })   // 🔥 compress quality
+            .resize({ width: 1920 }) 
+            .jpeg({ quality: 75 })   
             .toFile(filePath);
 
           console.log(`Optimized: ${name}.jpg`);

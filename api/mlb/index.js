@@ -15,7 +15,7 @@ export default async function handler(req, res) {
 
       if (!home || !away) return null;
 
-      // 🔥 Extract inning half
+
       const detail = event.status?.type?.detail || "";
       const lower = detail.toLowerCase();
 
@@ -37,12 +37,12 @@ export default async function handler(req, res) {
         clock: event.status.displayClock,
 
         period: {
-          current: event.status.period, // inning number
+          current: event.status.period,
           type: event.status.type.name,
           inningHalf,
           isHalftime: false
         },
-        // 🔥 Optional nice display (can remove if not needed)
+
         inningDisplay:
           inningHalf && event.status.period
             ? `${inningHalf.charAt(0).toUpperCase() + inningHalf.slice(1)} ${event.status.period}`

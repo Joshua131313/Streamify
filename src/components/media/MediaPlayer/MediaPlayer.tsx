@@ -42,13 +42,11 @@ export const MediaPlayer = ({ modal = true }: { modal?: boolean }) => {
         return `https://vidsrc-embed.ru/embed/${mediaType}/${media.id}?autoplay=1&color-D81F26`;
     };
 
-    // ✅ SAVE HISTORY BASED ON URL
     useEffect(() => {
         const season = searchParams.get("season");
         const episode = searchParams.get("episode");
         const hasPlay = searchParams.has("play");
 
-        // 🎬 MOVIE
         if (mediaType === "movie") {
             if (hasPlay && !prevRef.current.play) {
                 prevRef.current.play = true;
@@ -62,7 +60,6 @@ export const MediaPlayer = ({ modal = true }: { modal?: boolean }) => {
             return;
         }
 
-        // 📺 TV
         if (
             season === prevRef.current.season &&
             episode === prevRef.current.episode
@@ -86,7 +83,6 @@ export const MediaPlayer = ({ modal = true }: { modal?: boolean }) => {
         }
     }, [searchParams, media.id, mediaType, saveHistory]);
 
-    // 🎮 PLAYER EVENTS (NO SAVING HERE)
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
             let data: any;
@@ -129,7 +125,7 @@ export const MediaPlayer = ({ modal = true }: { modal?: boolean }) => {
         <AppPlayer
             cancelPlay={cancelPlay}
             modal={modal}
-            src={getMediaSrc()} // ✅ stable
+            src={getMediaSrc()} 
         >
             <YouAreWatching />
             {mediaType === "tv" && <EpisodeSelector />}

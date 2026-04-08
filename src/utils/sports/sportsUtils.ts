@@ -38,23 +38,16 @@ export const mapESPNStatus = (
 ): GameStatus => {
     const normalized = status.toLowerCase();
 
-    // =====================
-    // 🔥 PRIORITY: STATE (most reliable when correct)
-    // =====================
     if (state === "in") return "LIVE";
     if (state === "post") return "FINAL";
 
-    // =====================
-    // 🔥 TEXT-BASED (ESPN description)
-    // =====================
+
     if (normalized.includes("progress")) return "LIVE";
     if (normalized.includes("halftime")) return "HALFTIME";
     if (normalized.includes("end of")) return "LIVE";
     if (normalized.includes("final")) return "FINAL";
 
-    // =====================
-    // 🔥 TIME-BASED (PRE vs FUT)
-    // =====================
+
     const gameTime = DateTime.fromISO(date);
     const now = DateTime.now();
 

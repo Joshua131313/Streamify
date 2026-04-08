@@ -30,23 +30,21 @@ export interface IMLBGame {
 
     date: string;
 
-    venue?: string | null; // 🔥 matches backend (string, not object)
+    venue?: string | null; 
 
     status: string;
     state?: "pre" | "in" | "post";
 
     clock?: string;
 
-    // 🔥 UPDATED (was inning → now period)
     period: MLBPeriod;
 
-    // 🔥 UI-ready string
     inningDisplay?: string | null;
 
     homeTeam: MLBTeam;
     awayTeam: MLBTeam;
 
-    broadcasts?: string[]; // 🔥 matches backend (array of strings now)
+    broadcasts?: string[]; 
 
     gameLink?: string | null;
 }

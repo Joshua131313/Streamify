@@ -21,12 +21,10 @@ export const PlayButton = (props: Props) => {
     const playUrl = () => {
         const base = `/${mediaType}/${mediaId}?play`;
 
-        // 🎬 MOVIE
         if (mediaType === "movie") {
             return base;
         }
 
-        // 📺 TV
         const history = getHistoryItem(mediaId, "tv");
 
         const season = history?.season ?? 1;

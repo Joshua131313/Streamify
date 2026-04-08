@@ -9,7 +9,6 @@ export const mapStatus = (status: string, date: string): GameStatus => {
   if (status === "End of Period") return "LIVE";
   if (status === "Final") return "FINAL";
 
-  // Scheduled → decide PRE or FUT
   const gameTime = DateTime.fromISO(date);
   const now = DateTime.now();
 
@@ -23,7 +22,6 @@ export const mapStatus = (status: string, date: string): GameStatus => {
 };
 
 export const mapNBAToGameProps = (game: INBAGame): GameProps => {
-  // safer title (use abbreviations if available)
   const title = `${game.homeTeam.name} vs ${
     game.awayTeam.name
   }`;
@@ -34,24 +32,22 @@ export const mapNBAToGameProps = (game: INBAGame): GameProps => {
     title,
     startTime: game.date,
 
-    // 🔥 use backend status (don’t recompute)
     status: mapESPNStatus(game.status, game.date),
 
     homeTeam: {
       name: game.homeTeam.name,
       logo: game.homeTeam.logo,
-      score: game.homeTeam.score, // ✅ include score
+      score: game.homeTeam.score, 
       abbrev: game.homeTeam.abbreviation
     },
 
     awayTeam: {
       name: game.awayTeam.name,
       logo: game.awayTeam.logo,
-      score: game.awayTeam.score, // ✅ include score
+      score: game.awayTeam.score,
       abbrev: game.awayTeam.abbreviation
     },
 
-    // 🔥 real live info
     periodNumber: game.period?.type === "OT"
       ? "OT"
       : game.period?.current

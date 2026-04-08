@@ -28,7 +28,6 @@ export const mapNHLToGameProps = (game: INHLGame): GameProps => {
 
     gameLink: game.gameLink ?? "",
 
-    // 🔥 clean period handling
     period: game.period.type,
     periodNumber: `P${game.period.current}`,
     clock: game.clock,

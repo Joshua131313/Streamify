@@ -32,11 +32,9 @@ export const getWatchURL = ({
     params.set("provider", streamProvider);
 
     if (isTV) {
-        // 📺 TV mode
         if (channel) params.set("channel", channel);
         params.set("tv", "1");
     } else {
-        // 🎮 Game mode
         if (league) params.set("league", league);
         if (awayTeamAbbrev) params.set("away", awayTeamAbbrev);
         if (homeTeamAbbrev) params.set("home", homeTeamAbbrev);

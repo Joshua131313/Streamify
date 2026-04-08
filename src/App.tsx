@@ -45,7 +45,6 @@ const UIProviders = ({ children }: { children: React.ReactNode }) => {
 
 function App() {
   useMouseIdle();
-  // Add onboarding feature to ask favorite media genre, favorite sports team, 
   return (
     <AuthProvider>
       <HelmetProvider>
