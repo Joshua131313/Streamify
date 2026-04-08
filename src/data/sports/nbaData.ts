@@ -58,7 +58,7 @@ export const nbaTeamsMap = {
   ORL: { abbreviation: "ORL", teamName: "Orlando Magic", id: "orlando-magic", logo: "https://cdn.nba.com/logos/nba/1610612753/global/L/logo.svg", conference: "East", division: "Southeast" },
   PHI: { abbreviation: "PHI", teamName: "Philadelphia 76ers", id: "philadelphia-76-ers", logo: "https://cdn.nba.com/logos/nba/1610612755/global/L/logo.svg", conference: "East", division: "Atlantic" },
   TOR: { abbreviation: "TOR", teamName: "Toronto Raptors", id: "toronto-raptors", logo: "https://cdn.nba.com/logos/nba/1610612761/global/L/logo.svg", conference: "East", division: "Atlantic" },
-  WAS: { abbreviation: "WAS", teamName: "Washington Wizards", id: "washington-wizards", logo: "https://cdn.nba.com/logos/nba/1610612764/global/L/logo.svg", conference: "East", division: "Southeast" },
+  WSH: { abbreviation: "WSH", teamName: "Washington Wizards", id: "washington-wizards", logo: "https://cdn.nba.com/logos/nba/1610612764/global/L/logo.svg", conference: "East", division: "Southeast" },
 
   DAL: { abbreviation: "DAL", teamName: "Dallas Mavericks", id: "dallas-mavericks", logo: "https://cdn.nba.com/logos/nba/1610612742/global/L/logo.svg", conference: "West", division: "Southwest" },
   DEN: { abbreviation: "DEN", teamName: "Denver Nuggets", id: "denver-nuggets", logo: "https://cdn.nba.com/logos/nba/1610612743/global/L/logo.svg", conference: "West", division: "Northwest" },

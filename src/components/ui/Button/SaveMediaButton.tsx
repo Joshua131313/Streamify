@@ -1,35 +1,26 @@
-import { Icon } from "../Icon/Icon"
-import type { TMDBMedia } from "../../../types/TMDBMediaType"
-import { useLocalStorage } from "../../../hooks/utilHooks/useLocalStorage"
-import { BsBookmark, BsBookmarkFill } from "react-icons/bs"
-import { useEffect, useState } from "react"
+import { Icon } from "../Icon/Icon";
+import type { TMDBMedia } from "../../../types/TMDBMediaType";
+import { BsBookmark, BsBookmarkFill } from "react-icons/bs";
+import { useSavedMediaContext } from "../../../context/SavedMediaContext";
 
+export const SaveMediaButton = ({ media }: { media: TMDBMedia }) => {
+    const { isSaved, addMedia, removeMedia } = useSavedMediaContext();
 
-export const SaveMediaButton = ({media} : {media: TMDBMedia}) => {
-    const { has, remove, append } = useLocalStorage();
-    const [isSaved, setIsSaved] = useState(false);
+    const saved = isSaved(media);
 
     const handleClick = () => {
-        if(isSaved) {
-            setIsSaved(false);
-            remove<TMDBMedia>("savedMedia", (m) => m.id === media.id);
+        if (saved) {
+            removeMedia(media);
+        } else {
+            addMedia(media);
         }
-        else {
-            setIsSaved(true);
-            append("savedMedia", media);
-        }
-    }
-
-    useEffect(()=> {
-        setIsSaved(has<TMDBMedia>("savedMedia", media, (m) => m.id === media.id));
-    }, [media.id])
-
+    };
 
     return (
-        <Icon 
+        <Icon
             className="save-media-button"
-            Icon={isSaved ? BsBookmarkFill : BsBookmark} 
+            Icon={saved ? BsBookmarkFill : BsBookmark}
             onClick={handleClick}
         />
-    )
-}
+    );
+};

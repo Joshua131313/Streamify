@@ -12,29 +12,54 @@ import { WindowManagerProvider } from './context/WindowManagerContext';
 import { WindowRenderer } from './components/ui/Window/WindowRenderer';
 import { AuthProvider } from './context/AuthContext';
 import { HelmetProvider } from 'react-helmet-async';
+import { WatchHistoryProvider } from './context/WatchHistoryContext';
+import { SavedMediaProvider } from './context/SavedMediaContext';
+import { SearchHistoryProvider } from './context/SearchHistoryContext';
+
+
+export const DataProviders = ({ children }: { children: React.ReactNode }) => {
+  return (
+    <SavedMediaProvider>
+      <SearchHistoryProvider>
+        <WatchHistoryProvider>
+          {children}
+        </WatchHistoryProvider>
+      </SearchHistoryProvider>
+    </SavedMediaProvider>
+  );
+};
+
+const UIProviders = ({ children }: { children: React.ReactNode }) => {
+  return (
+    <ContextMenuProvider>
+      <WindowManagerProvider>
+        <MultiWatchProvider>
+          <SportsProvider>
+            {children}
+          </SportsProvider>
+        </MultiWatchProvider>
+      </WindowManagerProvider>
+    </ContextMenuProvider>
+  );
+};
 
 function App() {
   useMouseIdle();
   // Add onboarding feature to ask favorite media genre, favorite sports team, 
   return (
     <AuthProvider>
-      <AppProvider>
-        <ContextMenuProvider>
-          <WindowManagerProvider>
-            <MultiWatchProvider>
-              <SportsProvider>
-                <WindowRenderer />
-                {/* fake body container to allow windows to be "position fixed" */}
-                <HelmetProvider>
-                  <div className="body">
-                    <AppRouter />
-                  </div>
-                </HelmetProvider>
-              </SportsProvider>
-            </MultiWatchProvider>
-          </WindowManagerProvider>
-        </ContextMenuProvider>
-      </AppProvider>
+      <HelmetProvider>
+        <AppProvider>
+          <DataProviders>
+            <UIProviders>
+              <WindowRenderer />
+              <div className="body">
+                <AppRouter />
+              </div>
+            </UIProviders>
+          </DataProviders>
+        </AppProvider>
+      </HelmetProvider>
     </AuthProvider>
   )
 }

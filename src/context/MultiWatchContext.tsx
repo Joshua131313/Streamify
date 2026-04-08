@@ -7,6 +7,7 @@ import {
 } from "react";
 import { DefaultGameProps, type GameProps } from "../types/sports/sportsTypes";
 import { useLocalStorage } from "../hooks/utilHooks/useLocalStorage";
+import { gameIsWatchable } from "../utils/sports/sportsUtils";
 
 interface MultiWatchContextType {
     multiWatch: GameProps[];
@@ -21,7 +22,7 @@ const MultiWatchContext = createContext<MultiWatchContextType | null>(null);
 
 export const MultiWatchProvider = ({ children }: { children: ReactNode }) => {
     const [multiWatch, setMultiWatch] = useState<GameProps[]>([]);
-    const { append, remove, get, clear } = useLocalStorage();
+    const { append, remove, set, clear, get } = useLocalStorage();
 
     const clearMultiWatch = () => {
         setMultiWatch([]);
@@ -57,13 +58,37 @@ export const MultiWatchProvider = ({ children }: { children: ReactNode }) => {
             addGameToMultiWatch(game);
         }
     };
+    
+    useEffect(() => {
+        const games = get<GameProps[]>("multi-watch", []);
+
+        const validGames = games.filter(g =>
+            gameIsWatchable(g.startTime, g.status)
+        );
+
+        if (validGames.length !== games.length) {
+            set("multi-watch", validGames);
+        }
+
+        setMultiWatch(validGames);
+    }, []);
 
     useEffect(() => {
-        const games = get("multi-watch", [DefaultGameProps]);
+        const interval = setInterval(() => {
+            setMultiWatch(prev => {
+                const valid = prev.filter(g =>
+                    gameIsWatchable(g.startTime, g.status)
+                );
 
-        if (games[0]?.id !== undefined) {
-            setMultiWatch(games);
-        }
+                if (valid.length !== prev.length) {
+                    set("multi-watch", valid); 
+                }
+
+                return valid;
+            });
+        }, 60000);
+
+        return () => clearInterval(interval);
     }, []);
 
     return (

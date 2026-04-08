@@ -165,7 +165,6 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
                     <StatusBadge />
                 </div>
 
-                {/* 🔥 Logos + Score */}
                 <div className="logos">
                     <div className="team">
                         <img src={game.homeTeam.logo} alt={game.homeTeam.name} />
@@ -190,7 +189,6 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
                 </div>
             </div>
 
-            {/* 🔥 Watch button */}
             <div className={`game-card-buttons ${!showPlayButtons ? "single" : ""}`}>
                 <ExternalGameInfoButton url={game.gameLink} />
                 {

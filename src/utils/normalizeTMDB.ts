@@ -23,7 +23,7 @@ export function normalizeMovie(movie: TMDBRawMovie): TMDBMovieMedia {
     overview: movie.overview,
     popularity: movie.popularity,
     poster_path: movie.poster_path,
-    vote_average: parseFloat(movie.vote_average.toFixed(1)),
+    vote_average: parseFloat(movie.vote_average?.toFixed(1)),
     vote_count: movie.vote_count,
 
     // ─── Unified convenience fields ─────────
@@ -71,7 +71,7 @@ export function normalizeShow(show: TMDBRawShow): TMDBShowMedia {
     overview: show.overview,
     popularity: show.popularity,
     poster_path: show.poster_path,
-    vote_average: parseFloat(show.vote_average.toFixed(1)),
+    vote_average: parseFloat(show.vote_average?.toFixed(1)),
     vote_count: show.vote_count,
 
     // ─── Unified convenience fields ─────────
