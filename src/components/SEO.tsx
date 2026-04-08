@@ -9,7 +9,7 @@ type SEOProps = {
 export const SEO = ({ title, description }: SEOProps) => {
     console.log(title)
     return (
-        <Helmet title={title + " | Streamify"}>
+        <Helmet title={title === "Home" ? "Streamify" : title + " | Streamify"}>
             {description && <meta name="description" content={description} />}
         </Helmet>
     );
