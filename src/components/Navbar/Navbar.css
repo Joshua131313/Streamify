@@ -1,12 +1,13 @@
 .navbar {
-    padding-top: 20px;
-    padding-bottom: 29px;
-    position: absolute;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    position: fixed;
     top: 0;
     width: 100%;
     z-index: 100;
     left: 50%;
     transform: translateX(-50%);
+    backdrop-filter: blur(5px);
 }
 
 .navbar .container-content > .saved {
@@ -50,7 +51,7 @@
 
 .mobile-bar {
     position: fixed;
-    bottom: 2px;
+    bottom:  calc(2px + env(safe-area-inset-bottom));
     z-index: 100;
     background: rgba(20, 20, 20, 0.7);
     backdrop-filter: blur(12px);
@@ -64,7 +65,9 @@
     transform: translateX(-50%);
     border-radius: 40px;
 }
-
+.pwa .mobile-bar {
+    bottom:  calc(15px + env(safe-area-inset-bottom));  
+}
 .mobile-bar .nav-links {
     display: flex;
     justify-content: space-evenly;
