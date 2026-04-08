@@ -44,7 +44,11 @@ const UIProviders = ({ children }: { children: React.ReactNode }) => {
 };
 
 function App() {
+  const isPWA = window.matchMedia('(display-mode: standalone)').matches;
   useMouseIdle();
+  useEffect(() => {
+    document.body.classList.toggle('pwa', isPWA);
+  }, [])
   return (
     <AuthProvider>
       <HelmetProvider>
