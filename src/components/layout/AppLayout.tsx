@@ -13,7 +13,6 @@ interface Props {
 
 export const AppLayout = (props: Props) => {
     const { hideNav, hideFooter } = props;
-                    ;
 
     useScrollToTop();
     

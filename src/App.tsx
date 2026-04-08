@@ -15,6 +15,7 @@ import { HelmetProvider } from 'react-helmet-async';
 import { WatchHistoryProvider } from './context/WatchHistoryContext';
 import { SavedMediaProvider } from './context/SavedMediaContext';
 import { SearchHistoryProvider } from './context/SearchHistoryContext';
+import { usePWA } from './hooks/utilHooks/usePWA';
 
 
 export const DataProviders = ({ children }: { children: React.ReactNode }) => {
@@ -44,11 +45,9 @@ const UIProviders = ({ children }: { children: React.ReactNode }) => {
 };
 
 function App() {
-  const isPWA = window.matchMedia('(display-mode: standalone)').matches;
   useMouseIdle();
-  useEffect(() => {
-    document.body.classList.toggle('pwa', isPWA);
-  }, [])
+  usePWA();
+  
   return (
     <AuthProvider>
       <HelmetProvider>
