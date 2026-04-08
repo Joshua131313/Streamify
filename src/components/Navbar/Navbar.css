@@ -50,7 +50,7 @@
 
 .mobile-bar {
     position: fixed;
-    bottom: 2px;
+    bottom:  calc(2px + env(safe-area-inset-bottom));
     z-index: 100;
     background: rgba(20, 20, 20, 0.7);
     backdrop-filter: blur(12px);
