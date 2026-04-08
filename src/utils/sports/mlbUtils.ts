@@ -8,15 +8,12 @@ export const mapMLBStatus = (
   date: string,
   state?: string
 ): GameStatus => {
-  // 🔥 best source
   if (state === "in") return "LIVE";
   if (state === "post") return "FINAL";
 
-  // fallback
   if (status === "In Progress") return "LIVE";
   if (status === "Final") return "FINAL";
 
-  // time-based
   const gameTime = DateTime.fromISO(date);
   const now = DateTime.now();
 
@@ -53,7 +50,6 @@ export const mapMLBToGameProps = (game: IMLBGame): GameProps => {
       abbrev: game.awayTeam.abbreviation
     },
 
-    // 🔥 MLB display logic
     periodNumber: game.period.current.toString(),
 
     clock: game.period.inningHalf?.toString(),

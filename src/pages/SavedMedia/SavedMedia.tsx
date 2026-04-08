@@ -6,33 +6,33 @@ import { useLocalStorage } from "../../hooks/utilHooks/useLocalStorage";
 import type { TMDBMedia } from "../../types/TMDBMediaType";
 import { MediaCard } from "../../components/ui/MediaCard/MediaCard";
 import "./SavedMedia.css"
+import { useSavedMediaContext } from "../../context/SavedMediaContext";
 
 const SavedMedia = () => {
 
-    const { get } = useLocalStorage();
-    const savedMedia = get<TMDBMedia[]>("savedMedia", []);
+    const { savedMedia } = useSavedMediaContext();
     const [searchParams] = useSearchParams();
     const urlGenre = searchParams.get("genre");
 
-    const filteredMedia = urlGenre 
+    const filteredMedia = urlGenre
         ? savedMedia.filter(m => m.genre_ids?.includes(Number(urlGenre)))
         : savedMedia;
 
     return (
         <div className="saved-media-page">
-            <PageHeader 
+            <PageHeader
                 title="Saved Media"
                 subTitle="Browse all saved for later movies and TV shows"
                 controls={
                     <>
-                        <GenreFilter mediaType="all" includeAll/>
+                        <GenreFilter mediaType="all" includeAll />
                     </>
                 }
             />
             <Container className="media-grid">
                 {
                     filteredMedia.map(m => (
-                        <MediaCard key={m.id} media={m}/>
+                        <MediaCard key={m.id} media={m} />
                     ))
                 }
             </Container>

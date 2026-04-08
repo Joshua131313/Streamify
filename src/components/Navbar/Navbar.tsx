@@ -64,7 +64,6 @@ export const Navbar = ()  => {
             {/* only shown in mobile navbar */}
             <UserIcon />
         </Container>
-        <Mobilebar />
         </>
     )
 }

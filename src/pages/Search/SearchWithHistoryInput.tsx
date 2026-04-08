@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { FaSearch } from "react-icons/fa";
 import { Input } from "../../components/ui/Input/Input";
 import "./Search.css";
-import { useSearchHistory } from "../../hooks/storageHooks/useSearchHistory";
 import { FaX } from "react-icons/fa6";
+import { timeAgo } from "../../utils/helpers";
+import { useSearchHistoryContext } from "../../context/SearchHistoryContext";
 
 type Props = {
     value: string;
@@ -13,7 +14,7 @@ type Props = {
 
 export const SearchWithHistory = ({ value, onChange, onSearch }: Props) => {
 
-    const { filteredHistory, addSearch, setSearchTerm, deleteSearch } = useSearchHistory();
+    const { filteredHistory, addSearch, setSearchTerm, deleteSearch } = useSearchHistoryContext();
 
     const [open, setOpen] = useState(false);
     const [highlighted, setHighlighted] = useState<number>(-1);
@@ -101,7 +102,7 @@ export const SearchWithHistory = ({ value, onChange, onSearch }: Props) => {
 
                     {filteredHistory.map((item, index) => (
                         <div
-                            key={item.id || item.searchValue}
+                            key={item.searchValue}
                             className={`search-history-item ${highlighted === index ? "highlighted" : ""}`}
                             onMouseDown={(e) => {
                                 e.preventDefault();
@@ -111,7 +112,10 @@ export const SearchWithHistory = ({ value, onChange, onSearch }: Props) => {
                             <div className="search-icon">
                                 <FaSearch />
                             </div>
-                            <span>{item.searchValue}</span>
+                            <div className="search-item-content">
+                                <span>{item.searchValue}</span>
+                                <small>{timeAgo(item.timeStamp, "full")}</small>
+                            </div>
                             <div
                                 className="delete-search"
                                 onMouseDown={(e) => {
@@ -119,7 +123,7 @@ export const SearchWithHistory = ({ value, onChange, onSearch }: Props) => {
                                 }}
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    deleteSearch(item.id, item.searchValue);
+                                    deleteSearch(item.searchValue);
                                 }}
                             >
                                 <FaX />

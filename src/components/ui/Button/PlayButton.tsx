@@ -1,10 +1,10 @@
-import { FaPlay } from "react-icons/fa"
-import { Button } from "./Button"
+import { FaPlay } from "react-icons/fa";
+import { Button } from "./Button";
 import type { TMediaType } from "../../../types/tmdb";
 import { Link } from "react-router-dom";
-import { useLocalStorage } from "../../../hooks/utilHooks/useLocalStorage";
 import { Icon } from "../Icon/Icon";
-import type { ShowHistory } from "../../../types/storage";
+import { useWatchHistory } from "../../../hooks/storageHooks/useWatchHistory";
+import { useWatchHistoryContext } from "../../../context/WatchHistoryContext";
 
 interface Props {
     mediaType: TMediaType;
@@ -13,34 +13,36 @@ interface Props {
     className?: string;
 }
 
-export const PlayButton = (props : Props) => {
+export const PlayButton = (props: Props) => {
     const { mediaType, mediaId, variant = "button", className } = props;
-    const { get } = useLocalStorage();
-    
+
+    const { getHistoryItem } = useWatchHistoryContext();
+
     const playUrl = () => {
-        const base = `/${mediaType}/${mediaId}?play`
-        if(mediaType === "movie") {
+        const base = `/${mediaType}/${mediaId}?play`;
+
+        if (mediaType === "movie") {
             return base;
         }
-        else {
-            const showHistory = get<ShowHistory[]>("show-history", []);
-            const lastEpisode = showHistory.find(x => x.showId === mediaId) ?? {episode: 1, season: 1};
-            return base + `&season=${lastEpisode?.season}&episode=${lastEpisode?.episode}`
-        }
-    }
+
+        const history = getHistoryItem(mediaId, "tv");
+
+        const season = history?.season ?? 1;
+        const episode = history?.episode ?? 1;
+
+        return `${base}&season=${season}&episode=${episode}`;
+    };
 
     return (
         <Link to={playUrl()} className={`play-button ${className}`}>
-            {variant === "button" ?
+            {variant === "button" ? (
                 <Button className="play-button">
                     <FaPlay />
                     Play
                 </Button>
-                :
-                <Icon 
-                    Icon={FaPlay}
-                />
-            }
+            ) : (
+                <Icon Icon={FaPlay} />
+            )}
         </Link>
-    )
-}
+    );
+};

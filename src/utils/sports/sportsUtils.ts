@@ -38,23 +38,16 @@ export const mapESPNStatus = (
 ): GameStatus => {
     const normalized = status.toLowerCase();
 
-    // =====================
-    // 🔥 PRIORITY: STATE (most reliable when correct)
-    // =====================
     if (state === "in") return "LIVE";
     if (state === "post") return "FINAL";
 
-    // =====================
-    // 🔥 TEXT-BASED (ESPN description)
-    // =====================
+
     if (normalized.includes("progress")) return "LIVE";
     if (normalized.includes("halftime")) return "HALFTIME";
     if (normalized.includes("end of")) return "LIVE";
     if (normalized.includes("final")) return "FINAL";
 
-    // =====================
-    // 🔥 TIME-BASED (PRE vs FUT)
-    // =====================
+
     const gameTime = DateTime.fromISO(date);
     const now = DateTime.now();
 
@@ -115,34 +108,40 @@ export const filterGames = (
 ): GameProps[] => {
     const searchNormalized = search.toLowerCase().trim();
 
-    if(filters.length == 0) return games;
-
-    return games.filter(game => {
-        // 🔍 SEARCH
+    const filtered = games.filter(game => {
         const matchesSearch =
             !searchNormalized ||
             game.title.toLowerCase().includes(searchNormalized) ||
             game.homeTeam.name.toLowerCase().includes(searchNormalized) ||
             game.awayTeam.name.toLowerCase().includes(searchNormalized);
 
-        // 🎯 STATUS FILTER
+        if (filters.length === 0) {
+            return matchesSearch;
+        }
+
         const statusFilters = filters.filter(f => f.type === "status");
+
         const matchesStatus =
             statusFilters.length === 0 ||
             statusFilters.some(f => {
                 if (f.value === "LIVE") {
-                    return game.status === "LIVE" || game.status === "HALFTIME"
+                    return game.status === "LIVE" || game.status === "HALFTIME";
                 }
-                return game.status === f.value
+                return game.status === f.value;
             });
 
-
-        // ✅ FINAL RESULT
         return matchesSearch && matchesStatus;
     });
+
+    return filtered.sort((a, b) => {
+        const isAFinished = a.status === "FINAL";
+        const isBFinished = b.status === "FINAL";
+
+        if (isAFinished && !isBFinished) return 1;  
+        if (!isAFinished && isBFinished) return -1; 
+        return 0;
+    });
 };
-
-
 export const gameIsWatchable = (startTime: string, gameStatus: GameStatus): boolean => {
     const now = Date.now();
     const gameTime = new Date(startTime).getTime();

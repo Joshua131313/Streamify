@@ -13,7 +13,6 @@ export function normalizeMovie(movie: TMDBRawMovie): TMDBMovieMedia {
   return {
     mediaType: "movie",
 
-    // ─── Common ─────────────────────────────
     adult: movie.adult,
     backdrop_path: movie.backdrop_path,
     genre_ids: movie.genre_ids,
@@ -23,16 +22,14 @@ export function normalizeMovie(movie: TMDBRawMovie): TMDBMovieMedia {
     overview: movie.overview,
     popularity: movie.popularity,
     poster_path: movie.poster_path,
-    vote_average: parseFloat(movie.vote_average.toFixed(1)),
+    vote_average: parseFloat(movie.vote_average?.toFixed(1)),
     vote_count: movie.vote_count,
 
-    // ─── Unified convenience fields ─────────
     title: movie.title,
     original_title: movie.original_title,
     date: movie.release_date,
     videos: movie.videos?.results,
     credits: movie.credits,
-    // ─── Movie-only ─────────────────────────
     video: movie.video,
     release_date: movie.release_date,
 
@@ -61,7 +58,6 @@ export function normalizeShow(show: TMDBRawShow): TMDBShowMedia {
   return {
     mediaType: "tv",
 
-    // ─── Common ─────────────────────────────
     adult: show.adult,
     backdrop_path: show.backdrop_path,
     genre_ids: show.genre_ids,
@@ -71,16 +67,14 @@ export function normalizeShow(show: TMDBRawShow): TMDBShowMedia {
     overview: show.overview,
     popularity: show.popularity,
     poster_path: show.poster_path,
-    vote_average: parseFloat(show.vote_average.toFixed(1)),
+    vote_average: parseFloat(show.vote_average?.toFixed(1)),
     vote_count: show.vote_count,
 
-    // ─── Unified convenience fields ─────────
     title: show.name,
     original_title: show.original_name,
     date: show.first_air_date,
     videos: show.videos?.results,
     credits: show.credits,
-    // ─── TV-only ────────────────────────────
     origin_country: show.origin_country,
     original_name: show.original_name,
     first_air_date: show.first_air_date,

@@ -1,18 +1,9 @@
-// =========================
-// NHL TYPES (ESPN NORMALIZED)
-// =========================
+
 
 import type { nhlTeamsMap } from "../../data/sports/nhlData";
 
-// -----------
-// STATUS
-// -----------
-
 export type NHLGameState = "pre" | "in" | "post";
 
-// -----------
-// PERIOD
-// -----------
 
 export interface NHLPeriod {
   current: number;
@@ -20,9 +11,6 @@ export interface NHLPeriod {
   isHalftime: boolean;
 }
 
-// -----------
-// TEAM
-// -----------
 
 export interface NHLTeam {
   id: string;
@@ -32,16 +20,13 @@ export interface NHLTeam {
   score: number;
 }
 
-// -----------
-// GAME (🔥 MAIN TYPE)
-// -----------
 
 export interface INHLGame {
   id: string;
 
   date: string;
 
-  status: string; // "In Progress", etc.
+  status: string; 
   state: NHLGameState;
 
   clock?: string;

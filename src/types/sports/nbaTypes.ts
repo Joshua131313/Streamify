@@ -34,34 +34,26 @@ export interface NBABroadcast {
 }
 
 export interface INBAGame {
-  // 🔑 core
   id: string;
 
-  // ⏱ time
   date: string;
 
-  // 📍 venue
   venue?: {
     name: string;
     city?: string;
     state?: string;
   };
 
-  // 📊 status
   status: NBAGameStatus;
   clock?: string;
 
-  // 🏀 teams
   homeTeam: NBATeam;
   awayTeam: NBATeam;
 
-  // ⏱ game flow
   period?: NBAPeriod;
 
-  // 📺 broadcast
   broadcasts?: NBABroadcast[];
 
-  // 🔗 link
   gameLink?: string;
 
 }

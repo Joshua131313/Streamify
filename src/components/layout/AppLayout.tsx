@@ -4,6 +4,7 @@ import { Footer } from "./Footer/Footer"
 import { useScrollToTop } from "../../hooks/utilHooks/useScrollToTop";
 import { Loader } from "../ui/Loader/Loader";
 import { RouteProgress } from "../../router/RouteProgress";
+import { Mobilebar } from "../Navbar/Mobilebar";
 
 interface Props {
     hideNav?: boolean;
@@ -21,6 +22,8 @@ export const AppLayout = (props: Props) => {
             <RouteProgress />
 
             {!hideNav && <Navbar />}
+            <Mobilebar />
+
             <Outlet />
             {!hideFooter && <Footer />}
         </>
