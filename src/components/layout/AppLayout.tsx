@@ -5,6 +5,7 @@ import { Loader } from "../ui/Loader/Loader";
 import { RouteProgress } from "../../router/RouteProgress";
 import { Mobilebar } from "../Navbar/Mobilebar";
 import { useScroll } from "../../hooks/utilHooks/useScroll";
+import { SportsPlayer } from "../../pages/Sports/SportsPlayer";
 
 interface Props {
     hideNav?: boolean;
@@ -24,6 +25,7 @@ export const AppLayout = (props: Props) => {
             <Mobilebar />
 
             <Outlet />
+            <SportsPlayer />
             {!hideFooter && <Footer />}
         </>
     )

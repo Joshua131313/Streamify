@@ -2,6 +2,7 @@ import GameCard from "../../../components/ui/GameCard/GameCard";
 import { FilteredSportsContainer } from "../../../components/layout/Container/FilteredSportsContainer";
 import SportsLayout from "../SportsLayout";
 import type { GameProps, Leagues } from "../../../types/sports/sportsTypes";
+import { SportsPlayer } from "../SportsPlayer";
 
 interface SportLeaguePageProps {
     league: Leagues;
@@ -23,6 +24,7 @@ const SportLeaguePage = ({
     gamesTitle = `Today's ${title} Games`,
 }: SportLeaguePageProps) => {
     return (
+        <>
         <SportsLayout title={title} subTitle={subTitle} league={league}>
             <FilteredSportsContainer
                 className="games-list"
@@ -52,6 +54,7 @@ const SportLeaguePage = ({
                 ))}
             </FilteredSportsContainer>
         </SportsLayout>
+        </>
     );
 };
 
