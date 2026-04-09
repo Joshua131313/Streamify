@@ -1,16 +1,19 @@
 import React from "react";
 import "./GameCard.css";
 import { getWatchURL, WatchButton } from "../Button/WatchButton";
-import type { GameProps } from "../../../types/sports/sportsTypes";
+import type { GameProps, GameTeam } from "../../../types/sports/sportsTypes";
 import ExternalGameInfoButton from "../Button/ExternalGameInfoButton";
 import { useContextMenu } from "../../../context/ContextMenu";
 import type { MenuOption } from "../../../types";
-import { FaBell, FaExternalLinkAlt, FaEyeSlash, FaPlay, FaThLarge } from "react-icons/fa";
+import { FaAt, FaBell, FaExternalLinkAlt, FaEyeSlash, FaPlay, FaStar, FaThLarge } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useMultiWatch } from "../../../context/MultiWatchContext";
 import { gameIsWatchable, getSportStream } from "../../../utils/sports/sportsUtils";
 import { DateTime } from "luxon";
 import { useWindowManager } from "../../../context/WindowManagerContext";
+import { Icon } from "../Icon/Icon";
+import { BsStar, BsStarFill } from "react-icons/bs";
+import { useFavoriteTeamsContext } from "../../../context/FavoriteTeamsContext";
 
 
 interface Props {
@@ -27,6 +30,8 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
     const defaultSportStreamProvider = defaultSportSteam.provider;
     const watchURL = getWatchURL({ league: game.leagueName, awayTeamAbbrev: game.awayTeam.abbrev, homeTeamAbbrev: game.homeTeam.abbrev, streamProvider: defaultSportStreamProvider });
     const showPlayButtons = gameIsWatchable(game.startTime, game.status);
+
+    const { addTeam, isFavorite, removeTeam } = useFavoriteTeamsContext()
 
     const mediaCardContextOptions: MenuOption[] = [
         ...(showPlayButtons
@@ -141,6 +146,20 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
             )
         }
     }
+
+    const Team = (team: GameTeam) => (
+        <div className="team">
+            <img src={team.logo} alt={team.name} />
+            <Icon Icon={isFavorite(team) ? BsStarFill : BsStar} onClick={() => isFavorite(team) ? removeTeam(team) : addTeam(team)}/>
+            {(showScore(game, "homeTeam")) ? (
+                <div className="score">{team.score}</div>
+            ) : (
+                <div className="score ghost-score">-</div>
+            )
+            }
+        </div>
+    )
+
     return (
         <div className="game-card"
             onContextMenu={(e) => openMenu({
@@ -150,7 +169,6 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
         >
             <div className="inner-game-card">
 
-                {/* 🔥 Badges */}
                 <div className="game-card-badges">
                     {(game.status === "LIVE" || game.status === "HALFTIME") ? (
                         <div className="live-badge">● {game.status}</div>
@@ -166,26 +184,9 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
                 </div>
 
                 <div className="logos">
-                    <div className="team">
-                        <img src={game.homeTeam.logo} alt={game.homeTeam.name} />
-                        {(showScore(game, "homeTeam")) ? (
-                            <div className="score">{game.homeTeam.score}</div>
-                        ) : (
-                            <div className="score ghost-score">-</div>
-                        )
-                        }
-                    </div>
-
-                    <span className="vs">vs</span>
-
-                    <div className="team">
-                        <img src={game.awayTeam.logo} alt={game.awayTeam.name} />
-                        {(showScore(game, "awayTeam")) ? (
-                            <div className="score">{game.awayTeam.score}</div>
-                        ) : (
-                            <div className="score ghost-score">-</div>
-                        )}
-                    </div>
+                    <Team {...game.awayTeam}/>
+                    <span className="vs"><FaAt /></span>
+                    <Team {...game.homeTeam}/>
                 </div>
             </div>
 

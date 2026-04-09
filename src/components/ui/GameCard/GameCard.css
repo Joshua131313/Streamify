@@ -14,7 +14,7 @@
     padding: 16px;
     transition: transform 0.3s ease;
     justify-content: space-between;
-    gap: 20px;
+    gap: 30px;
     width: var(--game-card-width);
     /* height: var(--game-card-height); */
 }
@@ -24,7 +24,7 @@
 }
 
 .inner-game-card {
-    gap: 20px;
+    gap: 30px;
     display: flex;
     flex-direction: column;
 }
@@ -52,6 +52,21 @@
   align-items: center;
 }
 
+.team .app-icon {
+    width: 30px;
+    height: 30px;
+    font-size: var(--font-xs);
+    position: absolute;
+    right: 55px;
+    top: 50%;
+    backdrop-filter: none;
+    border: none;
+    transform: translateY(-50%);
+}
+.team:first-of-type .app-icon {
+    right: -50px;
+    left: 55px;
+}
 .score {
   font-size: var(--font-lg);
   font-weight: bold;
@@ -70,13 +85,13 @@
     transform: translateX(-50%);
     display: flex;
     gap: 20px;
-    justify-content: center;
+    justify-content: space-around;
     align-items: center;
 }
 
 .logos img {
-    width: 70px;
-    height: 70px;
+    width: 55px;
+    height: 55px;
     object-fit: cover;
 }
 
@@ -102,6 +117,9 @@
     justify-content: center;
     width: 100%;
 }
+.game-card .button {
+    height: 40px;
+}
 
 .game-card-buttons.single {
     grid-template-columns: 1fr;
@@ -125,8 +143,8 @@
         --game-card-width: 240px;
     }
     .logos img {
-        width: 60px;
-        height: 60px;
+        width: 45px;
+        height: 45px;
     }
 }
 @media (max-width: 650px) {
@@ -138,7 +156,7 @@
     }
 
     .logos img {
-        width: 50px;
-        height: 50px;
+        width: 40px;
+        height: 40px;
     }
 }
