@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useNBAGames } from "../hooks/sportsHooks/useNBAGames";
 import { useNHLGames } from "../hooks/sportsHooks/useNHLGames";
 import { useMLBGames } from "../hooks/sportsHooks/useMLBGames";
@@ -8,6 +8,8 @@ import { mapMLBToGameProps } from "../utils/sports/mlbUtils";
 import { filterGames } from "../utils/sports/sportsUtils";
 import { useFavoriteTeamsContext } from "./FavoriteTeamsContext";
 import type { GameProps } from "../types/sports/sportsTypes";
+import { SportsPlayer } from "../pages/Sports/SportsPlayer";
+import { useLocation } from "react-router-dom";
 
 export type SportFilterType = "status" | "league" | "sport";
 export type SportFilter = {
@@ -59,7 +61,7 @@ export const SportsProvider = ({ children }: { children: React.ReactNode }) => {
     const [search, setSearch] = useState("");
     const [filters, setFilters] = useState<SportFilter[]>([]);
     const { favoriteTeams } = useFavoriteTeamsContext();
-
+    const location = useLocation()
     const { nbaGames, nbaGamesLoading } = useNBAGames();
     const { games: nhlGames, isLoading: nhlGamesLoading } = useNHLGames();
     const { games: mlbGames, isLoading: mlbGamesLoading } = useMLBGames();
@@ -130,6 +132,10 @@ export const SportsProvider = ({ children }: { children: React.ReactNode }) => {
         ];
     }, [favoriteNBAGameCards, favoriteNHLGameCards, favoriteMLBGameCards]);
 
+    useEffect(() => {
+        setFilters([]);
+    }, [location])
+
     return (
         <SportsContext.Provider
             value={{
@@ -157,6 +163,7 @@ export const SportsProvider = ({ children }: { children: React.ReactNode }) => {
                 favoriteGameCards
             }}
         >
+            <SportsPlayer />
             {children}
         </SportsContext.Provider>
     );
