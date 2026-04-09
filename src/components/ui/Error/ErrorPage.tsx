@@ -7,13 +7,11 @@ import { Button } from "../Button/Button"
 import "./ErrorBoundary.css"
 
 export const ErrorPage = () => {
-    const navigate = useNavigate();
     return (
         <>
-            <Navbar />
             <Container  className="error-content">
                 <h2>Page not found</h2>
-                <Button onClick={() => navigate(-1)}>Go Back</Button>
+                <Button onClick={() => window.history.back()}>Go Back</Button>
             </Container>
             <Footer />
             <Mobilebar />

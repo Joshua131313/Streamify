@@ -319,7 +319,11 @@
 .active-provider.button {
     background-color: var(--accent-primary);
 }
-
+.games-list .container-content {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
 @media (max-width: 775px) {
     .multi-watch-icon {
         bottom: 90px;
