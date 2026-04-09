@@ -68,11 +68,11 @@ export const FavoriteTeamsProvider = ({ children }: { children: ReactNode }) => 
     }, [user?.uid]);
 
     const addTeam = async (team: GameTeam) => {
-        if (teamsRef.current.some(t => t.abbrev === team.abbrev)) return;
+        if (teamsRef.current.some(t => t.name === team.name)) return;
 
         const tempItem: FavoriteTeamItem = {
             ...team,
-            firebaseId: `temp-${team.abbrev}`,
+            firebaseId: `temp-${team.name}`,
         };
 
         setFavoriteTeams(prev => [tempItem, ...prev]);
@@ -86,8 +86,8 @@ export const FavoriteTeamsProvider = ({ children }: { children: ReactNode }) => 
                 );
             } catch {
                 // rollback
-                setFavoriteTeams(prev => prev.filter(t => t.abbrev !== team.abbrev));
-                teamsRef.current = teamsRef.current.filter(t => t.abbrev !== team.abbrev);
+                setFavoriteTeams(prev => prev.filter(t => t.name !== team.name));
+                teamsRef.current = teamsRef.current.filter(t => t.name !== team.name);
             }
             return;
         }
@@ -100,10 +100,10 @@ export const FavoriteTeamsProvider = ({ children }: { children: ReactNode }) => 
 
     const removeTeam = async (team: GameTeam) => {
         if (user?.uid) {
-            const existing = teamsRef.current.find(t => t.abbrev === team.abbrev);
+            const existing = teamsRef.current.find(t => t.name === team.name);
 
-            setFavoriteTeams(prev => prev.filter(t => t.abbrev !== team.abbrev));
-            teamsRef.current = teamsRef.current.filter(t => t.abbrev !== team.abbrev);
+            setFavoriteTeams(prev => prev.filter(t => t.name !== team.name));
+            teamsRef.current = teamsRef.current.filter(t => t.name !== team.name);
 
             if (existing?.firebaseId) {
                 await deleteDoc(
@@ -120,14 +120,14 @@ export const FavoriteTeamsProvider = ({ children }: { children: ReactNode }) => 
             return;
         }
 
-        const updated = teamsRef.current.filter(t => t.abbrev !== team.abbrev);
+        const updated = teamsRef.current.filter(t => t.name !== team.name);
         set("favoriteTeams", updated);
         teamsRef.current = updated;
         setFavoriteTeams(updated);
     };
 
     const isFavorite = (team: GameTeam) => {
-        return teamsRef.current.some(t => t.abbrev === team.abbrev);
+        return teamsRef.current.some(t => t.name === team.name);
     };
 
     return (

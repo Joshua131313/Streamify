@@ -14,14 +14,16 @@ import { useWindowManager } from "../../../context/WindowManagerContext";
 import { Icon } from "../Icon/Icon";
 import { BsStar, BsStarFill } from "react-icons/bs";
 import { useFavoriteTeamsContext } from "../../../context/FavoriteTeamsContext";
+import { Button } from "../Button/Button";
 
 
 interface Props {
     game: GameProps;
     showSportName?: boolean;
+    className?: string;
 }
 
-const GameCard: React.FC<Props> = ({ game, showSportName }) => {
+const GameCard: React.FC<Props> = ({ game, showSportName, className }) => {
     const { toggleGameInMultiWatch, isGameInMultiWatch } = useMultiWatch();
     const { openWindow, minimizeWindow, windowIsOpen, windows } = useWindowManager();
     const { openMenu } = useContextMenu();
@@ -150,6 +152,11 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
     const Team = (team: GameTeam) => (
         <div className="team">
             <img src={team.logo} alt={team.name} />
+            <span className="team-name">{team.name}</span>
+            <Button className="secondary follow-button" onClick={() => isFavorite(team) ? removeTeam(team) : addTeam(team)}>
+                {isFavorite(team) ? <BsStarFill /> : <BsStar />}
+                {isFavorite(team) ? "Unfollow" : "Follow"}
+            </Button>
             <Icon Icon={isFavorite(team) ? BsStarFill : BsStar} onClick={() => isFavorite(team) ? removeTeam(team) : addTeam(team)}/>
             {(showScore(game, "homeTeam")) ? (
                 <div className="score">{team.score}</div>
@@ -161,7 +168,7 @@ const GameCard: React.FC<Props> = ({ game, showSportName }) => {
     )
 
     return (
-        <div className="game-card"
+        <div className={`${className} game-card`}
             onContextMenu={(e) => openMenu({
                 options: mediaCardContextOptions,
                 e

@@ -3,8 +3,8 @@ import { mlbStreams } from "../../data/sports/mlbData";
 import { nbaStreams } from "../../data/sports/nbaData";
 import { nhlStreams } from "../../data/sports/nhlData";
 import { channelStreams } from "../../data/sports/sportsData";
-import type { QuickFilter } from "../../pages/Sports/Sports";
 import type { GameProps, GameStatus, Leagues, TeamAbbrevs, TStreamProvider } from "../../types/sports/sportsTypes"
+import type { SportFilter } from "../../context/SportsContext";
 
 
 const sportsStreamsMap = Object.fromEntries(
@@ -104,7 +104,7 @@ export const getStreamURL = (streamType: TStreamProvider, channel: string) => {
 export const filterGames = (
     games: GameProps[],
     search: string,
-    filters: QuickFilter[]
+    filters: SportFilter[]
 ): GameProps[] => {
     const searchNormalized = search.toLowerCase().trim();
 

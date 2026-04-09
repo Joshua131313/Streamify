@@ -11,6 +11,9 @@ import Home from "../pages/Home/Home";
 import { ErrorPage } from "../components/ui/Error/ErrorPage";
 import { RootLayout } from "./RootLayout";
 import { Customization } from "../pages/Auth/Customization";
+import MLB from "../pages/Sports/Pages/MLB";
+import NHL from "../pages/Sports/Pages/NHL";
+import NBA from "../pages/Sports/Pages/NBA";
 
 const Movie = lazy(() => import("../pages/Movie/Movie"));
 const Show = lazy(() => import("../pages/Show/Show"));
@@ -23,17 +26,20 @@ const SportsPage = lazy(() => import("../pages/Sports/SportsPage"));
 export const router = createBrowserRouter([
   {
     element: <RootLayout />, 
+    errorElement: <ErrorPage />,
     children: [
       {
         element: <AppLayout />,
-        errorElement: <ErrorPage />,
         children: [
           { path: "/", element: <Home /> },
           { path: "search", element: <Search /> },
           { path: "discover", element: <Browse /> },
           { path: "saved-media", element: <SavedMedia /> },
           { path: "person/:id", element: <PersonPage /> },
-          { path: "sports", element: <SportsPage /> },
+          { path: "sports", element: <SportsPage />},
+          { path: "sports/nhl", element: <NHL />},
+          { path: "sports/nba", element: <NBA />},
+          { path: "sports/mlb", element: <MLB />},
           { path: "login", element: <Login /> },
           { path: "register", element: <Register /> },
           { path: "/register/customization", element: <Customization /> },
