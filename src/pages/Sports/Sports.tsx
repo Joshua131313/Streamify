@@ -20,7 +20,6 @@ const Sports = () => {
         nbaGamesLoading,
         nhlGamesLoading,
         mlbGamesLoading,
-        filters,
         nbaGameCards,
         nhlGameCards,
         mlbGameCards,

@@ -6,11 +6,7 @@ import { SportsPlayer } from "./SportsPlayer";
 const SportsPage = () => {
     return (
         <>
-            <SportsPlayer />
-            <SportsProvider>
-
-                <Sports />
-            </SportsProvider>
+            <Sports />
         </>
     );
 };
