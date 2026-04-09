@@ -1,5 +1,6 @@
 .dropdown-wrapper {
 }
+
 .dropdown-content {
     position: absolute;
     left: 0;
@@ -11,7 +12,25 @@
     box-shadow: var(--shadow-base);
     padding: 0;
     width: 200px;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s;
+}
+.dropdown-controller > *, .dropdown-controller {
+    z-index: 1;
+}
+.dropdown-controller:hover + .dropdown-content, .dropdown-content:hover  {
+    opacity: 1;
+    pointer-events: initial;
     transform: translateY(10px);
+}
+.dropdown-controller::after {
+    content: "";
+    position: absolute;
+    bottom: -20px;
+    left: 0;
+    width: 100%;
+    height: 40px;
 }
 .dropdown-content .dropdown-header {
     padding: 10px;

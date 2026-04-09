@@ -13,14 +13,11 @@ interface Props {
 
 export const Dropdown = (props: Props) => {
     const { title, subTitle, dropdownOptions, className } = props;
-    const menuRef = useRef<HTMLDivElement | null>(null);
-    const [dropdown, setDropdown] = useState(false);
 
     const dropdownOptionsRow = dropdownOptions.map(option => {
         return (
             <div className="dropdown-option" onClick={() => {
                 option.onClick();
-                setDropdown(false)
             }}>
                 <option.icon />
                 <span>{option.value}</span>
@@ -28,38 +25,18 @@ export const Dropdown = (props: Props) => {
         )
     })
 
-    useEffect(() => {
-        const handlePointerDown = (e: PointerEvent) => {
-
-            const target = e.target as Node;
-
-            if (menuRef.current?.contains(target)) return;
-
-            setDropdown(false);
-        };
-
-        document.addEventListener("pointerdown", handlePointerDown, true);
-
-        return () => {
-            document.removeEventListener("pointerdown", handlePointerDown, true);
-        };
-    }, []);
-
     return (
-        <div className={`dropdown-wrapper ${className}`} ref={menuRef}>
-            <div onClick={() => setDropdown(!dropdown)}>{props.children}</div>
-            {
-                dropdown &&
-                <div className="dropdown-content">
-                    <div className="dropdown-header">
-                        <strong >{title}</strong>
-                        <small >{subTitle}</small>
-                    </div>
-                    <div className="dropdown-options">
-                        {dropdownOptionsRow}
-                    </div>
+        <div className={`dropdown-wrapper ${className}`}>
+            <div className="dropdown-controller">{props.children}</div>
+            <div className="dropdown-content">
+                <div className="dropdown-header">
+                    <strong >{title}</strong>
+                    {subTitle && <small >{subTitle}</small>}
                 </div>
-            }
+                <div className="dropdown-options">
+                    {dropdownOptionsRow}
+                </div>
+            </div>
         </div>
     )
 }

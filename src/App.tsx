@@ -3,10 +3,8 @@ import { AppProvider } from './context/AppContext';
 // @ts-ignore
 import 'swiper/css';
 import { useMouseIdle } from './hooks/utilHooks/useMouseIdle';
-import { useEffect } from 'react';
 import { ContextMenuProvider } from './context/ContextMenu';
 import { SportsProvider } from './context/SportsContext';
-import { MultiWatch } from './pages/Sports/MultiWatch';
 import { MultiWatchProvider } from './context/MultiWatchContext';
 import { WindowManagerProvider } from './context/WindowManagerContext';
 import { WindowRenderer } from './components/ui/Window/WindowRenderer';
@@ -16,6 +14,7 @@ import { WatchHistoryProvider } from './context/WatchHistoryContext';
 import { SavedMediaProvider } from './context/SavedMediaContext';
 import { SearchHistoryProvider } from './context/SearchHistoryContext';
 import { usePWA } from './hooks/utilHooks/usePWA';
+import { ErrorBoundary } from './components/ui/Error/ErrorBoundary';
 
 
 export const DataProviders = ({ children }: { children: React.ReactNode }) => {
@@ -49,7 +48,8 @@ function App() {
   usePWA();
   
   return (
-    <AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
       <HelmetProvider>
         <AppProvider>
           <DataProviders>
@@ -63,6 +63,7 @@ function App() {
         </AppProvider>
       </HelmetProvider>
     </AuthProvider>
+    </ErrorBoundary>
   )
 }
 

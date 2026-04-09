@@ -14,6 +14,8 @@ import { channelStreams } from "../../data/sports/sportsData";
 import { ChannelCard } from "../../components/ui/ChannelCard/ChannelCard";
 import { useWindow } from "../../hooks/utilHooks/useWindow";
 import { SEO } from "../../components/SEO";
+import { navLinks } from "../../components/Navbar/Navbar";
+import { AppNavLink } from "../../components/Navbar/AppNavLink";
 
 export type QuickFilter = {
     label: string;
@@ -107,7 +109,7 @@ const Sports = () => {
                 controls={
                     <>
                         <Input
-                            placeholder="Search sports..."
+                            placeholder="Filter games..."
                             Icon={FaSearch}
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}

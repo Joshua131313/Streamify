@@ -1,69 +1,102 @@
 import { Logo } from "../ui/Logo/Logo"
 import { Container } from "../layout/Container/Container"
 import "./Navbar.css"
-import { FaFilm, FaHome, FaSearch, FaSquarespace, FaTv } from "react-icons/fa"
-import { FaBasketball, FaCubesStacked } from "react-icons/fa6"
-import { NavLink } from "react-router-dom"
+import { FaFilm, FaHockeyPuck, FaHome, FaSearch, FaSquarespace, FaTv } from "react-icons/fa"
+import { FaBaseball, FaBasketball, FaCubesStacked } from "react-icons/fa6"
+import { NavLink, useLocation } from "react-router-dom"
 import { Mobilebar } from "./Mobilebar"
 import type { IconType } from "react-icons"
 import { AppNavLink } from "./AppNavLink"
 import { BsBookmarkFill } from "react-icons/bs"
 import { UserIcon } from "../ui/User/UserIcon"
+import { useEffect, useState } from "react"
 
-const navLinks : {path: string, Icon: IconType, label: string, className: string}[] = [
-    {
-        path: "/",
-        Icon: FaHome,
-        label: "Discover",
-        className: ""
-    },
-    {
-        path: "/discover?media=movie",
-        Icon: FaFilm,
-        label: "Movies",
-        className: ""
-    },
-    {
-        path: "/discover?media=tv",
-        Icon: FaTv,
-        label: "Shows",
-        className: ""
-    },
-    {
-        path: "/sports",
-        Icon: FaBasketball,
-        label: "Sports",
-        className: ""
-    },
-    {
-        path: "/search",
-        Icon: FaSearch,
-        label: "Search",
-        className: ""
-    },
+export interface Link {
+    path: string,
+    icon: IconType,
+    label: string,
+    className?: string,
+    subLinks?: Link[]
+}
 
-]
+export const navLinks: Link[] = [
+        {
+            path: "/",
+            icon: FaHome,
+            label: "Discover",
+        },
+        {
+            path: "/discover?media=movie",
+            icon: FaFilm,
+            label: "Movies",
+        },
+        {
+            path: "/discover?media=tv",
+            icon: FaTv,
+            label: "Shows",
+        },
+        {
+            path: "/sports",
+            icon: FaBasketball,
+            label: "Sports",
+            subLinks: [
+                {
+                    icon: FaBasketball,
+                    label: "NBA",
+                    path: "/sports/nba",
+                },
+                {
+                    icon: FaHockeyPuck,
+                    label: "NHL",
+                    path: "/sports/nhl"
+                },
+                                {
+                    icon: FaBaseball,
+                    label: "MLB",
+                    path: "/sports/mlb"
+                }
+            ]
+        },
+        {
+            path: "/search",
+            icon: FaSearch,
+            label: "Search",
+        },
+
+    ]
 
 export const NavLinks = () => {
     return (
         <div className="nav-links">
             {navLinks.map(link => {
-                return <AppNavLink {...link} key={link.path}/>
+                return <AppNavLink {...link} key={link.path} />
             })}
         </div>
     )
 }
-export const Navbar = ()  => {
 
+export const Navbar = () => {
+
+    const location = useLocation();
+    const activeLink = navLinks.find(link => location.pathname === link.path);
+    const subLinks = activeLink?.subLinks;
+    
     return (
         <>
-        <Container className="navbar">
+        <Container className={`navbar`}>
             <Logo />
-
             <NavLinks />
-            {/* only shown in mobile navbar */}
             <UserIcon />
         </Container>
+        {subLinks && subLinks.length > 0 && (
+            <Container className="navbar sub-nav">
+                <div className="nav-links">
+                    {subLinks.map(link => (
+                    <AppNavLink {...link} key={link.path} />
+                ))}
+                </div>
+            </Container>
+        )}
         </>
-    )
-}
+    );
+};

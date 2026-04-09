@@ -8,6 +8,7 @@ import { Login } from "../pages/Auth/Login";
 import { Register } from "../pages/Auth/Register";
 import { useAuthProvider } from "../context/AuthContext";
 import Home from "../pages/Home/Home";
+import { ErrorPage } from "../components/ui/Error/ErrorPage";
 
 const Movie = lazy(() => import("../pages/Movie/Movie"));
 const Show = lazy(() => import("../pages/Show/Show"));
@@ -20,6 +21,7 @@ const SportsPage = lazy(() => import("../pages/Sports/SportsPage"));
 const router = createBrowserRouter([
   {
     element: <AppLayout />,
+    errorElement: <ErrorPage />,
     children: [
       { path: "/", element: <Home /> },
       { path: "search", element: <Search /> },
