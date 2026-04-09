@@ -1,0 +1,16 @@
+.error-content {
+    margin-top: auto;
+    height: 80vh;
+    display: flex;
+    justify-content: center;
+}
+.error-content .container-content {
+    justify-content: center;
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.error-content a {
+    margin-top: 20px;
+}

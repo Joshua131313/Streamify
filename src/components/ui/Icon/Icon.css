@@ -16,6 +16,8 @@
     z-index: 2;
     transition: all 0.3s;
     font-size: var(--font-xl);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
 }
 .app-icon:hover {
     filter: brightness(90%);

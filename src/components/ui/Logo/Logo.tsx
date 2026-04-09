@@ -8,7 +8,7 @@ export const Logo = () => {
             <img 
                 src="/logo/streamify-logo.png"
             />
-            Streamify
+            {/* Streamify */}
         </Link>
     )
 }
