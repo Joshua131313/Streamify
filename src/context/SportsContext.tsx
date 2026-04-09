@@ -163,7 +163,6 @@ export const SportsProvider = ({ children }: { children: React.ReactNode }) => {
                 favoriteGameCards
             }}
         >
-            <SportsPlayer />
             {children}
         </SportsContext.Provider>
     );
