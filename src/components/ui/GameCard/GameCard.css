@@ -161,7 +161,7 @@
     flex-direction: row;
     gap: 30px;
     display: grid;
-    grid-template-columns: 60px 180px 120px 1fr;
+    grid-template-columns: 60px 180px 1fr 120px;
 }
 .horizontal-card .team .button {
     padding: 10px;
@@ -190,7 +190,7 @@
     flex-direction: row;
     gap: 30px;
     display: grid;
-    grid-template-columns: 60px 150px 100px 1fr;
+    grid-template-columns: 60px 150px 1fr 100px;
     gap: 20px;
 }
 .horizontal-card .team .follow-button {
@@ -212,7 +212,7 @@
         .horizontal-card .team {
     flex-direction: row;
     display: grid;
-    grid-template-columns: 45px 110px 100px 1fr;
+    grid-template-columns: 45px 110px 1fr 100px;
 }
 }
 @media (max-width: 650px) {
@@ -229,7 +229,7 @@
     flex-direction: row;
     display: grid;
     gap: 15px;
-    grid-template-columns: 45px 90px 80px 1fr;
+    grid-template-columns: 45px 90px 1fr 90px;
 }
 .horizontal-card .team .follow-button {
     align-items: center;
@@ -246,14 +246,14 @@
 @media (max-width: 550px) {
     .horizontal-card .team {
         gap: 10px;
-            grid-template-columns: 40px 80px 70px 1fr;
+            grid-template-columns: 40px 80px 1fr 70px;
 
     }
 }
 @media (max-width: 475px) {
     .horizontal-card .team {
         gap: 10px;
-            grid-template-columns: 40px 60px 60px 1fr;
+            grid-template-columns: 40px 60px 1fr 60px;
 
     }
     .horizontal-card .game-card-buttons a {

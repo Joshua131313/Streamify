@@ -153,10 +153,7 @@ const GameCard: React.FC<Props> = ({ game, showSportName, className }) => {
         <div className="team">
             <img src={team.logo} alt={team.name} />
             <span className="team-name">{team.name}</span>
-            <Button className="secondary follow-button" onClick={() => isFavorite(team) ? removeTeam(team) : addTeam(team)}>
-                {isFavorite(team) ? <BsStarFill /> : <BsStar />}
-                {isFavorite(team) ? "Unfollow" : "Follow"}
-            </Button>
+
             <Icon Icon={isFavorite(team) ? BsStarFill : BsStar} onClick={() => isFavorite(team) ? removeTeam(team) : addTeam(team)}/>
             {(showScore(game, "homeTeam")) ? (
                 <div className="score">{team.score}</div>
@@ -164,6 +161,10 @@ const GameCard: React.FC<Props> = ({ game, showSportName, className }) => {
                 <div className="score ghost-score">-</div>
             )
             }
+            <Button className="secondary follow-button" onClick={() => isFavorite(team) ? removeTeam(team) : addTeam(team)}>
+                {isFavorite(team) ? <BsStarFill /> : <BsStar />}
+                {isFavorite(team) ? "Unfollow" : "Follow"}
+            </Button>
         </div>
     )
 
