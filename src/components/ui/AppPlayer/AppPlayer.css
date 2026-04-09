@@ -29,7 +29,7 @@ body.player-open.modal-player {
     top: calc(env(safe-area-inset-top, 0px) + 20px);
     left: 16px;
     z-index: 10000; 
-    opacity: 0;  
+    /* opacity: 0;   */
 }
 .player:hover .player-control-icon {
     opacity: 1;

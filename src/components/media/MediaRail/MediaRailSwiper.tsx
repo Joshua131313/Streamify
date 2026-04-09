@@ -26,6 +26,7 @@ export const MediaRailSwiper = () => {
             isLoading={isLoading}
             skeleton={<SwiperSkeletonCard />}
             variant={variant}
+            itemKey={(item) => String(item.id)}
             renderItem={(m, i) =>
                 variant === "top10" ? (
                     <Top10MediaCard rank={i + 1} media={m} />

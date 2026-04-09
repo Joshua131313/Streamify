@@ -16,6 +16,7 @@ import { useWindow } from "../../hooks/utilHooks/useWindow";
 import { SEO } from "../../components/SEO";
 import { navLinks } from "../../components/Navbar/Navbar";
 import { AppNavLink } from "../../components/Navbar/AppNavLink";
+import { useFavoriteTeamsContext } from "../../context/FavoriteTeamsContext";
 
 export type QuickFilter = {
     label: string;
@@ -53,7 +54,7 @@ const Sports = () => {
         setSearch
     } = useSports();
     const [filters, setFilters] = useState<QuickFilter[]>([])
-
+    const { favoriteTeams } = useFavoriteTeamsContext();
     const { open } = useWindow("multiwatch");
 
     const nbaGameCards = useMemo(() => {
@@ -77,6 +78,23 @@ const Sports = () => {
             filters
         );
     }, [nhlGames, search, filters]);
+
+    const favoriteGames = useMemo(() => {
+        if (!favoriteTeams.length) return [];
+
+        const favSet = new Set(favoriteTeams.map(t => t.abbrev));
+
+        const allGames = [
+            ...nbaGameCards,
+            ...nhlGameCards,
+            ...mlbGameCards,
+        ];
+
+        return allGames.filter(game =>
+            favSet.has(game.awayTeam.abbrev) ||
+            favSet.has(game.homeTeam.abbrev)
+        );
+    }, [favoriteTeams, nbaGameCards, nhlGameCards, mlbGameCards]);
 
     const handleClickFilter = (filter: QuickFilter) => {
         if (filters.some(x => x.value === filter.value)) {
@@ -128,9 +146,23 @@ const Sports = () => {
                     </>
                 }
             />
+            {
+                favoriteGames.length > 0 &&
+                <Container title="Favorite Teams">
+                    <AppSwiper
+                        items={favoriteGames}
+                        itemKey={(item) => String(item.id ?? item.title)}
+                        renderItem={(game) => (
+                            <GameCard showSportName={false} game={game} />
+                        )}
+                        skeleton={<SwiperSkeletonCard className="game-card-skeleton" />}
+                    />
+                </Container>
+            }
             <FilteredContainer type="TV" title="Sports Channels">
                 <AppSwiper
                     items={channelStreams}
+                    itemKey={(item) => item.title}
                     renderItem={(stream) => (
                         <ChannelCard stream={stream} key={stream.provider} />
                     )}
@@ -141,6 +173,7 @@ const Sports = () => {
                 <AppSwiper
                     isLoading={nbaGamesLoading}
                     items={nbaGameCards}
+                    itemKey={(item) => String(item.id ?? item.title)}
                     renderItem={(game) => (
                         <GameCard showSportName={false} game={game} />
                     )}
@@ -155,6 +188,7 @@ const Sports = () => {
                 <AppSwiper
                     isLoading={nhlGamesLoading}
                     items={nhlGameCards}
+                    itemKey={(item) => String(item.id ?? item.title)}
                     renderItem={(game) => (
                         <GameCard key={game.id} showSportName={false} game={game} />
                     )}
@@ -165,6 +199,7 @@ const Sports = () => {
                 <AppSwiper
                     isLoading={mlbGamesLoading}
                     items={mlbGameCards}
+                    itemKey={(item) => String(item.id ?? item.title)}
                     renderItem={(game) => (
                         <GameCard key={game.id} showSportName={false} game={game} />
                     )}

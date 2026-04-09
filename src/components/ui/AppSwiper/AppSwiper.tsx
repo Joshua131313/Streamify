@@ -8,6 +8,7 @@ export type TSwiperVariant = "normal" | "top10"
 interface AppSwiperProps<T> {
     items: T[];
     renderItem: (item: T, index: number) => React.ReactNode;
+    itemKey: (item: T) => string;
     isLoading?: boolean;
     skeleton?: React.ReactNode;
     variant?: TSwiperVariant;
@@ -16,6 +17,7 @@ interface AppSwiperProps<T> {
 export const AppSwiper = <T,>({
     items,
     renderItem,
+    itemKey,
     isLoading,
     skeleton,
     variant = "normal",
@@ -50,7 +52,7 @@ export const AppSwiper = <T,>({
                         <SwiperSlide key={`skeleton-${i}`}>{skeleton}</SwiperSlide>
                     ))
                     : items.map((item, i) => (
-                        <SwiperSlide key={i}>
+                        <SwiperSlide key={itemKey(item)}>
                             {renderItem(item, i)}
                         </SwiperSlide>
                     ))}

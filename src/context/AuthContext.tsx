@@ -14,6 +14,8 @@ import {
 } from "firebase/auth";
 import { auth } from "../firebase/firebase";
 import { createUserDocument } from "../firebase/auth";
+import { useNavigate } from "react-router-dom";
+import { Loader } from "../components/ui/Loader/Loader";
 
 type User = {
     email?: string | null;
@@ -47,6 +49,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<User>(null);
     const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -140,6 +143,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             firstName,
             lastName
         );
+        navigate("/register/customization")
     };
 
     const logout = async () => {
@@ -150,6 +154,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         await sendPasswordResetEmail(auth, email);
     };
     
+
 
     return (
         <AuthContext.Provider
@@ -163,6 +168,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 resetPassword,
             }}
         >
+            {loading && <Loader fullScreen text="Streamify is getting ready..." />}
             {children}
         </AuthContext.Provider>
     );
