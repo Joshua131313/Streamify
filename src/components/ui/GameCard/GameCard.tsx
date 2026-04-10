@@ -1,11 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import "./GameCard.css";
 import { getWatchURL, WatchButton } from "../Button/WatchButton";
 import type { GameProps, GameTeam } from "../../../types/sports/sportsTypes";
 import ExternalGameInfoButton from "../Button/ExternalGameInfoButton";
 import { useContextMenu } from "../../../context/ContextMenu";
 import type { MenuOption } from "../../../types";
-import { FaAt, FaBell, FaExternalLinkAlt, FaEyeSlash, FaPlay, FaStar, FaThLarge } from "react-icons/fa";
+import { FaAt, FaBell, FaExternalLinkAlt, FaEyeSlash, FaHeart, FaPlay, FaStar, FaThLarge } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useMultiWatch } from "../../../context/MultiWatchContext";
 import { gameIsWatchable, getSportStream } from "../../../utils/sports/sportsUtils";
@@ -15,6 +15,7 @@ import { Icon } from "../Icon/Icon";
 import { BsStar, BsStarFill } from "react-icons/bs";
 import { useFavoriteTeamsContext } from "../../../context/FavoriteTeamsContext";
 import { Button } from "../Button/Button";
+import { GameCardTeam } from "./GameCardTeam";
 
 
 interface Props {
@@ -33,7 +34,7 @@ const GameCard: React.FC<Props> = ({ game, showSportName, className }) => {
     const watchURL = getWatchURL({ league: game.leagueName, awayTeamAbbrev: game.awayTeam.abbrev, homeTeamAbbrev: game.homeTeam.abbrev, streamProvider: defaultSportStreamProvider });
     const showPlayButtons = gameIsWatchable(game.startTime, game.status);
 
-    const { addTeam, isFavorite, removeTeam } = useFavoriteTeamsContext()
+    const gameInMultiWatch = isGameInMultiWatch(game);
 
     const mediaCardContextOptions: MenuOption[] = [
         ...(showPlayButtons
@@ -62,11 +63,16 @@ const GameCard: React.FC<Props> = ({ game, showSportName, className }) => {
                 },
                 {
                     key: "multi-watch",
-                    value: isGameInMultiWatch(game)
+                    value: gameInMultiWatch
                         ? "Remove from Multi-Watch"
                         : "Add to Multi-Watch",
                     icon: FaThLarge,
-                    onClick: () => toggleGameInMultiWatch(game),
+                    onClick: () => {
+                        toggleGameInMultiWatch(game);
+                        if(!gameInMultiWatch) {
+                            openWindow("multiwatch")
+                        }
+                    },
                 },
                 {
                     key: "new-tab",
@@ -123,9 +129,7 @@ const GameCard: React.FC<Props> = ({ game, showSportName, className }) => {
 
         }
     };
-    const showScore = (game: GameProps, key: "awayTeam" | "homeTeam") => {
-        return game[key].score !== undefined && (game.status === "FINAL" || game.status === "LIVE" || game.status === "HALFTIME") // score is not null and game is either finished or live
-    }
+
 
     const StatusBadge = () => {
         if (game.status === "LIVE" || game.status === "HALFTIME") {
@@ -147,26 +151,7 @@ const GameCard: React.FC<Props> = ({ game, showSportName, className }) => {
                 </div>
             )
         }
-    }
-
-    const Team = (team: GameTeam) => (
-        <div className="team">
-            <img src={team.logo} alt={team.name} />
-            <span className="team-name">{team.name}</span>
-
-            <Icon Icon={isFavorite(team) ? BsStarFill : BsStar} onClick={() => isFavorite(team) ? removeTeam(team) : addTeam(team)}/>
-            {(showScore(game, "homeTeam")) ? (
-                <div className="score">{team.score}</div>
-            ) : (
-                <div className="score ghost-score">-</div>
-            )
-            }
-            <Button className="secondary follow-button" onClick={() => isFavorite(team) ? removeTeam(team) : addTeam(team)}>
-                {isFavorite(team) ? <BsStarFill /> : <BsStar />}
-                {isFavorite(team) ? "Unfollow" : "Follow"}
-            </Button>
-        </div>
-    )
+    }   
 
     return (
         <div className={`${className} game-card`}
@@ -192,9 +177,9 @@ const GameCard: React.FC<Props> = ({ game, showSportName, className }) => {
                 </div>
 
                 <div className="logos">
-                    <Team {...game.awayTeam}/>
+                    <GameCardTeam game={game} teamKey={"awayTeam"} />
                     <span className="vs"><FaAt /></span>
-                    <Team {...game.homeTeam}/>
+                    <GameCardTeam game={game} teamKey={"homeTeam"}/>
                 </div>
             </div>
 
