@@ -50,8 +50,8 @@ export const MediaPlayer = ({ modal = true }: { modal?: boolean }) => {
                 tv: `https://www.vidking.net/embed/tv/${media.id}/${season}/${episode}?color=e50914&autoPlay=true&nextEpisode=true`
             },
             vidsrc: {
-                movie: `https://vidsrc.mov/embed/movie/${media.id}`,
-                tv: `https://vidsrc.mov/embed/tv/${media.id}/${season}/${episode}?autoplay=1&episodeselector=true&color=D81F26`
+                movie: `https://vidsrcme.ru/embed/movie/${media.id}`,
+                tv: `https://vidsrcme.ru/embed/tv/${media.id}/${season}/${episode}`
             }
         };
 
