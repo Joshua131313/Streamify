@@ -1,5 +1,5 @@
 import { useSearchParams } from "react-router-dom";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./MediaPlayer.css";
 
 import { YouAreWatching } from "./YouAreWatching";
@@ -7,11 +7,15 @@ import { useMediaLayoutContext } from "../../layout/MediaLayout/MediaLayoutConte
 import { AppPlayer } from "../../ui/AppPlayer/AppPlayer";
 import { EpisodeSelector } from "./EpisodeSelector";
 import { useWatchHistoryContext } from "../../../context/WatchHistoryContext";
+import { Button } from "../../ui/Button/Button";
+import type { MediaStreamProviders } from "../../../types";
+
 
 export const MediaPlayer = ({ modal = true }: { modal?: boolean }) => {
     const [searchParams, setSearchParams] = useSearchParams();
     const { media, mediaType } = useMediaLayoutContext();
     const { saveHistory, removeHistory } = useWatchHistoryContext();
+    const [streamProvider, setStreamProvider] = useState<MediaStreamProviders>("vidking");
 
     const prevRef = useRef<{
         season: string | null;
@@ -30,21 +34,32 @@ export const MediaPlayer = ({ modal = true }: { modal?: boolean }) => {
         newParams.delete("episode");
         setSearchParams(newParams, { replace: true });
     };
-//  old vidsrc-embed.ru
-// vidsrc.xyz/ https://vidsrc.xyz/embed/movie?tmdb=1429&autoplay=1
-// https://vidsrc.xyz/embed/tv?tmdb=1429&season=1&episode=2&autonext=1&autoplay=1
-// https://vidsrc.mov/embed/tv/1429/1/1
-// vidsrc.icu
+    //  old vidsrc-embed.ru
+    // vidsrc.xyz/ https://vidsrc.xyz/embed/movie?tmdb=1429&autoplay=1
+    // https://vidsrc.xyz/embed/tv?tmdb=1429&season=1&episode=2&autonext=1&autoplay=1
+    // https://vidsrc.mov/embed/tv/1429/1/1
+    // vidsrc.icu
 
     const getMediaSrc = () => {
-        if (mediaType === "tv") {
-            const season = searchParams.get("season");
-            const episode = searchParams.get("episode");
-            // return `https://vidsrc.xyz/embed/tv?tmdb=${media.id}&season=${season}&episode=${episode}&autonext=1&autoplay=1`
-            return `https://vidsrc.mov/embed/tv/${media.id}/${season}/${episode}?autoplay=1&episodeselector=true&color-D81F26`;
-        }
-        // return `https://vidsrc.xyz/embed/movie?tmdb=${media.id}&autoplay=1`
-        return `https://vidsrc.mov/embed/movie/${media.id}`;
+        const season = searchParams.get("season");
+        const episode = searchParams.get("episode");
+
+        const providers = {
+            vidking: {
+                movie: `https://www.vidking.net/embed/movie/${media.id}?color=e50914&autoPlay=true`,
+                tv: `https://www.vidking.net/embed/tv/${media.id}/${season}/${episode}?color=e50914&autoPlay=true&nextEpisode=true`
+            },
+            vidsrc: {
+                movie: `https://vidsrc.mov/embed/movie/${media.id}`,
+                tv: `https://vidsrc.mov/embed/tv/${media.id}/${season}/${episode}?autoplay=1&episodeselector=true&color=D81F26`
+            }
+        };
+
+        const provider = providers[streamProvider as keyof typeof providers];
+
+        if (!provider) return "";
+
+        return mediaType === "tv" ? provider.tv : provider.movie;
     };
 
     useEffect(() => {
@@ -130,10 +145,19 @@ export const MediaPlayer = ({ modal = true }: { modal?: boolean }) => {
         <AppPlayer
             cancelPlay={cancelPlay}
             modal={modal}
-            src={getMediaSrc()} 
+            src={getMediaSrc()}
+            className={streamProvider}
         >
             <YouAreWatching />
             {mediaType === "tv" && <EpisodeSelector />}
+            <div className={`stream-provider-buttons ${streamProvider}`}>
+                <Button className="secondary" onClick={() => setStreamProvider("vidking")}>
+                    Vidking
+                </Button>
+                <Button className="secondary" onClick={() => setStreamProvider("vidsrc")}>
+                    Vidsrc
+                </Button>
+            </div>
         </AppPlayer>
     );
 };

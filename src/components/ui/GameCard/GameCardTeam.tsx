@@ -53,7 +53,7 @@ export const GameCardTeam = (props: Props) => {
             }
             <Button className="secondary follow-button" onClick={() => isFavorite(team) ? removeTeam(team) : addTeam(team)}>
                 {isFavorite(team) ? <BsStarFill /> : <BsStar />}
-                {isFavorite(team) ? "Unfollow" : "Follow"}
+                {isFavorite(team) ? "Following" : "Follow"}
             </Button>
         </div>
     )

@@ -1,6 +1,6 @@
 .button {
     gap: 5px;
-    padding: 12px 22px;
+    padding: 10px 20px;
     border-radius: var(--border-radius);
     font-size: var(--font-sm);
     font-weight: 600;
@@ -13,7 +13,6 @@
     border: solid 1px transparent;
     display: flex;
     align-items: center;
-    height: 46px;
 }
 .button div {
     

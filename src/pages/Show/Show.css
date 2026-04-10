@@ -3,14 +3,14 @@
     gap: 10px;
 }
 .season-selector > * {
-    height: 50px;
+    height: 40px;
     flex: 1;
 }
 .season-selector .app-icon {
     background-color: var(--bg-primary);
-    border-radius: calc(var(--border-radius) / 2);
-    width: 50px;
-    flex: 0 0 50px;
+    width: 40px;
+    flex: 0 0 40px;
+    font-size: var(--font-sm);
 }
 .season-selector .app-icon:hover {
     transform: initial;
@@ -23,7 +23,7 @@
 .episodes-list .container-content {
     display: grid;
     gap: 20px;
-    max-height: 80vh;
+    max-height: 60vh;
     overflow-y: auto;
 }
 .season-selector-container {
@@ -36,6 +36,7 @@
     flex-direction: row;
     gap: 0;
     margin-bottom: 20px;
+    padding: 0;
 }
 @media (max-width: 700px) {
     .season-selector {

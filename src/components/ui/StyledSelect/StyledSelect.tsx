@@ -11,6 +11,8 @@ const styles = {
     borderColor: state.isFocused ? "#dc2626" : "var(--border)",
     boxShadow: "none",
     minHeight: "40px",
+    borderRadius: "var(--border-radius)", // ✅ FIX HERE
+    overflow: "hidden",   // ✅ ensures inner elements respect radius
     "&:hover": {
       borderColor: "#dc2626",
     },
@@ -19,7 +21,7 @@ const styles = {
   menu: (base: any) => ({
     ...base,
     backgroundColor: "var(--bg-surface)",
-    borderRadius: "5px",
+    borderRadius: "20px", // ✅ match control
     overflow: "hidden",
     zIndex: 50,
   }),
@@ -32,14 +34,14 @@ const styles = {
   option: (base: any, state: any) => ({
     ...base,
     backgroundColor: state.isSelected
-      ? "rgba(220, 38, 38, 0.2)" // 🔴 selected (subtle red)
+      ? "var(--accent-primary)"
       : state.isFocused
-        ? "var(--bg-surface-hover)" // hover
+        ? "var(--bg-surface-hover)"
         : "transparent",
     color: "white",
     cursor: "pointer",
     ":active": {
-      backgroundColor: "rgba(220, 38, 38, 0.25)", // click state
+      backgroundColor: "rgba(220, 38, 38, 0.25)",
     },
   }),
 
@@ -47,9 +49,11 @@ const styles = {
     ...base,
     color: "white",
   }),
+
   indicatorSeparator: () => ({
     display: "none",
   }),
+
   placeholder: (base: any) => ({
     ...base,
     color: "var(--text-muted)",
@@ -59,10 +63,11 @@ const styles = {
     ...base,
     color: "white",
   }),
+
   multiValue: (base: any) => ({
     ...base,
-    backgroundColor: "rgba(220, 38, 38, 0.2)", // subtle red
-    borderRadius: "6px",
+    backgroundColor: "rgba(220, 38, 38, 0.2)",
+    borderRadius: "12px", // optional tweak for pills
     padding: "2px 4px",
   }),
 
@@ -82,8 +87,6 @@ const styles = {
     },
   }),
 };
-
-
 export function StyledSelect<
   Option,
   IsMulti extends boolean = false,

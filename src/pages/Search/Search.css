@@ -52,7 +52,7 @@
 
 .search-history-item:hover,
 .search-history-item.highlighted {
-  background: var(--bg-alt);
+  background: var(--bg-surface);
 }
 
 .delete-search, .search-icon {

@@ -3,3 +3,6 @@
     flex-direction: row;
     gap: 0;
 }
+.title h1 {
+    font-size: var(--font-2xl);
+}

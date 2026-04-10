@@ -19,18 +19,16 @@ export const EpisodeCard = (props: Props) => {
             className={`episode-card ${isSelected ? "episode-card-selected" : ""}`}
         >
             <div className="still-container">
-                <MediaBadge className="time" Icon={FaClock} text={`${episode.runtime?.toString() ?? 0} min`}/>
-                <MediaBadge className="rating" Icon={FaStar} text={`${episode.vote_average.toFixed(1)}/10`}/>
                 <TMDBImg 
                     type="still"
                     size="w185"
                     path={episode.still_path ?? ""}
                 />
-                <Icon Icon={FaPlay} />
                 <span className="episode-number">{episode.episode_number}</span>
             </div>
             <div className="episode-info">
                 <strong>{episode.name}</strong>
+                <small>{episode.runtime?.toString() ?? 0} min</small>
                 <small>{episode.overview}</small>
                 {/* <div className="episode-badges">
                     <MediaBadge Icon={FaClock} text={`${episode.runtime?.toString() ?? 0} min`}/>

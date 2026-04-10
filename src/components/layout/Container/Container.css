@@ -12,7 +12,7 @@
     max-width: var(--max-container-width);
 }
 .app-container .container-content.styled {
-    background-color: var(--bg-surface);
+    background-color: var(--bg-white);
     border: solid 1px var(--border);
     border-radius: var(--border-radius);
     padding: 20px;
@@ -47,7 +47,10 @@
 }
 @media(max-width: 1400px) {
     .app-container {
-        padding: 0 10px;
+        padding: 0 50px;
+    }
+    .episodes-title.app-container {
+        padding: 0;
     }
 }
 /* @media(max-width: 600px) {

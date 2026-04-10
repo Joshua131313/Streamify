@@ -5,7 +5,7 @@ import { StyledSelect } from "../../components/ui/StyledSelect/StyledSelect"
 import { useMixedMedia } from "../../hooks/mediaHooks/useMixedMedia"
 import "./Search.css"
 import { Input } from "../../components/ui/Input/Input"
-import { FaSearch } from "react-icons/fa"
+import { FaFilm, FaList, FaSearch, FaTv } from "react-icons/fa"
 import { useSearchMedia } from "../../hooks/mediaHooks/useSearchMedia"
 import type { TMediaType } from "../../types/tmdb"
 import { PageHeader } from "../../components/ui/PageHeader/PageHeader"
@@ -14,27 +14,62 @@ import { Title } from "../../components/ui/Title/Title"
 import { SearchWithHistory } from "./SearchWithHistoryInput"
 import { Loader } from "../../components/ui/Loader/Loader"
 import { SEO } from "../../components/SEO"
+import type { IconType } from "react-icons"
+import { components } from "react-select";
+
 export type Option = {
     value: TMediaType | "multi";
     label: string;
+    icon?: IconType;
 };
 export const selectOptions: Option[] = [
     {
         value: "multi",
         label: "All",
+        icon: FaList,
     },
     {
         value: "movie",
-        label: "Movies"
+        label: "Movies",
+        icon: FaFilm
     },
     {
         value: "tv",
-        label: "TV Shows"
+        label: "TV Shows",
+        icon: FaTv,
     }
 
 ]
-const Search = () => {
 
+
+const CustomSearchOption = (props: any) => {
+  const { data } = props;
+  const Icon = data.icon;
+
+  return (
+    <components.Option {...props}>
+      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        {Icon && <Icon size={16} />}
+        <span>{data.label}</span>
+      </div>
+    </components.Option>
+  );
+};
+const CustomSingleValue = (props: any) => {
+  const { data } = props;
+  const Icon = data.icon;
+
+  return (
+    <components.SingleValue {...props}>
+      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        {Icon && <Icon size={16} />}
+        <span>{data.label}</span>
+      </div>
+    </components.SingleValue>
+  );
+};
+
+const Search = () => {
     const { media: trendingToday } = useMixedMedia("/trending/all/day", 20);
     const [option, setOption] = useState<Option>(selectOptions[0]);
     const { executeSearch, setSearch, search, media, hasSearched, isLoading } = useSearchMedia(option.value);
@@ -65,7 +100,11 @@ const Search = () => {
                         <StyledSelect<Option, false>
                             options={selectOptions}
                             value={option}
-                            onChange={(opt) => setOption({ label: opt?.label ?? "", value: opt?.value ?? "multi" })}
+                            onChange={(opt) => setOption({ label: opt?.label ?? "", value: opt?.value ?? "multi", icon: opt?.icon })}
+                            components={{
+                                Option: CustomSearchOption,
+                                SingleValue: CustomSingleValue
+                            }}
                         />
                         <SearchWithHistory
                             onChange={setSearch}
