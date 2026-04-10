@@ -336,7 +336,7 @@
         --col-action: 75px;
         --gap: 6px;
     }
-    .game-card-badges {
+    .horizontal-card .game-card-badges {
         flex-direction: column;
     }
 }
