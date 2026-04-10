@@ -100,6 +100,16 @@ export const getStreamURL = (streamType: TStreamProvider, channel: string) => {
         }
     }
 }
+export const getPriority = (status: string) => {
+    switch (status) {
+        case "LIVE": return 0;
+        case "HALFTIME": return 1;
+        case "PRE": return 2;
+        case "FUT": return 3;
+        case "FINAL": return 4;
+        default: return 5;
+    }
+};
 
 export const filterGames = (
     games: GameProps[],
@@ -133,14 +143,7 @@ export const filterGames = (
         return matchesSearch && matchesStatus;
     });
 
-    return filtered.sort((a, b) => {
-        const isAFinished = a.status === "FINAL";
-        const isBFinished = b.status === "FINAL";
-
-        if (isAFinished && !isBFinished) return 1;  
-        if (!isAFinished && isBFinished) return -1; 
-        return 0;
-    });
+    return filtered.sort((a, b) => getPriority(a.status) - getPriority(b.status));
 };
 export const gameIsWatchable = (startTime: string, gameStatus: GameStatus): boolean => {
     const now = Date.now();
