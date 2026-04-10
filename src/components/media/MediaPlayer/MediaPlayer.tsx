@@ -44,7 +44,7 @@ export const MediaPlayer = ({ modal = true }: { modal?: boolean }) => {
             return `https://vidsrc.mov/embed/tv/${media.id}/${season}/${episode}?autoplay=1&episodeselector=true&color-D81F26`;
         }
         // return `https://vidsrc.xyz/embed/movie?tmdb=${media.id}&autoplay=1`
-        return `https://vidsrc.mov/embed/movie/${media.id}?autoplay=1&color-D81F26`;
+        return `https://vidsrc.mov/embed/movie/${media.id}`;
     };
 
     useEffect(() => {
