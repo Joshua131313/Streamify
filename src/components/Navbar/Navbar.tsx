@@ -20,50 +20,50 @@ export interface Link {
 }
 
 export const navLinks: Link[] = [
-        {
-            path: "/",
-            icon: FaHome,
-            label: "Discover",
-        },
-        {
-            path: "/discover?media=movie",
-            icon: FaFilm,
-            label: "Movies",
-        },
-        {
-            path: "/discover?media=tv",
-            icon: FaTv,
-            label: "Shows",
-        },
-        {
-            path: "/sports",
-            icon: FaBasketball,
-            label: "Sports",
-            subLinks: [
-                {
-                    icon: FaBasketball,
-                    label: "NBA",
-                    path: "/sports/nba",
-                },
-                {
-                    icon: FaHockeyPuck,
-                    label: "NHL",
-                    path: "/sports/nhl"
-                },
-                                {
-                    icon: FaBaseball,
-                    label: "MLB",
-                    path: "/sports/mlb"
-                }
-            ]
-        },
-        {
-            path: "/search",
-            icon: FaSearch,
-            label: "Search",
-        },
+    {
+        path: "/",
+        icon: FaHome,
+        label: "Discover",
+    },
+    {
+        path: "/discover?media=movie",
+        icon: FaFilm,
+        label: "Movies",
+    },
+    {
+        path: "/discover?media=tv",
+        icon: FaTv,
+        label: "Shows",
+    },
+    {
+        path: "/sports",
+        icon: FaBasketball,
+        label: "Sports",
+        subLinks: [
+            {
+                icon: FaBasketball,
+                label: "NBA",
+                path: "/sports/nba",
+            },
+            {
+                icon: FaHockeyPuck,
+                label: "NHL",
+                path: "/sports/nhl"
+            },
+            {
+                icon: FaBaseball,
+                label: "MLB",
+                path: "/sports/mlb"
+            }
+        ]
+    },
+    {
+        path: "/search",
+        icon: FaSearch,
+        label: "Search",
+    },
 
-    ]
+]
 
 export const NavLinks = () => {
     return (
@@ -78,25 +78,31 @@ export const NavLinks = () => {
 export const Navbar = () => {
 
     const location = useLocation();
-    const activeLink = navLinks.find(link => location.pathname === link.path);
+    const activeLink = navLinks.find(link => {
+        if (link.path === "/") {
+            return location.pathname === "/";
+        }
+
+        return location.pathname.startsWith(link.path);
+    });
     const subLinks = activeLink?.subLinks;
-    
+
     return (
         <>
-        <Container className={`navbar`}>
-            <Logo />
-            <NavLinks />
-            <UserIcon />
-        </Container>
-        {subLinks && subLinks.length > 0 && (
-            <Container className="navbar sub-nav">
-                <div className="nav-links">
-                    {subLinks.map(link => (
-                    <AppNavLink {...link} key={link.path} />
-                ))}
-                </div>
+            <Container className={`navbar`}>
+                <Logo />
+                <NavLinks />
+                <UserIcon />
             </Container>
-        )}
+            {subLinks && subLinks.length > 0 && (
+                <Container className="navbar sub-nav">
+                    <div className="nav-links">
+                        {subLinks.map(link => (
+                            <AppNavLink {...link} key={link.path} />
+                        ))}
+                    </div>
+                </Container>
+            )}
         </>
     );
 };
