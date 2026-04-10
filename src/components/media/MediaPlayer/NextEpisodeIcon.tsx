@@ -3,6 +3,7 @@ import { EpisodesProvider } from "../../../pages/Show/EpisodesProvider"
 import { Icon } from "../../ui/Icon/Icon"
 import { useEpisodeCount } from "../../../hooks/mediaHooks/showHooks/useEpisodeCount"
 import { useParams, useSearchParams } from "react-router-dom"
+import { Button } from "../../ui/Button/Button"
 
 
 export const NextEpisodeIcon = () => {
@@ -30,10 +31,9 @@ export const NextEpisodeIcon = () => {
     }
 
     return (
-        <Icon 
+        <Button 
             className="next-episode-icon player-control-icon" 
-            Icon={FaChevronRight} 
             onClick={setNextEpisode}
-        />
+        >Next episode</Button>
     )
 }

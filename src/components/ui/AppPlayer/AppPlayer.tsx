@@ -9,9 +9,10 @@ interface Props {
     children?: React.ReactNode;
     cancelPlay: () => void;
     src: string;
+    className?: string;
 }
 export const AppPlayer = React.memo((props: Props) => {
-    const { modal = true, children, cancelPlay, src } = props;
+    const { modal = true, children, cancelPlay, src, className } = props;
 
     const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -45,7 +46,7 @@ export const AppPlayer = React.memo((props: Props) => {
 
     const Player = () => {
         return (
-            <div className={`player ${modal ? "modal-player" : ""}`}>
+            <div className={`player ${modal ? "modal-player" : ""} ${className}`}>
                 {modal && (
                     <Icon
                         className="back-icon player-control-icon"

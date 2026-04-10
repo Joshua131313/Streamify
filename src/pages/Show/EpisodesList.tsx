@@ -26,7 +26,7 @@ export const EpisodesList = () => {
     ))
 
   return (
-    <Container className="episodes-list" styled>
+    <Container className="episodes-list">
         {
             isLoading ? 
             skeletonRow :

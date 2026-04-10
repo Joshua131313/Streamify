@@ -1,10 +1,11 @@
 .channel-card {
-    background-color: var(--bg-surface);
+    background-color: var(--bg-white);
     padding: 20px;
     border-radius: 20px;
     display: flex;
     flex-direction: column;
     gap: 20px;
+    border: solid 1px var(--border);
 }
 .channel-card .channel-controls {
     display: flex;

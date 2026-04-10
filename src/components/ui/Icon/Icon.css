@@ -20,7 +20,7 @@
     -webkit-backdrop-filter: blur(12px);
 }
 .app-icon:hover {
-    filter: brightness(90%);
+    background-color: var(--bg-white);
 }
 
 /* @media (max-width: 700px) {

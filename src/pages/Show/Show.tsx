@@ -26,13 +26,6 @@ const Show = ()  => {
     return (
         <MediaLayout media={show!} error={error} isLoading={isLoading} mediaType="tv">
             <EpisodesProvider show={show!}>
-                <div className="layout-container title-container">
-                    <Title 
-                        id="episodes"
-                        title="Episodes"
-                        className="app-container episodes-title"
-                    />
-                </div>
                 <EpisodesControls />
                 <EpisodesList />
             </EpisodesProvider>

@@ -22,7 +22,7 @@ export const EpisodesControls = () => {
     })) ?? [];
 
     return (
-        <Container className="season-selector-container" styled>
+        <Container className="season-selector-container" title="Episodes">
             <div className="season-selector">
                 <StyledSelect
                     options={seasonOptions}

@@ -1,7 +1,7 @@
 .player .next-episode-icon {
     left: initial;
     top: initial;
-    bottom: calc(env(safe-area-inset-top, 0px) + 80px);
+    bottom: 110px;
     right: 16px;
 }
 .player .episode-selector-icon {
@@ -12,7 +12,7 @@
     filter: brightness(50%);
 }
 .paused.idle .you-are-watching {
-    display: block;
+    display: flex;
 }
 .you-are-watching {
     position: absolute;
@@ -20,6 +20,8 @@
     top: 50%;
     transform: translateY(-50%);
     display: none;
+    justify-content: center;
+    height: 100dvh;
 }
 .you-are-watching .container-content {
     display: flex;
@@ -62,7 +64,7 @@
     overflow-y: auto;
     padding: 20px;
     background-color: var(--bg-primary);
-    border-radius: calc(var(--border-radius) * 2);
+    border-radius: var(--border-radius-small);
     z-index: 10;
 }
 
@@ -92,6 +94,19 @@
 }
 .inner-episode-selector > div {
     padding: 0;
+}
+.stream-provider-buttons {
+    position: absolute;
+    z-index: 1;
+    bottom: 110px;
+    display: flex;
+    gap: 10px;
+    left: 16px;
+    transform: translateY(0); 
+    transition: transform 0.3s ease;
+}
+.vidsrc .stream-provider-buttons, .vidsrc.player .next-episode-icon {
+    transform: translateY(30px);
 }
 
 @supports not (height: 100dvh) {
