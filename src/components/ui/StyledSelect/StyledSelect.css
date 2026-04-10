@@ -1,5 +1,6 @@
 .styled-select__control {
     height: 100%;
+    z-index: 1;
 }
 .styled-select__option {
     display: flex !important;

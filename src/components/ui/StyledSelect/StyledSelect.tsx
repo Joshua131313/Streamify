@@ -16,6 +16,7 @@ const styles = {
     "&:hover": {
       borderColor: "#dc2626",
     },
+    zIndex: 100
   }),
 
   menu: (base: any) => ({
@@ -23,7 +24,7 @@ const styles = {
     backgroundColor: "var(--bg-surface)",
     borderRadius: "20px", // ✅ match control
     overflow: "hidden",
-    zIndex: 50,
+    zIndex: 100,
   }),
 
   menuList: (base: any) => ({
