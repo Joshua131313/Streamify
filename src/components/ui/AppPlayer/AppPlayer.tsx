@@ -56,8 +56,7 @@ export const AppPlayer = React.memo((props: Props) => {
                 )}
 
                 {children}
-
-                <iframe src={src} ref={iframeRef} allowFullScreen allow="encrypted-media; autoplay; fullscreen"/>
+                <iframe ref={iframeRef} allow="encrypted-media; autoplay; fullscreen" src={src}></iframe>
             </div>
         );
     };
