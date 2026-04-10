@@ -5,7 +5,7 @@ import { useMLBGames } from "../hooks/sportsHooks/useMLBGames";
 import { mapNBAToGameProps } from "../utils/sports/nbaUtils";
 import { mapNHLToGameProps } from "../utils/sports/nhlUtils";
 import { mapMLBToGameProps } from "../utils/sports/mlbUtils";
-import { filterGames } from "../utils/sports/sportsUtils";
+import { filterGames, getPriority } from "../utils/sports/sportsUtils";
 import { useFavoriteTeamsContext } from "./FavoriteTeamsContext";
 import type { GameProps } from "../types/sports/sportsTypes";
 import { SportsPlayer } from "../pages/Sports/SportsPlayer";
@@ -129,7 +129,7 @@ export const SportsProvider = ({ children }: { children: React.ReactNode }) => {
             ...favoriteNBAGameCards,
             ...favoriteNHLGameCards,
             ...favoriteMLBGameCards
-        ];
+        ].sort((a, b) => getPriority(a.status) - getPriority(b.status));
     }, [favoriteNBAGameCards, favoriteNHLGameCards, favoriteMLBGameCards]);
 
     useEffect(() => {
