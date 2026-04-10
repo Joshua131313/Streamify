@@ -53,6 +53,26 @@
         padding: 0;
     }
 }
+@media (max-width: 1000px) {
+    .app-container {
+        padding: 0 45px;
+    }
+}
+@media (max-width: 800px) {
+    .app-container {
+        padding: 0 30px;
+    }
+}
+@media (max-width: 600px) {
+    .app-container {
+        padding: 0 20px;
+    }
+}
+@media (max-width: 500px) {
+    .app-container {
+        padding: 0 10px;
+    }
+}
 /* @media(max-width: 600px) {
     .app-container {
         padding: 0 1.5rem;

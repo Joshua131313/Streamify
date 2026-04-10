@@ -2,7 +2,7 @@ import { Logo } from "../ui/Logo/Logo"
 import { Container } from "../layout/Container/Container"
 import "./Navbar.css"
 import { FaFilm, FaHockeyPuck, FaHome, FaSearch, FaSquarespace, FaTv } from "react-icons/fa"
-import { FaBaseball, FaBasketball, FaCubesStacked } from "react-icons/fa6"
+import { FaBaseball, FaBasketball, FaClapperboard, FaCubesStacked, FaHouse } from "react-icons/fa6"
 import { NavLink, useLocation } from "react-router-dom"
 import { Mobilebar } from "./Mobilebar"
 import type { IconType } from "react-icons"
@@ -22,12 +22,12 @@ export interface Link {
 export const navLinks: Link[] = [
     {
         path: "/",
-        icon: FaHome,
+        icon: FaHouse,
         label: "Discover",
     },
     {
         path: "/discover?media=movie",
-        icon: FaFilm,
+        icon: FaClapperboard,
         label: "Movies",
     },
     {
