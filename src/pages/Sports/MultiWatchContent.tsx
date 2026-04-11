@@ -15,8 +15,8 @@ export const MultiWatchContent = () => {
                         <a className="game-title" href={g.gameLink} target="__blank">
                             {g.homeTeam.abbrev} vs {g.awayTeam.abbrev}
                         </a>
-                       <div className="window-close">
-                         <FaX onClick={() => removeGameFromMultiWatch(g)} />
+                       <div className="window-close" onClick={() => removeGameFromMultiWatch(g)}>
+                         <FaX  />
                        </div>
                     </div>
                     <iframe allowFullScreen src={

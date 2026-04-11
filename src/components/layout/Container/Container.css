@@ -1,5 +1,8 @@
+:root {
+    --layout-padding-horizontal: 4rem;
+}
 .app-container {
-    padding: 0 4rem;
+    padding: 0 var(--layout-padding-horizontal);
     /* margin-bottom: 20px; */
     display: flex;
     flex-direction: column;
@@ -46,31 +49,31 @@
     border-radius: 10px;
 }
 @media(max-width: 1400px) {
-    .app-container {
-        padding: 0 50px;
+    :root {
+        --layout-padding-horizontal: 50px;
     }
     .episodes-title.app-container {
         padding: 0;
     }
 }
 @media (max-width: 1000px) {
-    .app-container {
-        padding: 0 45px;
+    :root {
+        --layout-padding-horizontal: 45px;
     }
 }
 @media (max-width: 800px) {
-    .app-container {
-        padding: 0 30px;
+    :root {
+        --layout-padding-horizontal: 30px;
     }
 }
 @media (max-width: 600px) {
-    .app-container {
-        padding: 0 20px;
+    :root {
+        --layout-padding-horizontal: 20px;
     }
 }
 @media (max-width: 500px) {
-    .app-container {
-        padding: 0 10px;
+    :root {
+        --layout-padding-horizontal: 10px;
     }
 }
 /* @media(max-width: 600px) {
