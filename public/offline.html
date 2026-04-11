@@ -1,26 +1,51 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Offline</title>
-  <style>
-    body {
-      margin: 0;
-      height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #111;
-      color: white;
-      font-family: sans-serif;
-    }
-  </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Offline</title>
+
+    <style>
+        :root {
+            /* Backgrounds */
+            --bg-primary: #0B0D10;
+            --bg-secondary: #13161B;
+            --bg-surface: #1d1d1d;
+        }
+
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-primary);
+            color: white;
+            font-family: sans-serif;
+        }
+
+        .container {
+            text-align: center;
+        }
+
+        .logo {
+            width: 120px;
+            margin-bottom: 15px;
+        }
+
+        h1 {
+            margin: 10px 0;
+        }
+    </style>
 </head>
+
 <body>
-  <div>
-    <h1>You are offline</h1>
-    <p>Please check your internet connection</p>
-  </div>
+    <div class="container">
+        <img src="./logo/streamify-logo.png" class="logo" />
+        <h1>You’re offline</h1>
+        <p>Reconnect to continue using Streamify</p>
+    </div>
 </body>
+
 </html>
