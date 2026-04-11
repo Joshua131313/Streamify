@@ -3,6 +3,7 @@
     font-weight: bold;
     display: flex;
     align-items: center;
+    z-index: 999;
 }
 .logo img {
     width: 50px;
