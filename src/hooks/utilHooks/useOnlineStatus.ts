@@ -1,27 +1,26 @@
 import { useEffect, useState } from "react";
 
 export const useOnlineStatus = () => {
-    const [isOnline, setIsOnline] = useState(navigator.onLine);
+    const [isOnline, setIsOnline] = useState(true);
 
     useEffect(() => {
-        const updateStatus = () => {
-            console.log("checking:", navigator.onLine);
-            setIsOnline(navigator.onLine);
+        const checkConnection = async () => {
+            try {
+                // lightweight request (can be your API too)
+                await fetch("/logo/streamify-logo.ico", { cache: "no-store" });
+                setIsOnline(true);
+            } catch {
+                setIsOnline(false);
+            }
+                    console.log(isOnline)
+
         };
+        checkConnection(); // initial check
 
-        // event listeners (may not fire reliably)
-        window.addEventListener("online", updateStatus);
-        window.addEventListener("offline", updateStatus);
+        const interval = setInterval(checkConnection, 3000);
 
-        // fallback polling (THIS fixes your issue)
-        const interval = setInterval(updateStatus, 2000);
-
-        return () => {
-            window.removeEventListener("online", updateStatus);
-            window.removeEventListener("offline", updateStatus);
-            clearInterval(interval);
-        };
-    }, [navigator]);
+        return () => clearInterval(interval);
+    }, []);
 
     return isOnline;
 };
