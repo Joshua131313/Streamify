@@ -196,6 +196,9 @@
     right: 20px;
     display: flex;
     gap: 10px;
+    max-width: calc(100% - 100px);
+    justify-content: flex-end;
+    flex-wrap: wrap;
 }
 
 .alt-streams button {

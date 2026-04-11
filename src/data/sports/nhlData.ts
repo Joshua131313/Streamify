@@ -1,37 +1,6 @@
 import type { SportStream } from "../../types/sports/sportsTypes";
+import { createViewEmbedStreams } from "./sportsData";
 
-export const nhlStreams: SportStream[] = [
-        {
-        provider: "embedsports",
-        buildStreamUrl: ({awayTeamAbbrev, homeTeamAbbrev}) => {
-            const homeId = nhlTeamsMap[homeTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
-            const awayId = nhlTeamsMap[awayTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
-            return `https://embedsports.top/embed/admin/ppv-${awayId}-vs-${homeId}/1`;
-        },
-        buildChannel: ({awayTeamAbbrev, homeTeamAbbrev}) => {
-            const homeId = nhlTeamsMap[homeTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
-            const awayId = nhlTeamsMap[awayTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
-            return `${awayId}-vs-${homeId}`;
-        },
-    },
-    {
-        provider: "embedsports-d",
-        buildStreamUrl: ({awayTeamAbbrev, homeTeamAbbrev}) => {
-            const homeId = nhlTeamsMap[homeTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
-            const awayId = nhlTeamsMap[awayTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
-            // return `https://embedsports.top/embed/admin/ppv-${awayId}-vs-${homeId}/1`;
-            console.log(homeTeamAbbrev)
-            return `https://embedsports.me/nhl/${homeId}-vs-${awayId}-stream-1`;
-        },
-        buildChannel: ({awayTeamAbbrev, homeTeamAbbrev}) => {
-            const homeId = nhlTeamsMap[homeTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
-            const awayId = nhlTeamsMap[awayTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
-            return `${homeId}-vs-${awayId}`;
-        },
-    },
-
-
-]
 
 export const nhlTeamsMap = {
     ANA: { abbreviation: "ANA", teamName: "Anaheim Ducks", id: "anaheim-ducks", logo: "https://assets.nhle.com/logos/nhl/svg/ANA_light.svg", conference: "West", division: "Pacific" },
@@ -67,3 +36,28 @@ export const nhlTeamsMap = {
     WSH: { abbreviation: "WSH", teamName: "Washington Capitals", id: "washington-capitals", logo: "https://assets.nhle.com/logos/nhl/svg/WSH_light.svg", conference: "East", division: "Metropolitan" },
     WPG: { abbreviation: "WPG", teamName: "Winnipeg Jets", id: "winnipeg-jets", logo: "https://assets.nhle.com/logos/nhl/svg/WPG_light.svg", conference: "West", division: "Central" }
 };
+
+
+export const nhlStreams: SportStream[] = [
+    ...createViewEmbedStreams(nhlTeamsMap),
+    {
+        provider: "embedsports",
+        buildStreamUrl: ({awayTeamAbbrev, homeTeamAbbrev}) => {
+            const homeId = nhlTeamsMap[homeTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
+            const awayId = nhlTeamsMap[awayTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
+            return `https://embedsports.top/embed/admin/ppv-${awayId}-vs-${homeId}/1`;
+        },
+    },
+    {
+        provider: "embedsports-d",
+        buildStreamUrl: ({awayTeamAbbrev, homeTeamAbbrev}) => {
+            const homeId = nhlTeamsMap[homeTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
+            const awayId = nhlTeamsMap[awayTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
+            // return `https://embedsports.top/embed/admin/ppv-${awayId}-vs-${homeId}/1`;
+            console.log(homeTeamAbbrev)
+            return `https://embedsports.me/nhl/${homeId}-vs-${awayId}-stream-1`;
+        },
+    },
+
+
+]

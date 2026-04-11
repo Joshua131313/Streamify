@@ -5,43 +5,9 @@
 // ]
 
 import type { SportStream } from "../../types/sports/sportsTypes";
-import { getSlug } from "./sportsData";
+import { createViewEmbedStreams, getSlug } from "./sportsData";
 
-export const nbaStreams: SportStream[] = [
-  {
-    provider: "trendy47",
-    buildChannel: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
-      const homeId = nbaTeamsMap[homeTeamAbbrev as keyof typeof nbaTeamsMap]?.id;
-      const awayId = nbaTeamsMap[awayTeamAbbrev as keyof typeof nbaTeamsMap]?.id;
-      return `${awayId}-vs-${homeId}`
-    },
-    buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
-      const homeId = nbaTeamsMap[homeTeamAbbrev as keyof typeof nbaTeamsMap]?.id;
-      const awayId = nbaTeamsMap[awayTeamAbbrev as keyof typeof nbaTeamsMap]?.id;
-      return `https://v2.trendy47.com/event/ppv-${awayId}-vs-${homeId}`;
-    },
-  },
-  {
-    provider: "topstreams",
-    buildChannel: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
-      if (homeTeamAbbrev in nbaTeamsMap) {
-        const teamName = nbaTeamsMap[homeTeamAbbrev as keyof typeof nbaTeamsMap].teamName;
-        return getSlug(teamName);
-      }
-      return "";
-    },
-    buildStreamUrl: ({ homeTeamAbbrev }) => {
-      if (homeTeamAbbrev in nbaTeamsMap) {
-        const teamName = nbaTeamsMap[homeTeamAbbrev as keyof typeof nbaTeamsMap].teamName;
-        const slug = getSlug(teamName).toLowerCase();
 
-        return `https://topstreams.info/iframe/nba/${slug}`;
-      }
-
-      return "";
-    }
-  }
-]
 
 export const nbaTeamsMap = {
   ATL: { abbreviation: "ATL", teamName: "Atlanta Hawks", id: "atlanta-hawks", logo: "https://cdn.nba.com/logos/nba/1610612737/global/L/logo.svg", conference: "East", division: "Southeast" },
@@ -76,3 +42,28 @@ export const nbaTeamsMap = {
   SA: { abbreviation: "SA", teamName: "San Antonio Spurs", id: "san-antonio-spurs", logo: "https://cdn.nba.com/logos/nba/1610612759/global/L/logo.svg", conference: "West", division: "Southwest" },
   UTAH: { abbreviation: "UTAH", teamName: "Utah Jazz", id: "utah-jazz", logo: "https://cdn.nba.com/logos/nba/1610612762/global/L/logo.svg", conference: "West", division: "Northwest" }
 };
+
+export const nbaStreams: SportStream[] = [
+  ...createViewEmbedStreams(nbaTeamsMap),
+  {
+    provider: "trendy47",
+    buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
+      const homeId = nbaTeamsMap[homeTeamAbbrev as keyof typeof nbaTeamsMap]?.id;
+      const awayId = nbaTeamsMap[awayTeamAbbrev as keyof typeof nbaTeamsMap]?.id;
+      return `https://v2.trendy47.com/event/ppv-${awayId}-vs-${homeId}`;
+    },
+  },
+  {
+    provider: "topstreams",
+    buildStreamUrl: ({ homeTeamAbbrev }) => {
+      if (homeTeamAbbrev in nbaTeamsMap) {
+        const teamName = nbaTeamsMap[homeTeamAbbrev as keyof typeof nbaTeamsMap].teamName;
+        const slug = getSlug(teamName).toLowerCase();
+
+        return `https://topstreams.info/iframe/nba/${slug}`;
+      }
+
+      return "";
+    }
+  }
+]

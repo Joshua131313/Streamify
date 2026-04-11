@@ -6,6 +6,9 @@
     left: 50%;
     transform: translateX(-50%);
 }
+.player-open .navbar, .player-open .sub-nav, .player-open .mobile-bar {
+    display: none;
+}
 .sub-nav {
     top: 0;
     padding: 10px;

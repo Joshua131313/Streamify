@@ -78,6 +78,7 @@ export const NavLinks = () => {
 export const Navbar = () => {
 
     const location = useLocation();
+
     const activeLink = navLinks.find(link => {
         if (link.path === "/") {
             return location.pathname === "/";
@@ -85,6 +86,7 @@ export const Navbar = () => {
 
         return location.pathname.startsWith(link.path);
     });
+    
     const subLinks = activeLink?.subLinks;
 
     return (
