@@ -7,7 +7,7 @@ import { Mobilebar } from "../Navbar/Mobilebar";
 import { useScroll } from "../../hooks/utilHooks/useScroll";
 import { SportsPlayer } from "../../pages/Sports/SportsPlayer";
 import { useOnlineStatus } from "../../hooks/utilHooks/useOnlineStatus";
-import { OfflineScreen } from "../ui/OfflineScreen/OfflineScreen";
+import { NetworkIndicatorScreen } from "../ui/NetworkIndicatorScreen/NetworkIndicatorScreen";
 
 interface Props {
     hideNav?: boolean;
@@ -24,7 +24,7 @@ export const AppLayout = (props: Props) => {
     return (
         <>
             <RouteProgress />
-            {!isOnline && <OfflineScreen />}
+            <NetworkIndicatorScreen />
             {!hideNav && <Navbar />}
             <Mobilebar />
 
