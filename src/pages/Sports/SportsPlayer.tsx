@@ -96,12 +96,10 @@ export const SportsPlayer = () => {
         }
     }
 
-    // ❌ No player → remove
     if (!src) return null;
 
     return (
         <>
-            {/* 🔁 Provider switch */}
             {allStreams.length > 0 && (
                 <div className="alt-streams">
                     {allStreams.map((stream, i) => (
@@ -110,19 +108,17 @@ export const SportsPlayer = () => {
                             key={stream.provider}
                             onClick={() => switchProvider(stream.provider)}
                         >
-                            Stream {i + 1}
+                            {stream.label ?? `Stream ${i + 1}`}
                         </Button>
                     ))}
                 </div>
             )}
 
-            {/* 🎥 Player */}
             <AppPlayer
                 cancelPlay={cancelWatch}
                 src={src}
             />
 
-            {/* 📺 TV Controls */}
             {isTV && (
                 <div className="stream-controls">
                     <Icon Icon={FaChevronUp} onClick={incrementChannel} />

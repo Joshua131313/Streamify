@@ -1,89 +1,7 @@
 import type { SportStream } from "../../types/sports/sportsTypes";
-import { getSlug } from "./sportsData";
-
-export const mlbStreams: SportStream[] = [
-    {
-        provider: "embedsports",
-
-        buildChannel: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
-            const home = mlbTeamsMap[homeTeamAbbrev as keyof typeof mlbTeamsMap];
-            const away = mlbTeamsMap[awayTeamAbbrev as keyof typeof mlbTeamsMap];
-
-            if (!home || !away) return "";
+import { createViewEmbedStreams, getSlug } from "./sportsData";
 
 
-            return `${away.id}-vs-${home.id}`;
-        },
-
-        buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
-            const home = mlbTeamsMap[homeTeamAbbrev as keyof typeof mlbTeamsMap];
-            const away = mlbTeamsMap[awayTeamAbbrev as keyof typeof mlbTeamsMap];
-
-            if (!home || !away) return "";
-            return `https://embedsports.top/embed/admin/ppv-${away.id}-vs-${home.id}/1#player=clappr`
-        }
-    },
-    {
-        provider: "embedsports-d",
-
-        buildChannel: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
-            const home = mlbTeamsMap[homeTeamAbbrev as keyof typeof mlbTeamsMap];
-            const away = mlbTeamsMap[awayTeamAbbrev as keyof typeof mlbTeamsMap];
-
-            if (!home || !away) return "";
-            const homeSlug = getSlug(home.teamName);
-            const awaySlug = getSlug(away.teamName);
-
-            return `${homeSlug}-${awaySlug}`;
-        },
-
-        buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
-            const home = mlbTeamsMap[homeTeamAbbrev as keyof typeof mlbTeamsMap];
-            const away = mlbTeamsMap[awayTeamAbbrev as keyof typeof mlbTeamsMap];
-
-            if (!home || !away) return "";
-            const homeSlug = getSlug(home.teamName).toLowerCase();
-            const awaySlug = getSlug(away.teamName).toLowerCase();
-            return `https://embedsports.top/embed/delta/live_mlb_${homeSlug}-${awaySlug}-live-streaming-1197515286/1#player=clappr`
-        }
-    },
-    {
-        provider: "pooembed",
-
-        buildChannel: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
-            const home = mlbTeamsMap[homeTeamAbbrev as keyof typeof mlbTeamsMap];
-            const away = mlbTeamsMap[awayTeamAbbrev as keyof typeof mlbTeamsMap];
-
-            if (!home || !away) return "";
-            const homeAbbrev = home.abbreviation.toLowerCase();
-            const awayAbbrev = away.abbreviation.toLowerCase();
-
-            return `${awayAbbrev}-${homeAbbrev}`;
-        },
-
-        buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
-            const home = mlbTeamsMap[homeTeamAbbrev as keyof typeof mlbTeamsMap];
-            const away = mlbTeamsMap[awayTeamAbbrev as keyof typeof mlbTeamsMap];
-
-            if (!home || !away) return "";
-
-            const homeAbbrev = home.abbreviation.toLowerCase();
-            const awayAbbrev = away.abbreviation.toLowerCase();
-
-            const now = new Date();
-            const adjustedDate = new Date(now);
-
-            // If it's between 12:00 AM and 5:59 AM, use the previous day
-            if (now.getHours() < 6) {
-                adjustedDate.setDate(adjustedDate.getDate() - 1);
-            }
-
-            const gameDay = adjustedDate.toLocaleDateString("en-CA");
-
-            return `https://pooembed.eu/embed/mlb/${gameDay}/${awayAbbrev}-${homeAbbrev}#autoplay=true`;
-        }
-    },
-];
 
 export const mlbTeamsMap = {
     // AL EAST
@@ -338,3 +256,53 @@ export const mlbTeamsMap = {
         division: "West"
     }
 };
+
+export const mlbStreams: SportStream[] = [
+    ...createViewEmbedStreams(mlbTeamsMap),
+    {
+        provider: "embedsports",
+        buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
+            const home = mlbTeamsMap[homeTeamAbbrev as keyof typeof mlbTeamsMap];
+            const away = mlbTeamsMap[awayTeamAbbrev as keyof typeof mlbTeamsMap];
+
+            if (!home || !away) return "";
+            return `https://embedsports.top/embed/admin/ppv-${away.id}-vs-${home.id}/1#player=clappr`
+        }
+    },
+    {
+        provider: "embedsports-d",
+        buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
+            const home = mlbTeamsMap[homeTeamAbbrev as keyof typeof mlbTeamsMap];
+            const away = mlbTeamsMap[awayTeamAbbrev as keyof typeof mlbTeamsMap];
+
+            if (!home || !away) return "";
+            const homeSlug = getSlug(home.teamName).toLowerCase();
+            const awaySlug = getSlug(away.teamName).toLowerCase();
+            return `https://embedsports.top/embed/delta/live_mlb_${homeSlug}-${awaySlug}-live-streaming-1197515286/1#player=clappr`
+        }
+    },
+    {
+        provider: "pooembed",
+        buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
+            const home = mlbTeamsMap[homeTeamAbbrev as keyof typeof mlbTeamsMap];
+            const away = mlbTeamsMap[awayTeamAbbrev as keyof typeof mlbTeamsMap];
+
+            if (!home || !away) return "";
+
+            const homeAbbrev = home.abbreviation.toLowerCase();
+            const awayAbbrev = away.abbreviation.toLowerCase();
+
+            const now = new Date();
+            const adjustedDate = new Date(now);
+
+            // If it's between 12:00 AM and 5:59 AM, use the previous day
+            if (now.getHours() < 6) {
+                adjustedDate.setDate(adjustedDate.getDate() - 1);
+            }
+
+            const gameDay = adjustedDate.toLocaleDateString("en-CA");
+
+            return `https://pooembed.eu/embed/mlb/${gameDay}/${awayAbbrev}-${homeAbbrev}#autoplay=true`;
+        }
+    },
+];
