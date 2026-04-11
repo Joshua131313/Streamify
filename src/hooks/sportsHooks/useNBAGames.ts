@@ -19,9 +19,8 @@ export const useNBAGames = () : UseNbaGames => {
         },
         refetchInterval: 30000
     });
-    
     return {
-        nbaGames: data,
+        nbaGames: Array.isArray(data) ? data : [],
         nbaGamesLoading: isLoading,
         error,
     };

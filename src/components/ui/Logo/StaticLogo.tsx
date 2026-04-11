@@ -5,7 +5,7 @@ export const StaticLogo = () => {
           <img
             src="/logo/streamify-logo.png"
           />
-          Streamify
+          <span>Streamify</span>
         </div>
     )
 }

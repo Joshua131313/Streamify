@@ -22,7 +22,7 @@ export const useNHLGames = (): UseNHLGames => {
   });
 
   return {
-    games: data,
+    games: Array.isArray(data) ? data : [],
     isLoading: isLoading,
     error,
   };
