@@ -21,7 +21,7 @@ export const useOnlineStatus = () => {
             window.removeEventListener("offline", updateStatus);
             clearInterval(interval);
         };
-    }, []);
+    }, [navigator]);
 
     return isOnline;
 };
