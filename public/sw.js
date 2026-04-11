@@ -1,28 +1,51 @@
-const CACHE_NAME = "app-cache-v1";
+const CACHE_NAME = "app-cache-v2"; 
 const OFFLINE_URL = "/offline.html";
 
-// install → cache offline page
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll([OFFLINE_URL]);
+      return cache.addAll([
+        OFFLINE_URL,
+        "/logo/streamify-logo.png", 
+      ]);
     })
   );
+
   self.skipWaiting();
 });
 
-// activate
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then((keys) => {
+      return Promise.all(
+        keys.map((key) => {
+          if (key !== CACHE_NAME) {
+            return caches.delete(key);
+          }
+        })
+      );
+    })
+  );
+
+  self.clients.claim();
 });
 
-// fetch handler
 self.addEventListener("fetch", (event) => {
-  if (event.request.mode === "navigate") {
+  const request = event.request;
+
+  if (request.mode === "navigate") {
     event.respondWith(
-      fetch(event.request).catch(() => {
-        return caches.match(OFFLINE_URL);
+      fetch(request).catch(() => caches.match(OFFLINE_URL))
+    );
+    return;
+  }
+
+  if (request.url.includes("/logo/")) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        return cached || fetch(request);
       })
     );
+    return;
   }
 });
