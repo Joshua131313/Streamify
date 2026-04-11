@@ -20,7 +20,6 @@ export const AppLayout = (props: Props) => {
     
     return (
         <>
-        <Loader fullScreen text="Streamify is getting ready"/>
             <RouteProgress />
             <NetworkIndicatorScreen />
             {!hideNav && <Navbar />}
