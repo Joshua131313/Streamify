@@ -65,7 +65,7 @@ export const SportsProvider = ({ children }: { children: React.ReactNode }) => {
     const { nbaGames, nbaGamesLoading } = useNBAGames();
     const { games: nhlGames, isLoading: nhlGamesLoading } = useNHLGames();
     const { games: mlbGames, isLoading: mlbGamesLoading } = useMLBGames();
-
+    
     const mappedNBAGames = nbaGames.map(mapNBAToGameProps);
     const mappedNHLGames = nhlGames.map(mapNHLToGameProps);
     const mappedMLBGames = mlbGames.map(mapMLBToGameProps);

@@ -21,7 +21,7 @@ export const useMLBGames = (): UseMLBGames => {
     });
 
     return {
-        games: data,
+        games: Array.isArray(data) ? data : [],
         isLoading: isLoading,
         error,
     };

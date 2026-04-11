@@ -1,0 +1,17 @@
+.offline-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background-color: var(--accent-primary);
+    z-index: 1000;
+    padding: 25px var(--layout-padding-horizontal);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    font-weight: bold;
+}
+.offline-container svg {
+    font-size: var(--font-xl);
+}
