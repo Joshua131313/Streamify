@@ -7,13 +7,7 @@ export function useScroll() {
   useEffect(() => {
     const bodyEl = document.querySelector(".body");
 
-    if (bodyEl) {
-      bodyEl.scrollTop = 0;
-    }
 
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-    window.scrollTo(0, 0);
 
     if (!bodyEl) return;
 
