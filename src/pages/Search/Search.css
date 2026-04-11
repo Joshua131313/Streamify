@@ -14,7 +14,10 @@
   align-items: center;
   grid-column: 1 / -1
 }
-
+.header-controls .container-content button {
+  width: auto;
+  align-self: flex-start;
+}
 .no-results-trending-today-title {
   grid-column: 1 / -1;
 }

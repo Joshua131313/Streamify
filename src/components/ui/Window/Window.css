@@ -77,15 +77,12 @@
 .window-minimized-icon {
     position: fixed;
     bottom: 20px;
-    right: 20px;
+    right: var(--layout-padding-horizontal);
     z-index: 1000
 }
 .window-minimized-icon.active .app-icon {
     background-color: var(--accent-primary);
 } 
-/* =========================
-   MULTI WATCH GRID (kept specific)
-   ========================= */
 
 .multi-watch-content {
     gap: 10px;
@@ -93,7 +90,6 @@
     grid-template-columns: repeat(auto-fit, minmax(var(--multi-watch-game-width), 1fr));
 }
 
-/* GAME CARD */
 .multi-game {
     display: flex;
     flex-direction: column;
@@ -126,4 +122,10 @@
 .player-window-icon img {
     width: calc(var(--app-icon-dimension) / 2);
     height: calc(var(--app-icon-dimension) / 2);
+}
+
+@media (hover: none) and (pointer: coarse) {
+    .window-minimized-icon {
+        transform: translateY(-80px);
+    }
 }

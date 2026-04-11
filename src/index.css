@@ -236,3 +236,12 @@ details[open] > summary::before {
   background: var(--accent-primary) !important;
   height: 3px !important;
 }
+
+@media (hover: none) and (pointer: coarse) {
+    * {
+        user-select: none;
+        -webkit-user-select: none;
+        -ms-user-select: none;
+        -webkit-touch-callout: none; /* disables long-press menu on iOS */
+    }
+}

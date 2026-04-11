@@ -27,7 +27,7 @@ export const Window = ({ id, title, children, minimizedIcon, className }: Props)
         open,
         getWindowIndex
     } = useWindow(id);
-
+    
     const rndRef = useRef<Rnd | null>(null);
 
     if (!appWindow) return null;
@@ -179,8 +179,6 @@ export const Window = ({ id, title, children, minimizedIcon, className }: Props)
                             </div>
                         </div>
                     </div>
-
-                    {/* CONTENT */}
                     <div className="window-content">{children}</div>
                 </div>
             </Rnd>

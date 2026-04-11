@@ -41,4 +41,7 @@
     .header-controls .container-content > * {
         width: 100%;
     }
+    .header-controls .container-content > button {
+        width: auto;
+    }
 }
