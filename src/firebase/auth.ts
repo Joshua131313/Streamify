@@ -8,14 +8,12 @@ export const createUserDocument = async (
     lastName?: string,
     fullName?: string
 ) => {
-    // ---------- HANDLE NAME ----------
     if (!firstName && !lastName && fullName) {
         const parts = fullName.split(" ");
         firstName = parts[0] || "";
         lastName = parts.slice(1).join(" ") || "";
     }
 
-    // ---------- GET LOCAL STORAGE ----------
     const rawSearch = localStorage.getItem("search-history");
     const rawShows = localStorage.getItem("show-history");
 
@@ -29,7 +27,6 @@ export const createUserDocument = async (
         console.warn("Failed to parse localStorage");
     }
 
-    // ---------- CREATE MAIN USER DOC ----------
     await setDoc(
         doc(db, "users", uid),
         {
@@ -43,7 +40,6 @@ export const createUserDocument = async (
         { merge: true }
     );
 
-    // ---------- SHOW HISTORY (by showId) ----------
     await Promise.all(
         showHistory.map((item) => {
             const ref = doc(
@@ -69,7 +65,6 @@ export const createUserDocument = async (
         })
     );
 
-    // ---------- SEARCH HISTORY (auto IDs) ----------
     await Promise.all(
         searchHistory.map((item) => {
             const ref = collection(db, "users", uid, "searchHistory");
