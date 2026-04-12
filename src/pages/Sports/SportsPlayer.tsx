@@ -1,4 +1,4 @@
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
     formatChannel,
     getSportStream,
@@ -9,12 +9,13 @@ import type { Leagues, TeamAbbrevs, TStreamProvider } from "../../types/sports/s
 import { Icon } from "../../components/ui/Icon/Icon";
 import { FaChevronDown, FaChevronUp } from "react-icons/fa";
 import { Input } from "../../components/ui/Input/Input";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "../../components/ui/Button/Button";
+import { SEO } from "../../components/SEO";
 
 export const SportsPlayer = () => {
+    const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
-    // 🔹 Params
     const provider = searchParams.get("provider");
     const channel = searchParams.get("channel");
     const league = searchParams.get("league") as Leagues | null;
@@ -23,10 +24,8 @@ export const SportsPlayer = () => {
 
     const isTV = searchParams.get("tv") === "1";
 
-    // 🔹 Streams
     const allStreams = league ? getSportStream(league) : [];
 
-    // 🔹 TV input state
     const [inputValue, setInputValue] = useState(channel || "");
     const channelAsNumber = Number(channel);
     const decrementChannelButtonEnabled = channelAsNumber > 1;
@@ -37,7 +36,6 @@ export const SportsPlayer = () => {
         }
     }, [channel]);
 
-    // 🔥 Channel update
     const updateChannel = (newChannel: string) => {
         if (!newChannel || isNaN(Number(newChannel))) return;
 
@@ -60,26 +58,16 @@ export const SportsPlayer = () => {
         }
     };
 
-    // 🔁 Provider switch
     const switchProvider = (newProvider: TStreamProvider) => {
         const newParams = new URLSearchParams(searchParams);
         newParams.set("provider", newProvider);
         setSearchParams(newParams);
     };
 
-    // ❌ Cancel player
     const cancelWatch = () => {
-        const newParams = new URLSearchParams(searchParams);
-        newParams.delete("provider");
-        newParams.delete("channel");
-        newParams.delete("league");
-        newParams.delete("away");
-        newParams.delete("home");
-        newParams.delete("tv");
-        setSearchParams(newParams, { replace: true });
+        navigate("/sports", { replace: true });
     };
 
-    // 🔥 SIMPLE SOURCE LOGIC (original style)
     let src: string | null = null;
 
     if (isTV) {
@@ -91,7 +79,7 @@ export const SportsPlayer = () => {
             const stream = allStreams.find(s => s.provider === provider);
 
             if (stream) {
-                src = stream.buildStreamUrl({awayTeamAbbrev, homeTeamAbbrev});
+                src = stream.buildStreamUrl({ awayTeamAbbrev, homeTeamAbbrev });
             }
         }
     }
@@ -113,7 +101,10 @@ export const SportsPlayer = () => {
                     ))}
                 </div>
             )}
-
+            <SEO
+                title={`${awayTeamAbbrev} @ ${homeTeamAbbrev}`}
+                description="Watch live sports streams on Streamify"
+            />
             <AppPlayer
                 cancelPlay={cancelWatch}
                 src={src}

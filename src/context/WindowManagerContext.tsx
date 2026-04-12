@@ -23,7 +23,7 @@ type WindowMap = Record<string, WindowData>;
 interface WindowManagerContextType {
     windows: WindowMap;
 
-    openWindow: (id: string) => void;
+    openWindow: (id: string, overrideState?: WindowState) => void;
     closeWindow: (id: string) => void;
     minimizeWindow: (id: string) => void;
     toggleFullscreen: (id: string) => void;
@@ -91,10 +91,10 @@ export const WindowManagerProvider = ({
             .filter(([_, w]) => (w.windowState !== "minimized" && w.windowState !== "closed"))
             .some(([key]) => key === id);
     };
-    const openWindow = (id: string) =>
+    const openWindow = (id: string, overrideState?: WindowState) =>
         updateWindow(id, (w) => ({
             ...w,
-            windowState:
+            windowState: overrideState ? overrideState :
                 w.lastWindowState && w.lastWindowState !== "closed"
                     ? w.lastWindowState
                     : "opened",

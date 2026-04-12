@@ -57,7 +57,7 @@ const GameCard: React.FC<Props> = ({ game, showSportName, className }) => {
                         if (state === "opened" || state === "fullscreen") {
                             minimizeWindow(watchURL);
                         } else {
-                            openWindow(watchURL);
+                            openWindow(watchURL, "opened");
                         }
                     },
                 },
