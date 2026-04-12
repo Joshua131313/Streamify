@@ -228,7 +228,7 @@ Streamify does **not host any content**.
 
 ## 👨‍💻 Author
 
-Built by **Preston Fischer**
+Built by **Joshua Bitton**
 
 ---
 
