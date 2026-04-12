@@ -1,19 +1,13 @@
 import { Container } from "../../components/layout/Container/Container";
-import GameCard from "../../components/ui/GameCard/GameCard";
-import { PageHeader } from "../../components/ui/PageHeader/PageHeader";
 import "./Sports.css";
-import { Input } from "../../components/ui/Input/Input";
-import { FaSearch, FaThLarge } from "react-icons/fa";
-import { useSports, quickFilters, type SportFilterType } from "../../context/SportsContext";
+import { useSports } from "../../context/SportsContext";
 import { AppSwiper } from "../../components/ui/AppSwiper/AppSwiper";
 import { SwiperSkeletonCard } from "../../components/ui/MediaCard/SkeletonCards/MediaSkeletonCard";
-import { Button } from "../../components/ui/Button/Button";
 import { channelStreams } from "../../data/sports/sportsData";
 import { ChannelCard } from "../../components/ui/ChannelCard/ChannelCard";
-import { useWindow } from "../../hooks/utilHooks/useWindow";
-import { SEO } from "../../components/SEO";
 import SportsLayout from "./SportsLayout";
 import { FilteredSportsContainer } from "../../components/layout/Container/FilteredSportsContainer";
+import RegularGameCard from "../../components/ui/GameCard/RegularGameCard";
 
 const Sports = () => {
     const {
@@ -34,7 +28,7 @@ const Sports = () => {
                         items={favoriteGameCards}
                         itemKey={(item) => String(item.id ?? item.title)}
                         renderItem={(game) => (
-                            <GameCard showSportName game={game} />
+                            <RegularGameCard game={game} />
                         )}
                         skeleton={<SwiperSkeletonCard className="game-card-skeleton" />}
                     />
@@ -58,7 +52,7 @@ const Sports = () => {
                     items={nbaGameCards}
                     itemKey={(item) => String(item.id ?? item.title)}
                     renderItem={(game) => (
-                        <GameCard showSportName={false} game={game} />
+                        <RegularGameCard game={game} />
                     )}
                     skeleton={<SwiperSkeletonCard className="game-card-skeleton" />}
                 />
@@ -70,7 +64,7 @@ const Sports = () => {
                     items={nhlGameCards}
                     itemKey={(item) => String(item.id ?? item.title)}
                     renderItem={(game) => (
-                        <GameCard showSportName={false} game={game} />
+                        <RegularGameCard game={game} />
                     )}
                     skeleton={<SwiperSkeletonCard className="game-card-skeleton" />}
                 />
@@ -82,7 +76,7 @@ const Sports = () => {
                     items={mlbGameCards}
                     itemKey={(item) => String(item.id ?? item.title)}
                     renderItem={(game) => (
-                        <GameCard showSportName={false} game={game} />
+                        <RegularGameCard game={game} />
                     )}
                     skeleton={<SwiperSkeletonCard className="game-card-skeleton" />}
                 />

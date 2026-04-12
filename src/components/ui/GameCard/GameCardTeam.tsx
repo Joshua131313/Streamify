@@ -8,10 +8,12 @@ import { BsHeart, BsHeartFill, BsStar, BsStarFill } from "react-icons/bs";
 interface Props {
     game: GameProps;
     teamKey: "awayTeam" | "homeTeam";
+    showTeamName?: boolean;
+    showFollowButton?: boolean;
 }
 
 export const GameCardTeam = (props: Props) => {
-    const { game, teamKey } = props;
+    const { game, teamKey, showFollowButton, showTeamName } = props;
     const [animate, setAnimate] = useState(false);
     const { addTeam, isFavorite, removeTeam } = useFavoriteTeamsContext()
     const team = game[teamKey];
@@ -44,17 +46,19 @@ export const GameCardTeam = (props: Props) => {
                 }} src={team.logo} alt={team.name} />
                 <Heart className={`like-response ${animate ? "animated" : ""}`} />
             </div>
-            <span className="team-name">{team.name}</span>
+            {showTeamName && <span className="team-name">{team.name}</span> }
             {(showScore()) ? (
                 <div className="score">{team.score}</div>
             ) : (
                 <div className="score ghost-score">-</div>
             )
             }
-            <Button className="secondary follow-button" onClick={() => isFavorite(team) ? removeTeam(team) : addTeam(team)}>
-                {isFavorite(team) ? <BsStarFill /> : <BsStar />}
+            {
+                showFollowButton && 
+            <Button className={`${isFavorite(team) && "secondary"} follow-button`} onClick={() => isFavorite(team) ? removeTeam(team) : addTeam(team)}>
                 {isFavorite(team) ? "Following" : "Follow"}
             </Button>
+            }
         </div>
     )
 }

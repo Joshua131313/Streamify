@@ -1,5 +1,5 @@
 :root {
-  --game-card-width: 280px;
+    --game-card-width: 280px;
 }
 
 .game-card {
@@ -17,6 +17,7 @@
     width: var(--game-card-width);
     border: solid 1px var(--border);
 }
+
 .media-skeleton-card.game-card-skeleton {
     width: var(--game-card-width);
     height: 210px;
@@ -33,21 +34,27 @@
     justify-content: space-between;
 }
 
-.live-badge, .not-started-badge, .status-tag {
+.live-badge,
+.not-started-badge,
+.status-tag {
     background: #ff3b3b;
     padding: 4px 10px;
-    border-radius: 40px;
+    border-radius: var(--border-radius-small);
     font-size: var(--font-xs);
     font-weight: bold;
     text-transform: capitalize;
+    text-align: center;
 }
-.not-started-badge, .status-tag {
+
+.not-started-badge,
+.status-tag {
     background: rgba(255, 255, 255, 0.2);
 }
+
 .team {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .team .app-icon {
@@ -61,20 +68,22 @@
     border: none;
     transform: translateY(-50%);
 }
+
 .team:first-of-type .app-icon {
     right: -50px;
     left: 55px;
 }
+
 .score {
-  font-size: var(--font-lg);
-  font-weight: bold;
-  margin-top: 4px;
+    font-size: var(--font-lg);
+    font-weight: bold;
+    margin-top: 4px;
 }
-.gh
-.live-info {
-  font-size: 13px;
-  font-weight: 500;
-  color: #ff4d4d;
+
+.gh .live-info {
+    font-size: 13px;
+    font-weight: 500;
+    color: #ff4d4d;
 }
 
 .logos {
@@ -112,92 +121,22 @@
     justify-content: center;
     width: 100%;
 }
-.game-card .button {
-}
+
+.game-card .button {}
 
 .game-card-buttons.single {
     grid-template-columns: 1fr;
 }
+
 .game-card-buttons {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
 }
-.game-card-buttons > a {
+
+.game-card-buttons>a {
     width: 100%;
     min-width: 0;
-}
-
-.team .follow-button, .team .team-name {
-    display: none;
-} 
-.horizontal-card .team .follow-button, .horizontal-card .team .team-name {
-    display: flex;
-} 
-.horizontal-card.game-card {
-    width: 100%;
-}
-.horizontal-card .game-card-buttons {
-    position: absolute;
-    right: 16px;
-    bottom: 16px;
-}
-.horizontal-card .game-card-badges {
-    position: absolute;
-    right: 0;
-    gap: 10px;
-}
-.horizontal-card .logos {
-    justify-content: flex-start;
-    flex-direction: column;
-    align-items: flex-start;
-}
-
-.horizontal-card {
-    padding: 15px;; 
-}
-
-.horizontal-card .team {
-    display: grid;
-    align-items: center;
-
-    /* 🔻 SLIM DEFAULT */
-    --col-logo: 45px;
-    --col-name: 140px;
-    --col-flex: 1fr;
-    --col-action: 110px;
-    --gap: 12px;
-
-    grid-template-columns:
-        var(--col-logo)
-        minmax(0, var(--col-name))
-        var(--col-flex)
-        var(--col-action);
-
-    gap: var(--gap);
-}
-
-
-.horizontal-card .team span {
-    font-size: var(--font-sm);
-}
-
-.horizontal-card .team .button {
-    padding: 6px;
-}
-
-.horizontal-card .team .button svg {
-    font-size: 14px;
-    min-width: 14px;
-}
-
-.horizontal-card .vs,
-.horizontal-card .team .app-icon {
-    display: none;
-}
-
-.horizontal-card .score {
-    width: 26px;
 }
 
 .logos img {
@@ -228,25 +167,87 @@
 }
 
 
+.game-card-horizontal .game-card-badges {}
+
+.game-card-horizontal-matchup {
+    gap: 10px;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--bg-white);
+    border: solid 1px var(--border);
+    padding: 10px;
+    border-radius: var(--border-radius-small);
+}
+
+.horizontal-team-row {
+    display: flex;
+    justify-content: space-between;
+}
+
+.horizontal-team-row .team {
+    display: grid;
+    align-items: center;
+
+    --col-logo: 45px;
+    --col-name: 140px;
+    --col-flex: 1fr;
+    --col-action: 110px;
+    --gap: 16px;
+
+    grid-template-columns:
+        var(--col-logo) minmax(0, var(--col-name)) var(--col-flex) var(--col-action);
+
+    gap: var(--gap);
+}
+
+.horizontal-team-row .button {}
+
+.horizontal-team-row .follow-button {
+    font-size: var(--font-xs);
+    padding: 10px 7px;
+    justify-content: center;
+}
+
+.horizontal-team-row .follow-button svg {
+    margin-right: 3px;
+}
+
+.horizontal-team-row .game-card-badges {
+    align-items: center;
+    gap: 5px;
+}
+
+.horizontal-team-row .team img {
+    width: 100%;
+    height: 100%;
+}
+
+.horizontal-team-row .game-card-buttons {
+    align-items: center;
+}
+
+.horizontal-team-row .game-card-buttons button {
+    width: 100%;
+    justify-content: center;
+}
+
+.horizontal-team-row .score {
+    margin-top: 0;
+}
+
+
 @media (max-width: 800px) {
+
     :root {
         --game-card-width: 250px;
     }
 
-    .horizontal-card .team {
+    .horizontal-team-row .team {
         --col-name: 130px;
         --col-action: 100px;
-        --gap: 10px;
+        --gap: 12px;
     }
 
-    .horizontal-card .team .follow-button {
-        font-size: var(--font-xs);
-    }
-
-    .horizontal-card .game-card-buttons .play-button button,
-    .horizontal-card .game-card-buttons .espn {
-        padding: 4px 8px;
-    }
 }
 
 
@@ -255,82 +256,102 @@
         --game-card-width: 230px;
     }
 
-    .horizontal-card .team {
-        --col-logo: 40px;
-        --col-name: 110px;
-    }
-
     .logos img {
         width: 40px;
         height: 40px;
     }
 
-    .horizontal-card .team .team-name {
-        font-size: var(--font-xs);
+    .horizontal-team-row .team {
+        --col-logo: 40px;
+        --col-name: 110px;
     }
+
 }
 
 @media (max-width: 600px) {
-    :root {
-        --game-card-width: 210px;
-    }
-
-    .horizontal-card .team {
+    .horizontal-team-row .team {
         --col-name: 90px;
         --col-action: 85px;
-        --gap: 8px;
+        --gap: 10px;
     }
 
-    .horizontal-card .team .team-name {
-        font-size: 11px;
-    }
-
-    .horizontal-card .team .follow-button {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .horizontal-card .team .follow-button svg {
-        display: none;
+    :root {
+        --game-card-width: 210px;
     }
 
     .logos img {
         width: 36px;
         height: 36px;
     }
+
 }
 
 @media (max-width: 550px) {
-    .horizontal-card .team {
+
+    .horizontal-team-row .team {
         --col-logo: 36px;
         --col-name: 80px;
         --col-action: 75px;
-        --gap: 6px;
+        --gap: 8px;
     }
-    .horizontal-card .game-card-badges {
-        flex-direction: column;
+
+    .horizontal-team-row .horizontal-buttons {
+        width: 180px;
+        gap: 5px;
+    }
+
+    .horizontal-buttons .button.espn img {
+        width: 40px;
     }
 }
 
 @media (max-width: 475px) {
-    .horizontal-card .team {
-        --col-name: 65px;
-        --col-action: 55px;
+    .horizontal-team-row .team {
+        --col-logo: 30px;
+        --col-name: 60px;
+        --col-action: 60px;
+        --gap: 6px;
     }
 
-    .horizontal-card .game-card-buttons a {
-        width: 55px;
-    }
-
-    .horizontal-card .button.espn img {
-        width: 36px;
+    .horizontal-team-row .follow-button {
+        font-size: 10px;
     }
 
     .live-badge,
     .not-started-badge,
     .status-tag {
-        padding: 3px 4px;
+        padding: 5px 8px;
         font-size: 9px;
+    }
+
+    .horizontal-team-row .team-name {
+        font-size: 10px;
+    }
+
+    .horizontal-team-row .horizontal-buttons {
+        width: 160px;
+    }
+
+    .horizontal-team-row .horizontal-buttons button,
+    .horizontal-team-row .horizontal-buttons a {
+        padding: 5px;
+    }
+
+    .horizontal-team-row .follow-button {
+        padding: 5px;
+    }
+
+}
+
+@media (max-width: 450px) {
+
+    .horizontal-team-row .horizontal-buttons {
+        width: 150px;
+    }
+}
+
+@media (max-width: 400px) {
+    .horizontal-team-row .horizontal-buttons {
+        width: 140px;
     }
 }
