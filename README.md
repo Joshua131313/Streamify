@@ -1,6 +1,16 @@
 # 🎬 Streamify
 
 Streamify is a modern, full-featured web application that allows users to discover, watch, and manage movies, TV shows, and live sports — all in one place. It combines media browsing, streaming, and real-time sports viewing into a seamless and interactive experience.
+<img width="3809" height="2094" alt="image" src="https://github.com/user-attachments/assets/3f50391a-b196-42df-9544-9905af6c2eeb" />
+<img width="3795" height="2077" alt="image" src="https://github.com/user-attachments/assets/3e90e5f3-f8c0-446c-bc4d-369be8859159" />
+<img width="3793" height="2103" alt="image" src="https://github.com/user-attachments/assets/63065a1f-f06a-430d-82a8-5e60ae2577ad" />
+<img width="3829" height="2104" alt="image" src="https://github.com/user-attachments/assets/ed3e93ce-4216-4a1c-8ce0-03fd81f7acde" />
+<img width="3791" height="2083" alt="image" src="https://github.com/user-attachments/assets/88e50a4e-2f01-44e0-ac32-918e109904b2" />
+<img width="3804" height="2081" alt="image" src="https://github.com/user-attachments/assets/15380137-b717-44ff-949a-d9c57ec292c0" />
+<img width="3807" height="2100" alt="image" src="https://github.com/user-attachments/assets/65ecd768-97ec-4eed-a8b9-ecb9cdda4883" />
+<img width="3797" height="2085" alt="image" src="https://github.com/user-attachments/assets/bbcea93a-91f6-47fe-9085-030158c04d67" />
+<img width="3814" height="2090" alt="image" src="https://github.com/user-attachments/assets/1fa2c1ca-3455-4554-8c6a-656fe7e57fa6" />
+<img width="3800" height="2091" alt="image" src="https://github.com/user-attachments/assets/60634590-f511-4e03-94ca-1e09b70cc63e" />
 
 ---
 
