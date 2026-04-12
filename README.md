@@ -35,7 +35,10 @@ Streamify is a modern, full-featured web application that allows users to discov
 
 ---
 
-### 🎥 Streaming & Player
+### 🎥 Media Streaming & Sports Streaming
+<img width="3787" height="2070" alt="image" src="https://github.com/user-attachments/assets/ec1ed959-5cc8-462c-ac3b-591e510489e0" />
+<img width="3745" height="2046" alt="image" src="https://github.com/user-attachments/assets/e91b9fe9-74fd-42cb-89d1-c57ff35cb9fa" />
+<img width="3782" height="2093" alt="image" src="https://github.com/user-attachments/assets/1b40a377-dd52-447f-ab2f-d9cf816c1d2f" />
 
 
 ---
