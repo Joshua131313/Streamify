@@ -10,10 +10,10 @@
     display: none;
 }
 .sub-nav {
-    top: 0;
+    top: 60px;
     padding: 10px;
-    display: none;
-    width: calc(100% - 200px);
+    display: flex;
+    width: auto
 }
 .sub-nav.navbar .container-content {
     justify-content: center;
@@ -160,6 +160,9 @@
 
     .mobile-bar, .sub-nav {
         display: flex;
+    }
+    .sub-nav {
+        top: 0;
     }
     .sub-nav .nav-links {
         display: flex;

@@ -258,7 +258,6 @@ export const mlbTeamsMap = {
 };
 
 export const mlbStreams: SportStream[] = [
-    ...createViewEmbedStreams(mlbTeamsMap),
     {
         provider: "embedsports",
         buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
@@ -305,4 +304,6 @@ export const mlbStreams: SportStream[] = [
             return `https://pooembed.eu/embed/mlb/${gameDay}/${awayAbbrev}-${homeAbbrev}#autoplay=true`;
         }
     },
+    ...createViewEmbedStreams(mlbTeamsMap),
+
 ];

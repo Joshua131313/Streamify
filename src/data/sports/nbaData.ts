@@ -44,7 +44,6 @@ export const nbaTeamsMap = {
 };
 
 export const nbaStreams: SportStream[] = [
-  ...createViewEmbedStreams(nbaTeamsMap),
   {
     provider: "trendy47",
     buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
@@ -65,5 +64,7 @@ export const nbaStreams: SportStream[] = [
 
       return "";
     }
-  }
+  },
+  ...createViewEmbedStreams(nbaTeamsMap),
+
 ]

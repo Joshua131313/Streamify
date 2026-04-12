@@ -1,6 +1,7 @@
 import { FaX } from "react-icons/fa6";
 import { useMultiWatch } from "../../context/MultiWatchContext";
 import { getSportStream, getStreamURL } from "../../utils/sports/sportsUtils";
+import { StreamPlayerPanel } from "../../components/sports/StreamPlayerPanel/StreamPlayerPanel";
 
 
 
@@ -19,11 +20,11 @@ export const MultiWatchContent = () => {
                          <FaX  />
                        </div>
                     </div>
-                    <iframe allowFullScreen src={
-                        getSportStream(g.leagueName)[0].buildStreamUrl({
-                            awayTeamAbbrev: g.awayTeam.abbrev,
-                            homeTeamAbbrev: g.homeTeam.abbrev
-                    })} />
+                    <StreamPlayerPanel 
+                        awayAbbrev={g.awayTeam.abbrev}
+                        homeAbbrev={g.homeTeam.abbrev}
+                        leagueName={g.leagueName}
+                    />
                 </div>
             ))}
         </>

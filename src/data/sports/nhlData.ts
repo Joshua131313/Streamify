@@ -39,7 +39,6 @@ export const nhlTeamsMap = {
 
 
 export const nhlStreams: SportStream[] = [
-    ...createViewEmbedStreams(nhlTeamsMap),
     {
         provider: "embedsports",
         buildStreamUrl: ({awayTeamAbbrev, homeTeamAbbrev}) => {
@@ -58,6 +57,5 @@ export const nhlStreams: SportStream[] = [
             return `https://embedsports.me/nhl/${homeId}-vs-${awayId}-stream-1`;
         },
     },
-
-
+    ...createViewEmbedStreams(nhlTeamsMap),
 ]
