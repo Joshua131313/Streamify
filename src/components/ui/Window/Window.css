@@ -70,9 +70,6 @@
 .window-minimized .window-shell {
     pointer-events: none;
 }
-/* =========================
-   MINIMIZED ICON
-   ========================= */
 
 .window-minimized-icon {
     position: fixed;
@@ -81,7 +78,7 @@
     z-index: 1000
 }
 .window-minimized-icon.active .app-icon {
-    background-color: var(--accent-primary);
+    background-color: var(--bg-surface)
 } 
 
 .multi-watch-content {

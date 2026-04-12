@@ -9,9 +9,30 @@
 }
 
 .sports-page .header-controls .container-content {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr;
 }
 
+.sports-page .page-header-container {
+    padding-bottom: 0;
+
+}
+.sports-page .sports-ui-controllers {
+    padding-top: 2.5vh;
+    padding-bottom: 2.5vh;
+}
+.inner-sports-ui-controllers .container-content {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    max-width: 800px;
+    margin: 0 auto;
+    justify-content: center;
+}
+.layout-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
 .quick-filters {
     display: flex;
     flex-wrap: wrap;

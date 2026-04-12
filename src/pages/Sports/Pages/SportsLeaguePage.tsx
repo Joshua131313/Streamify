@@ -1,8 +1,8 @@
-import GameCard from "../../../components/ui/GameCard/GameCard";
 import { FilteredSportsContainer } from "../../../components/layout/Container/FilteredSportsContainer";
 import SportsLayout from "../SportsLayout";
 import type { GameProps, Leagues } from "../../../types/sports/sportsTypes";
 import { SportsPlayer } from "../SportsPlayer";
+import HorizontalGameCard from "../../../components/ui/GameCard/HorizontalGameCard";
 
 interface SportLeaguePageProps {
     league: Leagues;
@@ -32,9 +32,7 @@ const SportLeaguePage = ({
                 type={league}
             >
                 {favoriteGames.map((gameCard) => (
-                    <GameCard
-                        key={String(gameCard.id ?? gameCard.title)}
-                        className="horizontal-card"
+                    <HorizontalGameCard 
                         game={gameCard}
                     />
                 ))}
@@ -46,7 +44,7 @@ const SportLeaguePage = ({
                 type={league}
             >
                 {games.map((gameCard) => (
-                    <GameCard
+                    <HorizontalGameCard
                         key={String(gameCard.id ?? gameCard.title)}
                         className="horizontal-card"
                         game={gameCard}
