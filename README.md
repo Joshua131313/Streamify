@@ -11,6 +11,7 @@ Streamify is a modern, full-featured web application that allows users to discov
 <img width="3797" height="2085" alt="image" src="https://github.com/user-attachments/assets/bbcea93a-91f6-47fe-9085-030158c04d67" />
 <img width="3814" height="2090" alt="image" src="https://github.com/user-attachments/assets/1fa2c1ca-3455-4554-8c6a-656fe7e57fa6" />
 <img width="3800" height="2091" alt="image" src="https://github.com/user-attachments/assets/60634590-f511-4e03-94ca-1e09b70cc63e" />
+<img width="3783" height="2076" alt="image" src="https://github.com/user-attachments/assets/abf41f5a-573a-4e7f-b395-fe238cf88223" />
 
 ---
 
