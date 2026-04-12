@@ -39,7 +39,7 @@
 
         h1 {
             margin: 10px 0;
-        } 
+        }
     </style>
 </head>
 
@@ -51,14 +51,23 @@
     </div>
 </body>
 <script>
-  function handleOnline() {
-    window.location.reload();
-  }
+    function tryReloadWhenBackOnline() {
+        if (navigator.onLine) {
+            window.location.reload();
+        }
+    }
 
-  window.addEventListener("online", handleOnline);
+    window.addEventListener("online", tryReloadWhenBackOnline);
 
-  window.addEventListener("offline", () => {
-    console.log("You are offline");
-  });
+    window.addEventListener("offline", () => {
+        console.log("You are offline");
+    });
+
+    setInterval(() => {
+        if (navigator.onLine) {
+            window.location.reload();
+        }
+    }, 2000);
 </script>
+
 </html>
