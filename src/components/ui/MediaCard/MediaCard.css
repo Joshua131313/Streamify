@@ -20,7 +20,7 @@
 
 .media-skeleton-card {
     background-color: var(--bg-surface);
-    border-radius: var(--border-radius);
+    border-radius: var(--border-radius-small);
     transition: all 0.3s;
     animation: skeleton 2.2s infinite
 }
