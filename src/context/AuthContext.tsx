@@ -50,6 +50,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<User>(null);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
+    const [showLoader, setShowLoader] = useState(true);
+    const [isExiting, setIsExiting] = useState(false);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -153,8 +155,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const resetPassword = async (email: string) => {
         await sendPasswordResetEmail(auth, email);
     };
-    
 
+
+
+    useEffect(() => {
+        if (!loading) {
+            // trigger burst animation
+            setIsExiting(true);
+        }
+    }, [loading]);
 
     return (
         <AuthContext.Provider
@@ -168,7 +177,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 resetPassword,
             }}
         >
-            {loading && <Loader fullScreen text="Streamify is getting ready..." />}
+            {showLoader && (
+                <Loader
+                    fullScreen
+                    isExiting={isExiting}
+                    onExitAnimationEnd={() => {
+                        setShowLoader(false);
+                    }}
+                />
+            )}
             {children}
         </AuthContext.Provider>
     );

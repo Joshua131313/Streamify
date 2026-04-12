@@ -29,7 +29,7 @@ export const MediaLayout = ({ media, isLoading, error, mediaType, containerId, c
     const shouldPlay = searchParams.has("play");
 
     if (isLoading || !media) {
-        return <Loader fullScreen showLogo={false} />
+        return <Loader fullScreen  />
     }
     return (
         <MediaLayoutProvider media={media} mediaType={mediaType}>
