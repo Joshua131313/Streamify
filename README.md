@@ -15,21 +15,29 @@ Streamify is a modern, full-featured web application that allows users to discov
 #### 🔥 Content Rails (Top 10 & Trending Today)
 
 ![Content Rails](https://github.com/user-attachments/assets/3e90e5f3-f8c0-446c-bc4d-369be8859159)
+---
+
+### 🎬 Browse Media
+![Browse 1](https://github.com/user-attachments/assets/88e50a4e-2f01-44e0-ac32-918e109904b2)
+![Player 2](https://github.com/user-attachments/assets/15380137-b717-44ff-949a-d9c57ec292c0)
 
 ---
 
-### 🎬 Media Browsing & Discovery
+### 🎬 Movie Series Container
 
-![Browse 1](https://github.com/user-attachments/assets/63065a1f-f06a-430d-82a8-5e60ae2577ad)
-![Browse 2](https://github.com/user-attachments/assets/ed3e93ce-4216-4a1c-8ce0-03fd81f7acde)
-![Browse 3](https://github.com/user-attachments/assets/88e50a4e-2f01-44e0-ac32-918e109904b2)
+![Series 1](https://github.com/user-attachments/assets/63065a1f-f06a-430d-82a8-5e60ae2577ad)
+
+---
+
+### 🎬 Media Details Page
+![Details 1](https://github.com/user-attachments/assets/ed3e93ce-4216-4a1c-8ce0-03fd81f7acde)
+
 
 ---
 
 ### 🎥 Streaming & Player
 
-![Player 1](https://github.com/user-attachments/assets/15380137-b717-44ff-949a-d9c57ec292c0)
-![Player 2](https://github.com/user-attachments/assets/65ecd768-97ec-4eed-a8b9-ecb9cdda4883)
+![Player 1](https://github.com/user-attachments/assets/65ecd768-97ec-4eed-a8b9-ecb9cdda4883)
 
 ---
 
@@ -49,15 +57,19 @@ Streamify is a modern, full-featured web application that allows users to discov
 
 ---
 
-### 📱 Additional UI Views
+### 📱 Mobile Screens
 
-![UI 1](https://github.com/user-attachments/assets/47eeee16-5016-48c2-946f-199d12bb6485)
-![UI 2](https://github.com/user-attachments/assets/21446930-4358-4cea-93a0-b09ea7927042)
-![UI 3](https://github.com/user-attachments/assets/8cc4d085-8b04-4ae5-9e8b-a1a1f8650a6e)
-![UI 4](https://github.com/user-attachments/assets/6ca1ff28-6ec1-481d-8be5-7bb730f37f84)
-![UI 5](https://github.com/user-attachments/assets/4d85535e-9f95-4770-ab7f-7d5e3af1d17e)
-![UI 6](https://github.com/user-attachments/assets/8e7046a6-d499-4ad1-aa25-0d1c74d0838f)
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/47eeee16-5016-48c2-946f-199d12bb6485" alt="UI 1" width="260" />
+  <img src="https://github.com/user-attachments/assets/21446930-4358-4cea-93a0-b09ea7927042" alt="UI 2" width="260" />
+  <img src="https://github.com/user-attachments/assets/8cc4d085-8b04-4ae5-9e8b-a1a1f8650a6e" alt="UI 3" width="260" />
+</p>
 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/6ca1ff28-6ec1-481d-8be5-7bb730f37f84" alt="UI 4" width="260" />
+  <img src="https://github.com/user-attachments/assets/4d85535e-9f95-4770-ab7f-7d5e3af1d17e" alt="UI 5" width="260" />
+  <img src="https://github.com/user-attachments/assets/8e7046a6-d499-4ad1-aa25-0d1c74d0838f" alt="UI 6" width="260" />
+</p>
 ---
 
 ## 🚀 Overview
