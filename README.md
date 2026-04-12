@@ -1,4 +1,6 @@
-# 🎬 Streamify
+<img width="50" height="50" alt="streamify-logo" src="https://github.com/user-attachments/assets/af0171f9-f658-4bc3-89f0-7e87bb168f1b" /> 
+
+# Streamify
 
 Streamify is a modern, full-featured web application that allows users to discover, watch, and manage movies, TV shows, and live sports — all in one place. It combines media browsing, streaming, and real-time sports viewing into a seamless and interactive experience.
 
