@@ -114,7 +114,8 @@
 .multi-watch-empty > * {
     margin-bottom: 10px;
 }
-
+.player-window iframe {
+}
 .player-window, .player-window iframe {
     width: 100%;
     height: 100%;

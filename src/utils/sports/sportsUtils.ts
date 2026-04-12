@@ -145,11 +145,36 @@ export const filterGames = (
 
     return filtered.sort((a, b) => getPriority(a.status) - getPriority(b.status));
 };
-export const gameIsWatchable = (startTime: string, gameStatus: GameStatus): boolean => {
+export const gameIsWatchable = (
+    startTime: string,
+    gameStatus?: GameStatus
+): boolean => {
     const now = Date.now();
     const gameTime = new Date(startTime).getTime();
 
     const oneHour = 60 * 60 * 1000;
 
-    return !(gameStatus === "FUT" && gameTime - now > oneHour) && !(gameStatus === "FINAL" && now - gameTime > oneHour);
-}
+    let status: GameStatus;
+
+    if (!gameStatus) {
+        if (now < gameTime - oneHour) {
+            status = "FUT";
+        } else if (now > gameTime + 3 * oneHour) {
+            status = "FINAL";
+        } else {
+            status = "LIVE";
+        }
+    } else {
+        status = gameStatus;
+    }
+
+    if (status === "FUT" && gameTime - now > oneHour) {
+        return false;
+    }
+
+    if (status === "FINAL" && now - gameTime > 3 * oneHour) {
+        return false;
+    }
+
+    return true;
+};

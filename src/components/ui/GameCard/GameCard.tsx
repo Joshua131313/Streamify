@@ -70,7 +70,7 @@ const GameCard: React.FC<Props> = ({ game, showSportName, className }) => {
                     onClick: () => {
                         toggleGameInMultiWatch(game);
                         if(!gameInMultiWatch) {
-                            openWindow("multiwatch")
+                            openWindow("multiwatch", "opened")
                         }
                     },
                 },

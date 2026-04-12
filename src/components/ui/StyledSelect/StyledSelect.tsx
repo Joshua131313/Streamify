@@ -8,13 +8,13 @@ const styles = {
   control: (base: any, state: any) => ({
     ...base,
     backgroundColor: "var(--bg-primary)",
-    borderColor: state.isFocused ? "#dc2626" : "var(--border)",
+    borderColor: "var(--border)",
     boxShadow: "none",
     minHeight: "40px",
     borderRadius: "var(--border-radius)", // ✅ FIX HERE
     overflow: "hidden",   // ✅ ensures inner elements respect radius
     "&:hover": {
-      borderColor: "#dc2626",
+      borderColor: "var(--border)",
     },
     zIndex: 100
   }),
@@ -37,13 +37,10 @@ const styles = {
     backgroundColor: state.isSelected
       ? "var(--accent-primary)"
       : state.isFocused
-        ? "var(--bg-surface-hover)"
+        ? "rgba(255, 255, 255, 0.08)"
         : "transparent",
     color: "white",
     cursor: "pointer",
-    ":active": {
-      backgroundColor: "rgba(220, 38, 38, 0.25)",
-    },
   }),
 
   singleValue: (base: any) => ({

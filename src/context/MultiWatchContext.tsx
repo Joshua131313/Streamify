@@ -23,7 +23,7 @@ const MultiWatchContext = createContext<MultiWatchContextType | null>(null);
 export const MultiWatchProvider = ({ children }: { children: ReactNode }) => {
     const [multiWatch, setMultiWatch] = useState<GameProps[]>([]);
     const { append, remove, set, clear, get } = useLocalStorage();
-
+    console.log(multiWatch)
     const clearMultiWatch = () => {
         setMultiWatch([]);
         clear("multi-watch");
@@ -63,7 +63,7 @@ export const MultiWatchProvider = ({ children }: { children: ReactNode }) => {
         const games = get<GameProps[]>("multi-watch", []);
 
         const validGames = games.filter(g =>
-            gameIsWatchable(g.startTime, g.status)
+            gameIsWatchable(g.startTime)
         );
 
         if (validGames.length !== games.length) {
@@ -77,7 +77,8 @@ export const MultiWatchProvider = ({ children }: { children: ReactNode }) => {
         const interval = setInterval(() => {
             setMultiWatch(prev => {
                 const valid = prev.filter(g =>
-                    gameIsWatchable(g.startTime, g.status)
+                    // status is stale since it is the status of when the user stored it into multiwatch
+                    gameIsWatchable(g.startTime)
                 );
 
                 if (valid.length !== prev.length) {
