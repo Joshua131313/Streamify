@@ -19,7 +19,8 @@ Streamify is a modern, full-featured web application that allows users to discov
 
 ### 🎬 Browse Media
 ![Browse 1](https://github.com/user-attachments/assets/88e50a4e-2f01-44e0-ac32-918e109904b2)
-![Player 2](https://github.com/user-attachments/assets/15380137-b717-44ff-949a-d9c57ec292c0)
+![Browse 2](https://github.com/user-attachments/assets/15380137-b717-44ff-949a-d9c57ec292c0)
+![Browse 3](https://github.com/user-attachments/assets/1fa2c1ca-3455-4554-8c6a-656fe7e57fa6)
 
 ---
 
@@ -32,32 +33,28 @@ Streamify is a modern, full-featured web application that allows users to discov
 ### 🎬 Media Details Page
 ![Details 1](https://github.com/user-attachments/assets/ed3e93ce-4216-4a1c-8ce0-03fd81f7acde)
 
-
 ---
 
 ### 🎥 Streaming & Player
 
-![Player 1](https://github.com/user-attachments/assets/65ecd768-97ec-4eed-a8b9-ecb9cdda4883)
 
 ---
 
 ### 🏀 Sports Section
-
-![Sports 1](https://github.com/user-attachments/assets/bbcea93a-91f6-47fe-9085-030158c04d67)
-![Sports 2](https://github.com/user-attachments/assets/1fa2c1ca-3455-4554-8c6a-656fe7e57fa6)
+![Sports 1](https://github.com/user-attachments/assets/65ecd768-97ec-4eed-a8b9-ecb9cdda4883)
+![Sports 2](https://github.com/user-attachments/assets/bbcea93a-91f6-47fe-9085-030158c04d67)
 ![Sports 3](https://github.com/user-attachments/assets/60634590-f511-4e03-94ca-1e09b70cc63e)
 
 ---
 
 ### 📺 MultiWatch & Window System
 
-![MultiWatch 1](https://github.com/user-attachments/assets/abf41f5a-573a-4e7f-b395-fe238cf88223)
 ![MultiWatch 2](https://github.com/user-attachments/assets/ac30750c-fbea-4aad-b91f-a7250babbab9)
 ![MultiWatch 3](https://github.com/user-attachments/assets/c141271b-0488-4007-b3c0-25a2c26262a2)
 
 ---
 
-### 📱 Mobile Screens
+### 📱 Mobile Web App Screens
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/47eeee16-5016-48c2-946f-199d12bb6485" alt="UI 1" width="260" />
