@@ -13,6 +13,7 @@ import { MediaLayoutProvider } from "./MediaLayoutContext";
 import { Loader } from "../../ui/Loader/Loader";
 import { Crew } from "../../media/Credits/Crew";
 import { Cast } from "../../media/Credits/Cast";
+import { SEO } from "../../SEO";
 
 interface Props {
     media: TMDBMedia;
@@ -23,31 +24,35 @@ interface Props {
     containerId?: string;
 }
 
-export const MediaLayout = ({media, isLoading, error, mediaType, containerId, children} : Props) => {
+export const MediaLayout = ({ media, isLoading, error, mediaType, containerId, children }: Props) => {
     const [searchParams] = useSearchParams()
     const shouldPlay = searchParams.has("play");
 
-    if(isLoading || !media) {
-        return <Loader fullScreen showLogo={false}/>
+    if (isLoading || !media) {
+        return <Loader fullScreen showLogo={false} />
     }
     return (
         <MediaLayoutProvider media={media} mediaType={mediaType}>
+            <SEO
+                title={media.title}
+                description={media.overview}
+            />
             <div className={`media-layout media-page ${mediaType}`} id={containerId}>
                 <Trailer />
                 {
-                    shouldPlay && 
+                    shouldPlay &&
                     <MediaPlayer />
                 }
                 <div className="media-layout-content">
                     {children}
                 </div>
-                <Crew 
+                <Crew
                     crew={media.credits?.crew}
                 />
-                <Cast 
+                <Cast
                     cast={media.credits?.cast}
                 />
-                <RecommendationMedia 
+                <RecommendationMedia
                     mediaType={mediaType}
                     mediaId={media.id}
                     genre={media?.genres?.[0]?.id ?? 0}

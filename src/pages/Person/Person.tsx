@@ -6,6 +6,7 @@ import { Loader } from "../../components/ui/Loader/Loader";
 import { TMDBImg } from "../../components/ui/TMDBImg/TMDBImg";
 import { MediaCard } from "../../components/ui/MediaCard/MediaCard";
 import "./Person.css"
+import { SEO } from "../../components/SEO";
 
 const IMG = "https://image.tmdb.org/t/p/w500";
 
@@ -19,7 +20,10 @@ const PersonPage = () => {
 
     return (
         <Container className="person-page">
-
+            <SEO
+                title={person.name}
+                description={person.biography}
+            />
             <Container styled className="person-header">
                 <TMDBImg
                     alt={person.name}

@@ -50,5 +50,15 @@
         <p>Reconnect to continue using Streamify</p>
     </div>
 </body>
+<script>
+  function handleOnline() {
+    window.location.reload();
+  }
 
+  window.addEventListener("online", handleOnline);
+
+  window.addEventListener("offline", () => {
+    console.log("You are offline");
+  });
+</script>
 </html>

@@ -13,10 +13,6 @@
     border-radius: var(--border-radius-small);
 }
 
-.mobile-media-card {
-    display: none;
-}
-
 .media-card img,
 .media-skeleton-card {
     border-radius: var(--border-radius-small);
@@ -266,20 +262,6 @@
     filter: opacity(90%);
 }
 
-@media (hover: none) and (pointer: coarse) {
-    .media-card {
-        display: none;
-    }
-    .media-card .save-media-button,
-    .media-card .play-button {
-        pointer-events: all;
-        opacity: 1;
-        top: 5px;
-    }
-    .mobile-media-card {
-        display: block;
-    }
-}
 
 @media (max-width: 900px) {
     .episode-card {
