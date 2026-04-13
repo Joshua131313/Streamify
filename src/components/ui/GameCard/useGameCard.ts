@@ -17,6 +17,7 @@ import { useWindowManager } from "../../../context/WindowManagerContext";
 
 import { getWatchURL } from "../Button/WatchButton";
 import { gameIsWatchable, getSportStream } from "../../../utils/sports/sportsUtils";
+import { requestNotificationPermission } from "../../../firebase/notifications";
 
 export interface UseGameCardReturn {
     watchURL: string;
@@ -50,35 +51,53 @@ export const useGameCard = (game: GameProps): UseGameCardReturn => {
     const gameInMultiWatch = isGameInMultiWatch(game);
     const leadingTeam = (game.awayTeam.score ?? 0) > (game.homeTeam.score ?? 0) ? "awayTeam" : "homeTeam"
 
-    const addNotification = () => {
-        if (Notification.permission === "default") {
-            Notification.requestPermission().then((permission) => {
-                if (permission === "granted") {
-                    schedule();
-                }
-            });
-        } else if (Notification.permission === "granted") {
-            schedule();
-        } else {
-            alert("Notifications are blocked");
+    const addNotification = async () => {
+        const token = await requestNotificationPermission();
+        if(!token) {
+            console.log("failed to enable notifications")
         }
+        await fetch("/api/subscribe-game", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                token,
+                gameId: game.id,
+                home: game.homeTeam.name,
+                away: game.awayTeam.name,
+                startTime: game.startTime
+            })
+        })
+        
+        // if (Notification.permission === "default") {
+        //     Notification.requestPermission().then((permission) => {
+        //         if (permission === "granted") {
+        //             schedule();
+        //         }
+        //     });
+        // } else if (Notification.permission === "granted") {
+        //     schedule();
+        // } else {
+        //     alert("Notifications are blocked");
+        // }
 
-        function schedule() {
-            const gameTime = new Date(game.startTime).getTime();
-            const now = Date.now();
-            const delay = gameTime - now;
+        // function schedule() {
+        //     const gameTime = new Date(game.startTime).getTime();
+        //     const now = Date.now();
+        //     const delay = gameTime - now;
 
-            if (delay <= 0) {
-                alert("Game already started");
-                return;
-            }
+        //     if (delay <= 0) {
+        //         alert("Game already started");
+        //         return;
+        //     }
 
-            setTimeout(() => {
-                new Notification(`${game.homeTeam.name} vs ${game.awayTeam.name}`, {
-                    body: "Game is starting now!",
-                });
-            }, delay);
-        }
+        //     setTimeout(() => {
+        //         new Notification(`${game.homeTeam.name} vs ${game.awayTeam.name}`, {
+        //             body: "Game is starting now!",
+        //         });
+        //     }, delay);
+        // }
     };
 
     const mediaCardContextOptions: MenuOption[] = [

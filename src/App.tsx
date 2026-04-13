@@ -4,6 +4,7 @@ import 'swiper/css';
 import { useMouseIdle } from "./hooks/utilHooks/useMouseIdle";
 import { usePWA } from "./hooks/utilHooks/usePWA";
 import { AuthProvider } from "./context/AuthContext";
+import { useEffect } from "react";
 
 function App() {
   useMouseIdle();
