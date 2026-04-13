@@ -15,7 +15,6 @@
     "axios": "^1.13.4",
     "bcryptjs": "^3.0.3",
     "firebase": "^12.11.0",
-    "firebase-admin": "^13.8.0",
     "luxon": "^3.7.2",
     "mongodb": "^5.9.2",
     "next-auth": "^4.24.13",
