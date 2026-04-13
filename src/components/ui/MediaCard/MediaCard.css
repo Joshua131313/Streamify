@@ -125,7 +125,7 @@
 .episode-card,
 .episode-skeleton-card {
     display: flex;
-    height: 125px;
+    height: 145px;
     gap: 10px;
     background-color: var(--bg-white);
     border-radius: var(--border-radius-small);
@@ -265,7 +265,7 @@
 
 @media (max-width: 900px) {
     .episode-card {
-        height: 110px;
+        /* height: 110px; */
     }
 }
 
@@ -276,12 +276,12 @@
     }
 
     .episode-card {
-        height: 100px;
+        /* height: 100px; */
     }
 
     .episode-card .still-container img,
     .episode-card .still-container .img-skeleton {
-        width: 150px;
+        /* width: 150px; */
     }
 }
 
@@ -321,12 +321,12 @@
     }
 
     .episode-card {
-        height: 90px;
+        /* height: 90px; */
     }
 
     .episode-card .still-container img,
     .episode-card .still-container .img-skeleton {
-        width: 125px;
+        /* width: 125px; */
     }
 }
 

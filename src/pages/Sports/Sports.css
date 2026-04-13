@@ -9,7 +9,7 @@
 }
 
 .sports-page .header-controls .container-content {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr auto;
 }
 
 .sports-page .page-header-container {
@@ -28,17 +28,22 @@
     margin: 0 auto;
     justify-content: center;
 }
+.inner-sports-ui-controllers .container-content .button {
+    width: 150px;
+}
 .layout-buttons {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
 }
+
 .quick-filters {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
     margin-top: 10px;
     justify-content: center;
+    grid-column: 1/3;
 }
 
 .quick-filter {
@@ -49,7 +54,15 @@
     cursor: pointer;
     transition: all 0.3s;
 }
-
+.quick-filter.clear-filter {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    background-color: var(--accent-primary);
+}
+.quick-filter.clear-filter:hover {
+    background-color: var(--accent-hover);
+}
 .quick-filter:active {
     transform: scale(0.95);
 }
@@ -69,7 +82,9 @@
 .header-controls .container-content .quick-filters {
     height: initial;
 }
-
+.sports-page .header-controls .container-content {
+    display: grid;
+}
 .multi-watch-window-parent {
     z-index: 999;
 }

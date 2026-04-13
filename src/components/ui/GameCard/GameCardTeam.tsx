@@ -1,22 +1,25 @@
 import { useState } from "react";
 import type { GameProps, GameTeam } from "../../../types/sports/sportsTypes";
 import { useFavoriteTeamsContext } from "../../../context/FavoriteTeamsContext";
-import { FaHeart } from "react-icons/fa";
+import { FaHeart, FaStar } from "react-icons/fa";
 import { Button } from "../Button/Button";
 import { BsHeart, BsHeartFill, BsStar, BsStarFill } from "react-icons/bs";
+import { Icon } from "../Icon/Icon";
 
 interface Props {
     game: GameProps;
     teamKey: "awayTeam" | "homeTeam";
     showTeamName?: boolean;
     showFollowButton?: boolean;
+    leadingTeam: "awayTeam" | "homeTeam";
 }
 
 export const GameCardTeam = (props: Props) => {
-    const { game, teamKey, showFollowButton, showTeamName } = props;
+    const { game, teamKey, showFollowButton, showTeamName, leadingTeam } = props;
     const [animate, setAnimate] = useState(false);
     const { addTeam, isFavorite, removeTeam } = useFavoriteTeamsContext()
     const team = game[teamKey];
+    const leading = leadingTeam === teamKey;
 
     const showScore = () => {
         return team.score !== undefined && (game.status === "FINAL" || game.status === "LIVE" || game.status === "HALFTIME");
@@ -48,16 +51,16 @@ export const GameCardTeam = (props: Props) => {
             </div>
             {showTeamName && <span className="team-name">{team.name}</span> }
             {(showScore()) ? (
-                <div className="score">{team.score}</div>
+                <div className={`${leading ? "lead" : ""} score`}>{team.score}</div>
             ) : (
                 <div className="score ghost-score">-</div>
             )
             }
-            {
-                showFollowButton && 
-            <Button className={`${isFavorite(team) && "secondary"} follow-button`} onClick={() => isFavorite(team) ? removeTeam(team) : addTeam(team)}>
-                {isFavorite(team) ? "Following" : "Follow"}
-            </Button>
+            {showFollowButton && 
+            <Icon 
+                Icon={isFavorite(team) ? BsStarFill : BsStar} 
+                onClick={() => isFavorite(team) ? removeTeam(team) : addTeam(team)} 
+            />
             }
         </div>
     )

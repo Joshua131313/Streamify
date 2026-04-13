@@ -11,6 +11,7 @@ interface Props {
     game: GameProps;
     showSportName?: boolean;
     className?: string;
+    
 }
 
 export const HorizontalGameCard: React.FC<Props> = ({
@@ -24,6 +25,7 @@ export const HorizontalGameCard: React.FC<Props> = ({
         showPlayButtons,
         badgeLabel,
         statusDetail,
+        leadingTeam
     } = useGameCard(game);
 
     const isLive = game.status === "LIVE" || game.status === "HALFTIME";
@@ -36,14 +38,14 @@ export const HorizontalGameCard: React.FC<Props> = ({
         >
                 <div className="game-card-horizontal-matchup">
                     <div className="horizontal-team-row">
-                        <GameCardTeam showTeamName showFollowButton game={game} teamKey="awayTeam" />
+                        <GameCardTeam leadingTeam={leadingTeam} showTeamName showFollowButton game={game} teamKey="awayTeam" />
                         <div className="game-card-badges horizontal-badges">
                             <div className={badgeClass}>{badgeLabel}</div>
                             {statusDetail && <div className="status-tag">{statusDetail}</div>}
                         </div>
                     </div>
                     <div className="horizontal-team-row">
-                        <GameCardTeam showTeamName showFollowButton game={game} teamKey="homeTeam" />
+                        <GameCardTeam leadingTeam={leadingTeam} showTeamName showFollowButton game={game} teamKey="homeTeam" />
                         <div className={`game-card-buttons horizontal-buttons ${!showPlayButtons ? "single" : ""}`}>
                             <ExternalGameInfoButton url={game.gameLink} />
                             {showPlayButtons && (
