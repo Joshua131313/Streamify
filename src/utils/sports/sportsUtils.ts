@@ -118,18 +118,15 @@ export const filterGames = (
 ): GameProps[] => {
     const searchNormalized = search.toLowerCase().trim();
 
+    const statusFilters = filters.filter(f => f.type === "status");
+    const leagueFilters = filters.filter(f => f.type === "league");
+
     const filtered = games.filter(game => {
         const matchesSearch =
             !searchNormalized ||
             game.title.toLowerCase().includes(searchNormalized) ||
             game.homeTeam.name.toLowerCase().includes(searchNormalized) ||
             game.awayTeam.name.toLowerCase().includes(searchNormalized);
-
-        if (filters.length === 0) {
-            return matchesSearch;
-        }
-
-        const statusFilters = filters.filter(f => f.type === "status");
 
         const matchesStatus =
             statusFilters.length === 0 ||
@@ -140,10 +137,16 @@ export const filterGames = (
                 return game.status === f.value;
             });
 
-        return matchesSearch && matchesStatus;
+        const matchesLeague =
+            leagueFilters.length === 0 ||
+            leagueFilters.some(f => f.value === game.leagueName);
+
+        return matchesSearch && matchesStatus && matchesLeague;
     });
 
-    return filtered.sort((a, b) => getPriority(a.status) - getPriority(b.status));
+    return filtered.sort(
+        (a, b) => getPriority(a.status) - getPriority(b.status)
+    );
 };
 export const gameIsWatchable = (
     startTime: string,

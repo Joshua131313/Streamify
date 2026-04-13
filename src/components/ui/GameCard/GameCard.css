@@ -57,29 +57,14 @@
     align-items: center;
 }
 
-.team .app-icon {
-    width: 30px;
-    height: 30px;
-    font-size: var(--font-xs);
-    position: absolute;
-    right: -20px;
-    top: 10px;
-    backdrop-filter: none;
-    border: none;
-    transform: translateY(-50%);
-}
-
-.team:first-of-type .app-icon {
-    right: -50px;
-    left: 55px;
-}
-
 .score {
     font-size: var(--font-lg);
     font-weight: bold;
     margin-top: 4px;
 }
-
+.score.lead {
+    color: var(--accent-primary);
+}
 .gh .live-info {
     font-size: 13px;
     font-weight: 500;
@@ -134,8 +119,8 @@
     gap: 10px;
 }
 
-.game-card-buttons>a {
-    width: 100%;
+.horizontal-team-row .game-card-buttons>a {
+    width: 120px;
     min-width: 0;
 }
 
@@ -170,7 +155,7 @@
 .game-card-horizontal .game-card-badges {}
 
 .game-card-horizontal-matchup {
-    gap: 10px;
+    gap: 20px;
     display: flex;
     flex-direction: column;
     background-color: var(--bg-white);
@@ -190,9 +175,9 @@
 
     --col-logo: 45px;
     --col-name: 140px;
-    --col-flex: 1fr;
-    --col-action: 110px;
-    --gap: 16px;
+    --col-flex: 30px;
+    --col-action: 30px;
+    --gap: 15px;
 
     grid-template-columns:
         var(--col-logo) minmax(0, var(--col-name)) var(--col-flex) var(--col-action);
@@ -200,7 +185,11 @@
     gap: var(--gap);
 }
 
-.horizontal-team-row .button {}
+.horizontal-team-row .app-icon {
+    width: 30px;
+    height: 30px;
+    font-size: var(--font-sm);
+}
 
 .horizontal-team-row .follow-button {
     font-size: var(--font-xs);
@@ -213,7 +202,7 @@
 }
 
 .horizontal-team-row .game-card-badges {
-    align-items: center;
+    align-items: flex-start;
     gap: 5px;
 }
 
@@ -233,6 +222,7 @@
 
 .horizontal-team-row .score {
     margin-top: 0;
+    text-align: center;
 }
 
 
@@ -244,8 +234,6 @@
 
     .horizontal-team-row .team {
         --col-name: 130px;
-        --col-action: 100px;
-        --gap: 12px;
     }
 
 }
@@ -257,8 +245,8 @@
     }
 
     .logos img {
-        width: 40px;
-        height: 40px;
+        width: 45px;
+        height: 45px;
     }
 
     .horizontal-team-row .team {
@@ -266,23 +254,21 @@
         --col-name: 110px;
     }
 
+    .horizontal-team-row .game-card-buttons>a {
+        width: 100px;
+    }
 }
 
 @media (max-width: 600px) {
     .horizontal-team-row .team {
         --col-name: 90px;
-        --col-action: 85px;
-        --gap: 10px;
     }
 
     :root {
         --game-card-width: 210px;
     }
 
-    .logos img {
-        width: 36px;
-        height: 36px;
-    }
+
 
 }
 
@@ -291,13 +277,14 @@
     .horizontal-team-row .team {
         --col-logo: 36px;
         --col-name: 80px;
-        --col-action: 75px;
-        --gap: 8px;
     }
 
     .horizontal-team-row .horizontal-buttons {
-        width: 180px;
         gap: 5px;
+    }
+
+    .horizontal-team-row .game-card-buttons>a {
+        width: 90px;
     }
 
     .horizontal-buttons .button.espn img {
@@ -309,8 +296,6 @@
     .horizontal-team-row .team {
         --col-logo: 30px;
         --col-name: 60px;
-        --col-action: 60px;
-        --gap: 6px;
     }
 
     .horizontal-team-row .follow-button {
@@ -321,21 +306,18 @@
     .not-started-badge,
     .status-tag {
         padding: 5px 8px;
-        font-size: 9px;
     }
 
     .horizontal-team-row .team-name {
         font-size: 10px;
     }
 
-    .horizontal-team-row .horizontal-buttons {
-        width: 160px;
+    .horizontal-team-row .game-card-buttons>a {
+        width: 80px;
     }
 
     .horizontal-team-row .horizontal-buttons button,
-    .horizontal-team-row .horizontal-buttons a {
-        padding: 5px;
-    }
+    .horizontal-team-row .horizontal-buttons a {}
 
     .horizontal-team-row .follow-button {
         padding: 5px;
@@ -344,14 +326,17 @@
 }
 
 @media (max-width: 450px) {
+    .horizontal-team-row .team {
+        --col-name: 50px;
+    }
 
-    .horizontal-team-row .horizontal-buttons {
-        width: 150px;
+    .horizontal-team-row .game-card-buttons>a {
+        width: 70px;
     }
 }
 
 @media (max-width: 400px) {
-    .horizontal-team-row .horizontal-buttons {
-        width: 140px;
+    .horizontal-team-row .game-card-buttons>a {
+        width: 60px;
     }
 }

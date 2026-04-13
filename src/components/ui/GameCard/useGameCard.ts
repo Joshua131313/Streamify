@@ -27,6 +27,7 @@ export interface UseGameCardReturn {
     addNotification: () => void;
     badgeLabel: string;
     statusDetail: string | null;
+    leadingTeam: "homeTeam" | "awayTeam";
 }
 
 export const useGameCard = (game: GameProps): UseGameCardReturn => {
@@ -47,6 +48,7 @@ export const useGameCard = (game: GameProps): UseGameCardReturn => {
 
     const showPlayButtons = gameIsWatchable(game.startTime, game.status);
     const gameInMultiWatch = isGameInMultiWatch(game);
+    const leadingTeam = (game.awayTeam.score ?? 0) > (game.homeTeam.score ?? 0) ? "awayTeam" : "homeTeam"
 
     const addNotification = () => {
         if (Notification.permission === "default") {
@@ -178,5 +180,6 @@ export const useGameCard = (game: GameProps): UseGameCardReturn => {
         addNotification,
         badgeLabel,
         statusDetail,
+        leadingTeam
     };
 };

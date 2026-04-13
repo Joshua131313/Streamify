@@ -17,6 +17,7 @@ export type SportFilter = {
     value: string;
     type: SportFilterType;
 };
+export type SportsCardsLayout = "slider" | "grid" | "list";
 
 export const quickFilters: SportFilter[] = [
     { label: "Live", value: "LIVE", type: "status" },
@@ -44,6 +45,7 @@ interface SportsContextType {
     setSearch: (value: string) => void;
 
     filters: SportFilter[];
+    setFilters: React.Dispatch<React.SetStateAction<SportFilter[]>>;
     addSportFilter: (filter: SportFilter) => void;
 
     nbaGameCards: GameProps[];
@@ -53,6 +55,9 @@ interface SportsContextType {
     favoriteNHLGameCards: GameProps[];
     favoriteMLBGameCards: GameProps[];
     favoriteGameCards: GameProps[];
+
+    layout: SportsCardsLayout;
+    setLayout: React.Dispatch<React.SetStateAction<SportsCardsLayout>>;
 }
 
 const SportsContext = createContext<SportsContextType | null>(null);
@@ -60,6 +65,7 @@ const SportsContext = createContext<SportsContextType | null>(null);
 export const SportsProvider = ({ children }: { children: React.ReactNode }) => {
     const [search, setSearch] = useState("");
     const [filters, setFilters] = useState<SportFilter[]>([]);
+    const [layout, setLayout] = useState<SportsCardsLayout>("slider");
     const { favoriteTeams } = useFavoriteTeamsContext();
     const location = useLocation()
     const { nbaGames, nbaGamesLoading } = useNBAGames();
@@ -125,15 +131,22 @@ export const SportsProvider = ({ children }: { children: React.ReactNode }) => {
     }, [mlbGameCards, favSet]);
 
     const favoriteGameCards = useMemo(() => {
-        return [
+        return filterGames([
             ...favoriteNBAGameCards,
             ...favoriteNHLGameCards,
             ...favoriteMLBGameCards
-        ].sort((a, b) => getPriority(a.status) - getPriority(b.status));
-    }, [favoriteNBAGameCards, favoriteNHLGameCards, favoriteMLBGameCards]);
+        ], search, filters);
+    }, [favoriteNBAGameCards, favoriteNHLGameCards, favoriteMLBGameCards, search, filters]);
 
     useEffect(() => {
         setFilters([]);
+        console.log(location.pathname)
+        if(location.pathname.includes("nba") || location.pathname.includes("nhl") || location.pathname.includes("mlb")) {
+            setLayout("list")
+        }
+        else {
+            setLayout("slider")
+        }
     }, [location])
 
     return (
@@ -151,6 +164,7 @@ export const SportsProvider = ({ children }: { children: React.ReactNode }) => {
                 setSearch,
 
                 filters,
+                setFilters,
                 addSportFilter,
 
                 nbaGameCards,
@@ -160,7 +174,10 @@ export const SportsProvider = ({ children }: { children: React.ReactNode }) => {
                 mlbGameCards,
                 favoriteMLBGameCards,
 
-                favoriteGameCards
+                favoriteGameCards,
+
+                layout,
+                setLayout
             }}
         >
             {children}

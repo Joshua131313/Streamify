@@ -26,11 +26,11 @@ export const RegularGameCard: React.FC<Props> = ({
     showPlayButtons,
     badgeLabel,
     statusDetail,
+    leadingTeam
   } = useGameCard(game);
 
   const isLive = game.status === "LIVE" || game.status === "HALFTIME";
   const badgeClass = isLive ? "live-badge" : "not-started-badge";
-
   return (
     <div
       className={`${className} game-card`}
@@ -47,11 +47,11 @@ export const RegularGameCard: React.FC<Props> = ({
         )}
 
         <div className="logos">
-          <GameCardTeam game={game} teamKey="awayTeam" />
+          <GameCardTeam game={game} leadingTeam={leadingTeam} teamKey="awayTeam" />
           <span className="vs">
             <FaAt />
           </span>
-          <GameCardTeam game={game} teamKey="homeTeam" />
+          <GameCardTeam game={game} leadingTeam={leadingTeam}  teamKey="homeTeam" />
         </div>
       </div>
 

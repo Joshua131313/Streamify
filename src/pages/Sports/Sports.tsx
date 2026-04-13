@@ -8,6 +8,7 @@ import { ChannelCard } from "../../components/ui/ChannelCard/ChannelCard";
 import SportsLayout from "./SportsLayout";
 import { FilteredSportsContainer } from "../../components/layout/Container/FilteredSportsContainer";
 import RegularGameCard from "../../components/ui/GameCard/RegularGameCard";
+import { SportCardsViewFactory } from "../../components/sports/SportCardsViews/SportCardsViewFactory";
 
 const Sports = () => {
     const {
@@ -17,13 +18,14 @@ const Sports = () => {
         nbaGameCards,
         nhlGameCards,
         mlbGameCards,
-        favoriteGameCards
+        favoriteGameCards,
+        layout
     } = useSports();
 
     return (
         <SportsLayout title="Sports" subTitle="Browse live sports" league="all" >
-            {favoriteGameCards.length > 0 && (
-                <Container title="Followed Teams">
+            {/* {favoriteGameCards.length > 0 && (
+                <FilteredSportsContainer title="Followed Teams">
                     <AppSwiper
                         items={favoriteGameCards}
                         itemKey={(item) => String(item.id ?? item.title)}
@@ -32,9 +34,14 @@ const Sports = () => {
                         )}
                         skeleton={<SwiperSkeletonCard className="game-card-skeleton" />}
                     />
-                </Container>
-            )}
-
+                </FilteredSportsContainer>
+            )} */}
+            <SportCardsViewFactory 
+                games={favoriteGameCards}
+                gamesLoading={false}
+                title="Followed Teams"
+                type="FOLLOW"
+            />
             <FilteredSportsContainer type="TV" title="Sports Channels">
                 <AppSwiper
                     items={channelStreams}
@@ -46,7 +53,7 @@ const Sports = () => {
                 />
             </FilteredSportsContainer>
 
-            <FilteredSportsContainer type="NBA" title="NBA">
+            {/* <FilteredSportsContainer league="NBA" title="NBA">
                 <AppSwiper
                     isLoading={nbaGamesLoading}
                     items={nbaGameCards}
@@ -56,9 +63,14 @@ const Sports = () => {
                     )}
                     skeleton={<SwiperSkeletonCard className="game-card-skeleton" />}
                 />
-            </FilteredSportsContainer>
-
-            <FilteredSportsContainer type="NHL" title="NHL">
+            </FilteredSportsContainer> */}
+            <SportCardsViewFactory 
+                games={nbaGameCards}
+                gamesLoading={nbaGamesLoading}
+                title="NBA"
+                type="NBA"
+            />
+            {/* <FilteredSportsContainer league="NHL" title="NHL">
                 <AppSwiper
                     isLoading={nhlGamesLoading}
                     items={nhlGameCards}
@@ -68,9 +80,14 @@ const Sports = () => {
                     )}
                     skeleton={<SwiperSkeletonCard className="game-card-skeleton" />}
                 />
-            </FilteredSportsContainer>
-
-            <FilteredSportsContainer type="MLB" title="MLB">
+            </FilteredSportsContainer> */}
+            <SportCardsViewFactory 
+                games={nhlGameCards}
+                gamesLoading={nhlGamesLoading}
+                title="NHL"
+                type="NHL"
+            />
+            {/* <FilteredSportsContainer league="MLB" title="MLB">
                 <AppSwiper
                     isLoading={mlbGamesLoading}
                     items={mlbGameCards}
@@ -80,7 +97,13 @@ const Sports = () => {
                     )}
                     skeleton={<SwiperSkeletonCard className="game-card-skeleton" />}
                 />
-            </FilteredSportsContainer>
+            </FilteredSportsContainer> */}
+            <SportCardsViewFactory 
+                games={mlbGameCards}
+                gamesLoading={mlbGamesLoading}
+                title="MLB"
+                type="MLB"
+            />
         </SportsLayout>
 
     );

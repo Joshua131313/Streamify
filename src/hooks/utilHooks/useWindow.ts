@@ -19,6 +19,7 @@ export const useWindow = (id: string) => {
 
         setPosition: (x: number, y: number) =>
             manager.setWindowPosition(id, x, y),
+        isOpen: manager.windowIsOpen(id)
 
     };
 };
