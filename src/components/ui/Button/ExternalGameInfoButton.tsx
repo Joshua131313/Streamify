@@ -3,18 +3,17 @@ import "./Button.css";
 
 interface Props {
     url: string;
+    type?: "espn" | "espn-small" | "gamecenter"
 }
 
-const ExternalGameInfoButton: React.FC<Props> = ({ url }) => {
+const ExternalGameInfoButton: React.FC<Props> = ({ url, type = "espn" }) => {
 
-    const type =
-        url.includes("espn") ? "espn" :
-            url.includes("gamecenter") ? "gamecenter" :
-                null
     const imgSrc =
         type === "espn" ? "https://a.espncdn.com/redesign/assets/img/logos/logo-espn-82x20@2x.png" :
-            type === "gamecenter" ? "https://media.d3.nhle.com/image/private/t_q-best/prd/assets/nhl/logos/nhl_shield_on_dark_kl1omz" :
-                ""
+        type === "espn-small" ? "https://espnpressroom.com/us/files/2018/03/App-Icon-Android-8-150x150.png" :
+        type === "gamecenter" ? "https://media.d3.nhle.com/image/private/t_q-best/prd/assets/nhl/logos/nhl_shield_on_dark_kl1omz" :
+        ""
+
     return (
         <a
             href={url}

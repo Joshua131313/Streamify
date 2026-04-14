@@ -65,7 +65,7 @@ export const SportsPlayer = () => {
     };
 
     const cancelWatch = () => {
-        navigate("/sports", { replace: true });
+        navigate(-1);
     };
 
     let src: string | null = null;

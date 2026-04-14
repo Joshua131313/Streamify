@@ -18,6 +18,8 @@ import { useWindowManager } from "../../../context/WindowManagerContext";
 import { getWatchURL } from "../Button/WatchButton";
 import { gameIsWatchable, getSportStream } from "../../../utils/sports/sportsUtils";
 
+type GameStatusUIVariant = "compact" | "full";
+
 export interface UseGameCardReturn {
     watchURL: string;
     defaultSportStreamProvider: TStreamProvider;
@@ -25,10 +27,14 @@ export interface UseGameCardReturn {
     gameInMultiWatch: boolean;
     openContextMenu: (e: React.MouseEvent<HTMLDivElement>) => void;
     addNotification: () => void;
-    badgeLabel: string;
-    statusDetail: string | null;
+    getGameStatusUI: (variant: GameStatusUIVariant) => {
+        badgeLabel: string;
+        statusDetail: string | null;
+    };
     leadingTeam: "homeTeam" | "awayTeam";
 }
+
+
 
 export const useGameCard = (game: GameProps): UseGameCardReturn => {
     const { toggleGameInMultiWatch, isGameInMultiWatch } = useMultiWatch();
@@ -148,28 +154,83 @@ export const useGameCard = (game: GameProps): UseGameCardReturn => {
             e,
         });
     };
+    const getPeriodLabel = () => {
+        if (!game.periodNumber) return "";
 
-    const badgeLabel =
-        game.status === "LIVE" || game.status === "HALFTIME"
-            ? `● ${game.status}`
+        // MLB (Top/Bottom innings)
+        if (game.leagueName === "MLB") {
+            // assuming periodNumber = "1", "2", etc
+            const inning = game.periodNumber.replace(/\D/g, "");
+            const isTop = game.clock?.toLowerCase().includes("top");
+
+            return `${isTop ? "T" : "B"}${inning}`;
+        }
+
+        // NBA
+        if (game.leagueName === "NBA") {
+            const quarter = game.periodNumber.replace(/\D/g, "");
+            return `Q${quarter}`;
+        }
+
+        // NHL
+        if (game.leagueName === "NHL") {
+            const period = game.periodNumber.replace(/\D/g, "");
+            return `P${period}`;
+        }
+
+        return game.periodNumber;
+    };
+
+    const getGameStatusUI = (variant: GameStatusUIVariant) => {
+        const isLive = game.status === "LIVE" || game.status === "HALFTIME";
+
+        const badgeLabel = isLive
+            ? variant === "compact"
+                ? "LIVE"
+                : `● ${game.status}`
             : game.status === "PRE"
-                ? "Pre Game"
+                ? variant === "compact"
+                    ? "PRE"
+                    : "Pre Game"
                 : game.status === "FINAL"
-                    ? "Final"
-                    : DateTime.fromISO(game.startTime).toRelative() ?? "Upcoming";
+                    ? variant === "compact"
+                        ? "FINAL"
+                        : "Final"
+                    : variant === "compact"
+                        ? DateTime.fromISO(game.startTime).toFormat("HH:mm")
+                        : DateTime.fromISO(game.startTime).toRelative() ?? "Upcoming";
 
-    const statusDetail =
-        game.status === "LIVE" || game.status === "HALFTIME"
-            ? game.leagueName === "MLB"
-                ? `${game.clock?.toUpperCase() ?? ""} ${game.periodNumber ?? ""}`.trim()
-                : `${game.periodNumber === "P4" ? "OT" : game.periodNumber ?? ""}${game.clock ? `: ${game.clock}` : ""
-                    }`.trim()
-            : game.status === "FINAL"
-                ? null
-                : new Date(game.startTime).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                });
+        let statusDetail: string | null = null;
+
+        if (isLive) {
+            const periodLabel =
+                game.periodNumber === "P4"
+                    ? "OT"
+                    : getPeriodLabel();
+
+            if (variant === "compact") {
+                statusDetail = periodLabel;
+            } else {
+                if (game.leagueName === "MLB") {
+                    statusDetail = `${periodLabel} ${game.clock?.toUpperCase() ?? ""}`.trim();
+                } else {
+                    statusDetail = `${periodLabel}${game.clock ? `: ${game.clock}` : ""}`.trim();
+                }
+            }
+        } else if (game.status === "FINAL") {
+            statusDetail = null;
+        } else {
+            statusDetail =
+                variant === "compact"
+                    ? null
+                    : new Date(game.startTime).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                    });
+        }
+
+        return { badgeLabel, statusDetail };
+    };
 
     return {
         watchURL,
@@ -178,8 +239,7 @@ export const useGameCard = (game: GameProps): UseGameCardReturn => {
         gameInMultiWatch,
         openContextMenu,
         addNotification,
-        badgeLabel,
-        statusDetail,
+        getGameStatusUI,
         leadingTeam
     };
 };
