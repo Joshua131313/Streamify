@@ -24,13 +24,16 @@ export const RegularGameCard: React.FC<Props> = ({
     openContextMenu,
     defaultSportStreamProvider,
     showPlayButtons,
-    badgeLabel,
-    statusDetail,
+    getGameStatusUI,
     leadingTeam
   } = useGameCard(game);
 
   const isLive = game.status === "LIVE" || game.status === "HALFTIME";
   const badgeClass = isLive ? "live-badge" : "not-started-badge";
+
+  const badgeLabel = getGameStatusUI("full").badgeLabel;
+  const statusDetail = getGameStatusUI("full").statusDetail;
+
   return (
     <div
       className={`${className} game-card`}

@@ -1,5 +1,6 @@
 :root {
     --game-card-width: 280px;
+    --compact-game-card-width: 130px;
 }
 
 .game-card {
@@ -17,7 +18,52 @@
     width: var(--game-card-width);
     border: solid 1px var(--border);
 }
-
+.compact-game-card {
+    padding: 10px;
+    border-radius: var(--border-radius-small);
+    background: var(--bg-white);
+    border: solid 1px var(--border);
+    width: var(--compact-game-card-width);
+}
+.compact-game-card .app-icon {
+    width: 40px;
+    height: 40px;
+    font-size: var(--font-sm);
+}
+.compact-game-card .inner-game-card {
+    gap: 10px;
+}
+.compact-game-card .logos img {
+    width: 35px;
+    height: 35px;
+}
+.compact-game-card .team {
+    flex-direction: row;
+    gap: 5px;
+}
+.compact-game-card .watch-button svg {
+    display: block;
+}
+.compact-game-card .team:last-of-type {
+    flex-direction: row-reverse;
+}
+.compact-game-card .game-card-buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 5px;
+    gap: 5px;
+}
+.compact-game-card .logos {
+    gap: 15px;
+}
+.compact-game-card .button.espn-small {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+}
+.compact-game-card .button.espn-small img {
+    width: 100%;
+}
 .media-skeleton-card.game-card-skeleton {
     width: var(--game-card-width);
     height: 210px;
@@ -63,7 +109,6 @@
     margin-top: 4px;
 }
 .score.lead {
-    color: var(--accent-primary);
 }
 .gh .live-info {
     font-size: 13px;

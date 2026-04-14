@@ -141,12 +141,12 @@ export const SportsProvider = ({ children }: { children: React.ReactNode }) => {
     useEffect(() => {
         setFilters([]);
         console.log(location.pathname)
-        if(location.pathname.includes("nba") || location.pathname.includes("nhl") || location.pathname.includes("mlb")) {
-            setLayout("list")
-        }
-        else {
-            setLayout("slider")
-        }
+        // if(location.pathname.includes("nba") || location.pathname.includes("nhl") || location.pathname.includes("mlb")) {
+        //     setLayout("list")
+        // }
+        // else {
+        //     setLayout("slider")
+        // }
     }, [location])
 
     return (

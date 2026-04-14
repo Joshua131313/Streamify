@@ -3,7 +3,6 @@ import { Button } from "./Button";
 import type { TMediaType } from "../../../types/tmdb";
 import { Link } from "react-router-dom";
 import { Icon } from "../Icon/Icon";
-import { useWatchHistory } from "../../../hooks/storageHooks/useWatchHistory";
 import { useWatchHistoryContext } from "../../../context/WatchHistoryContext";
 
 interface Props {

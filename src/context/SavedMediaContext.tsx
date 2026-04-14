@@ -15,18 +15,22 @@ import {
     doc,
 } from "firebase/firestore";
 
+
 import type { TMDBMedia } from "../types/TMDBMediaType";
 import { db } from "../firebase/firebase";
 import { useLocalStorage } from "../hooks/utilHooks/useLocalStorage";
 import { useAuthProvider } from "./AuthContext";
-import { cleanFirestoreData } from "../utils/helpers";
+import { useTMDBByIds } from "../hooks/mediaHooks/tmdbHooks/useTMDBByIds";
 
-type SavedMediaItem = TMDBMedia & {
+type SavedMediaRef = {
+    mediaId: number;
+    mediaType: "movie" | "tv";
     firebaseId?: string;
 };
 
 type ContextType = {
-    savedMedia: SavedMediaItem[];
+    savedMedia: TMDBMedia[];
+    isLoading: boolean;
     addMedia: (media: TMDBMedia) => Promise<void>;
     removeMedia: (media: TMDBMedia) => Promise<void>;
     isSaved: (media: TMDBMedia) => boolean;
@@ -34,20 +38,35 @@ type ContextType = {
 
 const SavedMediaContext = createContext<ContextType | null>(null);
 
+const fetchMedia = async (mediaId: number, mediaType: string): Promise<TMDBMedia> => {
+    const res = await fetch(
+        `https://api.themoviedb.org/3/${mediaType}/${mediaId}?api_key=${import.meta.env.VITE_TMDB_API_KEY}`
+    );
+
+    if (!res.ok) throw new Error("Failed to fetch");
+
+    const data = await res.json();
+
+    return {
+        ...data,
+        mediaType
+    };
+};
+
 export const SavedMediaProvider = ({ children }: { children: ReactNode }) => {
     const { user } = useAuthProvider();
     const { get, set } = useLocalStorage();
 
-    const [savedMedia, setSavedMedia] = useState<SavedMediaItem[]>([]);
-    const savedRef = useRef<SavedMediaItem[]>([]);
+    const [savedRefs, setSavedRefs] = useState<SavedMediaRef[]>([]);
+    const savedRef = useRef<SavedMediaRef[]>([]);
 
     useEffect(() => {
-        savedRef.current = savedMedia;
-    }, [savedMedia]);
+        savedRef.current = savedRefs;
+    }, [savedRefs]);
 
     useEffect(() => {
         if (!user?.uid) {
-            setSavedMedia(get("savedMedia", []));
+            setSavedRefs(get("savedMedia", []));
             return;
         }
 
@@ -56,83 +75,90 @@ export const SavedMediaProvider = ({ children }: { children: ReactNode }) => {
             (snapshot) => {
                 const data = snapshot.docs.map(docSnap => ({
                     firebaseId: docSnap.id,
-                    ...(docSnap.data() as TMDBMedia),
+                    ...(docSnap.data() as Omit<SavedMediaRef, "firebaseId">),
                 }));
 
-                setSavedMedia(data);
+                setSavedRefs(data);
             }
         );
 
         return () => unsubscribe();
     }, [user?.uid]);
 
-    const addMedia = async (media: TMDBMedia) => {
-        if (savedRef.current.some(m => m.id === media.id)) return;
 
-        const tempItem: SavedMediaItem = {
-            ...media,
-            firebaseId: `temp-${media.id}`,
+    const { media: savedMedia, isLoading } = useTMDBByIds(
+        savedRefs.map(r => ({
+            mediaId: r.mediaId,
+            mediaType: r.mediaType
+        }))
+    );
+
+    const addMedia = async (media: TMDBMedia) => {
+        if (savedRef.current.some(m => m.mediaId === media.id)) return;
+
+        const refData: SavedMediaRef = {
+            mediaId: media.id,
+            mediaType: media.mediaType,
+            firebaseId: `temp-${media.id}`
         };
 
-        setSavedMedia(prev => [tempItem, ...prev]);
-        savedRef.current = [tempItem, ...savedRef.current];
+        setSavedRefs(prev => [refData, ...prev]);
+        savedRef.current = [refData, ...savedRef.current];
 
         if (user?.uid) {
             try {
                 await addDoc(
                     collection(db, "users", user.uid, "savedMedia"),
-                    cleanFirestoreData(media)
+                    {
+                        mediaId: media.id,
+                        mediaType: media.mediaType
+                    }
                 );
-            } catch (err) {
-                setSavedMedia(prev => prev.filter(m => m.id !== media.id));
-                savedRef.current = savedRef.current.filter(m => m.id !== media.id);
+            } catch {
+                setSavedRefs(prev => prev.filter(m => m.mediaId !== media.id));
+                savedRef.current = savedRef.current.filter(m => m.mediaId !== media.id);
             }
             return;
         }
 
-        const updated = [media, ...savedRef.current];
+        const updated = [refData, ...savedRef.current];
         set("savedMedia", updated);
         savedRef.current = updated;
-        setSavedMedia(updated);
+        setSavedRefs(updated);
     };
 
     const removeMedia = async (media: TMDBMedia) => {
-        if (user?.uid) {
-            const existing = savedRef.current.find(
-                m => m.id === media.id
+        const existing = savedRef.current.find(m => m.mediaId === media.id);
+
+        setSavedRefs(prev => prev.filter(m => m.mediaId !== media.id));
+        savedRef.current = savedRef.current.filter(m => m.mediaId !== media.id);
+
+        if (user?.uid && existing?.firebaseId) {
+            await deleteDoc(
+                doc(
+                    db,
+                    "users",
+                    user.uid,
+                    "savedMedia",
+                    existing.firebaseId
+                )
             );
-
-            setSavedMedia(prev => prev.filter(m => m.id !== media.id));
-            savedRef.current = savedRef.current.filter(m => m.id !== media.id);
-
-            if (existing?.firebaseId) {
-                await deleteDoc(
-                    doc(
-                        db,
-                        "users",
-                        user.uid,
-                        "savedMedia",
-                        existing.firebaseId
-                    )
-                );
-            }
-
             return;
         }
 
-        const updated = savedRef.current.filter(m => m.id !== media.id);
+        const updated = savedRef.current.filter(m => m.mediaId !== media.id);
         set("savedMedia", updated);
         savedRef.current = updated;
-        setSavedMedia(updated);
+        setSavedRefs(updated);
     };
 
     const isSaved = (media: TMDBMedia) => {
-        return savedRef.current.some(m => m.id === media.id);
+        return savedRef.current.some(m => m.mediaId === media.id);
     };
 
     return (
         <SavedMediaContext.Provider
-            value={{ savedMedia, addMedia, removeMedia, isSaved }}
+            value={{ savedMedia, isLoading, addMedia, removeMedia, isSaved }}
         >
             {children}
         </SavedMediaContext.Provider>

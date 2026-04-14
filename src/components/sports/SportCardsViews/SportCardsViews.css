@@ -1,6 +1,7 @@
 .sport-cards-grid-view .container-content {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(var(--game-card-width), 1fr));
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
     gap: 10px;
 }
 .sport-cards-grid-view .game-card {
