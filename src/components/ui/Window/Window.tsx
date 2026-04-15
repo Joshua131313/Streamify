@@ -29,7 +29,7 @@ export const Window = ({ id, title, children, minimizedIcon, className }: Props)
     } = useWindow(id);
     
     const rndRef = useRef<Rnd | null>(null);
-
+    
     if (!appWindow) return null;
 
     const WindowMinimizedIcon = () => {

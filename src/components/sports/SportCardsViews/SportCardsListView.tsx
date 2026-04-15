@@ -1,7 +1,7 @@
 import type { SportCardsViewsProps } from ".";
 import type { GameProps, Leagues } from "../../../types/sports/sportsTypes";
 import { FilteredSportsContainer } from "../../layout/Container/FilteredSportsContainer";
-import HorizontalGameCard from "../../ui/GameCard/HorizontalGameCard";
+import HorizontalGameCard from "../GameCard/HorizontalGameCard";
 import "./SportCardsViews.css"
 
 export const SportCardsListView = (props: SportCardsViewsProps) => {

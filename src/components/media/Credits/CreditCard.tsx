@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { TMDBImg } from "../../ui/TMDBImg/TMDBImg";
+import { TMDBImg } from "../../ui/ImgProxy/TMDBImg";
 import { FaUserCircle } from "react-icons/fa";
 
 

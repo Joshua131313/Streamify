@@ -38,14 +38,16 @@ export const mapNBAToGameProps = (game: INBAGame): GameProps => {
       name: game.homeTeam.name,
       logo: game.homeTeam.logo,
       score: game.homeTeam.score, 
-      abbrev: game.homeTeam.abbreviation
+      abbrev: game.homeTeam.abbreviation,
+      league: "NBA"
     },
 
     awayTeam: {
       name: game.awayTeam.name,
       logo: game.awayTeam.logo,
       score: game.awayTeam.score,
-      abbrev: game.awayTeam.abbreviation
+      abbrev: game.awayTeam.abbreviation,
+      league: "NBA"
     },
 
     periodNumber: game.period?.type === "OT"

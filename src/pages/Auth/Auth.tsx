@@ -7,6 +7,7 @@ import { useAuthProvider, type ProviderType } from "../../context/AuthContext";
 import { useEffect } from "react";
 import FacebookIcon from "./FacebookIcon";
 import { Logo } from "../../components/ui/Logo/Logo";
+import { AppImg } from "../../components/ui/ImgProxy/AppImg";
 
 interface Props {
     type: "login" | "register";
@@ -41,7 +42,7 @@ export const Auth = (props: Props) => {
         <Container className="auth" styled>
             {user && <Navigate to={"/"} />}
             <div className="auth-bg">
-                <img className="auth-img" src="/images/auth-bg.jpg" />
+                <AppImg className="auth-img" src="/images/auth-bg.jpg" />
             </div>
             <div className={`auth-form ${childrenContainerClassName}`}>
                 <div className="auth-header">

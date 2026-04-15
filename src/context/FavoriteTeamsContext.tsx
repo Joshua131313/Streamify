@@ -4,6 +4,7 @@ import {
     useEffect,
     useRef,
     useState,
+    useMemo,
     type ReactNode,
 } from "react";
 
@@ -20,7 +21,6 @@ import { useLocalStorage } from "../hooks/utilHooks/useLocalStorage";
 import { useAuthProvider } from "./AuthContext";
 import { cleanFirestoreData } from "../utils/helpers";
 import type { GameTeam } from "../types/sports/sportsTypes";
-
 
 type FavoriteTeamItem = GameTeam & {
     firebaseId?: string;
@@ -46,9 +46,12 @@ export const FavoriteTeamsProvider = ({ children }: { children: ReactNode }) => 
         teamsRef.current = favoriteTeams;
     }, [favoriteTeams]);
 
+    // 🔥 Load teams
     useEffect(() => {
         if (!user?.uid) {
-            setFavoriteTeams(get("favoriteTeams", []));
+            const local = get("favoriteTeams", []);
+            setFavoriteTeams(local);
+            teamsRef.current = local;
             return;
         }
 
@@ -67,73 +70,101 @@ export const FavoriteTeamsProvider = ({ children }: { children: ReactNode }) => 
         return () => unsubscribe();
     }, [user?.uid]);
 
+    // 🔥 ADD TEAM
     const addTeam = async (team: GameTeam) => {
-        if (teamsRef.current.some(t => t.name === team.name)) return;
+        if (teamsRef.current.some(t => t.abbrev === team.abbrev)) return;
 
+        // LOCAL MODE
+        if (!user?.uid) {
+            const updated = [team, ...teamsRef.current];
+
+            teamsRef.current = updated;
+            setFavoriteTeams(updated);
+            set("favoriteTeams", updated);
+
+            return;
+        }
+
+        // FIREBASE MODE (optimistic)
         const tempItem: FavoriteTeamItem = {
             ...team,
-            firebaseId: `temp-${team.name}`,
+            firebaseId: `temp-${team.abbrev}`,
         };
 
         setFavoriteTeams(prev => [tempItem, ...prev]);
         teamsRef.current = [tempItem, ...teamsRef.current];
 
-        if (user?.uid) {
-            try {
-                await addDoc(
-                    collection(db, "users", user.uid, "favoriteTeams"),
-                    cleanFirestoreData(team)
-                );
-            } catch {
-                // rollback
-                setFavoriteTeams(prev => prev.filter(t => t.name !== team.name));
-                teamsRef.current = teamsRef.current.filter(t => t.name !== team.name);
-            }
-            return;
+        try {
+            await addDoc(
+                collection(db, "users", user.uid, "favoriteTeams"),
+                cleanFirestoreData(team)
+            );
+        } catch {
+            // rollback
+            setFavoriteTeams(prev =>
+                prev.filter(t => t.abbrev !== team.abbrev)
+            );
+            teamsRef.current = teamsRef.current.filter(
+                t => t.abbrev !== team.abbrev
+            );
         }
-
-        const updated = [team, ...teamsRef.current];
-        set("favoriteTeams", updated);
-        teamsRef.current = updated;
-        setFavoriteTeams(updated);
     };
 
+    // 🔥 REMOVE TEAM
     const removeTeam = async (team: GameTeam) => {
-        if (user?.uid) {
-            const existing = teamsRef.current.find(t => t.name === team.name);
+        if (!user?.uid) {
+            const updated = teamsRef.current.filter(
+                t => t.abbrev !== team.abbrev
+            );
 
-            setFavoriteTeams(prev => prev.filter(t => t.name !== team.name));
-            teamsRef.current = teamsRef.current.filter(t => t.name !== team.name);
-
-            if (existing?.firebaseId) {
-                await deleteDoc(
-                    doc(
-                        db,
-                        "users",
-                        user.uid,
-                        "favoriteTeams",
-                        existing.firebaseId
-                    )
-                );
-            }
+            teamsRef.current = updated;
+            setFavoriteTeams(updated);
+            set("favoriteTeams", updated);
 
             return;
         }
 
-        const updated = teamsRef.current.filter(t => t.name !== team.name);
-        set("favoriteTeams", updated);
-        teamsRef.current = updated;
-        setFavoriteTeams(updated);
+        const existing = teamsRef.current.find(
+            t => t.abbrev === team.abbrev
+        );
+
+        setFavoriteTeams(prev =>
+            prev.filter(t => t.abbrev !== team.abbrev)
+        );
+        teamsRef.current = teamsRef.current.filter(
+            t => t.abbrev !== team.abbrev
+        );
+
+        if (existing?.firebaseId) {
+            await deleteDoc(
+                doc(
+                    db,
+                    "users",
+                    user.uid,
+                    "favoriteTeams",
+                    existing.firebaseId
+                )
+            );
+        }
     };
 
+    // 🔥 CHECK FAVORITE
     const isFavorite = (team: GameTeam) => {
-        return teamsRef.current.some(t => t.name === team.name);
+        return teamsRef.current.some(
+            t => t.abbrev === team.abbrev
+        );
     };
+
+    // 🔥 MEMOIZED CONTEXT (fix re-render)
+    const value = useMemo(() => ({
+        favoriteTeams,
+        addTeam,
+        removeTeam,
+        isFavorite
+    }), [favoriteTeams]);
 
     return (
-        <FavoriteTeamsContext.Provider
-            value={{ favoriteTeams, addTeam, removeTeam, isFavorite }}
-        >
+        <FavoriteTeamsContext.Provider value={value}>
             {children}
         </FavoriteTeamsContext.Provider>
     );

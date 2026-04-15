@@ -3,7 +3,7 @@ import "./MediaCard.css"
 import { FaStar } from "react-icons/fa";
 import type { TMDBMedia } from "../../../types/TMDBMediaType";
 import { Link, useNavigate } from "react-router-dom";
-import { TMDBImg } from "../TMDBImg/TMDBImg";
+import { TMDBImg } from "../ImgProxy/TMDBImg";
 import { SaveMediaButton } from "../Button/SaveMediaButton";
 import { PlayButton } from "../Button/PlayButton";
 import { useIsTouchDevice } from "../../../hooks/utilHooks/isMobile";

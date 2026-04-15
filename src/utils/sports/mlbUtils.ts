@@ -40,14 +40,16 @@ export const mapMLBToGameProps = (game: IMLBGame): GameProps => {
       name: game.homeTeam.name,
       logo: game.homeTeam.logo,
       score: game.homeTeam.score,
-      abbrev: game.homeTeam.abbreviation
+      abbrev: game.homeTeam.abbreviation,
+      league: "MLB"
     },
 
     awayTeam: {
       name: game.awayTeam.name,
       logo: game.awayTeam.logo,
       score: game.awayTeam.score,
-      abbrev: game.awayTeam.abbreviation
+      abbrev: game.awayTeam.abbreviation,
+      league: "MLB"
     },
 
     periodNumber: game.period.current.toString(),

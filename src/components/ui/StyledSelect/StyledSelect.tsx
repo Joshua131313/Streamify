@@ -11,8 +11,8 @@ const styles = {
     borderColor: "var(--border)",
     boxShadow: "none",
     minHeight: "40px",
-    borderRadius: "var(--border-radius)", // ✅ FIX HERE
-    overflow: "hidden",   // ✅ ensures inner elements respect radius
+    borderRadius: "var(--border-radius)",
+    overflow: "hidden",
     "&:hover": {
       borderColor: "var(--border)",
     },
@@ -22,7 +22,7 @@ const styles = {
   menu: (base: any) => ({
     ...base,
     backgroundColor: "var(--bg-surface)",
-    borderRadius: "20px", // ✅ match control
+    borderRadius: "20px",
     overflow: "hidden",
     zIndex: 100,
   }),
@@ -41,6 +41,11 @@ const styles = {
         : "transparent",
     color: "white",
     cursor: "pointer",
+    ":active": {
+      backgroundColor: state.isSelected
+        ? "var(--accent-primary)"
+        : "rgba(255, 255, 255, 0.12)",
+    },
   }),
 
   singleValue: (base: any) => ({

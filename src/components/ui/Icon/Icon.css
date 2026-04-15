@@ -1,5 +1,5 @@
 :root {
-    --app-icon-dimension: 50px;
+    --app-icon-dimension: 40px;
 }
 
 .app-icon {
@@ -15,7 +15,7 @@
     cursor: pointer;
     z-index: 2;
     transition: all 0.3s;
-    font-size: var(--font-xl);
+    font-size: var(--font-md);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
 }

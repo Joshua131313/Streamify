@@ -17,6 +17,7 @@ export const mapNHLToGameProps = (game: INHLGame): GameProps => {
       logo: game.homeTeam.logo,
       score: game.homeTeam.score,
       abbrev: game.homeTeam.abbreviation,
+      league: "NHL"
     },
 
     awayTeam: {
@@ -24,6 +25,7 @@ export const mapNHLToGameProps = (game: INHLGame): GameProps => {
       logo: game.awayTeam.logo,
       score: game.awayTeam.score,
       abbrev: game.awayTeam.abbreviation,
+      league: "NHL"
     },
 
     gameLink: game.gameLink ?? "",

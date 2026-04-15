@@ -15,8 +15,8 @@ import { useContextMenu } from "../../../context/ContextMenu";
 import { useMultiWatch } from "../../../context/MultiWatchContext";
 import { useWindowManager } from "../../../context/WindowManagerContext";
 
-import { getWatchURL } from "../Button/WatchButton";
-import { gameIsWatchable, getSportStream } from "../../../utils/sports/sportsUtils";
+import { getWatchURL } from "../../ui/Button/WatchButton";
+import { gameIsWatchable, getDefaultStreamProvider, getSportStream } from "../../../utils/sports/sportsUtils";
 
 type GameStatusUIVariant = "compact" | "full";
 
@@ -42,14 +42,13 @@ export const useGameCard = (game: GameProps): UseGameCardReturn => {
     const { openMenu } = useContextMenu();
     const navigate = useNavigate();
 
-    const defaultSportStream = getSportStream(game.leagueName)[0];
-    const defaultSportStreamProvider = defaultSportStream.provider;
+
 
     const watchURL = getWatchURL({
         league: game.leagueName,
         awayTeamAbbrev: game.awayTeam.abbrev,
         homeTeamAbbrev: game.homeTeam.abbrev,
-        streamProvider: defaultSportStreamProvider,
+        streamProvider: getDefaultStreamProvider(game.leagueName),
     });
 
     const showPlayButtons = gameIsWatchable(game.startTime, game.status);
@@ -212,7 +211,12 @@ export const useGameCard = (game: GameProps): UseGameCardReturn => {
                 statusDetail = periodLabel;
             } else {
                 if (game.leagueName === "MLB") {
-                    statusDetail = `${periodLabel} ${game.clock?.toUpperCase() ?? ""}`.trim();
+                    const inning = game.periodNumber?.replace(/\D/g, "") ?? "";
+                    const isTop = game.clock?.toLowerCase().includes("top");
+
+                    const half = isTop ? "TOP" : "BOTTOM";
+
+                    statusDetail = `${half} ${inning}`;
                 } else {
                     statusDetail = `${periodLabel}${game.clock ? `: ${game.clock}` : ""}`.trim();
                 }
@@ -234,7 +238,7 @@ export const useGameCard = (game: GameProps): UseGameCardReturn => {
 
     return {
         watchURL,
-        defaultSportStreamProvider,
+        defaultSportStreamProvider: getDefaultStreamProvider(game.leagueName),
         showPlayButtons,
         gameInMultiWatch,
         openContextMenu,

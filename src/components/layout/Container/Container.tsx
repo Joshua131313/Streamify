@@ -4,6 +4,7 @@ import { Title } from "../../ui/Title/Title";
 import "./Container.css"
 import { Icon } from "../../ui/Icon/Icon";
 import { FaMinus, FaPlus } from "react-icons/fa";
+import { AppImg } from "../../ui/ImgProxy/AppImg";
 
 interface Props {
     title?: string;
@@ -12,13 +13,14 @@ interface Props {
     containerId?: string;
     styled?: boolean;
     accordionMode?: boolean;
+    defaultOpened?: boolean;
     backdropImg?: string;
 }
 
 export const Container = (props : Props) => {
 
-    const { title, className, containerId, styled, accordionMode = false, backdropImg } = props
-    const [expanded, setExpanded] = useState(false);
+    const { title, className, containerId, styled, accordionMode = false, backdropImg, defaultOpened = false } = props
+    const [expanded, setExpanded] = useState(defaultOpened);
 
     return (
         <div className={`app-container ${className}`} id={containerId}>
@@ -35,7 +37,7 @@ export const Container = (props : Props) => {
                 </div>
             }
             {backdropImg && 
-                <img className="backdrop-img" src={backdropImg}/>
+                <AppImg className="backdrop-img" src={backdropImg}/>
             }
             <div className={`container-content ${styled ? "styled" : ""}`}>
                 {(!accordionMode || expanded) && 

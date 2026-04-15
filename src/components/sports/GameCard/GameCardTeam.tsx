@@ -2,9 +2,11 @@ import { useState } from "react";
 import type { GameProps, GameTeam } from "../../../types/sports/sportsTypes";
 import { useFavoriteTeamsContext } from "../../../context/FavoriteTeamsContext";
 import { FaHeart, FaStar } from "react-icons/fa";
-import { Button } from "../Button/Button";
+import { Button } from "../../ui/Button/Button";
 import { BsHeart, BsHeartFill, BsStar, BsStarFill } from "react-icons/bs";
-import { Icon } from "../Icon/Icon";
+import { Icon } from "../../ui/Icon/Icon";
+import { AppImg } from "../../ui/ImgProxy/AppImg";
+import { FollowButton } from "../../ui/Button/FollowButton";
 
 interface Props {
     game: GameProps;
@@ -25,42 +27,41 @@ export const GameCardTeam = (props: Props) => {
         return team.score !== undefined && (game.status === "FINAL" || game.status === "LIVE" || game.status === "HALFTIME");
     }
     const isFollowed = isFavorite(team);
-    
+
     const Heart = isFollowed ? BsHeartFill : BsHeart;
 
     return (
         <div className="team">
             <div>
-                <img onDoubleClick={() => {
-                    if (isFollowed) {
-                        removeTeam(team);
-                    } else {
-                        addTeam(team);
-                    }
+                <AppImg
+                    onDoubleClick={() => {
+                        if (isFollowed) {
+                            removeTeam(team);
+                        } else {
+                            addTeam(team);
+                        }
 
-                    setAnimate(false);
-                    setTimeout(() => {
-                        setAnimate(true);
-                    }, 0);
-
-                    setTimeout(() => {
                         setAnimate(false);
-                    }, 1000);
-                }} src={team.logo} alt={team.name} />
+                        setTimeout(() => {
+                            setAnimate(true);
+                        }, 0);
+
+                        setTimeout(() => {
+                            setAnimate(false);
+                        }, 1000);
+                    }} src={team.logo} alt={team.name}
+                />
                 <Heart className={`like-response ${animate ? "animated" : ""}`} />
             </div>
-            {showTeamName && <span className="team-name">{team.name}</span> }
+            {showTeamName && <span className="team-name">{team.name}</span>}
             {(showScore()) ? (
                 <div className={`${leading ? "lead" : ""} score`}>{team.score}</div>
             ) : (
                 <div className="score ghost-score">-</div>
             )
             }
-            {showFollowButton && 
-            <Icon 
-                Icon={isFavorite(team) ? BsStarFill : BsStar} 
-                onClick={() => isFavorite(team) ? removeTeam(team) : addTeam(team)} 
-            />
+            {showFollowButton &&
+                <FollowButton team={team} variant="icon"/>
             }
         </div>
     )

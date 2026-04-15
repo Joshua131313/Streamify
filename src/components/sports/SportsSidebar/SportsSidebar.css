@@ -1,0 +1,67 @@
+.sports-sidebar {
+    width: 250px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    overflow-y: auto;
+    height: 100dvh;
+    background-color: var(--bg-secondary);
+    z-index: 1001;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    box-shadow: var(--shadow-base);
+}
+.sports-sidebar::-webkit-scrollbar {
+    display: none;
+}
+.sports-sidebar .title {
+    margin: 20px 0;
+}
+.sports-sidebar h1 {
+    font-size: var(--font-lg);
+}
+.game-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border: solid 1px var(--border);
+    padding: 7px;
+    border-radius: var(--border-radius-small);
+}
+
+.sports-sidebar .container-header {
+    margin-top: 0;
+}
+.sports-sidebar .app-container {
+    padding: 0;
+    margin: 0;
+}
+.sports-sidebar .app-container {
+    gap: 0;
+}
+.sports-sidebar .input-container {
+    margin-bottom: 10px;
+}
+.sports-sidebar-controller {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    left: 0px;
+    height: 60px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--bg-secondary);
+    width: 20px;
+    border-radius: 0 var(--border-radius-small) var(--border-radius-small) 0;
+    z-index: 1000;
+}
+.active.sports-sidebar-controller {
+    left: 250px;
+    box-shadow: var(--shadow-base);
+    cursor: pointer;
+}

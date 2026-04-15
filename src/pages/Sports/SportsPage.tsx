@@ -1,6 +1,6 @@
+import { SportsSidebar } from "../../components/sports/SportsSidebar/SportsSidebar";
 import { SportsProvider } from "../../context/SportsContext";
 import Sports from "./Sports";
-import { SportsPlayer } from "./SportsPlayer";
 
 
 const SportsPage = () => {

@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import type { TEpisode } from "../../../types/TMDBShowType"
-import { TMDBImg } from "../TMDBImg/TMDBImg";
+import { TMDBImg } from "../ImgProxy/TMDBImg";
 import "./MediaCard.css"
 import { Icon } from "../Icon/Icon";
 import { FaClock, FaPlay, FaStar } from "react-icons/fa";

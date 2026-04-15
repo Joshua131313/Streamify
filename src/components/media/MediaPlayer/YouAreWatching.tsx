@@ -1,7 +1,7 @@
 import { useSearchParams } from "react-router-dom";
 import type { TMDBMedia } from "../../../types/TMDBMediaType"
 import { MediaMetaBadges } from "../../ui/MediaMetaBadges/MediaMetaBadges";
-import { TMDBImg } from "../../ui/TMDBImg/TMDBImg";
+import { TMDBImg } from "../../ui/ImgProxy/TMDBImg";
 import { Container } from "../../layout/Container/Container";
 import { useMediaLayoutContext } from "../../layout/MediaLayout/MediaLayoutContext";
 

@@ -13,6 +13,15 @@ export type TStreamProvider =
 export type GameStatus = "LIVE" | "PRE" | "FUT" | "FINAL" | "HALFTIME";
 export type Leagues = "NBA" | "NHL" | "MLB";
 
+export interface TeamInfo {
+    abbreviation: TeamAbbrevs;
+    teamName: string;
+    id: string;
+    conference: string;
+    division: string;
+    league: Leagues;
+}
+
 export type TeamAbbrevs = 
         keyof typeof nbaTeamsMap | 
         keyof typeof nhlTeamsMap | 
@@ -31,6 +40,7 @@ export interface GameTeam {
     name: string;
     abbrev: TeamAbbrevs;
     logo: string;
+    league: Leagues;
     score?: number;
 }
 
@@ -67,6 +77,7 @@ export const DefaultGamePropsTeam: GameTeam = {
     name: "",
     abbrev: "",
     logo: "",
+    league: "NBA",
     score: undefined
 };
 

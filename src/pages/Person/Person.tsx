@@ -3,7 +3,7 @@ import { usePerson } from "../../hooks/mediaHooks/personHooks/usePerson";
 import { usePersonCredits } from "../../hooks/mediaHooks/personHooks/userPersonCredits";
 import { Container } from "../../components/layout/Container/Container";
 import { Loader } from "../../components/ui/Loader/Loader";
-import { TMDBImg } from "../../components/ui/TMDBImg/TMDBImg";
+import { TMDBImg } from "../../components/ui/ImgProxy/TMDBImg";
 import { MediaCard } from "../../components/ui/MediaCard/MediaCard";
 import "./Person.css"
 import { SEO } from "../../components/SEO";

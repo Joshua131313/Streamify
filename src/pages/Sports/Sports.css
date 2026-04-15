@@ -330,6 +330,10 @@
     width: 20px;
     height: 20px;
 }
+.multi-watch-empty .img-skeleton {
+    width: 20px;
+    height: 20px;
+}
 
 /* text */
 .team {
@@ -366,5 +370,10 @@
 @media (max-width: 775px) {
     .multi-watch-icon {
         bottom: 90px;
+    }
+}
+@media (max-width: 500px) {
+    .sports-page .app-container {
+        padding-left: 25px;
     }
 }

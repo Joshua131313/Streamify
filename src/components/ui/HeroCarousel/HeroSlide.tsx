@@ -1,5 +1,5 @@
 import type { TMDBMedia } from "../../../types/TMDBMediaType"
-import { TMDBImg } from "../TMDBImg/TMDBImg";
+import { TMDBImg } from "../ImgProxy/TMDBImg";
 import { PlayButton } from "../Button/PlayButton";
 import { SeeMoreButton } from "../Button/SeeMoreButton";
 import { MediaMetaBadges } from "../MediaMetaBadges/MediaMetaBadges";

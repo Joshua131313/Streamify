@@ -1,49 +1,49 @@
-import type { SportStream } from "../../types/sports/sportsTypes";
+import type { SportStream, TeamInfo } from "../../types/sports/sportsTypes";
 import { createViewEmbedStreams, getSlug } from "./sportsData";
 
 
 
-export const mlbTeamsMap = {
+export const mlbTeamsMap : Record<string, TeamInfo> = {
     // AL EAST
     BAL: {
         abbreviation: "BAL",
         teamName: "Baltimore Orioles",
         id: "baltimore-orioles",
-        logo: "https://www.mlbstatic.com/team-logos/110.svg",
-        league: "AL",
-        division: "East"
+        conference: "AL",
+        division: "East",
+        league: "MLB"
     },
     BOS: {
         abbreviation: "BOS",
         teamName: "Boston Red Sox",
         id: "boston-red-sox",
-        logo: "https://www.mlbstatic.com/team-logos/111.svg",
-        league: "AL",
-        division: "East"
+        conference: "AL",
+        division: "East",
+        league: "MLB"
     },
     NYY: {
         abbreviation: "NYY",
         teamName: "New York Yankees",
         id: "new-york-yankees",
-        logo: "https://www.mlbstatic.com/team-logos/147.svg",
-        league: "AL",
-        division: "East"
+        conference: "AL",
+        division: "East",
+        league: "MLB"
     },
     TB: {
         abbreviation: "TB",
         teamName: "Tampa Bay Rays",
         id: "tampa-bay-rays",
-        logo: "https://www.mlbstatic.com/team-logos/139.svg",
-        league: "AL",
-        division: "East"
+        conference: "AL",
+        division: "East",
+        league: "MLB"
     },
     TOR: {
         abbreviation: "TOR",
         teamName: "Toronto Blue Jays",
         id: "toronto-blue-jays",
-        logo: "https://www.mlbstatic.com/team-logos/141.svg",
-        league: "AL",
-        division: "East"
+        conference: "AL",
+        division: "East",
+        league: "MLB"
     },
 
     // AL CENTRAL
@@ -51,41 +51,41 @@ export const mlbTeamsMap = {
         abbreviation: "CHW",
         teamName: "Chicago White Sox",
         id: "chicago-white-sox",
-        logo: "https://www.mlbstatic.com/team-logos/145.svg",
-        league: "AL",
-        division: "Central"
+        conference: "AL",
+        division: "Central",
+        league: "MLB"
     },
     CLE: {
         abbreviation: "CLE",
         teamName: "Cleveland Guardians",
         id: "cleveland-guardians",
-        logo: "https://www.mlbstatic.com/team-logos/114.svg",
-        league: "AL",
-        division: "Central"
+        conference: "AL",
+        division: "Central",
+        league: "MLB"
     },
     DET: {
         abbreviation: "DET",
         teamName: "Detroit Tigers",
         id: "detroit-tigers",
-        logo: "https://www.mlbstatic.com/team-logos/116.svg",
-        league: "AL",
-        division: "Central"
+        conference: "AL",
+        division: "Central",
+        league: "MLB"
     },
     KC: {
         abbreviation: "KC",
         teamName: "Kansas City Royals",
         id: "kansas-city-royals",
-        logo: "https://www.mlbstatic.com/team-logos/118.svg",
-        league: "AL",
-        division: "Central"
+        conference: "AL",
+        division: "Central",
+        league: "MLB"
     },
     MIN: {
         abbreviation: "MIN",
         teamName: "Minnesota Twins",
         id: "minnesota-twins",
-        logo: "https://www.mlbstatic.com/team-logos/142.svg",
-        league: "AL",
-        division: "Central"
+        conference: "AL",
+        division: "Central",
+        league: "MLB"
     },
 
     // AL WEST
@@ -93,41 +93,41 @@ export const mlbTeamsMap = {
         abbreviation: "HOU",
         teamName: "Houston Astros",
         id: "houston-astros",
-        logo: "https://www.mlbstatic.com/team-logos/117.svg",
-        league: "AL",
-        division: "West"
+        conference: "AL",
+        division: "West",
+        league: "MLB"
     },
     LAA: {
         abbreviation: "LAA",
         teamName: "Los Angeles Angels",
         id: "los-angeles-angels",
-        logo: "https://www.mlbstatic.com/team-logos/108.svg",
-        league: "AL",
-        division: "West"
+        conference: "AL",
+        division: "West",
+        league: "MLB"
     },
     ATH: {
         abbreviation: "ATH",
         teamName: "Athletics",
         id: "athletics",
-        logo: "https://www.mlbstatic.com/team-logos/133.svg",
-        league: "AL",
-        division: "West"
+        conference: "AL",
+        division: "West",
+        league: "MLB"
     },
     SEA: {
         abbreviation: "SEA",
         teamName: "Seattle Mariners",
         id: "seattle-mariners",
-        logo: "https://www.mlbstatic.com/team-logos/136.svg",
-        league: "AL",
-        division: "West"
+        conference: "AL",
+        division: "West",
+        league: "MLB"
     },
     TEX: {
         abbreviation: "TEX",
         teamName: "Texas Rangers",
         id: "texas-rangers",
-        logo: "https://www.mlbstatic.com/team-logos/140.svg",
-        league: "AL",
-        division: "West"
+        conference: "AL",
+        division: "West",
+        league: "MLB"
     },
 
     // NL EAST
@@ -135,41 +135,41 @@ export const mlbTeamsMap = {
         abbreviation: "ATL",
         teamName: "Atlanta Braves",
         id: "atlanta-braves",
-        logo: "https://www.mlbstatic.com/team-logos/144.svg",
-        league: "NL",
-        division: "East"
+        conference: "NL",
+        division: "East",
+        league: "MLB"
     },
     MIA: {
         abbreviation: "MIA",
         teamName: "Miami Marlins",
         id: "miami-marlins",
-        logo: "https://www.mlbstatic.com/team-logos/146.svg",
-        league: "NL",
-        division: "East"
+        conference: "NL",
+        division: "East",
+        league: "MLB"
     },
     NYM: {
         abbreviation: "NYM",
         teamName: "New York Mets",
         id: "new-york-mets",
-        logo: "https://www.mlbstatic.com/team-logos/121.svg",
-        league: "NL",
-        division: "East"
+        conference: "NL",
+        division: "East",
+        league: "MLB"
     },
     PHI: {
         abbreviation: "PHI",
         teamName: "Philadelphia Phillies",
         id: "philadelphia-phillies",
-        logo: "https://www.mlbstatic.com/team-logos/143.svg",
-        league: "NL",
-        division: "East"
+        conference: "NL",
+        division: "East",
+        league: "MLB"
     },
     WSH: {
         abbreviation: "WSH",
         teamName: "Washington Nationals",
         id: "washington-nationals",
-        logo: "https://www.mlbstatic.com/team-logos/120.svg",
-        league: "NL",
-        division: "East"
+        conference: "NL",
+        division: "East",
+        league: "MLB"
     },
 
     // NL CENTRAL
@@ -177,41 +177,41 @@ export const mlbTeamsMap = {
         abbreviation: "CHC",
         teamName: "Chicago Cubs",
         id: "chicago-cubs",
-        logo: "https://www.mlbstatic.com/team-logos/112.svg",
-        league: "NL",
-        division: "Central"
+        conference: "NL",
+        division: "Central",
+        league: "MLB"
     },
     CIN: {
         abbreviation: "CIN",
         teamName: "Cincinnati Reds",
         id: "cincinnati-reds",
-        logo: "https://www.mlbstatic.com/team-logos/113.svg",
-        league: "NL",
-        division: "Central"
+        conference: "NL",
+        division: "Central",
+        league: "MLB"
     },
     MIL: {
         abbreviation: "MIL",
         teamName: "Milwaukee Brewers",
         id: "milwaukee-brewers",
-        logo: "https://www.mlbstatic.com/team-logos/158.svg",
-        league: "NL",
-        division: "Central"
+        conference: "NL",
+        division: "Central",
+        league: "MLB"
     },
     PIT: {
         abbreviation: "PIT",
         teamName: "Pittsburgh Pirates",
         id: "pittsburgh-pirates",
-        logo: "https://www.mlbstatic.com/team-logos/134.svg",
-        league: "NL",
-        division: "Central"
+        conference: "NL",
+        division: "Central",
+        league: "MLB"
     },
     STL: {
         abbreviation: "STL",
         teamName: "St. Louis Cardinals",
         id: "st-louis-cardinals", // 🔥 important fix
-        logo: "https://www.mlbstatic.com/team-logos/138.svg",
-        league: "NL",
-        division: "Central"
+        conference: "NL",
+        division: "Central",
+        league: "MLB"
     },
 
     // NL WEST
@@ -219,41 +219,41 @@ export const mlbTeamsMap = {
         abbreviation: "ARI",
         teamName: "Arizona Diamondbacks",
         id: "arizona-diamondbacks",
-        logo: "https://www.mlbstatic.com/team-logos/109.svg",
-        league: "NL",
-        division: "West"
+        conference: "NL",
+        division: "West",
+        league: "MLB"
     },
     COL: {
         abbreviation: "COL",
         teamName: "Colorado Rockies",
         id: "colorado-rockies",
-        logo: "https://www.mlbstatic.com/team-logos/115.svg",
-        league: "NL",
-        division: "West"
+        conference: "NL",
+        division: "West",
+        league: "MLB"
     },
     LAD: {
         abbreviation: "LAD",
         teamName: "Los Angeles Dodgers",
         id: "los-angeles-dodgers",
-        logo: "https://www.mlbstatic.com/team-logos/119.svg",
-        league: "NL",
-        division: "West"
+        conference: "NL",
+        division: "West",
+        league: "MLB"
     },
     SD: {
         abbreviation: "SD",
         teamName: "San Diego Padres",
         id: "san-diego-padres",
-        logo: "https://www.mlbstatic.com/team-logos/135.svg",
-        league: "NL",
-        division: "West"
+        conference: "NL",
+        division: "West",
+        league: "MLB"
     },
     SF: {
         abbreviation: "SF",
         teamName: "San Francisco Giants",
         id: "san-francisco-giants",
-        logo: "https://www.mlbstatic.com/team-logos/137.svg",
-        league: "NL",
-        division: "West"
+        conference: "NL",
+        division: "West",
+        league: "MLB"
     }
 };
 
