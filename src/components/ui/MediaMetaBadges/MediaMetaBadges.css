@@ -12,6 +12,9 @@
     align-items: center;
     gap: 5px;
 }
+.light .media-badge {
+    color: var(--bg-primary);
+}
 .rating svg {
     color: var(--yellow);
 }

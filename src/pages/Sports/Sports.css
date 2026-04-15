@@ -70,7 +70,9 @@
 .quick-filter.active {
     background-color: var(--accent-primary);
 }
-
+.light .quick-filter.active {
+    color: var(--bg-primary);
+}
 .quick-filter.active:hover {
     background-color: var(--accent-hover);
 }
@@ -99,6 +101,7 @@
     box-shadow: var(--shadow-base);
     transition: all 0.3s;
 }
+
 
 .multi-watch-header-controls {
     display: flex;
@@ -179,6 +182,9 @@
     border-radius: 10px 10px 0 0;
     opacity: 0;
     transition: all 0.3s;
+}
+.light .multi-game-header a, .light .multi-game-header svg {
+    color: var(--bg-primary);
 }
 .idle .multi-game:hover .multi-game-header {
     opacity: 0;
@@ -372,8 +378,4 @@
         bottom: 90px;
     }
 }
-@media (max-width: 500px) {
-    .sports-page .app-container {
-        padding-left: 25px;
-    }
-}
+

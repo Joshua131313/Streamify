@@ -3,6 +3,11 @@
     margin-bottom: 20px;
     flex-wrap: wrap;
     gap: 15px;
+    align-items: center;
+}
+.rail-header .app-select {
+    height: 40px;
+    align-self: center;
 }
 .rail-header .swiper-select {
     height: 40px;

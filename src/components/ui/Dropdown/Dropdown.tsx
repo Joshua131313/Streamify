@@ -8,11 +8,12 @@ interface Props {
     title: string;
     subTitle?: string;
     className?: string;
+    Footer?: React.ReactNode;
 }
 
 
 export const Dropdown = (props: Props) => {
-    const { title, subTitle, dropdownOptions, className } = props;
+    const { title, subTitle, dropdownOptions, className, Footer } = props;
 
     const dropdownOptionsRow = dropdownOptions.map(option => {
         return (
@@ -36,7 +37,14 @@ export const Dropdown = (props: Props) => {
                 <div className="dropdown-options">
                     {dropdownOptionsRow}
                 </div>
+                {
+                    Footer &&
+                    <div className="dropdown-footer">
+                        {Footer}
+                    </div>
+                }
             </div>
+
         </div>
     )
 }

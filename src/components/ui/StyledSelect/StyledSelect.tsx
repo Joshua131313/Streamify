@@ -39,18 +39,21 @@ const styles = {
       : state.isFocused
         ? "rgba(255, 255, 255, 0.08)"
         : "transparent",
-    color: "white",
+    color:  state.isSelected ? "var(--bg-primary)" : "var(--text-primary)",
     cursor: "pointer",
     ":active": {
       backgroundColor: state.isSelected
         ? "var(--accent-primary)"
         : "rgba(255, 255, 255, 0.12)",
     },
+        ":hover": {
+      backgroundColor: state.isSelected ? "var(--accent-hover)" : "var(--bg-surface-hover)",
+    },
   }),
 
   singleValue: (base: any) => ({
     ...base,
-    color: "white",
+    color: "var(--text-primary)",
   }),
 
   indicatorSeparator: () => ({
@@ -64,7 +67,7 @@ const styles = {
 
   input: (base: any) => ({
     ...base,
-    color: "white",
+    color: "var(--text-primary)",
   }),
 
   multiValue: (base: any) => ({
@@ -76,17 +79,17 @@ const styles = {
 
   multiValueLabel: (base: any) => ({
     ...base,
-    color: "white",
+    color: "var(--text-primary)",
     fontSize: "13px",
   }),
 
   multiValueRemove: (base: any) => ({
     ...base,
-    color: "#f87171",
+    color: "var(--accent-primary)",
     cursor: "pointer",
     ":hover": {
       backgroundColor: "var(--accent-primary)",
-      color: "white",
+      color: "var(--bg-primary)",
     },
   }),
 };
@@ -100,6 +103,7 @@ export function StyledSelect<
       {...props}
       styles={styles}
       classNamePrefix="styled-select"
+      className={`${props.className} app-select`}
     />
   );
 }

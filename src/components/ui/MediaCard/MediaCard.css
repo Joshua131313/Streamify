@@ -50,7 +50,12 @@
     opacity: 0;
     padding: 0 10px 5px 10px;
 }
-
+.light .media-info {
+    color: var(--bg-primary);
+}
+.light .media-card .app-icon {
+    color: var(--bg-primary);
+}
 .media-card:hover .media-info {
     bottom: 5px;
     opacity: 1;

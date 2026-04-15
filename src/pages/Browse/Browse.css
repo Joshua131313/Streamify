@@ -3,6 +3,9 @@
     display: grid;
     gap: 10px;
 }
+.browse-page .app-select:first-of-type {
+    z-index: 300;
+}
 .browse-page .header-controls .container-content {
     grid-template-columns: 1fr 1fr;
 }

@@ -12,3 +12,6 @@
 .movie-series .container-content {
     margin-bottom: 40px;
 }
+.light .movie-series .title h1 {
+    color: var(--bg-primary);
+}

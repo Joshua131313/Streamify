@@ -21,26 +21,33 @@ html, body {
 }
 
 :root {
-  /* Backgrounds */
-  --bg-primary: #0B0D10;
-  --bg-secondary: #13161B;
-  --bg-surface: #1d1d1d;
-  --bg-surface-hover: #1d1d1d;
-  --bg-white: #ffffff08;
-  --bg-white-hover: #ffffff0d;
-  --bg-transparent: hsla(0, 0%, 83%, 0.134);
-  --bg-alt: #282828;
+
+  /* Theme variables */
+      /* Backgrounds */
+      --bg-primary: #0B0D10;
+      --bg-secondary: #13161B;
+      --bg-surface: #1d1d1d;
+      --bg-surface-hover: #1d1d1d;
+      --bg-white: #ffffff08;
+      --bg-white-hover: #ffffff0d;
+      --bg-transparent: hsla(0, 0%, 83%, 0.134);
+      --bg-alt: #282828;
+      /* Text */
+      --text-primary: #F5F5F5;
+      --text-body: #C7C7C7;
+      --text-muted: #8F8F8F;
+      --badge-bg: rgba(255, 255, 255, 0.2);
+      /* Inputs */
+      --border: #35383F;
+      --border-white: hsla(0,0%,100%,.2);
+      --input-bg: var(--bg-primary);
   /* Accents */
   --accent-primary: #D81F26;
   --accent-hover: #FF2D36;
   --accent-subtle: #8A1119;
-  /*  sites color */
-  --espn-red: #dd0000;
-  /* Text */
-  --text-primary: #F5F5F5;
-  --text-body: #C7C7C7;
-  --text-muted: #8F8F8F;
-
+  /* UI Helpers */
+  --overlay: rgba(0,0,0,0.6);
+  --shadow-base: 0 0 10px rgba(0,0,0,0.55);
   /* States */
   --success: #2ECC71;
   --error: #FF4D4F;
@@ -49,18 +56,13 @@ html, body {
   --green: #0bb954;
   --red: #FF4D4F;
   --yellow: #F1C40F;
-  /* UI Helpers */
-  --overlay: rgba(0,0,0,0.6);
-  --shadow-base: 0 0 10px rgba(0,0,0,0.55);
-
+  /*  sites color */
+  --espn-red: #dd0000;
   /* Scrollbar */
   --scrollbar-bg: var(--bg-secondary);
   --scrollbar-thumb: var(--accent-primary);
 
-  /* Inputs */
-  --input-bg: var(--bg-primary);
-  --border: #35383F;
-  --border-white: hsla(0,0%,100%,.2);
+
   /* Fonts */
   --font-xs: 0.75rem;     /* 12px — captions, meta */
   --font-sm: 0.875rem;    /* 14px — small labels */

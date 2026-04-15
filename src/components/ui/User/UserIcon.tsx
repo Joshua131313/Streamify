@@ -6,10 +6,13 @@ import { Dropdown } from "../Dropdown/Dropdown";
 import "./UserIcon.css";
 import { getInitials } from "../../../utils/helpers";
 import { AppImg } from "../ImgProxy/AppImg";
+import { BsMoonFill, BsSun } from "react-icons/bs";
+import { useApp } from "../../../context/AppContext";
 
 export const UserIcon = () => {
     const { user, logout } = useAuthProvider();
     const navigate = useNavigate();
+    const { theme, toggleTheme } = useApp();
 
     const isLoggedIn = !!user;
 
@@ -66,6 +69,9 @@ export const UserIcon = () => {
             title={isLoggedIn ? (user.name ?? "Profile") : "Guest"}
             subTitle={isLoggedIn ? (user.email ?? "") : ""}
             className="user-icon"
+            Footer={
+                <Icon onClick={toggleTheme} Icon={theme === "dark" ? BsSun : BsMoonFill}/>
+            }
         >
             {
                 user?.image ? (

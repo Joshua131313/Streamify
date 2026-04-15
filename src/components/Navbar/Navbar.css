@@ -90,15 +90,22 @@
     left: 50%;
     transform: translateX(-50%);
 }
-.mobile-bar .nav-link {
+.light .mobile-bar {
+    background-color: rgba(45, 45, 45, 0.249);
+}
+.light .mobile-bar .nav-link {
     border-radius: 0;
     -webkit-tap-highlight-color: transparent;
+    color: var(--bg-primary);
 }
 
 .mobile-bar .nav-link:hover {
     border: auto;
     background-color: auto;
     color: auto;
+}
+.light .mobile-bar .nav-link-active {
+    color: var(--accent-primary);
 }
 .mobile-bar .dropdown-content {
     display: none;
@@ -144,6 +151,7 @@
 .mobile-bar-spacer {
     display: none;
 }
+
 @media (max-width: 850px) {
     .nav-links {
         gap: 10px;
