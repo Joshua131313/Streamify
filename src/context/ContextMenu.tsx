@@ -36,15 +36,12 @@ export const ContextMenuProvider = ({
 
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  // 🔥 constants
   const MENU_WIDTH = 235;
   const ITEM_HEIGHT = 38;
   const CONTAINER_PADDING = 20;
   const EDGE_PADDING = 10;
-  const BOTTOM_PADDING = 20; // since you have 10px top padding
+  const BOTTOM_PADDING = 20;
 
-
-  /* ---------------- POSITION CALCULATOR ---------------- */
 
   const getMenuPosition = (clickX: number, clickY: number, optionCount: number) => {
     const menuHeight = optionCount * ITEM_HEIGHT + CONTAINER_PADDING;
@@ -53,16 +50,15 @@ export const ContextMenuProvider = ({
     let y = clickY;
 
     if (clickX + MENU_WIDTH > window.innerWidth - EDGE_PADDING) {
-      x = clickX - MENU_WIDTH; // left of cursor
+      x = clickX - MENU_WIDTH; 
     } else {
-      x = clickX; // right of cursor
+      x = clickX;
     }
 
     if (x < EDGE_PADDING) {
       x = EDGE_PADDING;
     }
 
-    /* ---------- VERTICAL (NEW WINDOWS BEHAVIOR) ---------- */
 
     if (clickY + menuHeight > window.innerHeight - EDGE_PADDING) {
       y = clickY - menuHeight - BOTTOM_PADDING;
@@ -70,14 +66,12 @@ export const ContextMenuProvider = ({
       y = clickY;
     }
 
-    // prevent top overflow
     if (y < EDGE_PADDING) {
       y = EDGE_PADDING;
     }
 
     return { x, y };
   };
-  /* ---------------- OPEN MENU ---------------- */
 
   const openMenu = ({ e, options }: OpenMenuParams) => {
     e.preventDefault();
@@ -93,7 +87,6 @@ export const ContextMenuProvider = ({
     });
   };
 
-  /* ---------------- CLOSE MENU ---------------- */
 
   const closeMenu = () => {
     setMenu((prev) => ({
@@ -104,7 +97,6 @@ export const ContextMenuProvider = ({
     }));
   };
 
-  /* ---------------- CLICK OUTSIDE ---------------- */
 
   useEffect(() => {
     const handlePointerDown = (e: PointerEvent) => {
@@ -206,7 +198,6 @@ export const ContextMenuProvider = ({
   );
 };
 
-/* ---------------- HOOK ---------------- */
 
 export const useContextMenu = () => {
   const ctx = useContext(ContextMenuContext);
