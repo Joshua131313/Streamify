@@ -103,7 +103,7 @@ export const Trailer = (props : Props) => {
         <div className="trailer-controls">
             <Icon 
                 Icon={FaLongArrowAltLeft}
-                onClick={() => navigate("/")}
+                onClick={() => navigate(-1)}
             />
             <Icon
                 onClick={()=> toggleMute()} 

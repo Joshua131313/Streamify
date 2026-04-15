@@ -8,14 +8,22 @@ import { SearchableContainer } from "../../layout/Container/SearchableContainer"
 import { SidebarCard } from "../GameCard/SidebarCard";
 import "./SportsSidebar.css"
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { useEdgeSwipe } from "../../../hooks/utilHooks/useEdgeSwipe";
+import { GameGroupCard } from "../GameCard/GameGroupCard";
 
 export const SportsSidebar = () => {
     const [show, setShow] = useState(false);
     const { liveGames, followedTeams } = useSports();
     const renderedGameIds = new Set<string>();
 
+    useEdgeSwipe({
+        onOpen: () => setShow(true),
+    });
+    
+    
     return (
         <>
+        {show && <div className="sidebar-overlay" onClick={() => setShow(false)}></div>}
         {show && 
         <div className="sports-sidebar">
             <SearchableContainer
@@ -27,11 +35,8 @@ export const SportsSidebar = () => {
                     game.awayTeam.name.toLowerCase().includes(search)
                 }
                 renderItem={(game) => (
-                    <div className="game-group" key={game.id}>
-                        <SidebarCard team={game.awayTeam} game={game} />
-                        <SidebarCard team={game.homeTeam} game={game} />
-                    </div>
-                )}
+                    <GameGroupCard game={game} key={game.id}/>
+                )} 
             />
             <SearchableContainer
                 title="Followed Teams"

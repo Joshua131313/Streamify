@@ -16,11 +16,12 @@ interface Props {
 
 export const AppLayout = (props: Props) => {
     const { hideNav, hideFooter } = props;
-    
+    const location = useLocation();
     useScroll();
     
     return (
         <>
+ 
             <RouteProgress />
             <NetworkIndicatorScreen />
             {!hideNav && <Navbar />}
@@ -28,7 +29,7 @@ export const AppLayout = (props: Props) => {
 
             <Outlet />
             <SportsPlayer />
-            <SportsSidebar />
+            {location.pathname.includes("sports") && <SportsSidebar />}
             {!hideFooter && <Footer />}
         </>
     )
