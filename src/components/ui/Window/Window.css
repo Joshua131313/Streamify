@@ -27,7 +27,9 @@
 
     cursor: initial;
 }
-
+.light .window-header {
+    color: var(--bg-primary);
+}
 
 /* CONTROLS */
 .window-controls {
@@ -44,7 +46,9 @@
 
     cursor: pointer;
 }
-
+.light .window-shell .app-select .styled-select__single-value {
+    color: var(--bg-primary);
+}
 .window-controls div:hover {
     background-color: var(--bg-transparent);
 }
@@ -55,7 +59,6 @@
 .window-controls .window-close:hover {
     background-color: var(--accent-primary);
 }
-
 /* CONTENT */
 .window-content {
     padding: 10px;

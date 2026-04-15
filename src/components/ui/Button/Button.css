@@ -4,10 +4,9 @@
     border-radius: var(--border-radius);
     font-size: var(--font-sm);
     font-weight: 600;
-    background-color: #f3f3f3;
+    background-color: var(--text-primary);
     cursor: pointer;
     transition: all .18s ease;
-    border: none;
     color: var(--bg-primary);
     backdrop-filter: blur(6px);
     border: solid 1px transparent;
@@ -34,7 +33,7 @@
 
 .button.espn {
     background-color: var(--espn-red);
-    color: #fff;
+    min-width: 0;
 }
 
 .button.espn:hover,
@@ -43,7 +42,8 @@
 }
 
 .button.espn img {
-    width: 60px;
+    width: 100%;
+    max-width: 60px;
     left: 50%;
     transform: translateX(-50%);
 }

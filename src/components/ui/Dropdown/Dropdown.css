@@ -52,7 +52,8 @@
     flex-direction: row;
     gap: 10px;
     border-radius: 0;
+    border-radius: var(--border-radius-small);
 }
-.dropdown-option{
-    border-radius: var(--border-radius-small)
+.light .dropdown-option:hover {
+    color: var(--bg-primary);
 }

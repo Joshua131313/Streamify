@@ -65,6 +65,9 @@
     align-items: start;
     gap: 10px;
 }
+.light .inner-trailer-info {
+    color: var(--bg-primary);
+}
 .inner-trailer-info > * {
     margin-bottom: 20px;
 }
@@ -85,13 +88,15 @@
 .trailer .trailer-info .media-meta-badges, .trailer .trailer-info .description {
 }
 .trailer-action-buttons  {
-    gap: 20px;
+    gap: 10px;
     align-items: center;
 }
-.trailer-action-buttons .app-icon {
-    width: calc(var(--app-icon-dimension) - 8.4px);
-    height:  calc(var(--app-icon-dimension) - 8.4px);
-    font-size: var(--font-md);
+.light .trailer-action-buttons .play-button .button {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+.light .trailer-action-buttons .button.secondary {
+    color: var(--bg-primary);
 }
 .trailer-hovered {
 
