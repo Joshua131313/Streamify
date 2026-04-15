@@ -309,6 +309,9 @@
     display: flex;
     gap: 5px;
 }
+.sidebar-card .watch-button svg {
+    display: block;
+}
 @media (max-width: 800px) {
 
     :root {
