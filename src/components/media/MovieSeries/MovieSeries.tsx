@@ -4,7 +4,7 @@ import { useMovieCollection } from "../../../hooks/mediaHooks/movieHooks/useMovi
 import { useTMDBQuery } from "../../../hooks/mediaHooks/tmdbHooks/useTMDBQuery";
 import { Container } from "../../layout/Container/Container"
 import { MediaCard } from "../../ui/MediaCard/MediaCard";
-import { TMDBImg } from "../../ui/TMDBImg/TMDBImg";
+import { TMDBImg } from "../../ui/ImgProxy/TMDBImg";
 import "./MovieSeries.css"
 
 interface Props {

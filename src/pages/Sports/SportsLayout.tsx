@@ -11,6 +11,7 @@ import { Container } from "../../components/layout/Container/Container";
 import { FaList, FaX } from "react-icons/fa6";
 import type { IconType } from "react-icons";
 import { Icon } from "../../components/ui/Icon/Icon";
+import { SportsSidebar } from "../../components/sports/SportsSidebar/SportsSidebar";
 
 interface Props {
     title: string;

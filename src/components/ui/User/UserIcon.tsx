@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { Dropdown } from "../Dropdown/Dropdown";
 import "./UserIcon.css";
 import { getInitials } from "../../../utils/helpers";
+import { AppImg } from "../ImgProxy/AppImg";
 
 export const UserIcon = () => {
     const { user, logout } = useAuthProvider();
@@ -68,7 +69,7 @@ export const UserIcon = () => {
         >
             {
                 user?.image ? (
-                    <img src={user.image} alt="user" className="user-img" />
+                    <AppImg src={user.image} alt="user" className="user-img" />
                 ) : user?.name ? (
                     <span className="user-initials">{getInitials(user.name)}</span>
                 ) : (

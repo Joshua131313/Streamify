@@ -1,5 +1,6 @@
 import React from "react";
 import "./Button.css";
+import { AppImg } from "../ImgProxy/AppImg";
 
 interface Props {
     url: string;
@@ -21,7 +22,7 @@ const ExternalGameInfoButton: React.FC<Props> = ({ url, type = "espn" }) => {
             rel="noopener noreferrer"
             className={`button external-btn ${type}`}
         >
-            <img src={imgSrc} alt="" />
+            <AppImg src={imgSrc} alt="" />
         </a>
     );
 };

@@ -2,8 +2,8 @@ import React from "react";
 import "./GameCard.css";
 import type { GameProps } from "../../../types/sports/sportsTypes";
 
-import { WatchButton } from "../Button/WatchButton";
-import ExternalGameInfoButton from "../Button/ExternalGameInfoButton";
+import { WatchButton } from "../../ui/Button/WatchButton";
+import ExternalGameInfoButton from "../../ui/Button/ExternalGameInfoButton";
 import { GameCardTeam } from "./GameCardTeam";
 import { useGameCard } from "./useGameCard";
 

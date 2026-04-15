@@ -31,7 +31,7 @@
     width: 100%;
 }
 .header-controls .container-content > * {
-    height: 50px;
+    height: var(--app-icon-dimension);
 }
 @media(max-width: 600px) {
     .header-controls .container-content {

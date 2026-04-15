@@ -3,7 +3,7 @@
     left: initial;
 }
 
-.user-img, .user-initials {
+.user-img, .user-initials, .user-icon .img-skeleton {
     width: 50px;
     height: 50px;
     border-radius: 50%;

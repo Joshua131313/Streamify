@@ -7,6 +7,7 @@ import { Button } from "../../components/ui/Button/Button";
 import "./Sports.css"
 import { FaCheck } from "react-icons/fa";
 import { gameIsWatchable } from "../../utils/sports/sportsUtils";
+import { AppImg } from "../../components/ui/ImgProxy/AppImg";
 
 const CheckboxOption = (props: any) => {
     const { isSelected, data } = props;
@@ -18,12 +19,12 @@ const CheckboxOption = (props: any) => {
             </div>
 
             <div className="option-content">
-                <img src={data.homeLogo} className="team-logo" />
+                <AppImg src={data.homeLogo} className="team-logo" />
                 <span>{data.homeAbbrev}</span>
 
                 <span className="vs">vs</span>
 
-                <img src={data.awayLogo} className="team-logo" />
+                <AppImg src={data.awayLogo} className="team-logo" />
                 <span>{data.awayAbbrev}</span>
             </div>
         </components.Option>
@@ -36,12 +37,12 @@ const MultiValueLabel = (props: any) => {
   return (
     <components.MultiValueLabel {...props}>
       <div className="multi-chip">
-        <img src={data.homeLogo} className="team-logo" />
+        <AppImg src={data.homeLogo} skeletonClass="team-logo" className="team-logo" />
         <span className="team">{data.homeAbbrev}</span>
 
         <span className="vs">vs</span>
 
-        <img src={data.awayLogo} className="team-logo" />
+        <AppImg src={data.awayLogo} skeletonClass="team-logo" className="team-logo" />
         <span className="team">{data.awayAbbrev}</span>
       </div>
     </components.MultiValueLabel>

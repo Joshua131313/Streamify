@@ -7,6 +7,7 @@ import { useScroll } from "../../hooks/utilHooks/useScroll";
 import { SportsPlayer } from "../../pages/Sports/SportsPlayer";
 import { NetworkIndicatorScreen } from "../ui/NetworkIndicatorScreen/NetworkIndicatorScreen";
 import { Loader } from "../ui/Loader/Loader";
+import { SportsSidebar } from "../sports/SportsSidebar/SportsSidebar";
 
 interface Props {
     hideNav?: boolean;
@@ -27,6 +28,7 @@ export const AppLayout = (props: Props) => {
 
             <Outlet />
             <SportsPlayer />
+            <SportsSidebar />
             {!hideFooter && <Footer />}
         </>
     )

@@ -7,7 +7,7 @@ import { channelStreams } from "../../data/sports/sportsData";
 import { ChannelCard } from "../../components/ui/ChannelCard/ChannelCard";
 import SportsLayout from "./SportsLayout";
 import { FilteredSportsContainer } from "../../components/layout/Container/FilteredSportsContainer";
-import RegularGameCard from "../../components/ui/GameCard/RegularGameCard";
+import RegularGameCard from "../../components/sports/GameCard/RegularGameCard";
 import { SportCardsViewFactory } from "../../components/sports/SportCardsViews/SportCardsViewFactory";
 
 const Sports = () => {

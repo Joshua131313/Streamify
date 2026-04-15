@@ -1,7 +1,7 @@
 import { DateTime } from "luxon";
-import { mlbStreams } from "../../data/sports/mlbData";
-import { nbaStreams } from "../../data/sports/nbaData";
-import { nhlStreams } from "../../data/sports/nhlData";
+import { mlbStreams, mlbTeamsMap } from "../../data/sports/mlbData";
+import { nbaStreams, nbaTeamsMap } from "../../data/sports/nbaData";
+import { nhlStreams, nhlTeamsMap } from "../../data/sports/nhlData";
 import { channelStreams } from "../../data/sports/sportsData";
 import type { GameProps, GameStatus, Leagues, TeamAbbrevs, TStreamProvider } from "../../types/sports/sportsTypes"
 import type { SportFilter } from "../../context/SportsContext";
@@ -10,6 +10,13 @@ import type { SportFilter } from "../../context/SportsContext";
 const sportsStreamsMap = Object.fromEntries(
     channelStreams.map(s => [s.provider, s])
 );
+
+
+export const getDefaultStreamProvider = (league: Leagues) => {
+    const defaultSportStream = getSportStream(league)[0];
+    return defaultSportStream.provider;
+}
+
 
 export const extractStreamInfoFromURL = (url: string) => {
     const params = new URLSearchParams(url);
@@ -30,6 +37,14 @@ export const getTeamLogo = (league: Leagues, abbrev: TeamAbbrevs) => {
     const lowerCaseAbbrev = abbrev.toLowerCase();
     return `https://a.espncdn.com/i/teamlogos/${lowerCaseLeague}/500/scoreboard/${lowerCaseAbbrev}.png`
 }
+
+
+export const getLeagueFromTeam = (abbrev: string) : Leagues => {
+    if (abbrev in nbaTeamsMap) return "NBA";
+    if (abbrev in nhlTeamsMap) return "NHL";
+    if (abbrev in mlbTeamsMap) return "MLB";
+    return "NBA";
+};
 
 export const mapESPNStatus = (
     status: string,
@@ -144,9 +159,24 @@ export const filterGames = (
         return matchesSearch && matchesStatus && matchesLeague;
     });
 
-    return filtered.sort(
-        (a, b) => getPriority(a.status) - getPriority(b.status)
-    );
+    return filtered.sort((a, b) => {
+        const priorityDiff = getPriority(a.status) - getPriority(b.status);
+
+        if (priorityDiff !== 0) {
+            return priorityDiff;
+        }
+
+        const timeA = new Date(a.startTime).getTime();
+        const timeB = new Date(b.startTime).getTime();
+
+        const isLiveA = a.status === "LIVE" || a.status === "HALFTIME";
+
+        if (isLiveA) {
+            return timeB - timeA;
+        }
+
+        return timeA - timeB;
+    });
 };
 export const gameIsWatchable = (
     startTime: string,
@@ -181,3 +211,4 @@ export const gameIsWatchable = (
 
     return true;
 };
+

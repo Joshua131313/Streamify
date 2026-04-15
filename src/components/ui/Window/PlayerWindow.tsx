@@ -9,6 +9,7 @@ import "./Window.css";
 import { StreamSelector } from "../StreamSelector/StreamSelector";
 import type { SportStream } from "../../../types/sports/sportsTypes";
 import { StreamPlayerPanel } from "../../sports/StreamPlayerPanel/StreamPlayerPanel";
+import { AppImg } from "../ImgProxy/AppImg";
 
 interface Props {
     id: string;
@@ -23,8 +24,8 @@ export const PlayerWindow = (props: Props) => {
     const MinimizedIcon = () => {
         return (
             <div className="player-window-icon app-icon">
-                <img src={getTeamLogo(leagueName, homeAbbrev)} />
-                <img src={getTeamLogo(leagueName, awayAbbrev)} />
+                <AppImg src={getTeamLogo(leagueName, homeAbbrev)} />
+                <AppImg src={getTeamLogo(leagueName, awayAbbrev)} />
             </div>
         );
     };

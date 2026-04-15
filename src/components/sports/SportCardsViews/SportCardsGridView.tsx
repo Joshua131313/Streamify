@@ -2,9 +2,9 @@ import type { SportCardsViewsProps } from ".";
 import type { GameProps, Leagues } from "../../../types/sports/sportsTypes";
 import { FilteredSportsContainer } from "../../layout/Container/FilteredSportsContainer";
 import { AppSwiper } from "../../ui/AppSwiper/AppSwiper";
-import CompactGameCard from "../../ui/GameCard/CompactGameCard";
-import HorizontalGameCard from "../../ui/GameCard/HorizontalGameCard";
-import RegularGameCard from "../../ui/GameCard/RegularGameCard";
+import CompactGameCard from "../GameCard/CompactGameCard";
+import HorizontalGameCard from "../GameCard/HorizontalGameCard";
+import RegularGameCard from "../GameCard/RegularGameCard";
 import { SwiperSkeletonCard } from "../../ui/MediaCard/SkeletonCards/MediaSkeletonCard";
 import "./SportCardsViews.css"
 

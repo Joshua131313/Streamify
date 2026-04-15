@@ -1,6 +1,8 @@
 :root {
     --game-card-width: 280px;
     --compact-game-card-width: 130px;
+    --team-logo-dimensions: 45px;
+    --team-logo-horizontal-card-dimensions: 45px;
 }
 
 .game-card {
@@ -31,9 +33,9 @@
     font-size: var(--font-sm);
 }
 .compact-game-card .inner-game-card {
-    gap: 10px;
+    gap: 15px;
 }
-.compact-game-card .logos img {
+.compact-game-card .logos img, .compact-game-card .logos .img-skeleton {
     width: 35px;
     height: 35px;
 }
@@ -50,7 +52,7 @@
 .compact-game-card .game-card-buttons {
     display: flex;
     justify-content: space-between;
-    margin-top: 5px;
+    margin-top: 15px;
     gap: 5px;
 }
 .compact-game-card .logos {
@@ -125,10 +127,11 @@
     align-items: center;
 }
 
-.logos img {
-    width: 55px;
-    height: 55px;
+.logos img, .logos .img-skeleton {
+    width: var(--team-logo-dimensions);
+    height: var(--team-logo-dimensions);
     object-fit: cover;
+    border-radius: 50%;
 }
 
 .vs {
@@ -167,11 +170,6 @@
 .horizontal-team-row .game-card-buttons>a {
     width: 120px;
     min-width: 0;
-}
-
-.logos img {
-    width: 45px;
-    height: 45px;
 }
 
 
@@ -218,7 +216,7 @@
     display: grid;
     align-items: center;
 
-    --col-logo: 45px;
+    --col-logo: var(--team-logo-horizontal-card-dimensions);
     --col-name: 140px;
     --col-flex: 30px;
     --col-action: 30px;
@@ -229,7 +227,9 @@
 
     gap: var(--gap);
 }
-
+.horizontal-team-row .team .img-skeleton {
+    height: var(--team-logo-horizontal-card-dimensions);
+}
 .horizontal-team-row .app-icon {
     width: 30px;
     height: 30px;
@@ -269,8 +269,40 @@
     margin-top: 0;
     text-align: center;
 }
-
-
+.sidebar-card {
+    display: flex;
+    justify-content: space-between;
+    padding: 7px;
+    gap: 5px;
+    border: solid 1px var(--border);
+    border-radius: var(--border-radius);
+}
+.game-group .sidebar-card {
+    padding: 0;
+}
+.game-group .sidebar-card {
+    border: none;
+    border-radius: 0;
+}
+.sidebar-card .app-icon {
+    width: 30px;
+    height: 30px;;
+    font-size: var(--font-xs);
+}
+.sidebar-card img, .sidebar-card .img-skeleton {
+    width: 30px;
+    height: 30px;
+}
+.sidebar-card .team-logo-name {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    font-size: var(--font-xs);
+}
+.sidebar-card-controls {
+    display: flex;
+    gap: 5px;
+}
 @media (max-width: 800px) {
 
     :root {
@@ -287,15 +319,10 @@
 @media (max-width: 700px) {
     :root {
         --game-card-width: 230px;
-    }
-
-    .logos img {
-        width: 45px;
-        height: 45px;
+        ----team-logo-horizontal-card-dimensions: 40px;
     }
 
     .horizontal-team-row .team {
-        --col-logo: 40px;
         --col-name: 110px;
     }
 
@@ -318,9 +345,10 @@
 }
 
 @media (max-width: 550px) {
-
+    :root {
+        --team-logo-horizontal-card-dimensions: 36px;
+    }
     .horizontal-team-row .team {
-        --col-logo: 36px;
         --col-name: 80px;
     }
 
@@ -338,8 +366,10 @@
 }
 
 @media (max-width: 475px) {
+    :root {
+        --team-logo-horizontal-card-dimensions: 30px;
+    }
     .horizontal-team-row .team {
-        --col-logo: 30px;
         --col-name: 60px;
     }
 
@@ -360,9 +390,6 @@
     .horizontal-team-row .game-card-buttons>a {
         width: 80px;
     }
-
-    .horizontal-team-row .horizontal-buttons button,
-    .horizontal-team-row .horizontal-buttons a {}
 
     .horizontal-team-row .follow-button {
         padding: 5px;

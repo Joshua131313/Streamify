@@ -7,7 +7,7 @@ import { mapNHLToGameProps } from "../utils/sports/nhlUtils";
 import { mapMLBToGameProps } from "../utils/sports/mlbUtils";
 import { filterGames, getPriority } from "../utils/sports/sportsUtils";
 import { useFavoriteTeamsContext } from "./FavoriteTeamsContext";
-import type { GameProps } from "../types/sports/sportsTypes";
+import type { GameProps, GameTeam } from "../types/sports/sportsTypes";
 import { SportsPlayer } from "../pages/Sports/SportsPlayer";
 import { useLocation } from "react-router-dom";
 
@@ -37,6 +37,7 @@ interface SportsContextType {
     nhlGames: GameProps[];
     mlbGames: GameProps[];
     allOfTodaysGames: GameProps[];
+    liveGames: GameProps[];
     nbaGamesLoading: boolean;
     nhlGamesLoading: boolean;
     mlbGamesLoading: boolean;
@@ -54,6 +55,8 @@ interface SportsContextType {
     favoriteNBAGameCards: GameProps[];
     favoriteNHLGameCards: GameProps[];
     favoriteMLBGameCards: GameProps[];
+
+    followedTeams: GameTeam[];
     favoriteGameCards: GameProps[];
 
     layout: SportsCardsLayout;
@@ -129,7 +132,6 @@ export const SportsProvider = ({ children }: { children: React.ReactNode }) => {
                 favSet.has(game.homeTeam.name)
         );
     }, [mlbGameCards, favSet]);
-
     const favoriteGameCards = useMemo(() => {
         return filterGames([
             ...favoriteNBAGameCards,
@@ -156,6 +158,7 @@ export const SportsProvider = ({ children }: { children: React.ReactNode }) => {
                 nhlGames: mappedNHLGames,
                 mlbGames: mappedMLBGames,
                 allOfTodaysGames,
+                liveGames: allOfTodaysGames.filter(x=> x.status === "LIVE" || x.status === "HALFTIME"),
                 nbaGamesLoading,
                 nhlGamesLoading,
                 mlbGamesLoading,
@@ -174,6 +177,7 @@ export const SportsProvider = ({ children }: { children: React.ReactNode }) => {
                 mlbGameCards,
                 favoriteMLBGameCards,
 
+                followedTeams: favoriteTeams,
                 favoriteGameCards,
 
                 layout,

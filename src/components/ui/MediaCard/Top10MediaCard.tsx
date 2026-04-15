@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import type { TMDBMedia } from "../../../types/TMDBMediaType";
 import "./MediaCard.css"
-import { TMDBImg } from "../TMDBImg/TMDBImg";
+import { TMDBImg } from "../ImgProxy/TMDBImg";
 
 interface Props {
     media: TMDBMedia;

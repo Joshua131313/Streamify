@@ -2,7 +2,7 @@ import type { YouTubeProps } from "react-youtube";
 import "./Trailer.css"
 import YouTube from "react-youtube";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { TMDBImg } from "../TMDBImg/TMDBImg";
+import { TMDBImg } from "../ImgProxy/TMDBImg.tsx";
 import {  FaDownload, FaLongArrowAltLeft, FaPlus, FaVolumeMute } from "react-icons/fa";
 import { Icon } from "../Icon/Icon";
 import { FaVolumeHigh } from "react-icons/fa6";

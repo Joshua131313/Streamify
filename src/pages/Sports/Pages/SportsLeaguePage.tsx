@@ -2,7 +2,7 @@ import { FilteredSportsContainer } from "../../../components/layout/Container/Fi
 import SportsLayout from "../SportsLayout";
 import type { GameProps, Leagues } from "../../../types/sports/sportsTypes";
 import { SportsPlayer } from "../SportsPlayer";
-import HorizontalGameCard from "../../../components/ui/GameCard/HorizontalGameCard";
+import HorizontalGameCard from "../../../components/sports/GameCard/HorizontalGameCard";
 import { SportCardsViewFactory } from "../../../components/sports/SportCardsViews/SportCardsViewFactory";
 
 interface SportLeaguePageProps {
