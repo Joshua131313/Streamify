@@ -285,6 +285,11 @@
     border: none;
     border-radius: 0;
 }
+.game-group .game-group-badges {
+    position: absolute;
+    font-size: 8px;
+    top: -8px;
+}
 .sidebar-card .app-icon {
     width: 30px;
     height: 30px;;
