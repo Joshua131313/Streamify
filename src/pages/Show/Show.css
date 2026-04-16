@@ -27,8 +27,6 @@
     overflow-y: auto;
 }
 .season-selector-container {
-    position: sticky;
-    top: 0px;
     margin-bottom: 20px;
     z-index: 3;
 }

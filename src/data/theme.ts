@@ -23,7 +23,7 @@ export const lightThemeColors = {
     "--bg-surface-hover": "#E7EAF0",
     "--bg-white": "#00000008",
     "--bg-white-hover": "#0000000d",
-    "--bg-transparent": "hsla(0, 0%, 29%, 0.06)",
+    "--bg-transparent": "hsla(0, 0%, 57%, 0.06)",
     "--bg-alt": "#E5E7EB",
 
     "--text-primary": "#0B0D10",

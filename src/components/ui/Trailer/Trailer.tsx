@@ -16,6 +16,7 @@ import type { TMDBMedia } from "../../../types/TMDBMediaType.ts";
 import { useMediaLayoutContext } from "../../layout/MediaLayout/MediaLayoutContext.tsx";
 import { getOfficialYoutubeTrailerId } from "../../../utils/helpers.ts";
 import { useLocalStorage } from "../../../hooks/utilHooks/useLocalStorage.ts";
+import { useApp } from "../../../context/AppContext.tsx";
 
 interface Props {
     // backdrop_path: string;
@@ -29,8 +30,7 @@ interface Props {
 }
 
 export const Trailer = (props : Props) => {
-    const [searchParams] = useSearchParams();
-    const { set } = useLocalStorage()
+    const { lastMainRoute } = useApp();
     // const { backdrop_path, trailer_id, logo_path, mediaMetaBadgesProps, description, mediaId, mediaType } = props;
     const { media, mediaType } = useMediaLayoutContext();
     const [playing, setPlaying] = useState(false);

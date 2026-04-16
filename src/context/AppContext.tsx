@@ -7,6 +7,8 @@ type AppContextType = {
   theme: Theme;
   setTheme: (t: Theme) => void;
   toggleTheme: () => void;
+  lastMainRoute: string;
+  setLastMainRoute: (route: string) => void;
 };
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -18,7 +20,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       ? "dark"
       : "light";
   };
-
+  const [lastMainRoute, setLastMainRoute] = useState("/");
   const [theme, setTheme] = useState<Theme>(getSystemTheme);
 
   const toggleTheme = () => {
@@ -49,9 +51,15 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       document.documentElement.style.setProperty(key, value);
     });
   }, [theme]);
-
+  
   return (
-    <AppContext.Provider value={{ theme, setTheme, toggleTheme }}>
+    <AppContext.Provider value={{
+      theme,
+      setTheme,
+      toggleTheme,
+      lastMainRoute,
+      setLastMainRoute,
+    }}>
       {children}
     </AppContext.Provider>
   );

@@ -124,6 +124,9 @@
 .trailer .img-skeleton {
     position: absolute;
 }
+.light .trailer .app-icon {
+    color: var(--bg-primary);
+}
 @media(max-width: 1400px) {
     
     .trailer iframe {

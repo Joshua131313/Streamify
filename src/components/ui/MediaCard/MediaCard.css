@@ -130,14 +130,13 @@
 .episode-card,
 .episode-skeleton-card {
     display: flex;
-    height: 145px;
+    height: 100px;
     gap: 10px;
     background-color: var(--bg-white);
     border-radius: var(--border-radius-small);
     border: solid 1px transparent;
     transition: all 0.3s;
     border: solid 1px var(--border);
-    padding: 20px;
 }
 
 .episode-skeleton-card {
@@ -156,7 +155,7 @@
     padding: 10px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 3px;
     width: 100%;
     overflow-y: auto;
 }
@@ -220,10 +219,14 @@
     bottom: 5px;
     left: 5px;
     border: solid 1px var(--border);
-    padding: 5px;
     font-size: var(--font-xs);
     border-radius: var(--border-radius-small);
     background-color: var(--bg-surface);
+    width: 20px;
+    height: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .still-container .time,

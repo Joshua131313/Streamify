@@ -32,13 +32,13 @@ export const router = createBrowserRouter([
       {
         element: <AppLayout />,
         children: [
-          { path: "/", element: <Home /> },
-          { path: "search", element: <Search /> },
+          { path: "/", element: <Home /> },    
           { path: "discover", element: <Browse /> },
+          { path: "sports", element: <SportsPage />},
+          { path: "search", element: <Search /> },
           { path: "saved-media", element: <SavedMedia /> },
           { path: "history", element: <WatchHistory /> },
           { path: "person/:id", element: <PersonPage /> },
-          { path: "sports", element: <SportsPage />},
           { path: "sports/nhl", element: <NHL />},
           { path: "sports/nba", element: <NBA />},
           { path: "sports/mlb", element: <MLB />},
