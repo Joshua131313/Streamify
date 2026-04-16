@@ -132,7 +132,6 @@
     width: var(--team-logo-dimensions);
     height: var(--team-logo-dimensions);
     object-fit: cover;
-    border-radius: 50%;
 }
 
 .vs {
