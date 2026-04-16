@@ -69,7 +69,7 @@
 }
 
 .inner-episode-selector .episode-card {
-    height: 70px;
+    height: 80px;
 }
 .inner-episode-selector .episode-card img, .inner-episode-selector .episode-card .img-skeleton {
     width: 100px;
@@ -108,7 +108,12 @@
 .vidsrc .stream-provider-buttons, .vidsrc.player .next-episode-icon {
     transform: translateY(30px);
 }
-
+.light .player.modal-player .app-icon  {
+    color: var(--bg-primary);
+}
+.player .inner-episode-selector .container-header {
+    margin-top: 0;
+}
 @supports not (height: 100dvh) {
   .player.modal-player {
     height: 100vh;
