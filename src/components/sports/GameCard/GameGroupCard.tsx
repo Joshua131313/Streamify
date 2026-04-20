@@ -9,12 +9,12 @@ interface Props {
 
 export const GameGroupCard = (props: Props) => {
     const { game } = props;
-    const { getGameStatusUI } = useGameCard(game);
+    const { getGameStatusUI, openContextMenu } = useGameCard(game);
 
     return (
-        <div className="game-group" key={game.id}>
+        <div className="game-group" key={game.id} onContextMenu={openContextMenu}>
             <div className="game-group-badges">
-                <span className="status-tag">{getGameStatusUI("compact").statusDetail}</span>
+                <span className="status">{getGameStatusUI("full").statusDetail}</span>
             </div>
             <SidebarCard team={game.awayTeam} game={game} />
             <SidebarCard team={game.homeTeam} game={game} />

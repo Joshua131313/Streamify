@@ -24,14 +24,7 @@
 .sports-sidebar h1 {
     font-size: var(--font-lg);
 }
-.game-group {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    border: solid 1px var(--border);
-    padding: 7px;
-    border-radius: var(--border-radius-small);
-}
+
 
 .sports-sidebar .container-header {
     margin-top: 0;

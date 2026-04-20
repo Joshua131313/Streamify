@@ -64,6 +64,7 @@ html, body {
 
 
   /* Fonts */
+  --font-xxs: 0.65rem;
   --font-xs: 0.75rem;     /* 12px — captions, meta */
   --font-sm: 0.875rem;    /* 14px — small labels */
   --font-md: 1rem;        /* 16px — base text */
@@ -212,7 +213,7 @@ details[open] > summary::before {
   content: '-';
 }
 .context-menu, .dropdown-content {
-    z-index: 100;
+    z-index: 1002;
     padding: 10px;
     background-color: var(--bg-primary);
     box-shadow: var(--shadow-base);
