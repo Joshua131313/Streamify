@@ -277,6 +277,14 @@
     border: solid 1px var(--border);
     border-radius: var(--border-radius);
 }
+.game-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border: solid 1px var(--border);
+    padding: 9px 7px;
+    border-radius: var(--border-radius-small);
+}
 .game-group .sidebar-card {
     padding: 0;
 }
@@ -287,12 +295,18 @@
 .game-group .game-group-badges {
     position: absolute;
     font-size: 8px;
-    top: -8px;
+    top: 0;
+    left: 20px;
+    transform: translateY(-50%);
+    background-color: var(--bg-secondary);
+    padding: 5px;
+    color: var(--border);
+    font-size: var(--font-xxs);
 }
 .sidebar-card .app-icon {
     width: 30px;
     height: 30px;;
-    font-size: var(--font-xs);
+    font-size: var(--font-xxs);
 }
 .sidebar-card img, .sidebar-card .img-skeleton {
     width: 30px;
@@ -300,9 +314,9 @@
 }
 .sidebar-card .team-logo-name {
     display: flex;
-    gap: 10px;
+    gap: 5px;
     align-items: center;
-    font-size: var(--font-xs);
+    font-size: var(--font-xxs);
 }
 .sidebar-card-controls {
     display: flex;
