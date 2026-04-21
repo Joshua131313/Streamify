@@ -79,9 +79,19 @@ export const useGameCard = (game: GameProps): UseGameCardReturn => {
             }
 
             setTimeout(() => {
-                new Notification(`${game.homeTeam.name} vs ${game.awayTeam.name}`, {
-                    body: "Game is starting now!",
-                });
+                const notification = new Notification(
+                    `${game.homeTeam.name} vs ${game.awayTeam.name}`,
+                    {
+                        body: "Game is starting now!",
+                    }
+                );
+
+                notification.onclick = () => {
+                    window.focus();
+
+                    // go to route in your app
+                    // window.location.href = `/game/${game.id}`;
+                };
             }, delay);
         }
     };
