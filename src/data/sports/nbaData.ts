@@ -45,6 +45,14 @@ export const nbaTeamsMap : Record<string, TeamInfo> = {
 
 export const nbaStreams: SportStream[] = [
   {
+    provider: "streamspass",
+    buildStreamUrl: ({awayTeamAbbrev, homeTeamAbbrev}) => {
+      const teamName = nbaTeamsMap[homeTeamAbbrev as keyof typeof nbaTeamsMap].teamName;
+      const slug = getSlug(teamName).toLowerCase();
+      return `https://streamspass.net/nba/${slug}.html`
+    }
+  },
+  {
     provider: "trendy47",
     buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
       const homeId = nbaTeamsMap[homeTeamAbbrev as keyof typeof nbaTeamsMap]?.id;

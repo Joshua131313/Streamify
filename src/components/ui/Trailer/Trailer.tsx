@@ -17,6 +17,7 @@ import { useMediaLayoutContext } from "../../layout/MediaLayout/MediaLayoutConte
 import { getOfficialYoutubeTrailerId } from "../../../utils/helpers.ts";
 import { useLocalStorage } from "../../../hooks/utilHooks/useLocalStorage.ts";
 import { useApp } from "../../../context/AppContext.tsx";
+import { BackButton } from "../Button/BackButton.tsx";
 
 interface Props {
     // backdrop_path: string;
@@ -101,10 +102,7 @@ export const Trailer = (props : Props) => {
     return (
        <div ref={trailerContainerRef} className={`trailer trailer-hovered`}onMouseMove={handleMouseMove} onMouseOver={handleMouseOver} onMouseLeave={handleMouseLeave}>
         <div className="trailer-controls">
-            <Icon 
-                Icon={FaLongArrowAltLeft}
-                onClick={() => navigate(-1)}
-            />
+            <BackButton  />
             <Icon
                 onClick={()=> toggleMute()} 
                 Icon={muted ? FaVolumeMute : FaVolumeHigh} 
