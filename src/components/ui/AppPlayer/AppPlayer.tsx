@@ -7,7 +7,7 @@ import "./AppPlayer.css"
 interface Props {
     modal?: boolean;
     children?: React.ReactNode;
-    cancelPlay: () => void;
+    cancelPlay?: () => void;
     src: string;
     className?: string;
 }

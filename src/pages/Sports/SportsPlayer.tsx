@@ -12,6 +12,7 @@ import { Input } from "../../components/ui/Input/Input";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "../../components/ui/Button/Button";
 import { SEO } from "../../components/SEO";
+import { useApp } from "../../context/AppContext";
 
 export const SportsPlayer = () => {
     const navigate = useNavigate();
@@ -21,7 +22,7 @@ export const SportsPlayer = () => {
     const league = searchParams.get("league") as Leagues | null;
     const awayTeamAbbrev = searchParams.get("away") as TeamAbbrevs;
     const homeTeamAbbrev = searchParams.get("home") as TeamAbbrevs;
-
+    const { lastMainRoute } = useApp();
     const isTV = searchParams.get("tv") === "1";
 
     const allStreams = league ? getSportStream(league) : [];
@@ -65,7 +66,8 @@ export const SportsPlayer = () => {
     };
 
     const cancelWatch = () => {
-        navigate(-1);
+        console.log("canl", lastMainRoute)
+        navigate(lastMainRoute);
     };
 
     let src: string | null = null;

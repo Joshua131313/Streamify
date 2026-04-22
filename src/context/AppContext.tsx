@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { darkThemeColors, lightThemeColors } from "../data/theme";
+import { useLocation } from "react-router-dom";
+import { navLinks } from "../components/Navbar/Navbar";
 
 type Theme = "light" | "dark";
 
@@ -22,10 +24,28 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   };
   const [lastMainRoute, setLastMainRoute] = useState("/");
   const [theme, setTheme] = useState<Theme>(getSystemTheme);
+  const location = useLocation();
 
   const toggleTheme = () => {
     setTheme(prev => (prev === "dark" ? "light" : "dark"));
   };
+
+
+  useEffect(() => {
+    if (
+      navLinks.some(x => {
+        const pathOnly = x.path.split('?')[0];
+        return pathOnly === location.pathname;
+      })
+    ) {
+      console.log("current rout", location.pathname)
+      console.log("hsaPr", location.search.includes("provider"))
+      const search = location.search.includes("provider") ? "" : location.search
+      setLastMainRoute(location.pathname + search);
+      console.log("lastMain", lastMainRoute)
+    }
+
+  }, [location])
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
@@ -51,7 +71,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       document.documentElement.style.setProperty(key, value);
     });
   }, [theme]);
-  
+
   return (
     <AppContext.Provider value={{
       theme,

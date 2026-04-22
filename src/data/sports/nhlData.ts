@@ -1,5 +1,5 @@
 import type { SportStream, TeamInfo } from "../../types/sports/sportsTypes";
-import { createViewEmbedStreams } from "./sportsData";
+import { createViewEmbedStreams, getSlug } from "./sportsData";
 
 
 export const nhlTeamsMap: Record<string, TeamInfo> = {
@@ -47,6 +47,7 @@ export const nhlStreams: SportStream[] = [
             return `https://embedsports.top/embed/admin/ppv-${awayId}-vs-${homeId}/1`;
         },
     },
+
     {
         provider: "embedsports-d",
         buildStreamUrl: ({awayTeamAbbrev, homeTeamAbbrev}) => {

@@ -259,6 +259,14 @@ export const mlbTeamsMap : Record<string, TeamInfo> = {
 
 export const mlbStreams: SportStream[] = [
     {
+        provider: "streamspass",
+        buildStreamUrl: ({awayTeamAbbrev, homeTeamAbbrev}) => {
+            const teamName = mlbTeamsMap[awayTeamAbbrev as keyof typeof mlbTeamsMap].teamName;
+            const slug = getSlug(teamName).toLowerCase();
+            return `https://streamspass.net/mlb/${slug}.html`
+        }
+    },
+    {
         provider: "embedsports",
         buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
             const home = mlbTeamsMap[homeTeamAbbrev as keyof typeof mlbTeamsMap];
