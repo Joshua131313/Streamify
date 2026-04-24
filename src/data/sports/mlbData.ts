@@ -3,7 +3,7 @@ import { createViewEmbedStreams, getSlug } from "./sportsData";
 
 
 
-export const mlbTeamsMap : Record<string, TeamInfo> = {
+export const mlbTeamsMap: Record<string, TeamInfo> = {
     // AL EAST
     BAL: {
         abbreviation: "BAL",
@@ -258,16 +258,16 @@ export const mlbTeamsMap : Record<string, TeamInfo> = {
 };
 
 export const mlbStreams: SportStream[] = [
+    // {
+    //     provider: "streamspass",
+    //     buildStreamUrl: ({awayTeamAbbrev, homeTeamAbbrev}) => {
+    //         const teamName = mlbTeamsMap[awayTeamAbbrev as keyof typeof mlbTeamsMap].teamName;
+    //         const slug = getSlug(teamName).toLowerCase();
+    //         return `https://streamspass.net/mlb/${slug}.html`
+    //     }
+    // },
     {
-        provider: "streamspass",
-        buildStreamUrl: ({awayTeamAbbrev, homeTeamAbbrev}) => {
-            const teamName = mlbTeamsMap[awayTeamAbbrev as keyof typeof mlbTeamsMap].teamName;
-            const slug = getSlug(teamName).toLowerCase();
-            return `https://streamspass.net/mlb/${slug}.html`
-        }
-    },
-    {
-        provider: "embedsports",
+        provider: "embedsports-top",
         buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
             const home = mlbTeamsMap[homeTeamAbbrev as keyof typeof mlbTeamsMap];
             const away = mlbTeamsMap[awayTeamAbbrev as keyof typeof mlbTeamsMap];
@@ -276,18 +276,20 @@ export const mlbStreams: SportStream[] = [
             return `https://embedsports.top/embed/admin/ppv-${away.id}-vs-${home.id}/1#player=clappr`
         }
     },
-    {
-        provider: "embedsports-d",
-        buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
-            const home = mlbTeamsMap[homeTeamAbbrev as keyof typeof mlbTeamsMap];
-            const away = mlbTeamsMap[awayTeamAbbrev as keyof typeof mlbTeamsMap];
 
-            if (!home || !away) return "";
-            const homeSlug = getSlug(home.teamName).toLowerCase();
-            const awaySlug = getSlug(away.teamName).toLowerCase();
-            return `https://embedsports.top/embed/delta/live_mlb_${homeSlug}-${awaySlug}-live-streaming-1197515286/1#player=clappr`
-        }
-    },
+
+    // {
+    //     provider: "embedsports-d",
+    //     buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
+    //         const home = mlbTeamsMap[homeTeamAbbrev as keyof typeof mlbTeamsMap];
+    //         const away = mlbTeamsMap[awayTeamAbbrev as keyof typeof mlbTeamsMap];
+
+    //         if (!home || !away) return "";
+    //         const homeSlug = getSlug(home.teamName).toLowerCase();
+    //         const awaySlug = getSlug(away.teamName).toLowerCase();
+    //         return `https://embedsports.top/embed/delta/live_mlb_${homeSlug}-${awaySlug}-live-streaming-1197515286/1#player=clappr`
+    //     }
+    // },
     {
         provider: "pooembed",
         buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
@@ -311,6 +313,22 @@ export const mlbStreams: SportStream[] = [
 
             return `https://pooembed.eu/embed/mlb/${gameDay}/${awayAbbrev}-${homeAbbrev}#autoplay=true`;
         }
+    },
+    {
+        provider: "embedsports-home",
+        buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
+            const id = mlbTeamsMap[homeTeamAbbrev as keyof typeof mlbTeamsMap].id;
+            return `https://embedsports.me/mlb/${id}-stream-1`
+        },
+        label: "Home 1"
+    },
+    {
+        provider: "embedsports-away",
+        buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
+            const id = mlbTeamsMap[awayTeamAbbrev as keyof typeof mlbTeamsMap].id;
+            return `https://embedsports.me/mlb/${id}-stream-1`
+        },
+        label: "Away 1"
     },
     ...createViewEmbedStreams(mlbTeamsMap),
 

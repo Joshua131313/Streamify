@@ -1,4 +1,6 @@
 :root {
+    /* --media-card-width: 200px;
+    --media-card-height: 300px; */
     --media-card-width: 200px;
     --media-card-height: 300px;
 }
@@ -293,7 +295,8 @@
     }
 }
 
-@media (max-width: 600px) {
+
+@media (max-width: 610px) {
     :root {
         --media-card-width: 150px;
         --media-card-height: 250px;
@@ -322,7 +325,7 @@
     }
 }
 
-@media (max-width: 500px) {
+@media (max-width: 520px) {
     :root {
         --media-card-width: 130px;
         --media-card-height: 220px;
@@ -351,7 +354,7 @@
     }
 }
 
-@media (max-width: 400px) {
+@media (max-width: 410px) {
     :root {
         --media-card-width: 110px;
         --media-card-height: 200px;
@@ -366,7 +369,7 @@
     }
 }
 
-@media (max-width: 370px) {
+@media (max-width: 380px) {
     :root {
         --media-card-width: 100px;
         --media-card-height: 190px;
@@ -379,7 +382,7 @@
     }
 }
 
-@media (max-width: 340px) {
+@media (max-width: 350px) {
     :root {
         --media-card-width: 90px;
         --media-card-height: 180px;
