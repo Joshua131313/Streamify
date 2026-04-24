@@ -9,6 +9,7 @@ export const getSlug = (name: string) => name.split(" ").slice(-1)[0];
 // <iframe src="https://viewembed.ru/channel/scfw_coloradorockies" width="100%" height="600" frameborder="0" allowfullscreen></iframe>
 // https://viewembed.ru/index.php // very easy to integrate
 // https://streamseast.top/
+// https://720pstream.co/
 
 export const createViewEmbedStreams = (teamsMap: Record<string, any>) : SportStream[] => {
     return [

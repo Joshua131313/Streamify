@@ -9,7 +9,7 @@ import { createViewEmbedStreams, getSlug } from "./sportsData";
 
 
 
-export const nbaTeamsMap : Record<string, TeamInfo> = {
+export const nbaTeamsMap: Record<string, TeamInfo> = {
   ATL: { abbreviation: "ATL", teamName: "Atlanta Hawks", id: "atlanta-hawks", conference: "East", division: "Southeast", league: "NBA" },
   BOS: { abbreviation: "BOS", teamName: "Boston Celtics", id: "boston-celtics", conference: "East", division: "Atlantic", league: "NBA" },
   BKN: { abbreviation: "BKN", teamName: "Brooklyn Nets", id: "brooklyn-nets", conference: "East", division: "Atlantic", league: "NBA" },
@@ -45,34 +45,50 @@ export const nbaTeamsMap : Record<string, TeamInfo> = {
 
 export const nbaStreams: SportStream[] = [
   {
-    provider: "streamspass",
-    buildStreamUrl: ({awayTeamAbbrev, homeTeamAbbrev}) => {
-      const teamName = nbaTeamsMap[homeTeamAbbrev as keyof typeof nbaTeamsMap].teamName;
-      const slug = getSlug(teamName).toLowerCase();
-      return `https://streamspass.net/nba/${slug}.html`
-    }
-  },
-  {
-    provider: "trendy47",
+    provider: "embedsports-home",
     buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
-      const homeId = nbaTeamsMap[homeTeamAbbrev as keyof typeof nbaTeamsMap]?.id;
-      const awayId = nbaTeamsMap[awayTeamAbbrev as keyof typeof nbaTeamsMap]?.id;
-      return `https://v2.trendy47.com/event/ppv-${awayId}-vs-${homeId}`;
+      const id = nbaTeamsMap[homeTeamAbbrev as keyof typeof nbaTeamsMap].id;
+      return `https://embedsports.me/nba/${id}-stream-1`
     },
+    label: "Home"
   },
   {
-    provider: "topstreams",
-    buildStreamUrl: ({ homeTeamAbbrev }) => {
-      if (homeTeamAbbrev in nbaTeamsMap) {
-        const teamName = nbaTeamsMap[homeTeamAbbrev as keyof typeof nbaTeamsMap].teamName;
-        const slug = getSlug(teamName).toLowerCase();
-
-        return `https://topstreams.info/iframe/nba/${slug}`;
-      }
-
-      return "";
-    }
+    provider: "embedsports-away",
+    buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
+      const id = nbaTeamsMap[awayTeamAbbrev as keyof typeof nbaTeamsMap].id;
+      return `https://embedsports.me/nba/${id}-stream-1`
+    },
+    label: "Away"
   },
-  ...createViewEmbedStreams(nbaTeamsMap),
+  // {
+  //   provider: "streamspass",
+  //   buildStreamUrl: ({awayTeamAbbrev, homeTeamAbbrev}) => {
+  //     const teamName = nbaTeamsMap[homeTeamAbbrev as keyof typeof nbaTeamsMap].teamName;
+  //     const slug = getSlug(teamName).toLowerCase();
+  //     return `https://streamspass.net/nba/${slug}.html`
+  //   }
+  // },
+  // {
+  //   provider: "trendy47",
+  //   buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
+  //     const homeId = nbaTeamsMap[homeTeamAbbrev as keyof typeof nbaTeamsMap]?.id;
+  //     const awayId = nbaTeamsMap[awayTeamAbbrev as keyof typeof nbaTeamsMap]?.id;
+  //     return `https://v2.trendy47.com/event/ppv-${awayId}-vs-${homeId}`;
+  //   },
+  // },
+  // {
+  //   provider: "topstreams",
+  //   buildStreamUrl: ({ homeTeamAbbrev }) => {
+  //     if (homeTeamAbbrev in nbaTeamsMap) {
+  //       const teamName = nbaTeamsMap[homeTeamAbbrev as keyof typeof nbaTeamsMap].teamName;
+  //       const slug = getSlug(teamName).toLowerCase();
+
+  //       return `https://topstreams.info/iframe/nba/${slug}`;
+  //     }
+
+  //     return "";
+  //   }
+  // },
+  // ...createViewEmbedStreams(nbaTeamsMap),
 
 ]

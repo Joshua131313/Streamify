@@ -39,7 +39,7 @@ export const getTeamLogo = (league: Leagues, abbrev: TeamAbbrevs) => {
 }
 
 
-export const getLeagueFromTeam = (abbrev: string) : Leagues => {
+export const getLeagueFromTeam = (abbrev: string): Leagues => {
     if (abbrev in nbaTeamsMap) return "NBA";
     if (abbrev in nhlTeamsMap) return "NHL";
     if (abbrev in mlbTeamsMap) return "MLB";
@@ -105,7 +105,7 @@ export const getStreamURL = (streamType: TStreamProvider, channel: string) => {
         case "trendy47":
             return `https://v2.trendy47.com/event/ppv-${channel}`
         // nhl streams
-        case "embedsports":
+        case "embedsports-away":
             return `https://embedsports.top/embed/admin/ppv-${channel}/1`
         // tv channel streams
         default: {
@@ -159,6 +159,49 @@ export const filterGames = (
         return matchesSearch && matchesStatus && matchesLeague;
     });
 
+    const getLiveProgress = (game: GameProps): number => {
+        const text =
+            `${game.period ?? ""} ${game.clock ?? ""} ${game.status ?? ""}`.toLowerCase();
+
+        const league = game.leagueName.toLowerCase();
+
+        const extractNumber = () => {
+            const match = text.match(/(\d+)/);
+            return match ? parseInt(match[1], 10) : 1;
+        };
+
+        const parseClock = () => {
+            const match = text.match(/(\d{1,2}):(\d{2})/);
+            if (!match) return 0;
+
+            const mins = parseInt(match[1], 10);
+            const secs = parseInt(match[2], 10);
+
+            return mins * 60 + secs;
+        };
+
+        const remaining = parseClock();
+
+        if (league.includes("nhl")) {
+            const period = extractNumber();
+            const elapsedThisPeriod = 1200 - remaining;
+            return ((period - 1) * 1200 + elapsedThisPeriod) / (3 * 1200) * 100;
+        }
+
+        if (league.includes("nba")) {
+            const quarter = extractNumber();
+            const elapsedThisQuarter = 720 - remaining;
+            return ((quarter - 1) * 720 + elapsedThisQuarter) / (4 * 720) * 100;
+        }
+
+        if (league.includes("mlb")) {
+            const inning = extractNumber();
+            return (inning / 9) * 100;
+        }
+
+        return 0;
+    };
+
     return filtered.sort((a, b) => {
         const priorityDiff = getPriority(a.status) - getPriority(b.status);
 
@@ -170,7 +213,21 @@ export const filterGames = (
         const timeB = new Date(b.startTime).getTime();
 
         const isLiveA = a.status === "LIVE" || a.status === "HALFTIME";
+        const isLiveB = b.status === "LIVE" || b.status === "HALFTIME";
 
+        // Both live → sort by game progress first
+        if (isLiveA && isLiveB) {
+            const progressDiff = getLiveProgress(b) - getLiveProgress(a);
+
+            if (progressDiff !== 0) {
+                return progressDiff;
+            }
+
+            // same progress → newer start first
+            return timeB - timeA;
+        }
+
+        // Single live game already handled by priority
         if (isLiveA) {
             return timeB - timeA;
         }
