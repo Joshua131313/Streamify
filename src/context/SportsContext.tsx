@@ -56,7 +56,6 @@ interface SportsContextType {
     favoriteNHLGameCards: GameProps[];
     favoriteMLBGameCards: GameProps[];
 
-    followedTeams: GameTeam[];
     favoriteGameCards: GameProps[];
 
     layout: SportsCardsLayout;
@@ -177,7 +176,6 @@ export const SportsProvider = ({ children }: { children: React.ReactNode }) => {
                 mlbGameCards,
                 favoriteMLBGameCards,
 
-                followedTeams: favoriteTeams,
                 favoriteGameCards,
 
                 layout,

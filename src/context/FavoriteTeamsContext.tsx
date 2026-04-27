@@ -24,11 +24,11 @@ import { useAuthProvider } from "./AuthContext";
 import { cleanFirestoreData } from "../utils/helpers";
 import type { GameTeam, Leagues, TeamAbbrevs } from "../types/sports/sportsTypes";
 
-export type FavoriteTeamItem = {
+export interface FavoriteTeamItem  {
     abbrev: TeamAbbrevs,
     league: Leagues,
     name: string,
-    timeStamp: FieldValue;
+    timeStamp?: FieldValue;
     firebaseId?: string,
 };
 
