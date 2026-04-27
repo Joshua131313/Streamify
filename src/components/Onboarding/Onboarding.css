@@ -1,0 +1,134 @@
+body .app-container.customization {
+    padding: 0;
+    margin-bottom: 0;
+}
+body .app-container.customization .container-content {
+    display: flex;
+    flex-direction: column;
+}
+body .app-container.customization > .container-content {
+    height: 70dvh;
+    overflow: hidden;
+    padding: 0;
+    border-radius: var(--border-radius-small);
+    justify-content: space-between;
+}
+.customization .inner-customization {
+    height: 100%;
+    overflow-y: auto;
+}
+.inner-customization .error {
+    bottom: initial;
+    transform: initial;
+    position: relative;
+    margin-left: auto;
+    float: right;
+}
+
+.inner-customization > h1 {
+}
+
+.inner-customization {
+    padding: 0 var(--layout-padding-horizontal);
+}
+.section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 0;
+    margin-top: 20px;
+}
+.app-container.team-section {
+    padding: 0;
+}
+.section .container-header {
+    margin-top: 0;
+}
+.team-section {
+    margin-bottom: 10px;
+}
+.customization .controls, .customization .step-indicator {
+    position: sticky;
+    bottom: 0;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    padding: 10px;
+    background-color: var(--bg-transparent);
+    backdrop-filter: blur(12px);
+}
+.steps {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.customization .step-indicator {
+    justify-content: space-between;
+    top: 0;
+    bottom: initial;
+    z-index: 1;
+}
+.customization .right-controls {
+    display: flex;
+    gap: 10px;
+}
+.step-indicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 20px 0;
+}
+.step-pill {
+    padding: 10px 15px;
+    cursor: pointer;
+    border-radius: var(--border-radius-small);
+}
+.step-pill:hover {
+    background-color: var(--bg-transparent);
+}
+.step-pill.active {
+    background-color: var(--accent-primary);
+    color: var(--text-primary);
+}
+.team-grid, .genre-grid {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 15px;
+}
+
+.team-card, .genre-chip {
+    width: 125px;
+    height: 125px;
+    border: solid 1px var(--border);
+    background-color: var(--bg-white);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border-radius: var(--border-radius-small);
+    text-align: center;
+    gap: 10px;
+    transition: all 0.3s;
+    cursor: pointer;
+}
+.genre-chip {
+    padding: 5px;
+    font-size: var(--font-sm);
+    width: 90px;
+    height: 90px;
+}
+.team-card.selected, .genre-chip.selected {
+    background-color: var(--text-primary);
+    color: var(--bg-primary);
+}
+.team-card .team-name {
+    font-size: var(--font-xs);
+}
+.team-card svg, .genre-chip svg {
+    font-size: var(--font-lg);
+}
+.team-card img, .team-card .img-skeleton {
+    width: 35px;
+    height: 35px;
+}

@@ -10,7 +10,7 @@
 .input-container input {
     background-color: var(--input-bg);
     border: solid 1px var(--border);
-    padding: 15px 25px;
+    padding: 15px;
     border-radius: var(--border-radius);
     outline: none;
     transition: all 0.3s;

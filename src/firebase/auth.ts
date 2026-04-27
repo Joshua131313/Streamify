@@ -1,5 +1,8 @@
-import { doc, serverTimestamp, setDoc, collection, addDoc } from "firebase/firestore";
-import { db } from "./firebase";
+import { doc, serverTimestamp, setDoc, collection, addDoc, updateDoc } from "firebase/firestore";
+import { auth, db } from "./firebase";
+import type { FavoriteTeamItem } from "../context/FavoriteTeamsContext";
+import type { Leagues, TeamInfo } from "../types/sports/sportsTypes";
+import { getTeamsMapFromLeague } from "../utils/sports/sportsUtils";
 
 export const createUserDocument = async (
     uid: string,
@@ -34,6 +37,7 @@ export const createUserDocument = async (
             email,
             firstName: firstName || "",
             lastName: lastName || "",
+            onboardingComplete: false,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
         },
@@ -78,3 +82,52 @@ export const createUserDocument = async (
         })
     );
 };
+export const completeOnboarding = async () => {
+    const user = auth.currentUser;
+
+    if(!user) {
+        throw new Error("user not authenticated");
+    }
+    const ref = doc(db, "users", user.uid);
+
+    await updateDoc(ref, {
+        onboardingComplete: true
+    })
+}
+export const addFavoriteGenres = async (genreIds: string[]) => {
+    const user = auth.currentUser;
+
+    if(!user) {
+        throw new Error("user not authenticated");
+    }
+
+    const ref = doc(db, "users", user.uid);
+
+    await setDoc(ref, {
+        favoriteGenres: genreIds
+    }, {merge: true})
+}
+
+export const addTeamsToFavorites = async (teams: TeamInfo[]) => {
+    const user = auth.currentUser;
+
+    if(!user) {
+        throw new Error("User not authenticated");
+    }
+
+    const ref = collection(db, "users", user.uid, "favoriteTeams");
+
+    await Promise.all(
+        teams.map(team => {
+                const teamInfo: FavoriteTeamItem = {
+                    abbrev: team?.abbreviation,
+                    league: team.league,
+                    name: team?.teamName,
+                    firebaseId: `temp-${team?.abbreviation}`,
+                    timeStamp: serverTimestamp()
+                }
+                return addDoc(ref,  teamInfo)
+            
+        })
+    )
+}

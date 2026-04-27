@@ -14,16 +14,22 @@ import {
     addDoc,
     deleteDoc,
     doc,
+    serverTimestamp,
+    FieldValue,
 } from "firebase/firestore";
 
 import { db } from "../firebase/firebase";
 import { useLocalStorage } from "../hooks/utilHooks/useLocalStorage";
 import { useAuthProvider } from "./AuthContext";
 import { cleanFirestoreData } from "../utils/helpers";
-import type { GameTeam } from "../types/sports/sportsTypes";
+import type { GameTeam, Leagues, TeamAbbrevs } from "../types/sports/sportsTypes";
 
-type FavoriteTeamItem = GameTeam & {
-    firebaseId?: string;
+export type FavoriteTeamItem = {
+    abbrev: TeamAbbrevs,
+    league: Leagues,
+    name: string,
+    timeStamp: FieldValue;
+    firebaseId?: string,
 };
 
 type ContextType = {
@@ -60,7 +66,7 @@ export const FavoriteTeamsProvider = ({ children }: { children: ReactNode }) => 
             (snapshot) => {
                 const data = snapshot.docs.map(docSnap => ({
                     firebaseId: docSnap.id,
-                    ...(docSnap.data() as GameTeam),
+                    ...(docSnap.data() as FavoriteTeamItem),
                 }));
 
                 setFavoriteTeams(data);
@@ -76,7 +82,7 @@ export const FavoriteTeamsProvider = ({ children }: { children: ReactNode }) => 
 
         // LOCAL MODE
         if (!user?.uid) {
-            const updated = [team, ...teamsRef.current];
+            const updated : FavoriteTeamItem[] = [{abbrev: team.abbrev, league: team.league, name: team.name, timeStamp: serverTimestamp()}, ...teamsRef.current];
 
             teamsRef.current = updated;
             setFavoriteTeams(updated);
@@ -87,8 +93,11 @@ export const FavoriteTeamsProvider = ({ children }: { children: ReactNode }) => 
 
         // FIREBASE MODE (optimistic)
         const tempItem: FavoriteTeamItem = {
-            ...team,
+            abbrev: team.abbrev,
+            league: team.league,
+            name: team.name,
             firebaseId: `temp-${team.abbrev}`,
+            timeStamp: serverTimestamp()
         };
 
         setFavoriteTeams(prev => [tempItem, ...prev]);
@@ -110,7 +119,6 @@ export const FavoriteTeamsProvider = ({ children }: { children: ReactNode }) => 
         }
     };
 
-    // 🔥 REMOVE TEAM
     const removeTeam = async (team: GameTeam) => {
         if (!user?.uid) {
             const updated = teamsRef.current.filter(
@@ -148,14 +156,12 @@ export const FavoriteTeamsProvider = ({ children }: { children: ReactNode }) => 
         }
     };
 
-    // 🔥 CHECK FAVORITE
     const isFavorite = (team: GameTeam) => {
         return teamsRef.current.some(
             t => t.abbrev === team.abbrev
         );
     };
 
-    // 🔥 MEMOIZED CONTEXT (fix re-render)
     const value = useMemo(() => ({
         favoriteTeams,
         addTeam,

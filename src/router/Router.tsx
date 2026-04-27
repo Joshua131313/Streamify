@@ -10,7 +10,7 @@ import { useAuthProvider } from "../context/AuthContext";
 import Home from "../pages/Home/Home";
 import { ErrorPage } from "../components/ui/Error/ErrorPage";
 import { RootLayout } from "./RootLayout";
-import { Customization } from "../pages/Auth/Customization";
+import { Customization } from "../components/Onboarding/Customization";
 import MLB from "../pages/Sports/Pages/MLB";
 import NHL from "../pages/Sports/Pages/NHL";
 import NBA from "../pages/Sports/Pages/NBA";
@@ -44,7 +44,6 @@ export const router = createBrowserRouter([
           { path: "sports/mlb", element: <MLB />},
           { path: "login", element: <Login /> },
           { path: "register", element: <Register /> },
-          { path: "/register/customization", element: <Customization /> },
         ],
       },
       {
