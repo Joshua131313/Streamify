@@ -10,10 +10,12 @@ import "./SportsSidebar.css"
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { useEdgeSwipe } from "../../../hooks/utilHooks/useEdgeSwipe";
 import { GameGroupCard } from "../GameCard/GameGroupCard";
+import { useFavoriteTeamsContext } from "../../../context/FavoriteTeamsContext";
 
 export const SportsSidebar = () => {
     const [show, setShow] = useState(false);
-    const { liveGames, followedTeams } = useSports();
+    const { favoriteTeams } = useFavoriteTeamsContext();
+    const { liveGames } = useSports();
     const renderedGameIds = new Set<string>();
 
     useEdgeSwipe({
@@ -40,7 +42,7 @@ export const SportsSidebar = () => {
             />
             <SearchableContainer
                 title="Followed Teams"
-                data={followedTeams}
+                data={favoriteTeams}
                 defaultOpened
                 searchFn={(team, search) =>
                     team.name.toLowerCase().includes(search) ||
@@ -64,7 +66,7 @@ export const SportsSidebar = () => {
                     const isHome = game.homeTeam.abbrev === team.abbrev;
                     const opponent = isHome ? game.awayTeam : game.homeTeam;
 
-                    const isOpponentFollowed = followedTeams.some(
+                    const isOpponentFollowed = favoriteTeams.some(
                         t => t.abbrev === opponent.abbrev
                     );
 
@@ -102,7 +104,6 @@ export const SportsSidebar = () => {
                         key={team.abbreviation}
                         team={{
                             abbrev: team.abbreviation,
-                            logo: getTeamLogo("NBA", team.abbreviation),
                             name: team.teamName,
                             league: team.league
                         }}
@@ -121,7 +122,6 @@ export const SportsSidebar = () => {
                         key={team.abbreviation}
                         team={{
                             abbrev: team.abbreviation,
-                            logo: getTeamLogo("NHL", team.abbreviation),
                             name: team.teamName,
                             league: team.league
                         }}
@@ -140,7 +140,6 @@ export const SportsSidebar = () => {
                         key={team.abbreviation}
                         team={{
                             abbrev: team.abbreviation,
-                            logo: getTeamLogo("MLB", team.abbreviation),
                             name: team.teamName,
                             league: team.league
                         }}

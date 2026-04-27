@@ -6,9 +6,10 @@ import { AppImg } from "../../ui/ImgProxy/AppImg";
 import { useGameCard } from "./useGameCard";
 import "./GameCard.css"
 import React from "react";
+import type { FavoriteTeamItem } from "../../../context/FavoriteTeamsContext";
 
 interface Props {
-    team: GameTeam;
+    team: FavoriteTeamItem;
     game?: GameProps;
 }
 
@@ -23,7 +24,7 @@ export const SidebarCard = React.memo((props: Props) => {
             </div>
             <div className="sidebar-card-controls">
                 <FollowButton
-                    team={team}
+                    team={{...team, logo: getTeamLogo(team.league, team.abbrev)}}
                     variant="icon"
                 />
                 {
