@@ -12,10 +12,11 @@ import {
     getAdditionalUserInfo,
     FacebookAuthProvider,
 } from "firebase/auth";
-import { auth } from "../firebase/firebase";
+import { auth, db } from "../firebase/firebase";
 import { createUserDocument } from "../firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { Loader } from "../components/ui/Loader/Loader";
+import { doc, getDoc } from "firebase/firestore";
 
 type User = {
     email?: string | null;
@@ -29,7 +30,7 @@ export type ProviderType = "google" | "facebook";
 interface AuthContextType {
     user: User;
     loading: boolean;
-
+    userData: any;
     loginWithProvider: (provider: ProviderType) => Promise<void>;
     loginWithEmail: (email: string, password: string) => Promise<void>;
 
@@ -48,28 +49,12 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<User>(null);
+    const [userData, setUserData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
     const [showLoader, setShowLoader] = useState(true);
     const [isExiting, setIsExiting] = useState(false);
 
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-            if (firebaseUser) {
-                setUser({
-                    email: firebaseUser.email,
-                    name: firebaseUser.displayName,
-                    image: firebaseUser.photoURL,
-                    uid: firebaseUser.uid,
-                });
-            } else {
-                setUser(null);
-            }
-            setLoading(false);
-        });
-
-        return unsubscribe;
-    }, []);
 
     const loginWithProvider = async (providerType: ProviderType) => {
         let provider;
@@ -119,6 +104,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 undefined,
                 name || ""
             );
+            navigate("/customization")
         }
     };
 
@@ -145,7 +131,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             firstName,
             lastName
         );
-        navigate("/register/customization")
+        navigate("/customization")
     };
 
     const logout = async () => {
@@ -156,7 +142,50 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         await sendPasswordResetEmail(auth, email);
     };
 
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+            if (firebaseUser) {
+                setUser({
+                    email: firebaseUser.email,
+                    name: firebaseUser.displayName,
+                    image: firebaseUser.photoURL,
+                    uid: firebaseUser.uid,
+                });
+            } else {
+                setUser(null);
+            }
+            setLoading(false);
+        });
 
+        return unsubscribe;
+    }, []);
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+            if (firebaseUser) {
+                setUser({
+                    email: firebaseUser.email,
+                    name: firebaseUser.displayName,
+                    image: firebaseUser.photoURL,
+                    uid: firebaseUser.uid,
+                });
+
+                const userRef = doc(db, "users", firebaseUser.uid);
+                const snap = await getDoc(userRef);
+
+                if (snap.exists()) {
+                    setUserData(snap.data());
+                }
+            } else {
+                setUser(null);
+                setUserData(null);
+            }
+
+            setLoading(false);
+        });
+
+        return unsubscribe;
+    }, []);
 
     useEffect(() => {
         if (!loading) {
@@ -169,6 +198,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         <AuthContext.Provider
             value={{
                 user,
+                userData,
                 loading,
                 loginWithProvider,
                 loginWithEmail,

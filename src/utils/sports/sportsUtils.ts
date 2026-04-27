@@ -3,7 +3,7 @@ import { mlbStreams, mlbTeamsMap } from "../../data/sports/mlbData";
 import { nbaStreams, nbaTeamsMap } from "../../data/sports/nbaData";
 import { nhlStreams, nhlTeamsMap } from "../../data/sports/nhlData";
 import { channelStreams } from "../../data/sports/sportsData";
-import type { GameProps, GameStatus, Leagues, TeamAbbrevs, TStreamProvider } from "../../types/sports/sportsTypes"
+import type { GameProps, GameStatus, Leagues, TeamAbbrevs, TeamInfo, TStreamProvider } from "../../types/sports/sportsTypes"
 import type { SportFilter } from "../../context/SportsContext";
 
 
@@ -45,6 +45,19 @@ export const getLeagueFromTeam = (abbrev: string): Leagues => {
     if (abbrev in mlbTeamsMap) return "MLB";
     return "NBA";
 };
+
+export const getTeamsMapFromLeague = (league: Leagues) : Record<string, TeamInfo> => {
+    switch(league) {
+        case "MLB":
+            return mlbTeamsMap;
+        case "NBA":
+            return nbaTeamsMap;
+        case "NHL":
+            return nhlTeamsMap;
+        default: 
+            throw new Error("league does not have a teams map")
+    }
+}
 
 export const mapESPNStatus = (
     status: string,

@@ -26,7 +26,7 @@ interface Props {
 
 export const Auth = (props: Props) => {
     const { childrenContainerClassName, title, type, onSubmit, header } = props;
-    const { loginWithProvider, user } = useAuthProvider();
+    const { loginWithProvider, user, userData } = useAuthProvider();
     const navigate = useNavigate();
     const handleLoginWithProvider = async (provider: ProviderType) => {
         try {
@@ -40,7 +40,9 @@ export const Auth = (props: Props) => {
 
     return (
         <Container className="auth" styled>
-            {user && <Navigate to={"/"} />}
+            {
+                user && <Navigate to={"/"} />
+            }
             <div className="auth-bg">
                 <AppImg className="auth-img" src="/images/auth-bg.jpg" />
             </div>
