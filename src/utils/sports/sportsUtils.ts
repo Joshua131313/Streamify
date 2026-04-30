@@ -46,15 +46,15 @@ export const getLeagueFromTeam = (abbrev: string): Leagues => {
     return "NBA";
 };
 
-export const getTeamsMapFromLeague = (league: Leagues) : Record<string, TeamInfo> => {
-    switch(league) {
+export const getTeamsMapFromLeague = (league: Leagues): Record<string, TeamInfo> => {
+    switch (league) {
         case "MLB":
             return mlbTeamsMap;
         case "NBA":
             return nbaTeamsMap;
         case "NHL":
             return nhlTeamsMap;
-        default: 
+        default:
             throw new Error("league does not have a teams map")
     }
 }
@@ -206,10 +206,21 @@ export const filterGames = (
             const elapsedThisQuarter = 720 - remaining;
             return ((quarter - 1) * 720 + elapsedThisQuarter) / (4 * 720) * 100;
         }
-
         if (league.includes("mlb")) {
             const inning = extractNumber();
-            return (inning / 9) * 100;
+
+            const isTop = text.includes("top");
+            const isBottom = text.includes("bot") || text.includes("bottom");
+
+            let inningProgress = 0;
+
+            if (isBottom) {
+                inningProgress = 1;
+            } else if (isTop) {
+                inningProgress = 0.5;
+            }
+
+            return ((inning - 1 + inningProgress) / 9) * 100;
         }
 
         return 0;
