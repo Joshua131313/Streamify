@@ -7,7 +7,10 @@
     grid-template-columns: repeat(auto-fit, minmax(var(--game-card-width), 1fr));
     gap: 20px;
 }
-
+.sports-player {
+    display: flex;
+    flex-direction: row-reverse;
+}
 .sports-page .header-controls .container-content {
     grid-template-columns: 1fr auto;
 }
@@ -231,8 +234,12 @@
     border-radius: 50%;
 }
 
+.idle .alt-streams {
+    opacity: 0;
+}
+
 .alt-streams {
-    position: fixed;
+    position: absolute;
     top: calc(env(safe-area-inset-top, 0px) + 20px);
     z-index: 1000;
     right: 20px;
@@ -241,6 +248,7 @@
     max-width: calc(100% - 100px);
     justify-content: flex-end;
     flex-wrap: wrap;
+    transition: all 0.3s;
 }
 
 .alt-streams button {

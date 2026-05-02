@@ -1,9 +1,9 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import { useEpisodes } from "../../hooks/mediaHooks/showHooks/useEpisodes";
 import type { TMDBShowMedia } from "../../types/TMDBMediaType";
 import type { TEpisode } from "../../types/TMDBShowType";
 import { useSearchParams } from "react-router-dom";
-import { useLocalStorage } from "../../hooks/utilHooks/useLocalStorage";
+import { useWatchHistoryContext } from "../../context/WatchHistoryContext";
 
 /* ---------- Context Type ---------- */
 interface EpisodesContextType {
@@ -32,14 +32,38 @@ const EpisodesContext = createContext<EpisodesContextType | null>(null);
 
 export const EpisodesProvider = ({ show, children }: Props) => {
     const [searchParams] = useSearchParams();
-    const { get } = useLocalStorage();
-    const defaultSeason = get(String(show.id ?? ""), {season: 1, episode: 0});
-    const currentEpisode = Number(searchParams.get("episode") ?? 0);
-    // if user selected an episode, the season will be based on that, otherwise it will default to last watched season 
-    const currentSeason = Number(searchParams.get("season") ?? defaultSeason.season);
-    const [seasonNumber, setSeasonNumber] = useState(Number(currentSeason));
+    const { getHistoryItem } = useWatchHistoryContext();
+
+    const history = getHistoryItem(show.id, "tv");
+
+    const [seasonNumber, setSeasonNumber] = useState(1);
+    const [currentEpisode, setCurrentEpisode] = useState(0);
     const [search, setSearch] = useState("");
     const [direction, setDirection] = useState<"asc" | "desc">("asc");
+
+    useEffect(() => {
+        const urlSeason = Number(searchParams.get("season"));
+
+        if (urlSeason) {
+            setSeasonNumber(urlSeason);
+            return;
+        }
+
+        if (history?.season) {
+            setSeasonNumber(history.season);
+        } else {
+            setSeasonNumber(1);
+        }
+    }, [searchParams, history?.season]);
+
+    // 🔥 Sync episode from history
+    useEffect(() => {
+        if (history?.episode) {
+            setCurrentEpisode(history.episode);
+        } else {
+            setCurrentEpisode(0);
+        }
+    }, [history?.episode]);
 
     const { episodes, isLoading } = useEpisodes({
         showId: show.id,
@@ -49,20 +73,20 @@ export const EpisodesProvider = ({ show, children }: Props) => {
     return (
         <EpisodesContext.Provider
             value={{
-            show,
-            episodes: episodes ?? [],
-            isLoading,
+                show,
+                episodes: episodes ?? [],
+                isLoading,
 
-            seasonNumber,
-            setSeasonNumber,
+                seasonNumber,
+                setSeasonNumber,
 
-            search,
-            setSearch,
+                search,
+                setSearch,
 
-            direction,
-            setDirection,
+                direction,
+                setDirection,
 
-            currentEpisode
+                currentEpisode
             }}
         >
             {children}
@@ -73,7 +97,7 @@ export const EpisodesProvider = ({ show, children }: Props) => {
 export const useEpisodesContext = () => {
     const ctx = useContext(EpisodesContext);
     if (!ctx) {
-    throw new Error("useEpisodesContext must be used inside EpisodesProvider");
+        throw new Error("useEpisodesContext must be used inside EpisodesProvider");
     }
     return ctx;
 };

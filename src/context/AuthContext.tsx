@@ -11,6 +11,7 @@ import {
     updateProfile,
     getAdditionalUserInfo,
     FacebookAuthProvider,
+    signInAnonymously,
 } from "firebase/auth";
 import { auth, db } from "../firebase/firebase";
 import { createUserDocument } from "../firebase/auth";
@@ -162,6 +163,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+            if(!firebaseUser) {
+                await signInAnonymously(auth);
+                return;
+            }
             if (firebaseUser) {
                 setUser({
                     email: firebaseUser.email,

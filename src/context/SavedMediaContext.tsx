@@ -17,7 +17,7 @@ import {
 
 
 import type { TMDBMedia } from "../types/TMDBMediaType";
-import { db } from "../firebase/firebase";
+import { auth, db } from "../firebase/firebase";
 import { useLocalStorage } from "../hooks/utilHooks/useLocalStorage";
 import { useAuthProvider } from "./AuthContext";
 import { useTMDBByIds } from "../hooks/mediaHooks/tmdbHooks/useTMDBByIds";
@@ -65,7 +65,7 @@ export const SavedMediaProvider = ({ children }: { children: ReactNode }) => {
     }, [savedRefs]);
 
     useEffect(() => {
-        if (!user?.uid) {
+        if (!user?.uid || auth.currentUser?.isAnonymous) {
             setSavedRefs(get("savedMedia", []));
             return;
         }

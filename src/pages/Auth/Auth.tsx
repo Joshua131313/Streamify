@@ -8,6 +8,7 @@ import { useEffect } from "react";
 import FacebookIcon from "./FacebookIcon";
 import { Logo } from "../../components/ui/Logo/Logo";
 import { AppImg } from "../../components/ui/ImgProxy/AppImg";
+import { auth } from "../../firebase/firebase";
 
 interface Props {
     type: "login" | "register";
@@ -41,7 +42,7 @@ export const Auth = (props: Props) => {
     return (
         <Container className="auth" styled>
             {
-                user && <Navigate to={"/"} />
+                !auth.currentUser?.isAnonymous && <Navigate to={"/"} />
             }
             <div className="auth-bg">
                 <AppImg className="auth-img" src="/images/auth-bg.jpg" />

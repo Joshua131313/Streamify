@@ -30,22 +30,24 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     setTheme(prev => (prev === "dark" ? "light" : "dark"));
   };
 
+const mainPaths = ["/", "/discover", "/sports", "/search", "/saved-media", "/history"];
 
-  useEffect(() => {
-    if (
-      navLinks.some(x => {
-        const pathOnly = x.path.split('?')[0];
-        return pathOnly === location.pathname;
-      })
-    ) {
-      console.log("current rout", location.pathname)
-      console.log("hsaPr", location.search.includes("provider"))
-      const search = location.search.includes("provider") ? "" : location.search
-      setLastMainRoute(location.pathname + search);
-      console.log("lastMain", lastMainRoute)
+useEffect(() => {
+  const isMainRoute = mainPaths.some(path => {
+    if (path === "/sports") {
+      return location.pathname.startsWith("/sports"); 
     }
+    return location.pathname === path;
+  });
 
-  }, [location])
+  if (isMainRoute) {
+    console.log("current route", location.pathname);
+
+    const search = location.search.includes("provider") ? "" : location.search;
+
+    setLastMainRoute(location.pathname + search);
+  }
+}, [location]);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");

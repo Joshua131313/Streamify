@@ -13,6 +13,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "../../components/ui/Button/Button";
 import { SEO } from "../../components/SEO";
 import { useApp } from "../../context/AppContext";
+import { LiveChat } from "../../components/sports/LiveChat/LiveChat";
 
 export const SportsPlayer = () => {
     const navigate = useNavigate();
@@ -90,19 +91,6 @@ export const SportsPlayer = () => {
 
     return (
         <>
-            {allStreams.length > 0 && (
-                <div className="alt-streams">
-                    {allStreams.map((stream, i) => (
-                        <Button
-                            className={provider === stream.provider ? "active-provider" : ""}
-                            key={stream.provider}
-                            onClick={() => switchProvider(stream.provider)}
-                        >
-                            {stream.label ?? `Stream ${i + 1}`}
-                        </Button>
-                    ))}
-                </div>
-            )}
             <SEO
                 title={`${awayTeamAbbrev} @ ${homeTeamAbbrev}`}
                 description="Watch live sports streams on Streamify"
@@ -110,8 +98,26 @@ export const SportsPlayer = () => {
             <AppPlayer
                 cancelPlay={cancelWatch}
                 src={src}
-            />
-
+                className="sports-player"
+                controls={
+                    <>
+                        {allStreams.length > 0 && (
+                            <div className="alt-streams">
+                                {allStreams.map((stream, i) => (
+                                    <Button
+                                        className={provider === stream.provider ? "active-provider" : ""}
+                                        key={stream.provider}
+                                        onClick={() => switchProvider(stream.provider)}
+                                    >
+                                        {stream.label ?? `Stream ${i + 1}`}
+                                    </Button>
+                                ))}
+                            </div>
+                        )}</>
+                }
+            >
+                <LiveChat gameId={`${awayTeamAbbrev}-${homeTeamAbbrev}`} />
+            </AppPlayer>
             {isTV && (
                 <div className="stream-controls">
                     <Icon Icon={FaChevronUp} onClick={incrementChannel} />

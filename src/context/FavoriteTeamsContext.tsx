@@ -18,7 +18,7 @@ import {
     FieldValue,
 } from "firebase/firestore";
 
-import { db } from "../firebase/firebase";
+import { auth, db } from "../firebase/firebase";
 import { useLocalStorage } from "../hooks/utilHooks/useLocalStorage";
 import { useAuthProvider } from "./AuthContext";
 import { cleanFirestoreData } from "../utils/helpers";
@@ -54,7 +54,7 @@ export const FavoriteTeamsProvider = ({ children }: { children: ReactNode }) => 
 
     // 🔥 Load teams
     useEffect(() => {
-        if (!user?.uid) {
+    if (!user?.uid || auth.currentUser?.isAnonymous) {
             const local = get("favoriteTeams", []);
             setFavoriteTeams(local);
             teamsRef.current = local;
@@ -81,7 +81,7 @@ export const FavoriteTeamsProvider = ({ children }: { children: ReactNode }) => 
         if (teamsRef.current.some(t => t.abbrev === team.abbrev)) return;
 
         // LOCAL MODE
-        if (!user?.uid) {
+        if (!user?.uid || auth.currentUser?.isAnonymous) {
             const updated : FavoriteTeamItem[] = [{abbrev: team.abbrev, league: team.league, name: team.name, timeStamp: serverTimestamp()}, ...teamsRef.current];
 
             teamsRef.current = updated;
@@ -120,7 +120,7 @@ export const FavoriteTeamsProvider = ({ children }: { children: ReactNode }) => 
     };
 
     const removeTeam = async (team: GameTeam) => {
-        if (!user?.uid) {
+        if (!user?.uid || auth.currentUser?.isAnonymous) {
             const updated = teamsRef.current.filter(
                 t => t.abbrev !== team.abbrev
             );

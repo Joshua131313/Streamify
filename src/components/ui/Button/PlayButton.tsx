@@ -16,7 +16,8 @@ export const PlayButton = (props: Props) => {
     const { mediaType, mediaId, variant = "button", className } = props;
 
     const { getHistoryItem } = useWatchHistoryContext();
-
+    const history = getHistoryItem(mediaId, "tv");
+    console.log(getHistoryItem(mediaId, "tv"))
     const playUrl = () => {
         const base = `/${mediaType}/${mediaId}?play`;
 
@@ -24,10 +25,8 @@ export const PlayButton = (props: Props) => {
             return base;
         }
 
-        const history = getHistoryItem(mediaId, "tv");
-
-        const season = history?.season ?? 1;
-        const episode = history?.episode ?? 1;
+        const season = history?.season  || 1;
+        const episode = history?.episode || 1;
 
         return `${base}&season=${season}&episode=${episode}`;
     };

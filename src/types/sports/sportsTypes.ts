@@ -1,3 +1,4 @@
+import type { Timestamp } from "firebase/firestore";
 import type { mlbTeamsMap } from "../../data/sports/mlbData";
 import type { nbaTeamsMap } from "../../data/sports/nbaData";
 import type { nhlTeamsMap } from "../../data/sports/nhlData";
@@ -71,6 +72,14 @@ export type SportStream = {
     provider: TStreamProvider;
     buildStreamUrl: StreamBuilder;
     label?: string;
+}
+
+export type LiveChatMessage = {
+    senderId: string | "guest";
+    senderName: string;
+    sentAt: Timestamp;
+    message: string;
+    reactions: string[];
 }
 
 export const DefaultGamePropsTeam: GameTeam = {
