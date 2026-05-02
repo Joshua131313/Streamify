@@ -20,8 +20,6 @@ import {
     Timestamp,
 } from "firebase/firestore";
 
-import { useQueries } from "@tanstack/react-query";
-
 import { useAuthProvider } from "./AuthContext";
 import { useLocalStorage } from "../hooks/utilHooks/useLocalStorage";
 import { db } from "../firebase/firebase";
@@ -62,22 +60,6 @@ type ContextType = {
 
 const WatchHistoryContext = createContext<ContextType | null>(null);
 
-// 🔥 TMDB fetch (cached by React Query)
-const fetchMedia = async (mediaId: number, mediaType: string): Promise<TMDBMedia> => {
-    const res = await fetch(
-        `https://api.themoviedb.org/3/${mediaType}/${mediaId}?api_key=${import.meta.env.VITE_TMDB_API_KEY}`
-    );
-
-    if (!res.ok) throw new Error("Failed to fetch");
-
-    const data = await res.json();
-
-    return {
-        ...data,
-        mediaType
-    };
-};
-
 export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
     const { user } = useAuthProvider();
     const { get, set } = useLocalStorage();
@@ -89,7 +71,6 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
         historyRef.current = history;
     }, [history]);
 
-    // 🔹 LOAD history refs
     useEffect(() => {
         const load = async () => {
             if (user?.uid) {
@@ -109,7 +90,6 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
                     };
                 });
 
-                // 🔥 sort newest first
                 data.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
 
                 setHistory(data);
@@ -256,7 +236,6 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
         historyRef.current = updated;
         setHistory(updated);
     };
-    // 🔹 REMOVE
     const removeHistory = async (mediaId: number, mediaType: "movie" | "tv") => {
         if (user?.uid) {
             const existing = historyRef.current.find(

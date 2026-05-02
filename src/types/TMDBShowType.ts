@@ -35,7 +35,7 @@ export type TMDBRawShow = {
   overview: string;
   popularity: number;
   poster_path: string | null;
-  first_air_date: string; // format: YYYY-MM-DD
+  first_air_date: string; 
   name: string;
   vote_average: number;
   vote_count: number;

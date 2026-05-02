@@ -15,7 +15,7 @@ export const Login = () => {
     const [loginLoading, setLoginLoading] = useState(false);
     const navigate = useNavigate();
 
-    const { loginWithEmail, loginWithProvider } = useAuthProvider()
+    const { loginWithEmail } = useAuthProvider()
 
     const handleLogin = async () => {
         let hasError = false;
@@ -33,7 +33,6 @@ export const Login = () => {
         try {
             setLoginLoading(true)
             await loginWithEmail(email, password);
-            // clear errors on success
             navigate("/")
             setEmailError("");
             setPasswordError("");

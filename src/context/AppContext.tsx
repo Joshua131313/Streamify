@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { darkThemeColors, lightThemeColors } from "../data/theme";
 import { useLocation } from "react-router-dom";
 import { navLinks } from "../components/Navbar/Navbar";
+import { useIsTouchDevice } from "../hooks/utilHooks/isMobile";
 
 type Theme = "light" | "dark";
 
@@ -11,6 +12,7 @@ type AppContextType = {
   toggleTheme: () => void;
   lastMainRoute: string;
   setLastMainRoute: (route: string) => void;
+  isMobile: boolean;
 };
 
 export const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -25,6 +27,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [lastMainRoute, setLastMainRoute] = useState("/");
   const [theme, setTheme] = useState<Theme>(getSystemTheme);
   const location = useLocation();
+  const isMobile = useIsTouchDevice();
 
   const toggleTheme = () => {
     setTheme(prev => (prev === "dark" ? "light" : "dark"));
@@ -81,6 +84,7 @@ useEffect(() => {
       toggleTheme,
       lastMainRoute,
       setLastMainRoute,
+      isMobile
     }}>
       {children}
     </AppContext.Provider>

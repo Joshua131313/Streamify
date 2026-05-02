@@ -3,6 +3,7 @@ import { Icon } from "../Icon/Icon";
 import { createPortal } from "react-dom";
 import React, { useEffect, useRef, useState } from "react";
 import "./AppPlayer.css";
+import { useApp } from "../../../context/AppContext";
 
 interface Props {
     modal?: boolean;
@@ -15,7 +16,7 @@ interface Props {
 
 export const AppPlayer = React.memo((props: Props) => {
     const { modal = true, children, cancelPlay, src, className } = props;
-
+    const { isMobile } = useApp();
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -83,11 +84,14 @@ export const AppPlayer = React.memo((props: Props) => {
                 />
             )}
 
-            <Icon
-                className="fullscreen-icon player-control-icon"
-                Icon={isFullscreen ? FaCompress : FaExpand}
-                onClick={toggleFullscreen}
-            />
+            {
+                !isMobile &&
+                <Icon
+                    className="fullscreen-icon player-control-icon"
+                    Icon={isFullscreen ? FaCompress : FaExpand}
+                    onClick={toggleFullscreen}
+                />
+            }
 
             {children}
 

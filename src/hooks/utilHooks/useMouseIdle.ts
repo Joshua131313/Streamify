@@ -5,10 +5,8 @@ export function useMouseIdle(delay = 3000) {
 
   useEffect(() => {
     const handleActivity = () => {
-      // user is active → remove idle class
       document.body.classList.remove("idle");
 
-      // reset timer
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
@@ -18,10 +16,8 @@ export function useMouseIdle(delay = 3000) {
       }, delay);
     };
 
-    // track activity
     document.addEventListener("mousemove", handleActivity);
 
-    // start the timer immediately
     handleActivity();
 
     return () => {

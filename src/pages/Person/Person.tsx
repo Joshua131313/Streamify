@@ -8,7 +8,6 @@ import { MediaCard } from "../../components/ui/MediaCard/MediaCard";
 import "./Person.css"
 import { SEO } from "../../components/SEO";
 
-const IMG = "https://image.tmdb.org/t/p/w500";
 
 const PersonPage = () => {
     const { id } = useParams();

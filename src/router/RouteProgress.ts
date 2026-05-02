@@ -4,9 +4,9 @@ import { useLocation } from "react-router-dom";
 import "nprogress/nprogress.css";
 
 NProgress.configure({
-  showSpinner: false,   // removes spinner
-  trickleSpeed: 100,    // speed of automatic progress
-  minimum: 0.1,         // starting point
+  showSpinner: false,   
+  trickleSpeed: 100,   
+  minimum: 0.1,     
   easing: "ease",
   speed: 400,
 });
@@ -20,7 +20,7 @@ export const RouteProgress = () => {
     const timeout = setTimeout(() => {
       NProgress.done();
       NProgress.configure({})
-    }, 300); // small delay for smoothness
+    }, 300); 
 
     return () => clearTimeout(timeout);
   }, [location]);

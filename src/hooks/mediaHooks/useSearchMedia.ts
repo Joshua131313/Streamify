@@ -26,7 +26,6 @@ export const useSearchMedia = (
             return
         }
 
-        // 🟢 Prevent duplicate searches
         if (final === searchQuery) return
 
         setSearchQuery(final)

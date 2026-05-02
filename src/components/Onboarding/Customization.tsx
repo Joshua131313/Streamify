@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Button } from "../ui/Button/Button";
-import { Navigate, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Container } from "../layout/Container/Container";
 
 import { TMDB_GENRES } from "../../data/TMDBGenres";
@@ -9,9 +9,9 @@ import { nhlTeamsMap } from "../../data/sports/nhlData";
 import { mlbTeamsMap } from "../../data/sports/mlbData";
 import { AppImg } from "../ui/ImgProxy/AppImg";
 import { getTeamLogo } from "../../utils/sports/sportsUtils";
-import type { Leagues, TeamInfo } from "../../types/sports/sportsTypes";
-import { FaCheck, FaCheckCircle, FaChevronRight, FaCircle } from "react-icons/fa";
-import { BsCheckCircle, BsCheckCircleFill, BsCircle } from "react-icons/bs";
+import type { TeamInfo } from "../../types/sports/sportsTypes";
+import {  FaChevronRight } from "react-icons/fa";
+import {  BsCheckCircleFill, BsCircle } from "react-icons/bs";
 import { addFavoriteGenres, addTeamsToFavorites, completeOnboarding } from "../../firebase/auth";
 import { useAuthProvider } from "../../context/AuthContext";
 import "./Onboarding.css"
@@ -141,16 +141,6 @@ export const Customization = (props: Props) => {
     }
   }
 
-  // const handleContinueMovies = () => {
-  //   setError("");
-
-  //   if (selectedGenres.length === 0) {
-  //     setError("Select at least one genre");
-  //     return;
-  //   }
-
-  //   setStep("nba");
-  // };
   const handleBack = () => {
     switch (step) {
       case "nba":

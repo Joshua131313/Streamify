@@ -33,8 +33,6 @@ export class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("ErrorBoundary caught:", error, errorInfo);
     console.log(error)
-    // 🔥 optional: send to logging service
-    // logError(error, errorInfo);
   }
 
   handleReset = () => {
@@ -43,7 +41,6 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
-      // custom fallback if provided
       if (this.props.fallback) {
         return this.props.fallback;
       }

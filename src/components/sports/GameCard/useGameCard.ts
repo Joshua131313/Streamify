@@ -16,7 +16,7 @@ import { useMultiWatch } from "../../../context/MultiWatchContext";
 import { useWindowManager } from "../../../context/WindowManagerContext";
 
 import { getWatchURL } from "../../ui/Button/WatchButton";
-import { gameIsWatchable, getDefaultStreamProvider, getSportStream } from "../../../utils/sports/sportsUtils";
+import { gameIsWatchable, getDefaultStreamProvider } from "../../../utils/sports/sportsUtils";
 
 type GameStatusUIVariant = "compact" | "full";
 
@@ -88,9 +88,6 @@ export const useGameCard = (game: GameProps): UseGameCardReturn => {
 
                 notification.onclick = () => {
                     window.focus();
-
-                    // go to route in your app
-                    // window.location.href = `/game/${game.id}`;
                 };
             }, delay);
         }
@@ -166,22 +163,18 @@ export const useGameCard = (game: GameProps): UseGameCardReturn => {
     const getPeriodLabel = () => {
         if (!game.periodNumber) return "";
 
-        // MLB (Top/Bottom innings)
         if (game.leagueName === "MLB") {
-            // assuming periodNumber = "1", "2", etc
             const inning = game.periodNumber.replace(/\D/g, "");
             const isTop = game.clock?.toLowerCase().includes("top");
 
             return `${isTop ? "T" : "B"}${inning}`;
         }
 
-        // NBA
         if (game.leagueName === "NBA") {
             const quarter = game.periodNumber.replace(/\D/g, "");
             return `Q${quarter}`;
         }
 
-        // NHL
         if (game.leagueName === "NHL") {
             const period = game.periodNumber.replace(/\D/g, "");
             return `P${period}`;

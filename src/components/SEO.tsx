@@ -1,4 +1,3 @@
-// components/SEO.tsx
 import { Helmet } from "react-helmet-async";
 
 type SEOProps = {

@@ -6,7 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { TMDBImg } from "../ImgProxy/TMDBImg";
 import { SaveMediaButton } from "../Button/SaveMediaButton";
 import { PlayButton } from "../Button/PlayButton";
-import { useIsTouchDevice } from "../../../hooks/utilHooks/isMobile";
+import { useApp } from "../../../context/AppContext";
 
 interface Props {
     media: TMDBMedia;
@@ -14,7 +14,7 @@ interface Props {
 
 export const MediaCard = (props: Props) => {
     const { media } = props;
-    const isMobile = useIsTouchDevice();
+    const { isMobile } = useApp();
 
     return (
         <>

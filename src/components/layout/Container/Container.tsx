@@ -1,5 +1,4 @@
-import { forwardRef, useState } from "react";
-import { AccentLine } from "../../ui/AccentLine/AccentLine"
+import { useState } from "react";
 import { Title } from "../../ui/Title/Title";
 import "./Container.css"
 import { Icon } from "../../ui/Icon/Icon";
@@ -41,8 +40,6 @@ export const Container = (props : Props) => {
             }
             <div className={`container-content ${styled ? "styled" : ""}`}>
                 {(!accordionMode || expanded) && 
-                    // if accordionMode enabled then it must be expanded to be visible
-                    // so basically (propositional logic) p -> q; !p || q;
                     props.children
                 }
             </div>

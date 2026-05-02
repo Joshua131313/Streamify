@@ -2,7 +2,7 @@ import type { TLabelValue, TMediaType } from "../types/tmdb";
 export type TGenre = {
   label: string;
   value: string;
-  media: TMediaType[]; // supports movie, tv, or both
+  media: TMediaType[]; 
 };
 
 export const TMDB_GENRES: TGenre[] = [
@@ -16,7 +16,7 @@ export const TMDB_GENRES: TGenre[] = [
   { label: "Mystery", value: "9648", media: ["movie", "tv"] },
   { label: "Western", value: "37", media: ["movie", "tv"] },
 
-  // Movie-only
+  // Movie only
   { label: "Action", value: "28", media: ["movie"] },
   { label: "Adventure", value: "12", media: ["movie"] },
   { label: "Fantasy", value: "14", media: ["movie"] },
@@ -29,7 +29,7 @@ export const TMDB_GENRES: TGenre[] = [
   { label: "Thriller", value: "53", media: ["movie"] },
   { label: "War", value: "10752", media: ["movie"] },
 
-  // TV-only
+  // TV only
   { label: "Action & Adventure", value: "10759", media: ["tv"] },
   { label: "Kids", value: "10762", media: ["tv"] },
   { label: "News", value: "10763", media: ["tv"] },

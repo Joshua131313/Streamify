@@ -5,7 +5,6 @@ import type { TEpisode } from "../../types/TMDBShowType";
 import { useSearchParams } from "react-router-dom";
 import { useWatchHistoryContext } from "../../context/WatchHistoryContext";
 
-/* ---------- Context Type ---------- */
 interface EpisodesContextType {
   show: TMDBShowMedia;
   episodes: TEpisode[];
@@ -56,7 +55,6 @@ export const EpisodesProvider = ({ show, children }: Props) => {
         }
     }, [searchParams, history?.season]);
 
-    // 🔥 Sync episode from history
     useEffect(() => {
         if (history?.episode) {
             setCurrentEpisode(history.episode);

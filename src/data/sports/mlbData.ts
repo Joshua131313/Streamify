@@ -1,5 +1,5 @@
 import type { SportStream, TeamInfo } from "../../types/sports/sportsTypes";
-import { createViewEmbedStreams, getSlug } from "./sportsData";
+import { createViewEmbedStreams } from "./sportsData";
 
 
 
@@ -208,7 +208,7 @@ export const mlbTeamsMap: Record<string, TeamInfo> = {
     STL: {
         abbreviation: "STL",
         teamName: "St. Louis Cardinals",
-        id: "st-louis-cardinals", // 🔥 important fix
+        id: "st-louis-cardinals", 
         conference: "NL",
         division: "Central",
         league: "MLB"

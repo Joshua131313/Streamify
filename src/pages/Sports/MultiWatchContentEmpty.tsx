@@ -59,7 +59,7 @@ export const MultiWatchContentEmpty = () => {
         .filter((g) => !multiWatch.some((mw) => mw.id === g.id) && gameIsWatchable(g.startTime, g.status))
         .map((g) => ({
             value: g,
-            label: `${g.homeTeam.name} vs ${g.awayTeam.name}`, // keep for fallback/search
+            label: `${g.homeTeam.name} vs ${g.awayTeam.name}`,
             homeLogo: g.homeTeam.logo,
             awayLogo: g.awayTeam.logo,
             homeAbbrev: g.homeTeam.abbrev,
