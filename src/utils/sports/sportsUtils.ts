@@ -128,7 +128,7 @@ export const getStreamURL = (streamType: TStreamProvider, channel: string) => {
         }
     }
 }
-export const getPriority = (status: string) => {
+export const getPriority = (status: GameStatus): number => {
     switch (status) {
         case "LIVE": return 0;
         case "HALFTIME": return 1;
@@ -138,127 +138,128 @@ export const getPriority = (status: string) => {
         default: return 5;
     }
 };
+const matchesSearch = (game: GameProps, search: string): boolean => {
+    const s = search.toLowerCase().trim();
+    if (!s) return true;
 
+    return (
+        game.title.toLowerCase().includes(s) ||
+        game.homeTeam.name.toLowerCase().includes(s) ||
+        game.awayTeam.name.toLowerCase().includes(s)
+    );
+};
+
+const matchesStatus = (game: GameProps, filters: SportFilter[]): boolean => {
+    const statusFilters = filters.filter(f => f.type === "status");
+
+    if (statusFilters.length === 0) return true;
+
+    return statusFilters.some(f => {
+        if (f.value === "LIVE") {
+            return game.status === "LIVE" || game.status === "HALFTIME";
+        }
+        return game.status === f.value;
+    });
+};
+
+const matchesLeague = (game: GameProps, filters: SportFilter[]): boolean => {
+    const leagueFilters = filters.filter(f => f.type === "league");
+
+    if (leagueFilters.length === 0) return true;
+
+    return leagueFilters.some(f => f.value === game.leagueName);
+};
+const isLiveGame = (game: GameProps) =>
+    game.status === "LIVE" || game.status === "HALFTIME";
+
+const getGameProgress = (game: GameProps): number => {
+    const period = parseInt(game.periodNumber || "1", 10);
+
+    // Convert clock → seconds remaining
+    const parseClock = () => {
+        if (!game.clock) return 0;
+
+        // MLB sometimes has "top"/"bot" instead of time
+        if (isNaN(Number(game.clock))) {
+            return 0;
+        }
+
+        const match = game.clock.match(/(\d{1,2}):(\d{2})/);
+        if (!match) return 0;
+
+        const mins = parseInt(match[1], 10);
+        const secs = parseInt(match[2], 10);
+        return mins * 60 + secs;
+    };
+
+    const remaining = parseClock();
+
+    /* ---------- MLB ---------- */
+    if (game.leagueName === "MLB") {
+        const inning = period;
+
+        let half = 0; // 0 = top, 0.5 = bottom
+        const text = (game.clock || "").toLowerCase();
+
+        if (text.includes("bot")) half = 0.5;
+
+        return (inning - 1 + half) / 9;
+    }
+
+    /* ---------- NBA ---------- */
+    if (game.leagueName === "NBA") {
+        const quarter = period;
+        const totalSeconds = 4 * 720;
+        const elapsed =
+            (quarter - 1) * 720 + (720 - remaining);
+
+        return elapsed / totalSeconds;
+    }
+
+    /* ---------- NHL ---------- */
+    if (game.leagueName === "NHL") {
+        const periodNum = period;
+        const totalSeconds = 3 * 1200;
+        const elapsed =
+            (periodNum - 1) * 1200 + (1200 - remaining);
+
+        return elapsed / totalSeconds;
+    }
+
+    return 0;
+};
 export const filterGames = (
     games: GameProps[],
     search: string,
     filters: SportFilter[]
 ): GameProps[] => {
-    const searchNormalized = search.toLowerCase().trim();
 
-    const statusFilters = filters.filter(f => f.type === "status");
-    const leagueFilters = filters.filter(f => f.type === "league");
+    // 1. FILTER
+    const filtered = games.filter(game =>
+        matchesSearch(game, search) &&
+        matchesStatus(game, filters) &&
+        matchesLeague(game, filters)
+    );
 
-    const filtered = games.filter(game => {
-        const matchesSearch =
-            !searchNormalized ||
-            game.title.toLowerCase().includes(searchNormalized) ||
-            game.homeTeam.name.toLowerCase().includes(searchNormalized) ||
-            game.awayTeam.name.toLowerCase().includes(searchNormalized);
+    // 2. SPLIT
+    const liveGames: GameProps[] = [];
+    const otherGames: GameProps[] = [];
 
-        const matchesStatus =
-            statusFilters.length === 0 ||
-            statusFilters.some(f => {
-                if (f.value === "LIVE") {
-                    return game.status === "LIVE" || game.status === "HALFTIME";
-                }
-                return game.status === f.value;
-            });
-
-        const matchesLeague =
-            leagueFilters.length === 0 ||
-            leagueFilters.some(f => f.value === game.leagueName);
-
-        return matchesSearch && matchesStatus && matchesLeague;
+    filtered.forEach(game => {
+        if (isLiveGame(game)) {
+            liveGames.push(game);
+        } else {
+            otherGames.push(game);
+        }
     });
 
-    const getLiveProgress = (game: GameProps): number => {
-        const text =
-            `${game.period ?? ""} ${game.clock ?? ""} ${game.status ?? ""}`.toLowerCase();
+    // 3. SORT LIVE BY PROGRESS (MOST ADVANCED FIRST)
+    liveGames.sort((a, b) => getGameProgress(b) - getGameProgress(a));
 
-        const league = game.leagueName.toLowerCase();
-
-        const extractNumber = () => {
-            const match = text.match(/(\d+)/);
-            return match ? parseInt(match[1], 10) : 1;
-        };
-
-        const parseClock = () => {
-            const match = text.match(/(\d{1,2}):(\d{2})/);
-            if (!match) return 0;
-
-            const mins = parseInt(match[1], 10);
-            const secs = parseInt(match[2], 10);
-
-            return mins * 60 + secs;
-        };
-
-        const remaining = parseClock();
-
-        if (league.includes("nhl")) {
-            const period = extractNumber();
-            const elapsedThisPeriod = 1200 - remaining;
-            return ((period - 1) * 1200 + elapsedThisPeriod) / (3 * 1200) * 100;
-        }
-
-        if (league.includes("nba")) {
-            const quarter = extractNumber();
-            const elapsedThisQuarter = 720 - remaining;
-            return ((quarter - 1) * 720 + elapsedThisQuarter) / (4 * 720) * 100;
-        }
-        if (league.includes("mlb")) {
-            const inning = extractNumber();
-
-            const isTop = text.includes("top");
-            const isBottom = text.includes("bot") || text.includes("bottom");
-
-            let inningProgress = 0;
-
-            if (isBottom) {
-                inningProgress = 1;
-            } else if (isTop) {
-                inningProgress = 0.5;
-            }
-
-            return ((inning - 1 + inningProgress) / 9) * 100;
-        }
-
-        return 0;
-    };
-
-    return filtered.sort((a, b) => {
-        const priorityDiff = getPriority(a.status) - getPriority(b.status);
-
-        if (priorityDiff !== 0) {
-            return priorityDiff;
-        }
-
-        const timeA = new Date(a.startTime).getTime();
-        const timeB = new Date(b.startTime).getTime();
-
-        const isLiveA = a.status === "LIVE" || a.status === "HALFTIME";
-        const isLiveB = b.status === "LIVE" || b.status === "HALFTIME";
-
-        // Both live → sort by game progress first
-        if (isLiveA && isLiveB) {
-            const progressDiff = getLiveProgress(b) - getLiveProgress(a);
-
-            if (progressDiff !== 0) {
-                return progressDiff;
-            }
-
-            // same progress → newer start first
-            return timeB - timeA;
-        }
-
-        // Single live game already handled by priority
-        if (isLiveA) {
-            return timeB - timeA;
-        }
-
-        return timeA - timeB;
-    });
+    // 4. RETURN
+    return [...liveGames, ...otherGames];
 };
+
 export const gameIsWatchable = (
     startTime: string,
     gameStatus?: GameStatus

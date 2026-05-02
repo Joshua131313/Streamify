@@ -69,7 +69,9 @@ body.player-open.modal-player {
     .player .player-control-icon {
         opacity: 1;
     }
-
+    .idle .player .alt-streams {
+        opacity: 1;
+    }
     .idle .player:hover .player-control-icon {
         opacity: 1;
     }
