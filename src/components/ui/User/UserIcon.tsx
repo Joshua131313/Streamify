@@ -8,13 +8,14 @@ import { getInitials } from "../../../utils/helpers";
 import { AppImg } from "../ImgProxy/AppImg";
 import { BsMoonFill, BsSun } from "react-icons/bs";
 import { useApp } from "../../../context/AppContext";
+import { auth } from "../../../firebase/firebase";
 
 export const UserIcon = () => {
     const { user, logout } = useAuthProvider();
     const navigate = useNavigate();
     const { theme, toggleTheme } = useApp();
 
-    const isLoggedIn = !!user;
+    const isLoggedIn = !auth.currentUser?.isAnonymous;
 
     const commonOptions = [
         {
@@ -66,8 +67,8 @@ export const UserIcon = () => {
     return (
         <Dropdown
             dropdownOptions={isLoggedIn ? loggedInOptions : guestOptions}
-            title={isLoggedIn ? (user.name ?? "Profile") : "Guest"}
-            subTitle={isLoggedIn ? (user.email ?? "") : ""}
+            title={isLoggedIn ? (user?.name ?? "Profile") : "Guest"}
+            subTitle={isLoggedIn ? (user?.email ?? "") : ""}
             className="user-icon"
             Footer={
                 <Icon onClick={toggleTheme} Icon={theme === "dark" ? BsSun : BsMoonFill}/>

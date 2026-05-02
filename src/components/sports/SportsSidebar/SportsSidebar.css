@@ -5,7 +5,7 @@
     left: 0;
     overflow-y: auto;
     height: 100dvh;
-    background-color: var(--bg-secondary);
+    background-color: var(--bg-primary);
     z-index: 1001;
     padding: 10px;
     display: flex;
@@ -40,23 +40,12 @@
     margin-bottom: 15px;
 }
 .sports-sidebar-controller {
-    position: fixed;
-    top: 50%;
-    transform: translateY(-50%);
     left: 0px;
-    height: 60px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background-color: var(--bg-secondary);
-    width: 20px;
     border-radius: 0 var(--border-radius-small) var(--border-radius-small) 0;
-    z-index: 1000;
-    cursor: pointer;
+
 }
 .active.sports-sidebar-controller {
     left: 250px;
-    box-shadow: var(--shadow-base);
 }
 .sidebar-overlay {
     position: fixed;

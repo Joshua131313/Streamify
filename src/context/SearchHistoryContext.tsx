@@ -21,7 +21,7 @@ import {
     Timestamp,
     onSnapshot,
 } from "firebase/firestore";
-import { db } from "../firebase/firebase";
+import { auth, db } from "../firebase/firebase";
 
 export type SearchHistoryItem = {
     searchValue: string;
@@ -53,7 +53,7 @@ export const SearchHistoryProvider = ({ children }: { children: ReactNode }) => 
 
 
     useEffect(() => {
-        if (!user?.uid) {
+        if (!user?.uid || auth.currentUser?.isAnonymous) {
             setHistory(get("search-history", []));
             return;
         }

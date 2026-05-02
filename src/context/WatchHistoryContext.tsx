@@ -31,15 +31,15 @@ import { useTMDBByIds } from "../hooks/mediaHooks/tmdbHooks/useTMDBByIds";
 export type WatchHistoryItem = {
     mediaType: "movie" | "tv";
     mediaId: number;
-    season?: string;
-    episode?: string;
+    season?: number;
+    episode?: number;
     updatedAt: Date;
     firebaseId?: string;
 };
 
 type HistoryMedia = TMDBMedia & {
-    season?: string;
-    episode?: string;
+    season?: number;
+    episode?: number;
     updatedAt: Date;
 };
 
@@ -50,8 +50,8 @@ type ContextType = {
     saveHistory: (entry: {
         mediaType: "movie" | "tv";
         mediaId: number;
-        season?: string;
-        episode?: string;
+        season?: number | string;
+        episode?: number | string;
     }) => Promise<void>;
     removeHistory: (mediaId: number, mediaType: "movie" | "tv") => Promise<void>;
     getHistoryItem: (
@@ -103,8 +103,8 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
                         firebaseId: docSnap.id,
                         mediaType: d.mediaType,
                         mediaId: d.mediaId,
-                        season: d.season,
-                        episode: d.episode,
+                        season: d.season ? Number(d.season) : undefined,
+                        episode: d.episode ? Number(d.episode) : undefined,
                         updatedAt: (d.updatedAt as Timestamp).toDate(),
                     };
                 });
@@ -136,7 +136,7 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
             h => h.mediaId === m.id && h.mediaType === m.mediaType
         );
 
-        if (!meta) return null; 
+        if (!meta) return null;
 
         return {
             ...m,
@@ -149,15 +149,43 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
     const saveHistory = async (entry: {
         mediaType: "movie" | "tv";
         mediaId: number;
-        season?: string;
-        episode?: string;
+        season?: number | string;
+        episode?: number | string;
     }) => {
         const payload: WatchHistoryItem = {
             mediaType: entry.mediaType,
             mediaId: entry.mediaId,
-            season: entry.season ?? "",
-            episode: entry.episode ?? "",
+            season: entry.season ? Number(entry.season) : undefined,
+            episode: entry.episode ? Number(entry.episode) : undefined,
             updatedAt: new Date(),
+        };
+
+        const updateLocalHistory = (item: WatchHistoryItem) => {
+            const existing = historyRef.current;
+            const index = existing.findIndex(
+                h => h.mediaId === item.mediaId && h.mediaType === item.mediaType
+            );
+
+            let updated: WatchHistoryItem[];
+
+            if (index !== -1) {
+                updated = [...existing];
+                updated[index] = {
+                    ...updated[index],
+                    ...item,
+                };
+            } else {
+                updated = [item, ...existing];
+            }
+
+            updated.sort(
+                (a, b) =>
+                    new Date(b.updatedAt).getTime() -
+                    new Date(a.updatedAt).getTime()
+            );
+
+            historyRef.current = updated;
+            setHistory(updated);
         };
 
         if (user?.uid) {
@@ -171,21 +199,33 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
             const snapshot = await getDocs(q);
 
             if (!snapshot.empty) {
+                const firebaseId = snapshot.docs[0].id;
+
                 await updateDoc(
-                    doc(db, "users", user.uid, "watchHistory", snapshot.docs[0].id),
+                    doc(db, "users", user.uid, "watchHistory", firebaseId),
                     {
                         ...payload,
                         updatedAt: Timestamp.fromDate(payload.updatedAt),
                     }
                 );
+
+                updateLocalHistory({
+                    ...payload,
+                    firebaseId,
+                });
             } else {
-                await addDoc(
+                const docRef = await addDoc(
                     collection(db, "users", user.uid, "watchHistory"),
                     {
                         ...payload,
                         updatedAt: Timestamp.fromDate(payload.updatedAt),
                     }
                 );
+
+                updateLocalHistory({
+                    ...payload,
+                    firebaseId: docRef.id,
+                });
             }
 
             return;
@@ -197,17 +237,25 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
             h => h.mediaId === entry.mediaId && h.mediaType === entry.mediaType
         );
 
+        let updated: WatchHistoryItem[];
+
         if (index !== -1) {
-            existing[index] = payload;
+            updated = [...existing];
+            updated[index] = payload;
         } else {
-            existing.unshift(payload);
+            updated = [payload, ...existing];
         }
 
-        set("watch-history", existing);
-        historyRef.current = existing;
-        setHistory(existing);
-    };
+        updated.sort(
+            (a, b) =>
+                new Date(b.updatedAt).getTime() -
+                new Date(a.updatedAt).getTime()
+        );
 
+        set("watch-history", updated);
+        historyRef.current = updated;
+        setHistory(updated);
+    };
     // 🔹 REMOVE
     const removeHistory = async (mediaId: number, mediaType: "movie" | "tv") => {
         if (user?.uid) {

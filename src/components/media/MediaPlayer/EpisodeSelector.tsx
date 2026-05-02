@@ -12,7 +12,7 @@ export const EpisodeSelector = () => {
   const { media } = useMediaLayoutContext();
   const show: TMDBShowMedia = media as TMDBShowMedia;
 
-  const [showSelector, setShowSelector] = useState(true);
+  const [showSelector, setShowSelector] = useState(false);
 
   const iconRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);

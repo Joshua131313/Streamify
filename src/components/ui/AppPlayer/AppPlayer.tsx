@@ -1,20 +1,25 @@
-import { FaLongArrowAltLeft } from "react-icons/fa"
-import { Icon } from "../Icon/Icon"
-import { createPortal } from "react-dom"
-import React, { useEffect, useRef } from "react"
-import "./AppPlayer.css"
+import { FaLongArrowAltLeft, FaExpand, FaCompress } from "react-icons/fa";
+import { Icon } from "../Icon/Icon";
+import { createPortal } from "react-dom";
+import React, { useEffect, useRef, useState } from "react";
+import "./AppPlayer.css";
 
 interface Props {
     modal?: boolean;
     children?: React.ReactNode;
+    controls?: React.ReactNode;
     cancelPlay?: () => void;
     src: string;
     className?: string;
 }
+
 export const AppPlayer = React.memo((props: Props) => {
     const { modal = true, children, cancelPlay, src, className } = props;
 
     const iframeRef = useRef<HTMLIFrameElement>(null);
+    const wrapperRef = useRef<HTMLDivElement>(null);
+
+    const [isFullscreen, setIsFullscreen] = useState(false);
 
     useEffect(() => {
         if (iframeRef.current && iframeRef.current.src !== src) {
@@ -44,24 +49,62 @@ export const AppPlayer = React.memo((props: Props) => {
         }
     }, [modal]);
 
-    const Player = () => {
-        return (
-            <div className={`player ${modal ? "modal-player" : ""} ${className}`}>
-                {modal && (
-                    <Icon
-                        className="back-icon player-control-icon"
-                        Icon={FaLongArrowAltLeft}
-                        onClick={cancelPlay}
-                    />
-                )}
+    const toggleFullscreen = async () => {
+        if (!wrapperRef.current) return;
 
-                {children}
-                <iframe ref={iframeRef} allow="encrypted-media; autoplay; fullscreen" src={src}></iframe>
-            </div>
-        );
+        if (!document.fullscreenElement) {
+            await wrapperRef.current.requestFullscreen();
+        } else {
+            await document.exitFullscreen();
+        }
     };
 
+    useEffect(() => {
+        const handleChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+        };
+
+        document.addEventListener("fullscreenchange", handleChange);
+        return () => {
+            document.removeEventListener("fullscreenchange", handleChange);
+        };
+    }, []);
+
+    const content = (
+        <div
+            ref={wrapperRef}
+            className={`player ${modal ? "modal-player" : ""} ${className}`}
+        >
+            {modal && (
+                <Icon
+                    className="back-icon player-control-icon"
+                    Icon={FaLongArrowAltLeft}
+                    onClick={cancelPlay}
+                />
+            )}
+
+            <Icon
+                className="fullscreen-icon player-control-icon"
+                Icon={isFullscreen ? FaCompress : FaExpand}
+                onClick={toggleFullscreen}
+            />
+
+            {children}
+
+            <div className="iframe">
+                <div className="iframe-intercept"></div>
+                <iframe onMouseMove={() => console.log("asd")}
+                    ref={iframeRef}
+                    allow="encrypted-media; autoplay; fullscreen"
+                    src={src}
+                ></iframe>
+
+                {props.controls}
+            </div>
+        </div>
+    );
+
     return modal
-        ? createPortal(<Player />, document.body)
-        : <Player />;
+        ? createPortal(content, document.body)
+        : content;
 });

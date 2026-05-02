@@ -104,7 +104,12 @@
     left: 16px;
     transform: translateY(0); 
     transition: transform 0.3s ease;
+    width: 100%;
 }
+.idle .stream-provider-buttons {
+    opacity: 0;
+}
+
 .vidsrc .stream-provider-buttons, .vidsrc.player .next-episode-icon {
     transform: translateY(30px);
 }
@@ -113,6 +118,20 @@
 }
 .player .inner-episode-selector .container-header {
     margin-top: 0;
+}
+.player.vidking .fullscreen-icon.player-control-icon  {
+    width: 65px;
+    height: 65px;
+    font-size: var(--font-2xl);
+    background-color: var(--bg-primary);
+}
+.player .fullscreen-icon.player-control-icon {
+    width: 30px;
+    height: 30px;
+    bottom:9px;
+}
+.player .fullscreen-icon.player-control-icon:hover {
+    background-color: #232323;
 }
 @supports not (height: 100dvh) {
   .player.modal-player {

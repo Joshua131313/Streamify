@@ -240,6 +240,23 @@ details[open] > summary::before {
   height: 3px !important;
 }
 
+.sidebar-toggler {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 60px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--bg-primary);
+    width: 20px;
+    z-index: 1000;
+    cursor: pointer;
+}
+.active.sidebar-toggler {
+    box-shadow: var(--shadow-base);
+}
+
 @media (hover: none) and (pointer: coarse) {
     * {
         user-select: none;

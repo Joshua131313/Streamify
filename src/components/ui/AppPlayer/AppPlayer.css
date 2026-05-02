@@ -16,7 +16,10 @@ body.player-open.modal-player {
     top: 0;
     padding-bottom: env(safe-area-inset-bottom, 0px);
 }
-
+.iframe {
+    width: 100%;
+    height: 100%;
+}
 .player.modal-player iframe {
     width: 100%;
     border: none;
@@ -27,6 +30,23 @@ body.player-open.modal-player {
     width: 100%;
     height: 50vh;
     border: none;
+}
+.iframe-intercept {
+    position: absolute;
+    top: 0;
+    width: 100%;
+    height: 200px;
+}
+.player .fullscreen-icon.player-control-icon {
+    right: 10px;
+    left: initial;
+    bottom: 5px;
+    top: initial;
+    background-color: transparent;
+    border: none;
+}
+.sports-live-chat-expanded .player .fullscreen-icon.player-control-icon {
+    right: calc(var(--live-chat-window-width) + 10px);
 }
 
 .player .player-control-icon {

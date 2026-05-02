@@ -1,0 +1,71 @@
+.textarea-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+/* textarea instead of input */
+.textarea-container textarea {
+    background-color: var(--input-bg);
+    border: solid 1px var(--border);
+    padding: 15px;
+    border-radius: var(--border-radius-small);
+    outline: none;
+    transition: all 0.3s;
+    color: var(--text-body);
+
+    min-height: 40px;
+    max-height: 150px;
+
+    resize: none;
+    overflow-y: hidden;
+}
+
+/* icon spacing */
+.textarea-container.has-icon textarea {
+    padding-left: 30px;
+}
+
+/* placeholder */
+.textarea-container textarea::placeholder {
+    color: var(--text-muted);
+}
+
+/* focus */
+.textarea-container textarea:focus {
+    border: solid 1px var(--accent-primary);
+}
+
+/* icon (same as input) */
+.textarea-container .icon {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    z-index: 1;
+    font-size: var(--font-xs);
+    left: 10px;
+}
+
+/* error styling (same) */
+.textarea-container textarea:focus + .error {
+    border: solid 1px var(--accent-primary);
+}
+
+.textarea-container .error {
+    font-size: var(--font-xs);
+    color: var(--accent-primary);
+    display: flex;
+    margin-top: 5px;
+    position: absolute;
+    bottom: -50%;
+    transform: translateY(-50%);
+    right: 10px;
+    border: solid 1px var(--border);
+    border-radius: 20px;
+    background-color: var(--bg-primary);
+    padding: 5px;
+    z-index: 10;
+    transition: all 0.3s;
+}

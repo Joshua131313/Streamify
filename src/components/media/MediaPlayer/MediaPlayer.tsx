@@ -41,8 +41,8 @@ export const MediaPlayer = ({ modal = true }: { modal?: boolean }) => {
     // vidsrc.icu
 
     const getMediaSrc = () => {
-        const season = searchParams.get("season");
-        const episode = searchParams.get("episode");
+        const season = Number(searchParams.get("season")) || 1;
+        const episode = Number(searchParams.get("episode")) || 1;
 
         const providers = {
             vidking: {

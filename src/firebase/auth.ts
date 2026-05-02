@@ -3,6 +3,7 @@ import { auth, db } from "./firebase";
 import type { FavoriteTeamItem } from "../context/FavoriteTeamsContext";
 import type { Leagues, TeamInfo } from "../types/sports/sportsTypes";
 import { getTeamsMapFromLeague } from "../utils/sports/sportsUtils";
+import { updateProfile } from "firebase/auth";
 
 export const createUserDocument = async (
     uid: string,
@@ -29,7 +30,7 @@ export const createUserDocument = async (
     } catch {
         console.warn("Failed to parse localStorage");
     }
-
+    
     await setDoc(
         doc(db, "users", uid),
         {
@@ -43,6 +44,12 @@ export const createUserDocument = async (
         },
         { merge: true }
     );
+    
+    if(auth.currentUser) {
+        await updateProfile(auth.currentUser, {
+            displayName: `${firstName || ""} ${lastName || ""}`.trim()
+        })
+    }
 
     await Promise.all(
         showHistory.map((item) => {
@@ -85,7 +92,7 @@ export const createUserDocument = async (
 export const completeOnboarding = async () => {
     const user = auth.currentUser;
 
-    if(!user) {
+    if(user?.isAnonymous || !user) {
         throw new Error("user not authenticated");
     }
     const ref = doc(db, "users", user.uid);
@@ -97,7 +104,7 @@ export const completeOnboarding = async () => {
 export const addFavoriteGenres = async (genreIds: string[]) => {
     const user = auth.currentUser;
 
-    if(!user) {
+    if(user?.isAnonymous || !user) {
         throw new Error("user not authenticated");
     }
 
@@ -111,7 +118,7 @@ export const addFavoriteGenres = async (genreIds: string[]) => {
 export const addTeamsToFavorites = async (teams: TeamInfo[]) => {
     const user = auth.currentUser;
 
-    if(!user) {
+    if(user?.isAnonymous || !user) {
         throw new Error("User not authenticated");
     }
 

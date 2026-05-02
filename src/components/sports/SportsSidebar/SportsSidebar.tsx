@@ -148,7 +148,7 @@ export const SportsSidebar = () => {
             />
         </div>
         }
-        <div className={`${show ? "active" : ""} sports-sidebar-controller`} onClick={() => setShow(!show)}>
+        <div className={`${show ? "active" : ""} sidebar-toggler sports-sidebar-controller`} onClick={() => setShow(!show)}>
            {show ? <FaChevronLeft /> : <FaChevronRight />}
         </div>
         </>

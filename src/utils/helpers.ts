@@ -1,6 +1,7 @@
 import { providers } from "../data/providers";
 import type { TMediaType, TStreamCategories, TStreamProviders } from "../types/tmdb";
 import type { TMDBVideo } from "../types/TMDBMediaType";
+import { uniqueNamesGenerator, adjectives, animals } from "unique-names-generator";
 
 export const getTMDBEndpointByCategory = (
   type: TMediaType,
@@ -104,4 +105,37 @@ export const cleanFirestoreData = (obj: any): any => {
                     : v
             ])
     );
+};
+
+const GUEST_KEY = "guest_username";
+
+export const getOrCreateGuestUsername = (): string => {
+    let username = localStorage.getItem(GUEST_KEY);
+    if (username) return username;
+
+    username = uniqueNamesGenerator({
+        dictionaries: [adjectives, animals],
+        separator: "",
+        style: "capital",
+        length: 2,
+    }) + Math.floor(Math.random() * 100);
+
+    localStorage.setItem(GUEST_KEY, username);
+    return username;
+};
+
+const COLORS = [
+    "#FF5733", "#33FF57", "#3357FF", "#FF33A8",
+    "#FF8C00", "#00CED1", "#9400D3", "#FFD700",
+    "#00FF7F", "#FF1493"
+];
+
+export const getColorFromUsername = (username: string): string => {
+    let hash = 0;
+
+    for (let i = 0; i < username.length; i++) {
+        hash = username.charCodeAt(i) + ((hash << 5) - hash);
+    }
+
+    return COLORS[Math.abs(hash) % COLORS.length];
 };
