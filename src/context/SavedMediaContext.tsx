@@ -38,21 +38,6 @@ type ContextType = {
 
 const SavedMediaContext = createContext<ContextType | null>(null);
 
-const fetchMedia = async (mediaId: number, mediaType: string): Promise<TMDBMedia> => {
-    const res = await fetch(
-        `https://api.themoviedb.org/3/${mediaType}/${mediaId}?api_key=${import.meta.env.VITE_TMDB_API_KEY}`
-    );
-
-    if (!res.ok) throw new Error("Failed to fetch");
-
-    const data = await res.json();
-
-    return {
-        ...data,
-        mediaType
-    };
-};
-
 export const SavedMediaProvider = ({ children }: { children: ReactNode }) => {
     const { user } = useAuthProvider();
     const { get, set } = useLocalStorage();

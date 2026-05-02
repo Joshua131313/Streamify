@@ -1,7 +1,7 @@
 import type { TLabelValue } from "../types/tmdb";
 export type TSortConfig = {
   sort_by: string;
-  date_lte?: string; // key name depends on media type
+  date_lte?: string; 
 };
 
 export const sortMap: {

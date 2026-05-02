@@ -60,7 +60,6 @@ type TMDBMediaBase = {
   vote_average: number;
   vote_count: number;
 
-  // unified convenience fields
   title: string;
   original_title: string;
   date: string;
@@ -72,7 +71,6 @@ type TMDBMediaBase = {
 export type TMDBMovieMedia = TMDBMediaBase & {
   mediaType: "movie";
 
-  // movie-only
   video?: boolean;
   release_date?: string;
 
@@ -102,7 +100,6 @@ export type TMDBMovieMedia = TMDBMediaBase & {
 export type TMDBShowMedia = TMDBMediaBase & {
   mediaType: "tv";
 
-  // tv-only
   origin_country?: string[];
   original_name?: string;
   first_air_date?: string;

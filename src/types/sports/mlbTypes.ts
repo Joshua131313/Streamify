@@ -14,10 +14,10 @@ export interface MLBTeam {
 export type MLBInningHalf = "top" | "bottom" | "mid" | "end" | null;
 
 export interface MLBPeriod {
-    current: number; // inning number
-    type?: string;   // ESPN status type (optional)
+    current: number; 
+    type?: string;
     inningHalf: MLBInningHalf;
-    isHalftime: boolean; // always false for MLB (kept for consistency)
+    isHalftime: boolean; 
 }
 
 export interface MLBBroadcast {

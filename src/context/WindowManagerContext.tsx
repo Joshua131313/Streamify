@@ -56,7 +56,6 @@ export const WindowManagerProvider = ({
 
         spawnOffset++;
 
-        // optional: reset if too far
         if (spawnOffset > 10) spawnOffset = 0;
 
         return {
@@ -176,21 +175,6 @@ export const WindowManagerProvider = ({
             };
         });
 
-    // useEffect(() => {
-    //     const hasFullscreen = Object.values(windows).some(
-    //         (w) => w.windowState === "fullscreen"
-    //     );
-
-    //     if (hasFullscreen) {
-    //         document.body.style.overflow = "hidden";
-    //     } else {
-    //         document.body.style.overflow = "";
-    //     }
-
-    //     return () => {
-    //         document.body.style.overflow = "";
-    //     };
-    // }, [windows]);
     useEffect(() => {
         const timeout = setTimeout(() => {
             set(STORAGE_KEY, windows);

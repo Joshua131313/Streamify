@@ -52,7 +52,6 @@ export const FavoriteTeamsProvider = ({ children }: { children: ReactNode }) => 
         teamsRef.current = favoriteTeams;
     }, [favoriteTeams]);
 
-    // 🔥 Load teams
     useEffect(() => {
     if (!user?.uid || auth.currentUser?.isAnonymous) {
             const local = get("favoriteTeams", []);
@@ -76,11 +75,9 @@ export const FavoriteTeamsProvider = ({ children }: { children: ReactNode }) => 
         return () => unsubscribe();
     }, [user?.uid]);
 
-    // 🔥 ADD TEAM
     const addTeam = async (team: GameTeam) => {
         if (teamsRef.current.some(t => t.abbrev === team.abbrev)) return;
 
-        // LOCAL MODE
         if (!user?.uid || auth.currentUser?.isAnonymous) {
             const updated : FavoriteTeamItem[] = [{abbrev: team.abbrev, league: team.league, name: team.name, timeStamp: serverTimestamp()}, ...teamsRef.current];
 
@@ -91,7 +88,6 @@ export const FavoriteTeamsProvider = ({ children }: { children: ReactNode }) => 
             return;
         }
 
-        // FIREBASE MODE (optimistic)
         const tempItem: FavoriteTeamItem = {
             abbrev: team.abbrev,
             league: team.league,
@@ -109,7 +105,6 @@ export const FavoriteTeamsProvider = ({ children }: { children: ReactNode }) => 
                 cleanFirestoreData(team)
             );
         } catch {
-            // rollback
             setFavoriteTeams(prev =>
                 prev.filter(t => t.abbrev !== team.abbrev)
             );

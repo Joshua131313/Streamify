@@ -1,17 +1,15 @@
 import { PageHeader } from "../../components/ui/PageHeader/PageHeader";
 import "./Sports.css";
 import { Input } from "../../components/ui/Input/Input";
-import { FaGripHorizontal, FaLayerGroup, FaListAlt, FaRulerHorizontal, FaSearch, FaThLarge } from "react-icons/fa";
-import { useSports, quickFilters, type SportFilterType, type SportsCardsLayout } from "../../context/SportsContext";
+import { FaGripHorizontal, FaSearch, FaThLarge } from "react-icons/fa";
+import { useSports, quickFilters, type SportsCardsLayout } from "../../context/SportsContext";
 import { Button } from "../../components/ui/Button/Button";
 import { useWindow } from "../../hooks/utilHooks/useWindow";
 import { SEO } from "../../components/SEO";
 import type { Leagues } from "../../types/sports/sportsTypes";
 import { Container } from "../../components/layout/Container/Container";
-import { FaList, FaX } from "react-icons/fa6";
+import { FaList } from "react-icons/fa6";
 import type { IconType } from "react-icons";
-import { Icon } from "../../components/ui/Icon/Icon";
-import { SportsSidebar } from "../../components/sports/SportsSidebar/SportsSidebar";
 
 interface Props {
     title: string;
@@ -66,7 +64,6 @@ const SportsLayout = (props: Props) => {
                         </Button>
                         <div className="quick-filters">
                             {quickFilters.filter(filter => {
-                                // if all leagues, then show all leagues otherwise if specific league like nba dont show any
                                 if (league === "all") return true;
                                 return filter.type !== "league";
                             }).map(filter => (

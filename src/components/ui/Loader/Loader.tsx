@@ -1,4 +1,3 @@
-// src/components/ui/Loader/Loader.tsx
 import { StaticLogo } from "../Logo/StaticLogo";
 import "./Loader.css";
 

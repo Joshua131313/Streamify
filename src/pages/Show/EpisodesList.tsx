@@ -1,4 +1,3 @@
-import { useSearchParams } from "react-router-dom";
 import { Container } from "../../components/layout/Container/Container";
 import { EpisodeCard } from "../../components/ui/MediaCard/EpisodeCard";
 import { EpisodeSkeletonCard } from "../../components/ui/MediaCard/SkeletonCards/EpisodeSkeletonCard";
@@ -6,7 +5,6 @@ import { useEpisodesContext } from "./EpisodesProvider";
 
 export const EpisodesList = () => {
     const { episodes, isLoading, search, direction, currentEpisode } = useEpisodesContext();
-    // const episode = 
     const filtered = episodes
         ?.filter(
             (e) =>

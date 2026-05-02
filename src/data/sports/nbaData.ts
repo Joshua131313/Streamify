@@ -5,7 +5,7 @@
 // ]
 
 import type { SportStream, TeamInfo } from "../../types/sports/sportsTypes";
-import { createViewEmbedStreams, getSlug } from "./sportsData";
+import { getSlug } from "./sportsData";
 
 
 

@@ -1,5 +1,4 @@
 export const useLocalStorage = () => {
-  // ---------- GET ----------
   const get = <T>(key: string, defaultValue: T): T => {
     try {
       const stored = localStorage.getItem(key);
@@ -10,12 +9,10 @@ export const useLocalStorage = () => {
     }
   };
 
-  // ---------- SET / REPLACE ----------
   const set = <T>(key: string, value: T) => {
     localStorage.setItem(key, JSON.stringify(value));
   };
 
-  // ---------- APPEND (arrays only) ----------
   const append = <T>(key: string, item: T) => {
     const current = get<T[]>(key, []);
     const updated = [...current, item];
@@ -32,7 +29,6 @@ export const useLocalStorage = () => {
 
     localStorage.setItem(key, JSON.stringify(updated));
   };
-  // ---------- REMOVE ITEM ----------
   const remove = <T>(
     key: string,
     predicate: (item: T) => boolean
@@ -43,7 +39,6 @@ export const useLocalStorage = () => {
     return updated;
   };
 
-  // ---------- HAS ----------
   const has = <T>(
     key: string,
     value: T,
@@ -55,24 +50,20 @@ export const useLocalStorage = () => {
     try {
       const parsed = JSON.parse(stored);
 
-      // If array → search inside
       if (Array.isArray(parsed)) {
         if (predicate) return parsed.some(predicate);
 
-        // fallback deep compare
         return parsed.some(
           (item) => JSON.stringify(item) === JSON.stringify(value)
         );
       }
 
-      // Single value → direct compare
       return JSON.stringify(parsed) === JSON.stringify(value);
     } catch {
       return false;
     }
   };
 
-  // ---------- CLEAR ----------
   const clear = (key: string) => {
     localStorage.removeItem(key);
   };

@@ -120,7 +120,6 @@ export const Window = ({ id, title, children, minimizedIcon, className }: Props)
                     setPosition(clampedX, clampedY);
                 }}
 
-                // ✅ FULLSCREEN DRAG EXIT (same as old)
                 onDragStart={(e: any) => {
                     document.body.classList.add("dragging");
                     if (appWindow.windowState === "fullscreen") {

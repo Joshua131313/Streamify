@@ -5,7 +5,7 @@ import {
     useState,
     type ReactNode,
 } from "react";
-import { DefaultGameProps, type GameProps } from "../types/sports/sportsTypes";
+import { type GameProps } from "../types/sports/sportsTypes";
 import { useLocalStorage } from "../hooks/utilHooks/useLocalStorage";
 import { gameIsWatchable } from "../utils/sports/sportsUtils";
 
@@ -77,7 +77,6 @@ export const MultiWatchProvider = ({ children }: { children: ReactNode }) => {
         const interval = setInterval(() => {
             setMultiWatch(prev => {
                 const valid = prev.filter(g =>
-                    // status is stale since it is the status of when the user stored it into multiwatch
                     gameIsWatchable(g.startTime)
                 );
 

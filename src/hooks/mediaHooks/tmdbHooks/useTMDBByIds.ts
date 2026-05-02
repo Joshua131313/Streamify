@@ -1,6 +1,4 @@
-// hooks/tmdbHooks/useTMDBByIds.ts
 import { useQueries } from "@tanstack/react-query";
-import { useTMDBQuery } from "./useTMDBQuery";
 import { normalizeMovie, normalizeShow } from "../../../utils/normalizeTMDB";
 import type { TMDBMedia } from "../../../types/TMDBMediaType";
 import type { TMediaType } from "../../../types/tmdb";

@@ -1,9 +1,6 @@
-import { useSearchParams } from "react-router-dom";
 import { Container } from "../../components/layout/Container/Container";
 import { GenreFilter } from "../../components/ui/filters/GenreFilter";
 import { PageHeader } from "../../components/ui/PageHeader/PageHeader";
-import { useLocalStorage } from "../../hooks/utilHooks/useLocalStorage";
-import type { TMDBMedia } from "../../types/TMDBMediaType";
 import { MediaCard } from "../../components/ui/MediaCard/MediaCard";
 import { useWatchHistoryContext } from "../../context/WatchHistoryContext";
 

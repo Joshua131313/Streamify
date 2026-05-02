@@ -1,44 +1,26 @@
 import type { YouTubeProps } from "react-youtube";
 import "./Trailer.css"
 import YouTube from "react-youtube";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { TMDBImg } from "../ImgProxy/TMDBImg.tsx";
-import {  FaDownload, FaLongArrowAltLeft, FaPlus, FaVolumeMute } from "react-icons/fa";
+import {  FaVolumeMute } from "react-icons/fa";
 import { Icon } from "../Icon/Icon";
 import { FaVolumeHigh } from "react-icons/fa6";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { MediaMetaBadges, type MediaMetaBadgesProps } from "../MediaMetaBadges/MediaMetaBadges";
+import { MediaMetaBadges } from "../MediaMetaBadges/MediaMetaBadges";
 import { PlayButton } from "../Button/PlayButton";
-import type { TMediaType } from "../../../types/tmdb.ts";
 import { Button } from "../Button/Button";
 import { SaveMediaButton } from "../Button/SaveMediaButton.tsx";
-import type { TMDBMedia } from "../../../types/TMDBMediaType.ts";
 import { useMediaLayoutContext } from "../../layout/MediaLayout/MediaLayoutContext.tsx";
 import { getOfficialYoutubeTrailerId } from "../../../utils/helpers.ts";
-import { useLocalStorage } from "../../../hooks/utilHooks/useLocalStorage.ts";
-import { useApp } from "../../../context/AppContext.tsx";
 import { BackButton } from "../Button/BackButton.tsx";
 
-interface Props {
-    // backdrop_path: string;
-    // logo_path: string;
-    // trailer_id: string;
-    // mediaMetaBadgesProps: MediaMetaBadgesProps;
-    // description: string;
-    // mediaId: number;
-    // mediaType: TMediaType;
-    // media: TMDBMedia;
-}
 
-export const Trailer = (props : Props) => {
-    const { lastMainRoute } = useApp();
-    // const { backdrop_path, trailer_id, logo_path, mediaMetaBadgesProps, description, mediaId, mediaType } = props;
+export const Trailer = () => {
     const { media, mediaType } = useMediaLayoutContext();
     const [playing, setPlaying] = useState(false);
     const [muted, setMuted] = useState(true);
     const playerRef = useRef<any>(null);
     const trailerContainerRef = useRef<HTMLDivElement>(null);
-    const navigate = useNavigate();
     const trailerId = useMemo(() => getOfficialYoutubeTrailerId(media.videos ?? []), [media.videos]);
     const opts: YouTubeProps["opts"] = useMemo(() => ({
         width: "100%",
@@ -62,7 +44,7 @@ export const Trailer = (props : Props) => {
     }
 
     const onEnd: YouTubeProps["onEnd"] = (e) => {
-        e.target.playVideo(); // 🔁 restart when finished (extra safety)
+        e.target.playVideo(); 
     };
 
     const onStateChange: YouTubeProps["onStateChange"] = (e) => {

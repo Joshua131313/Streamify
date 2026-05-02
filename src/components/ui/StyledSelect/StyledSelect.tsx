@@ -73,7 +73,7 @@ const styles = {
   multiValue: (base: any) => ({
     ...base,
     backgroundColor: "rgba(220, 38, 38, 0.2)",
-    borderRadius: "12px", // optional tweak for pills
+    borderRadius: "12px", 
     padding: "2px 4px",
   }),
 

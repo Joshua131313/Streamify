@@ -175,11 +175,9 @@ const isLiveGame = (game: GameProps) =>
 const getGameProgress = (game: GameProps): number => {
     const period = parseInt(game.periodNumber || "1", 10);
 
-    // Convert clock → seconds remaining
     const parseClock = () => {
         if (!game.clock) return 0;
 
-        // MLB sometimes has "top"/"bot" instead of time
         if (isNaN(Number(game.clock))) {
             return 0;
         }
@@ -194,11 +192,10 @@ const getGameProgress = (game: GameProps): number => {
 
     const remaining = parseClock();
 
-    /* ---------- MLB ---------- */
     if (game.leagueName === "MLB") {
         const inning = period;
 
-        let half = 0; // 0 = top, 0.5 = bottom
+        let half = 0; 
         const text = (game.clock || "").toLowerCase();
 
         if (text.includes("bot")) half = 0.5;
@@ -206,7 +203,6 @@ const getGameProgress = (game: GameProps): number => {
         return (inning - 1 + half) / 9;
     }
 
-    /* ---------- NBA ---------- */
     if (game.leagueName === "NBA") {
         const quarter = period;
         const totalSeconds = 4 * 720;
@@ -216,7 +212,6 @@ const getGameProgress = (game: GameProps): number => {
         return elapsed / totalSeconds;
     }
 
-    /* ---------- NHL ---------- */
     if (game.leagueName === "NHL") {
         const periodNum = period;
         const totalSeconds = 3 * 1200;
@@ -234,14 +229,12 @@ export const filterGames = (
     filters: SportFilter[]
 ): GameProps[] => {
 
-    // 1. FILTER
     const filtered = games.filter(game =>
         matchesSearch(game, search) &&
         matchesStatus(game, filters) &&
         matchesLeague(game, filters)
     );
 
-    // 2. SPLIT
     const liveGames: GameProps[] = [];
     const otherGames: GameProps[] = [];
 
@@ -253,10 +246,8 @@ export const filterGames = (
         }
     });
 
-    // 3. SORT LIVE BY PROGRESS (MOST ADVANCED FIRST)
     liveGames.sort((a, b) => getGameProgress(b) - getGameProgress(a));
 
-    // 4. RETURN
     return [...liveGames, ...otherGames];
 };
 

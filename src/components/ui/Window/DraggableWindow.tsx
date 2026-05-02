@@ -58,11 +58,9 @@ export const DraggableWindow = ({
                 let x = pos.x;
                 let y = pos.y;
 
-                // clamp size
                 if (width > viewportWidth) width = viewportWidth;
                 if (height > viewportHeight) height = viewportHeight;
 
-                // clamp position based on size
                 if (x + width > viewportWidth) x = viewportWidth - width;
                 if (y + height > viewportHeight) y = viewportHeight - height;
 
@@ -79,7 +77,6 @@ export const DraggableWindow = ({
                 let x = d.x;
                 let y = d.y;
 
-                // 🔥 USE SIZE AWARE CLAMP
                 if (x + size.w > viewportWidth) x = viewportWidth - size.w;
                 if (y + size.h > viewportHeight) y = viewportHeight - size.h;
 
