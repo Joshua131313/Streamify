@@ -4,7 +4,7 @@ import type { nbaTeamsMap } from "../../data/sports/nbaData";
 import type { nhlTeamsMap } from "../../data/sports/nhlData";
 
 export type TStreamProvider = 
-    "trendy47" | "topstreams" | "streamspass"   // nba providers
+    "trendy47" | "topstreams" | "streamspass" | "sportspass"  // nba providers
          // nhl providers
     | "mlbwebcast" | "embedsports-d" | "pooembed" // mlb providers
     | "viewembed-away" | "viewembed-home"| "embedsports-home" | "embedsports-away" | "embedsports-top" // provides for all sports
