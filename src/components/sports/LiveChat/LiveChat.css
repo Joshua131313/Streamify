@@ -9,23 +9,123 @@
     box-shadow: var(--shadow-base);
     display: flex;
     flex-direction: column;
+    background-color: var(--bg-surface);
 }
+.live-chat .live-indicator {
+    width: 10px;
+    height: 10px;
+    position: relative;
+    background-color: var(--accent-primary);
+    border-radius: 50%;
+}
+
+.live-chat .live-indicator::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background-color: var(--accent-primary);
+    animation: pulse 1.5s infinite;
+    opacity: 0.6;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        opacity: 0.6;
+    }
+    70% {
+        transform: scale(2.5);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(2.5);
+        opacity: 0;
+    }
+}
+
 .welcome-message {
     padding: 10px;
+    text-align: center;
+    font-size: var(--font-sm);
+    color: var(--text-muted);
 }
 .live-chat-header {
     text-align: center;
     padding: 20px;
     border-bottom: solid 1px var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
+.live-chat-header .app-icon {
+    background-color: transparent;
+    border: none;
+    width: initial;
+    height: initial;
+    color: var(--text-muted);
+    padding: 10px;
+} 
+.live-chat-header .app-icon:hover {
+    background-color:var(--bg-white-hover);
+    color: var(--text-primary);
+}
+
+.live-chat-header svg {
+
+}
+.live-chat-header div {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+.live-chat-header span {
+    font-size: var(--font-sm);
+}
+
 .live-chat-messages {
     margin-top: 10px;
     max-height: calc(100% - 200px);
     overflow-y: auto;
 }
 .live-chat-toolbar {
-    padding: 20px 0;
+    padding: 10px;
     margin-top: auto;
+    background-color:var(--bg-white-hover);
+    margin-bottom: 10px;
+    border-radius: var(--border-radius-small);
+}
+.live-chat-toolbar .textarea-container textarea {
+    background-color: transparent;
+    border: solid 1px transparent;
+}
+.live-chat-toolbar .textarea-container textarea:focus {
+    border: solid 1px var(--border);
+}
+.live-chat-toolbar button {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: var(--bg-white);
+    border: none;
+    color: var(--text-muted);
+    width: 35px;
+    height: 35px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    border-radius: 50%;
+}
+.live-chat-toolbar button:active {
+   
+}
+.live-chat-toolbar button.valid {
+    color: var(--bg-primary);
+    background-color: var(--text-primary);
+}
+.live-chat-toolbar {
 }
 .toolbar-controls {
     display: flex;
