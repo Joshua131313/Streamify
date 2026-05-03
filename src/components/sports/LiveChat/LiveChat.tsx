@@ -5,9 +5,10 @@ import { Input } from "../../ui/Input/Input";
 import "./LiveChat.css"
 import { Icon } from "../../ui/Icon/Icon";
 import { FaMessage } from "react-icons/fa6";
-import { FaChevronLeft, FaChevronRight, FaCog, FaReply, FaShare } from "react-icons/fa";
+import { FaChevronLeft, FaChevronRight, FaCog, FaPaperPlane, FaReply, FaShare, FaShareAlt } from "react-icons/fa";
 import { getColorFromUsername } from "../../../utils/helpers";
 import { Textarea } from "../../ui/Textarea/Textarea";
+import { BsPaperclip, BsSendFill } from "react-icons/bs";
 
 interface Props {
     gameId: string;
@@ -52,7 +53,27 @@ export const LiveChat = (props: Props) => {
                     sendMessage(message);
                     setMessage("")
                 }}>
-                    <div className="live-chat-header">Live Stream: {gameId}</div>
+                    <div className="live-chat-header">
+                        <div>
+                            <div className="live-indicator" />
+                            <span>{gameId}</span>
+                        </div>
+                        <div>
+                            <Icon
+                                Icon={FaShareAlt}
+                                onClick={() => {
+                                    if (navigator.share) {
+                                        navigator.share({
+                                            title: document.title,
+                                            text: "Join the game",
+                                            url: window.location.href,
+                                        }).catch(() => { });
+                                    }
+                                }}
+                            />
+                            <Icon Icon={FaCog} />
+                        </div>
+                    </div>
                     <div className="live-chat-messages">
                         <p className="welcome-message">Welcome to the live chat</p>
                         {messagesRender}
@@ -63,26 +84,7 @@ export const LiveChat = (props: Props) => {
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
                         />
-                        <div className="toolbar-controls">
-                            <div>
-                                <Icon
-                                    Icon={FaShare}
-                                    onClick={() => {
-                                        if (navigator.share) {
-                                            navigator.share({
-                                                title: document.title,
-                                                text: "Join the game",
-                                                url: window.location.href,
-                                            }).catch(() => { });
-                                        } 
-                                    }}
-                                />
-                            </div>
-                            <div>
-                                <Icon Icon={FaCog} />
-                                <Button>Chat</Button>
-                            </div>
-                        </div>
+                        <button className={message ? "valid" : ""}><BsSendFill /></button>
                     </div>
                 </form>
             }

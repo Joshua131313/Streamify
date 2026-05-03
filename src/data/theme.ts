@@ -1,8 +1,8 @@
 export const darkThemeColors = {
     "--bg-primary": "#0B0D10",
     "--bg-secondary": "#13161B",
-    "--bg-surface": "#1d1d1d",
-    "--bg-surface-hover": "#1d1d1d",
+    "--bg-surface": "#0d0d0f",
+    "--bg-surface-hover": "#17171a",
     "--bg-white": "#ffffff08",
     "--bg-white-hover": "#ffffff0d",
     "--bg-transparent": "hsla(0, 0%, 83%, 0.134)",
@@ -10,7 +10,7 @@ export const darkThemeColors = {
 
     "--text-primary": "#F5F5F5",
     "--text-body": "#C7C7C7",
-    "--text-muted": "#8F8F8F",
+    "--text-muted": "#49494a",
     "--badge-bg": "rgba(255, 255, 255, 0.2)",
     "--border": "#35383F",
     "--border-white": "hsla(0,0%,100%,.2)",
