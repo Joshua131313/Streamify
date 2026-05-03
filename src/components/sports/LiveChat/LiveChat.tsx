@@ -49,7 +49,8 @@ export const LiveChat = (props: Props) => {
                 showChat &&
                 <form className="live-chat" onSubmit={(e) => {
                     e.preventDefault();
-                    sendMessage(message)
+                    sendMessage(message);
+                    setMessage("")
                 }}>
                     <div className="live-chat-header">Live Stream: {gameId}</div>
                     <div className="live-chat-messages">
