@@ -45,6 +45,10 @@ body.player-open.modal-player {
     background-color: transparent;
     border: none;
 }
+/* .light .player .fullscreen-icon.player-control-icon {
+    color: var(--text-primary);
+    background-color: transparent;
+} */
 .sports-live-chat-expanded .player .fullscreen-icon.player-control-icon {
     right: calc(var(--live-chat-window-width) + 10px);
 }

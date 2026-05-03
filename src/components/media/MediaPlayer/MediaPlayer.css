@@ -125,6 +125,13 @@
     font-size: var(--font-2xl);
     background-color: var(--bg-primary);
 }
+.light .player.vidking .fullscreen-icon.player-control-icon {
+    background-color: transparent;
+}
+.light .player.vidking .fullscreen-icon.player-control-icon:hover {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
 .player .fullscreen-icon.player-control-icon {
     width: 30px;
     height: 30px;

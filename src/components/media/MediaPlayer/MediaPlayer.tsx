@@ -152,10 +152,10 @@ export const MediaPlayer = ({ modal = true }: { modal?: boolean }) => {
             {mediaType === "tv" && <EpisodeSelector />}
             <div className={`stream-provider-buttons ${streamProvider}`}>
                 <Button className="secondary" onClick={() => setStreamProvider("vidking")}>
-                    Vidking
+                    Server 1
                 </Button>
                 <Button className="secondary" onClick={() => setStreamProvider("vidsrc")}>
-                    Vidsrc
+                    Server 2
                 </Button>
             </div>
         </AppPlayer>
