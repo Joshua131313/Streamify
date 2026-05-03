@@ -29,10 +29,15 @@
 }
 .toolbar-controls {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
     align-items: center;
     gap: 5px;
     margin-top: 10px;
+}
+.toolbar-controls div {
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }
 
 .message {
