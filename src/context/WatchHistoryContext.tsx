@@ -293,8 +293,8 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
 
                 return;
             }
-
-            const existing = get<any[]>("watch-history", []);
+        };
+             const existing = get<any[]>("watch-history", []);
 
             const normalizedExisting = existing.map(item => ({
                 ...item,
@@ -322,7 +322,6 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
             set("watch-history", updated);
             historyRef.current = updated;
             setHistory(updated);
-        };
     }
 
     const removeHistory = async (mediaId: number, mediaType: "movie" | "tv") => {
