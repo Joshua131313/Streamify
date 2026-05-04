@@ -92,28 +92,23 @@ export const MediaPlayer = ({ modal = true }: { modal?: boolean }) => {
             updateHistory();
         }
     }, [searchParams, updateHistory]);
-
+    
     useEffect(() => {
         if (mediaType !== "tv") return;
 
         const season = searchParams.get("season");
         const episode = searchParams.get("episode");
 
-        const key = `${season}-${episode}`;
-
         if (!season || !episode) return;
 
-        if (lastEpisodeRef.current !== key) {
-            lastEpisodeRef.current = key;
-            updateHistory();
-        }
-    }, [searchParams, mediaType, updateHistory]);
+        updateHistory();
+    }, [
+        searchParams.get("season"),
+        searchParams.get("episode"),
+        mediaType,
+        updateHistory
+    ]);
 
-    useEffect(() => {
-        return () => {
-            updateHistory();
-        };
-    }, []);
 
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {

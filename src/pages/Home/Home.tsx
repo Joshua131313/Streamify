@@ -16,10 +16,8 @@ const Home = () => {
                 description="Watch live sports streams on Streamify"
             />
 
-            {/* Load immediately (above the fold) */}
             <HeroCarousel />
 
-            {/* Load when near viewport */}
             <RailsContainer />
 
             <div ref={movies.ref}>

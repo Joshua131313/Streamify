@@ -3,7 +3,7 @@ import { Button } from "./Button";
 import type { TMediaType } from "../../../types/tmdb";
 import { Link } from "react-router-dom";
 import { Icon } from "../Icon/Icon";
-import { useWatchHistoryContext } from "../../../context/WatchHistoryContext";
+import { usePlayUrl } from "../../../hooks/mediaHooks/usePlayUrl";
 
 interface Props {
     mediaType: TMediaType;
@@ -15,28 +15,14 @@ interface Props {
 export const PlayButton = (props: Props) => {
     const { mediaType, mediaId, variant = "button", className } = props;
 
-    const { getHistoryItem } = useWatchHistoryContext();
-    const history = getHistoryItem(mediaId, "tv");
-    console.log(getHistoryItem(mediaId, "tv"))
-    const playUrl = () => {
-        const base = `/${mediaType}/${mediaId}?play`;
-
-        if (mediaType === "movie") {
-            return base;
-        }
-
-        const season = history?.season  || 1;
-        const episode = history?.episode || 1;
-
-        return `${base}&season=${season}&episode=${episode}`;
-    };
+    const { url, season, episode } = usePlayUrl(mediaId, mediaType);
 
     return (
-        <Link to={playUrl()} className={`play-button ${className}`}>
+        <Link to={url} className={`play-button ${className}`}>
             {variant === "button" ? (
                 <Button className="play-button">
                     <FaPlay />
-                    Play
+                    Play {mediaType === "tv" ? `| S${season} E${episode}` : ""}
                 </Button>
             ) : (
                 <Icon Icon={FaPlay} />

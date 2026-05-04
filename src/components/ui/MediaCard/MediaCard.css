@@ -133,9 +133,8 @@
     gap: 10px;
     background-color: var(--bg-white);
     border-radius: var(--border-radius-small);
-    border: solid 1px transparent;
     transition: all 0.3s;
-    border: solid 1px var(--border);
+    overflow: hidden;
 }
 
 .episode-skeleton-card {
@@ -144,14 +143,29 @@
 
 .episode-card:hover,
 .episode-card-selected {
-    background-color: var(--bg-white-hover);
-}
 
+}
+.media-layout-content .episode-card-selected::after {
+    content: "Continue";
+
+}
+.episode-card-selected::after {
+    content: "Watching";
+    position: absolute;
+    top: 4px;
+    left: 10px;
+    font-size: var(--font-xs);
+    padding: 2px 6px;
+    background: var(--accent-primary);
+    color: white;
+    border-radius: var(--border-radius-small);
+}
 .episode-card:hover strong {
 }
 
 .episode-card .episode-info {
-    padding: 10px;
+    padding: 4px 0;
+    padding-right: 4px;
     display: flex;
     flex-direction: column;
     gap: 3px;
@@ -177,7 +191,6 @@
 
 .episode-card img,
 .episode-card .img-skeleton {
-    border-radius: 10px;
     width: 140px;
     height: 100%;
 }
@@ -217,12 +230,9 @@
     position: absolute;
     bottom: 5px;
     left: 5px;
-    border: solid 1px var(--border);
     font-size: var(--font-xs);
-    border-radius: var(--border-radius-small);
-    background-color: var(--bg-surface);
-    width: 20px;
-    height: 20px;
+    width: 15px;
+    height: 15px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -268,8 +278,41 @@
 .media-card:hover img {
     filter: opacity(90%);
 }
-
-
+.continue-watching-card .app-icon {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: 1;
+    transform: translate(-50%, -50%);
+    font-size: var(--font-lg);
+    width: 50px;
+    height: 50px;
+}
+.media-card.continue-watching-card:hover img {
+    transform: initial
+}
+.media-card.continue-watching-card:hover .app-icon {
+        background-color: var(--bg-white);
+}
+.continue-watching-card .history-indicator {
+    position: absolute;
+    background-color: var(--accent-primary);
+    font-size: var(--font-xs);
+    padding: 5px;
+    border-radius: var(--border-radius-small);
+    right: 5px;
+    top: 5px;
+    font-weight: bold;
+}
+/* .selected-indicator {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    width: 10px;
+    height: 10px;
+    background-color: red;
+    border-radius: 50%;
+} */
 @media (max-width: 900px) {
     .episode-card {
         /* height: 110px; */

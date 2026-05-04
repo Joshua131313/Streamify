@@ -10,20 +10,21 @@ import { useApp } from "../../../context/AppContext";
 
 interface Props {
     media: TMDBMedia;
+    className?: string;
 }
 
 export const MediaCard = (props: Props) => {
-    const { media } = props;
+    const { media, className } = props;
     const { isMobile } = useApp();
 
     return (
         <>
             {isMobile ?
-                <Link to={`/${media.mediaType}/${media.id}`} className="mobile-media-card">
+                <Link to={`/${media.mediaType}/${media.id}`} className={`mobile-media-card ${className}`}>
                     <TMDBImg type="poster" size="w342" path={media.poster_path ?? ""} />
                 </Link>
                 :
-                <div className="media-card" >
+                <div className={`media-card ${className}`} >
                     <Link to={`/${media.mediaType}/${media.id}`} className="media-card-content">
                         <TMDBImg type="poster" size="w342" path={media.poster_path ?? ""} />
                         <div className="media-card-overlay"></div>
