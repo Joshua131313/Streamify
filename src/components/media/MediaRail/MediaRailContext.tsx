@@ -43,13 +43,13 @@ export const MediaRailProvider = ({
     useEffect(() => {
         if(!activeTab) return;
         switch(category) {
-            case "byGenre":
+            case "by_genre":
                 setGenre(activeTab.value);
                 break;
             case "provider":
                 setProvider(activeTab.value as TStreamProviders);
                 break;
-            case "top10":
+            case "top_10":
             case "trending":
             case "top_rated":
                 setType(activeTab.value as TMediaType);

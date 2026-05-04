@@ -44,7 +44,7 @@ export const useMediaDiscover = (props: Props): TMDBMediaQueryResult => {
       : (results as TMDBRawShow[]).map(normalizeShow);
 
   const final =
-    category === "top10"
+    category === "top_10"
       ? normalized.slice(0, 10)
       : normalized;
 

@@ -2,3 +2,8 @@
     gap: 50px;
     margin: 50px auto;
 }
+.continue-watching-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}

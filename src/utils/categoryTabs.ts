@@ -8,7 +8,7 @@ const MOVIE_TV_TABS = [
 ] 
 export const getCategoryTabs = (category : TStreamCategories) : TLabelValue[] => {
     switch(category) {
-        case "top10":
+        case "top_10":
         return MOVIE_TV_TABS;
         case "trending": 
         return MOVIE_TV_TABS;
@@ -19,7 +19,7 @@ export const getCategoryTabs = (category : TStreamCategories) : TLabelValue[] =>
             }))
         case "top_rated":
             return MOVIE_TV_TABS;
-        case "byGenre":
+        case "by_genre":
             return getMainGenres("movie");
 
     }

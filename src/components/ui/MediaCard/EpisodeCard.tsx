@@ -14,16 +14,19 @@ interface Props {
 export const EpisodeCard = (props: Props) => {
     const { episode, isSelected } = props;
     return (
-        <Link 
-            to={`?play&season=${episode.season_number}&episode=${episode.episode_number}`} 
+        <Link
+            to={`?play&season=${episode.season_number}&episode=${episode.episode_number}`}
             className={`episode-card ${isSelected ? "episode-card-selected" : ""}`}
         >
             <div className="still-container">
-                <TMDBImg 
+                <TMDBImg
                     type="still"
                     size="w185"
                     path={episode.still_path ?? ""}
                 />
+                {
+                    isSelected && <div className="selected-indicator"></div>
+                }
                 <span className="episode-number">{episode.episode_number}</span>
             </div>
             <div className="episode-info">

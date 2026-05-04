@@ -6,25 +6,25 @@ import { useSearchParams } from "react-router-dom";
 import { useWatchHistoryContext } from "../../context/WatchHistoryContext";
 
 interface EpisodesContextType {
-  show: TMDBShowMedia;
-  episodes: TEpisode[];
-  isLoading: boolean;
+    show: TMDBShowMedia;
+    episodes: TEpisode[];
+    isLoading: boolean;
 
-  seasonNumber: number;
-  setSeasonNumber: (n: number) => void;
+    seasonNumber: number;
+    setSeasonNumber: (n: number) => void;
 
-  search: string;
-  setSearch: (s: string) => void;
+    search: string;
+    setSearch: (s: string) => void;
 
-  direction: "asc" | "desc";
-  setDirection: (d: "asc" | "desc") => void;
+    direction: "asc" | "desc";
+    setDirection: (d: "asc" | "desc") => void;
 
-  currentEpisode: number;
+    currentEpisode: number;
 }
 
 interface Props {
-  show: TMDBShowMedia;
-  children: React.ReactNode;
+    show: TMDBShowMedia;
+    children: React.ReactNode;
 }
 
 const EpisodesContext = createContext<EpisodesContextType | null>(null);
@@ -33,12 +33,32 @@ export const EpisodesProvider = ({ show, children }: Props) => {
     const [searchParams] = useSearchParams();
     const { getHistoryItem } = useWatchHistoryContext();
 
-    const history = getHistoryItem(show.id, "tv");
+    const [history, setHistory] = useState<{
+        season?: number;
+        episode?: number;
+    } | null>(null);
 
     const [seasonNumber, setSeasonNumber] = useState(1);
     const [currentEpisode, setCurrentEpisode] = useState(0);
     const [search, setSearch] = useState("");
     const [direction, setDirection] = useState<"asc" | "desc">("asc");
+
+    useEffect(() => {
+        let mounted = true;
+
+        const loadHistory = async () => {
+            const item = await getHistoryItem(show.id, "tv");
+            if (mounted) {
+                setHistory(item ?? null);
+            }
+        };
+
+        loadHistory();
+
+        return () => {
+            mounted = false;
+        };
+    }, [show.id, getHistoryItem]);
 
     useEffect(() => {
         const urlSeason = Number(searchParams.get("season"));

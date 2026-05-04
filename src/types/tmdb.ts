@@ -2,7 +2,7 @@ import type { UseQueryResult } from "@tanstack/react-query";
 import type { TMDBMedia, TMDBRawMedia } from "./TMDBMediaType";
 import type { TMDB_IMAGE_SIZES } from "../data";
 
-export type TStreamCategories = "top10" | "trending" | "top_rated" | "byGenre" | "provider" ;
+export type TStreamCategories = "top_10" | "trending" | "top_rated" | "by_genre" | "provider" ;
 
 export type TStreamProviders = "netflix" | "prime" | "max" | "disney" | "appletv" | "paramount"
 

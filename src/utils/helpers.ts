@@ -10,13 +10,13 @@ export const getTMDBEndpointByCategory = (
   provider?: TStreamProviders | ""
 ) : string => {
   switch (category) {
-    case "byGenre":
+    case "by_genre":
       return `/discover/${type}?with_genres=${genreId}`;
 
     case "top_rated":
       return `/${type}/top_rated?`;
 
-    case "top10":
+    case "top_10":
       return `/trending/${type}/week?`;
 
     case "trending":
