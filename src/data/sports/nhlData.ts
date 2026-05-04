@@ -40,6 +40,14 @@ export const nhlTeamsMap: Record<string, TeamInfo> = {
 
 export const nhlStreams: SportStream[] = [
     {
+        provider: "embedsports-top",
+        buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
+            const homeId = nhlTeamsMap[homeTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
+            const awayId = nhlTeamsMap[awayTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
+            return `https://embedsports.top/embed/admin/ppv-${awayId}-vs-${homeId}/1`;
+        },
+    },
+    {
         provider: "embedsports-home",
         buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
             const id = nhlTeamsMap[homeTeamAbbrev as keyof typeof nhlTeamsMap].id;
@@ -54,14 +62,6 @@ export const nhlStreams: SportStream[] = [
             return `https://embedsports.me/nhl/${id}-stream-1`
         },
         label: "Away"
-    },
-    {
-        provider: "embedsports-top",
-        buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
-            const homeId = nhlTeamsMap[homeTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
-            const awayId = nhlTeamsMap[awayTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
-            return `https://embedsports.top/embed/admin/ppv-${awayId}-vs-${homeId}/1`;
-        },
     },
 
     {
