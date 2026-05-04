@@ -26,6 +26,7 @@ import { db } from "../firebase/firebase";
 import type { TMDBMedia } from "../types/TMDBMediaType";
 import { useTMDBByIds } from "../hooks/mediaHooks/tmdbHooks/useTMDBByIds";
 
+
 export type WatchHistoryItem = {
     mediaType: "movie" | "tv";
     mediaId: number;
@@ -48,8 +49,8 @@ type ContextType = {
     saveHistory: (entry: {
         mediaType: "movie" | "tv";
         mediaId: number;
-        season?: number | string;
-        episode?: number | string;
+        season?: number;
+        episode?: number;
     }) => Promise<void>;
     removeHistory: (mediaId: number, mediaType: "movie" | "tv") => Promise<void>;
     getHistoryItem: (
@@ -59,6 +60,13 @@ type ContextType = {
 };
 
 const WatchHistoryContext = createContext<ContextType | null>(null);
+
+
+const normalizeDate = (d: any): Date => {
+    if (d instanceof Date) return d;
+    return new Date(d);
+};
+
 
 export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
     const { user } = useAuthProvider();
@@ -71,6 +79,7 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
         historyRef.current = history;
     }, [history]);
 
+
     useEffect(() => {
         const load = async () => {
             if (user?.uid) {
@@ -78,8 +87,9 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
                     collection(db, "users", user.uid, "watchHistory")
                 );
 
-                const data = snapshot.docs.map(docSnap => {
+                const data: WatchHistoryItem[] = snapshot.docs.map(docSnap => {
                     const d = docSnap.data();
+
                     return {
                         firebaseId: docSnap.id,
                         mediaType: d.mediaType,
@@ -90,20 +100,32 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
                     };
                 });
 
-                data.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+                data.sort(
+                    (a, b) =>
+                        b.updatedAt.getTime() - a.updatedAt.getTime()
+                );
 
                 setHistory(data);
             } else {
-                const local = get<WatchHistoryItem[]>("watch-history", []);
+                const local = get<any[]>("watch-history", []);
 
-                local.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+                const normalized: WatchHistoryItem[] = local.map(item => ({
+                    ...item,
+                    updatedAt: normalizeDate(item.updatedAt),
+                }));
 
-                setHistory(local);
+                normalized.sort(
+                    (a, b) =>
+                        b.updatedAt.getTime() - a.updatedAt.getTime()
+                );
+
+                setHistory(normalized);
             }
         };
 
         load();
     }, [user?.uid]);
+
 
     const { media, isLoading } = useTMDBByIds(
         history.map(h => ({
@@ -111,57 +133,74 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
             mediaType: h.mediaType
         }))
     );
-    const historyMedia: HistoryMedia[] = media.map(m => {
-        const meta = history.find(
-            h => h.mediaId === m.id && h.mediaType === m.mediaType
-        );
 
-        if (!meta) return null;
+    const historyMedia: HistoryMedia[] = media
+        .map(m => {
+            const meta = history.find(
+                h => h.mediaId === m.id && h.mediaType === m.mediaType
+            );
 
-        return {
-            ...m,
-            season: meta.season,
-            episode: meta.episode,
-            updatedAt: meta.updatedAt
-        };
-    }).filter(Boolean) as HistoryMedia[];
+            if (!meta) return null;
+
+            return {
+                ...m,
+                season: meta.season,
+                episode: meta.episode,
+                updatedAt: meta.updatedAt
+            };
+        })
+        .filter(Boolean) as HistoryMedia[];
+
 
     const saveHistory = async (entry: {
         mediaType: "movie" | "tv";
         mediaId: number;
-        season?: number | string;
-        episode?: number | string;
+        season?: number;
+        episode?: number;
     }) => {
-        const payload: WatchHistoryItem = {
+        const now = new Date();
+
+        const payload: any = {
             mediaType: entry.mediaType,
             mediaId: entry.mediaId,
-            season: entry.season ? Number(entry.season) : undefined,
-            episode: entry.episode ? Number(entry.episode) : undefined,
-            updatedAt: new Date(),
+            updatedAt: now,
         };
+
+        if (entry.season !== undefined) {
+            payload.season = entry.season;
+        }
+
+        if (entry.episode !== undefined) {
+            payload.episode = entry.episode;
+        }
 
         const updateLocalHistory = (item: WatchHistoryItem) => {
             const existing = historyRef.current;
+
             const index = existing.findIndex(
                 h => h.mediaId === item.mediaId && h.mediaType === item.mediaType
             );
 
             let updated: WatchHistoryItem[];
 
+            const normalizedItem = {
+                ...item,
+                updatedAt: normalizeDate(item.updatedAt),
+            };
+
             if (index !== -1) {
                 updated = [...existing];
                 updated[index] = {
                     ...updated[index],
-                    ...item,
+                    ...normalizedItem,
                 };
             } else {
-                updated = [item, ...existing];
+                updated = [normalizedItem, ...existing];
             }
 
             updated.sort(
                 (a, b) =>
-                    new Date(b.updatedAt).getTime() -
-                    new Date(a.updatedAt).getTime()
+                    b.updatedAt.getTime() - a.updatedAt.getTime()
             );
 
             historyRef.current = updated;
@@ -185,7 +224,7 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
                     doc(db, "users", user.uid, "watchHistory", firebaseId),
                     {
                         ...payload,
-                        updatedAt: Timestamp.fromDate(payload.updatedAt),
+                        updatedAt: Timestamp.fromDate(now),
                     }
                 );
 
@@ -198,7 +237,7 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
                     collection(db, "users", user.uid, "watchHistory"),
                     {
                         ...payload,
-                        updatedAt: Timestamp.fromDate(payload.updatedAt),
+                        updatedAt: Timestamp.fromDate(now),
                     }
                 );
 
@@ -211,31 +250,38 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
             return;
         }
 
-        const existing = get<WatchHistoryItem[]>("watch-history", []);
 
-        const index = existing.findIndex(
+        const existing = get<any[]>("watch-history", []);
+
+        const normalizedExisting = existing.map(item => ({
+            ...item,
+            updatedAt: normalizeDate(item.updatedAt),
+        }));
+
+        const index = normalizedExisting.findIndex(
             h => h.mediaId === entry.mediaId && h.mediaType === entry.mediaType
         );
 
         let updated: WatchHistoryItem[];
 
         if (index !== -1) {
-            updated = [...existing];
+            updated = [...normalizedExisting];
             updated[index] = payload;
         } else {
-            updated = [payload, ...existing];
+            updated = [payload, ...normalizedExisting];
         }
 
         updated.sort(
             (a, b) =>
-                new Date(b.updatedAt).getTime() -
-                new Date(a.updatedAt).getTime()
+                b.updatedAt.getTime() - a.updatedAt.getTime()
         );
 
         set("watch-history", updated);
         historyRef.current = updated;
         setHistory(updated);
     };
+
+
     const removeHistory = async (mediaId: number, mediaType: "movie" | "tv") => {
         if (user?.uid) {
             const existing = historyRef.current.find(
@@ -265,6 +311,7 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
         historyRef.current = updated;
         setHistory(updated);
     };
+
 
     const getHistoryItem = (mediaId: number, mediaType: "movie" | "tv") => {
         return historyRef.current.find(

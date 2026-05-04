@@ -31,6 +31,9 @@ body.player-open.modal-player {
     height: 50vh;
     border: none;
 }
+.light .player .iframe {
+    background-color: #000;;
+}
 .iframe-intercept {
     position: absolute;
     top: 0;

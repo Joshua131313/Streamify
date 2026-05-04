@@ -55,7 +55,7 @@
 
 .search-history-item:hover,
 .search-history-item.highlighted {
-  background: var(--bg-surface);
+  background: var(--bg-transparent);
 }
 
 .delete-search, .search-icon {
@@ -75,7 +75,9 @@
 }
 .delete-search:hover {
   background-color: var(--accent-primary);
-
+}
+.light .delete-search:hover {
+  color: var(--white);
 }
 .search-item-content {
   width: 100%;
