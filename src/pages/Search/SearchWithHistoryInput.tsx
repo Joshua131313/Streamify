@@ -108,6 +108,7 @@ export const SearchWithHistory = ({ value, onChange, onSearch }: Props) => {
                                 e.preventDefault();
                                 handleSearch(item.searchValue);
                             }}
+                            onMouseOver={() => setHighlighted(index)}
                         >
                             <div className="search-icon">
                                 <FaSearch />

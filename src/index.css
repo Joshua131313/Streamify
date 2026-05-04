@@ -61,7 +61,7 @@ html, body {
   /* Scrollbar */
   --scrollbar-bg: var(--bg-secondary);
   --scrollbar-thumb: var(--accent-primary);
-
+  --white: #fff;
 
   /* Fonts */
   --font-xxs: 0.65rem;

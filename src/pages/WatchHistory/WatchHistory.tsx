@@ -7,7 +7,7 @@ import { useWatchHistoryContext } from "../../context/WatchHistoryContext";
 const WatchHistory = () => {
 
     const { historyMedia } = useWatchHistoryContext();
-
+    console.log(historyMedia)
     return (
         <div className="saved-media-page">
             <PageHeader
@@ -22,7 +22,7 @@ const WatchHistory = () => {
             <Container className="media-grid">
                 {
                     // develop custom card for continue watching, clicking will play automatiocally rather than go to the page
-                    historyMedia.map(m => (
+                    historyMedia.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()).map(m => (
                         <MediaCard key={m.id} media={m} />
                     ))
                 }
