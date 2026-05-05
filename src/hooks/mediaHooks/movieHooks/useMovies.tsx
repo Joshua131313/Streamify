@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react"
 import type { TMDBRawMovie } from "../../../types/TMDBMovieType";
-import axios from "axios";
 import type { TStreamProviders, TStreamCategories } from "../../../types/tmdb";
-import { getTMDBEndpointByCategory } from "../../../utils/helpers";
 
 interface Props {
     category?: TStreamCategories;

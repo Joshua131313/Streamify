@@ -101,6 +101,7 @@ export const completeOnboarding = async () => {
         onboardingComplete: true
     })
 }
+
 export const addFavoriteGenres = async (genreIds: string[]) => {
     const user = auth.currentUser;
 

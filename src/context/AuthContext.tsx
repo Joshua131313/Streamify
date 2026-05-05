@@ -17,7 +17,7 @@ import { auth, db } from "../firebase/firebase";
 import { createUserDocument } from "../firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { Loader } from "../components/ui/Loader/Loader";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, FieldValue, getDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 
 type User = {
     email?: string | null;
@@ -26,12 +26,32 @@ type User = {
     uid?: string;
 } | null;
 
+export type UserData = {
+    createdAt: FieldValue;
+    email: string;
+    favoriteGenres: string[];
+    firstName: string;
+    lastName: string;
+    onboardingComplete: boolean;
+    updatedAt: FieldValue;
+    userId: string;
+}
+const emptyUserData = {
+    createdAt: serverTimestamp(),
+    email: "",
+    favoriteGenres: [],
+    firstName: "",
+    lastName: "",
+    onboardingComplete: true,
+    updatedAt: serverTimestamp(),
+    userId: ""
+}
 export type ProviderType = "google" | "facebook";
 
 interface AuthContextType {
     user: User;
     loading: boolean;
-    userData: any;
+    userData: UserData;
     loginWithProvider: (provider: ProviderType) => Promise<void>;
     loginWithEmail: (email: string, password: string) => Promise<void>;
 
@@ -50,7 +70,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<User>(null);
-    const [userData, setUserData] = useState<any>(null);
+    const [userData, setUserData] = useState<UserData>(emptyUserData);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
     const [showLoader, setShowLoader] = useState(true);
@@ -162,7 +182,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-            if(!firebaseUser) {
+            if (!firebaseUser) {
                 await signInAnonymously(auth);
                 return;
             }
@@ -178,11 +198,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 const snap = await getDoc(userRef);
 
                 if (snap.exists()) {
-                    setUserData(snap.data());
+                    setUserData(snap.data() as UserData);
                 }
             } else {
                 setUser(null);
-                setUserData(null);
+                setUserData(emptyUserData);
             }
 
             setLoading(false);

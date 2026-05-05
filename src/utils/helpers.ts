@@ -1,10 +1,10 @@
 import { providers } from "../data/providers";
-import type { TMediaType, TStreamCategories, TStreamProviders } from "../types/tmdb";
+import type { TMediaType, TMediaTypeSelect, TStreamCategories, TStreamProviders } from "../types/tmdb";
 import type { TMDBVideo } from "../types/TMDBMediaType";
 import { uniqueNamesGenerator, adjectives, animals } from "unique-names-generator";
 
 export const getTMDBEndpointByCategory = (
-  type: TMediaType,
+  type: TMediaTypeSelect,
   category: TStreamCategories,
   genreId?: string,
   provider?: TStreamProviders | ""

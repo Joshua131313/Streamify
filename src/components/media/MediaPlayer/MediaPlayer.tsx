@@ -17,7 +17,6 @@ export const MediaPlayer = ({ modal = true }: { modal?: boolean }) => {
 
     const [streamProvider, setStreamProvider] =
         useState<MediaStreamProviders>("vidking");
-
     const hasInitializedRef = useRef(false);
 
     const lastEpisodeRef = useRef<string | null>(null);
@@ -58,18 +57,21 @@ export const MediaPlayer = ({ modal = true }: { modal?: boolean }) => {
             saveHistory({
                 mediaType: "movie",
                 mediaId: media.id,
+                genres: media.genres ?? [],
             });
             return;
         }
 
         const payload: {
             mediaType: "tv";
+            genres: {id: number, name: string}[];
             mediaId: number;
             season?: number;
             episode?: number;
         } = {
             mediaType: "tv",
             mediaId: media.id,
+            genres: media.genres ?? []
         };
 
         if (seasonParam) {
