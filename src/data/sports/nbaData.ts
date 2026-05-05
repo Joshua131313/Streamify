@@ -47,7 +47,7 @@ export const nbaStreams: SportStream[] = [
   {
     provider: "sportspass",
     buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
-      const tn = nbaTeamsMap[homeTeamAbbrev as keyof typeof nbaTeamsMap].teamName;
+      const tn = nbaTeamsMap[awayTeamAbbrev as keyof typeof nbaTeamsMap].teamName;
       const slug = getSlug(tn)
       return `https://sportspass.top/nba/${slug}.html`
     },
