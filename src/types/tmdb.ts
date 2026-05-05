@@ -2,11 +2,13 @@ import type { UseQueryResult } from "@tanstack/react-query";
 import type { TMDBMedia, TMDBRawMedia } from "./TMDBMediaType";
 import type { TMDB_IMAGE_SIZES } from "../data";
 
-export type TStreamCategories = "top_10" | "trending" | "top_rated" | "by_genre" | "provider" ;
+export type TStreamCategories = "top_10" | "trending" | "top_rated" | "by_genre" | "provider" | "for_you";
 
 export type TStreamProviders = "netflix" | "prime" | "max" | "disney" | "appletv" | "paramount"
 
 export type TMediaType = "movie" | "tv"| "person";
+
+export type TMediaTypeSelect = "movie" | "tv" | "all";
 
 export type TRailVariant = "normal" | "top10"
 

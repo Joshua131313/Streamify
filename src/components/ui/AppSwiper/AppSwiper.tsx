@@ -2,8 +2,8 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation } from "swiper/modules";
 import { useRef } from "react";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
-import "../../media/MediaRail/MediaRail.css"
 export type TSwiperVariant = "normal" | "top10"
+import "./AppSwiper.css"
 
 interface AppSwiperProps<T> {
     items: T[];
@@ -27,13 +27,16 @@ export const AppSwiper = <T,>({
 
     return (
         <div className="swiper-container">
-            <div ref={prevRef} className="prev-button swiper-nav-button">
+            {/* <div ref={prevRef} className="prev-button swiper-nav-button">
                 <FaChevronLeft />
             </div>
             <div ref={nextRef} className="next-button swiper-nav-button">
                 <FaChevronRight />
+            </div> */}
+            <div className="swiper-controls">
+                <div ref={prevRef}><FaChevronLeft /></div>
+                <div ref={nextRef}><FaChevronRight /></div>
             </div>
-
             <Swiper
                 className={`media-swiper ${variant === "top10" ? "top-10-media-swiper" : ""}`}
                 slidesPerView={"auto"}
@@ -57,6 +60,7 @@ export const AppSwiper = <T,>({
                         </SwiperSlide>
                     ))}
             </Swiper>
+
         </div>
     );
 };

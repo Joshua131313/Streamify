@@ -1,13 +1,13 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import type { TLabelValue, TMediaType, TStreamCategories, TStreamProviders } from "../../../types/tmdb";
+import type { TLabelValue, TMediaType, TMediaTypeSelect, TStreamCategories, TStreamProviders } from "../../../types/tmdb";
 import type { TSwiperVariant } from "../../ui/AppSwiper/AppSwiper";
 
 type MediaRailState = {
     title: string;
     category: TStreamCategories;
     variant: TSwiperVariant;
-    mediaType: TMediaType;
-    setMediaType: (mediaType: TMediaType) => void;
+    mediaType: TMediaTypeSelect;
+    setMediaType: (mediaType: TMediaTypeSelect) => void;
     activeTab: TLabelValue | null;
     setActiveTab: (tab : TLabelValue) => void;
     genre?: string;
@@ -27,12 +27,12 @@ export const MediaRailProvider = ({
 } : { 
     category: TStreamCategories, 
     variant: TSwiperVariant,
-    mediaType: TMediaType, 
+    mediaType: TMediaTypeSelect, 
     title: string;
     children: React.ReactNode
 }) => {
     const [activeTab, setActiveTab] = useState<TLabelValue | null>(null);
-    const [type, setType] = useState<TMediaType>("movie");
+    const [type, setType] = useState<TMediaTypeSelect>("movie");
     const [genre, setGenre] = useState<string>("35");
     const [provider, setProvider] = useState<TStreamProviders>("netflix")
     
@@ -52,7 +52,8 @@ export const MediaRailProvider = ({
             case "top_10":
             case "trending":
             case "top_rated":
-                setType(activeTab.value as TMediaType);
+            case "for_you":
+                setType(activeTab.value as TMediaTypeSelect);
                 break;
             default: 
 

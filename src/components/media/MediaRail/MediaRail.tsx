@@ -1,5 +1,5 @@
 import React from "react";
-import type { TMediaType, TStreamCategories } from "../../../types/tmdb";
+import type { TMediaType, TMediaTypeSelect, TStreamCategories } from "../../../types/tmdb";
 import type { TSwiperVariant } from "../../ui/AppSwiper/AppSwiper";
 import { MediaRailProvider } from "./MediaRailContext";
 import { MediaRailHeader } from "./MediaRailHeader";
@@ -8,7 +8,7 @@ import { MediaRailSwiper } from "./MediaRailSwiper";
 interface Props {
     title: string;
     category: TStreamCategories;
-    mediaType: TMediaType;
+    mediaType: TMediaTypeSelect;
     variant?: TSwiperVariant;
 }
 

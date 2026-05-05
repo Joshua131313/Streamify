@@ -6,6 +6,7 @@ import {
     useState,
     type ReactNode,
 } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import {
     collection,
@@ -33,6 +34,7 @@ import type { TMediaType } from "../types/tmdb";
 export type WatchHistoryItem = {
     mediaType: "movie" | "tv";
     mediaId: number;
+    genreIds: number[];
     season?: number;
     episode?: number;
     updatedAt: Date;
@@ -53,6 +55,7 @@ type ContextType = {
     loadMore: () => Promise<void>;
     saveHistory: (entry: {
         mediaType: "movie" | "tv";
+        genres: {id: number, name: string}[];
         mediaId: number;
         season?: number;
         episode?: number;
@@ -106,6 +109,7 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
             return {
                 firebaseId: docSnap.id,
                 mediaType: d.mediaType,
+                genreIds: d?.genreIds ?? [],
                 mediaId: d.mediaId,
                 season: d.season ? Number(d.season) : undefined,
                 episode: d.episode ? Number(d.episode) : undefined,
@@ -138,6 +142,7 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
             return {
                 firebaseId: docSnap.id,
                 mediaType: d.mediaType,
+                genreIds: d?.genreIds ?? [],
                 mediaId: d.mediaId,
                 season: d.season ? Number(d.season) : undefined,
                 episode: d.episode ? Number(d.episode) : undefined,
@@ -202,6 +207,7 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
 
     const saveHistory = async (entry: {
         mediaType: "movie" | "tv";
+        genres: {id: number, name: string}[];
         mediaId: number;
         season?: number;
         episode?: number;
@@ -210,6 +216,7 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
 
         const payload: any = {
             mediaType: entry.mediaType,
+            genreIds: entry.genres.map(genre => genre.id), 
             mediaId: entry.mediaId,
             updatedAt: now,
         };
@@ -383,6 +390,7 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
                 firebaseId: docSnap.id,
                 mediaType: d.mediaType,
                 mediaId: d.mediaId,
+                genreIds: d?.genreIds ?? [],
                 season: d.season ? Number(d.season) : undefined,
                 episode: d.episode ? Number(d.episode) : undefined,
                 updatedAt: (d.updatedAt as Timestamp).toDate(),

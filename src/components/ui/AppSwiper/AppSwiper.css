@@ -1,0 +1,78 @@
+.swiper-select {
+    display: none;
+}
+.swiper-nav-button {
+    position: absolute;
+    left: 0;
+    width: 40px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    background-color: #00000070;
+    font-size: var(--font-xl);
+    cursor: pointer;
+    transition: all 0.3s;
+    opacity: 0;
+}
+.swiper-container {
+    display: flex;
+    flex-direction: column-reverse;
+}
+.swiper-container:hover  .swiper-nav-button {
+    opacity: 1;
+}
+.swiper-controls {
+    display: flex;
+    gap: 3px;
+    background-color: var(--bg-alt);
+    margin-top: 10px;
+    border-radius: 5px;
+    overflow-y: hidden;
+    align-self: flex-end;
+}
+.swiper-controls div {
+    background-color: var(--bg-transparent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 5px;
+    cursor: pointer;
+}
+.swiper-controls div:hover {
+    background-color: var(--bg-white);
+}
+.swiper-controls .swiper-button-disabled:hover {
+    background-color: var(--bg-transparent);
+}
+.swiper-controls .swiper-button-lock{
+    display: none;
+}
+.swiper-controls .swiper-button-disabled {
+    filter: brightness(50%);
+    cursor: initial;
+}
+.swiper-controls .swiper-button-disabled:active {
+    transform: initial;
+}
+.swiper-controls div:active {
+    transform: scale(0.95);
+}
+.swiper-container .swiper-button-disabled {
+}
+.swiper-nav-button:hover {
+    background-color: #0000008e;
+}
+.swiper-container .next-button {
+    right: 0;
+    left: initial;
+}
+.swiper-button-prev {
+    left: 10px;
+    right: initial;
+    transform: translateY(-50%) scale(1.5);
+}
+.swiper-button-prev svg {
+    transform: rotate(180deg);
+}

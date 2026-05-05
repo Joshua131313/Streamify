@@ -8,16 +8,15 @@ const MOVIE_TV_TABS = [
 ] 
 export const getCategoryTabs = (category : TStreamCategories) : TLabelValue[] => {
     switch(category) {
-        case "top_10":
-        return MOVIE_TV_TABS;
-        case "trending": 
-        return MOVIE_TV_TABS;
         case "provider":
             return providers.map(p => ({
                 label: p.name,
                 value: p.provider
             }))
+        case "top_10":
+        case "trending": 
         case "top_rated":
+        case "for_you":
             return MOVIE_TV_TABS;
         case "by_genre":
             return getMainGenres("movie");
