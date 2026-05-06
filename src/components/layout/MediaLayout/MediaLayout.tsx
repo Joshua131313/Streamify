@@ -14,6 +14,7 @@ import { Loader } from "../../ui/Loader/Loader";
 import { Crew } from "../../media/Credits/Crew";
 import { Cast } from "../../media/Credits/Cast";
 import { SEO } from "../../SEO";
+import { RelatedMedia } from "../../media/RelatedMedia/RelatedMedia";
 
 interface Props {
     media: TMDBMedia;
@@ -46,17 +47,22 @@ export const MediaLayout = ({ media, isLoading, error, mediaType, containerId, c
                 <div className="media-layout-content">
                     {children}
                 </div>
-                <Crew
-                    crew={media.credits?.crew}
-                />
-                <Cast
-                    cast={media.credits?.cast}
+                <RelatedMedia 
+                    mediaId={media.id}
+                    mediaType={media.mediaType}
                 />
                 <RecommendationMedia
                     mediaType={mediaType}
                     mediaId={media.id}
                     genre={media?.genres?.[0]?.id ?? 0}
                 />
+                <Crew
+                    crew={media.credits?.crew}
+                />
+                <Cast
+                    cast={media.credits?.cast}
+                />
+
             </div>
         </MediaLayoutProvider>
     )
