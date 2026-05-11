@@ -40,7 +40,7 @@ export const AppSwiper = <T,>({
             <Swiper
                 className={`media-swiper ${variant === "top10" ? "top-10-media-swiper" : ""}`}
                 slidesPerView={"auto"}
-                spaceBetween={variant === "top10" ? 100 : 10}
+                spaceBetween={10}
                 navigation
                 modules={[Navigation]}
                 onBeforeInit={(swiper) => {

@@ -10,7 +10,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    background-color: var(--bg-transparent);
+    background-color: var(--bg-surface);
     border: solid 1px var(--border-white);
     cursor: pointer;
     z-index: 2;
@@ -20,7 +20,8 @@
     -webkit-backdrop-filter: blur(12px);
 }
 .app-icon:hover {
-    background-color: var(--bg-white);
+    border: solid 1px var(--accent-primary-light);
+    color: var(--accent-primary-light);
 }
 
 /* @media (max-width: 700px) {

@@ -1,87 +1,59 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import type { TLabelValue, TMediaType, TMediaTypeSelect, TStreamCategories, TStreamProviders } from "../../../types/tmdb";
-import type { TSwiperVariant } from "../../ui/AppSwiper/AppSwiper";
+// MediaRailContext.tsx
+
+import {
+    createContext,
+    useContext,
+    useState
+} from "react";
+
+import type { TMediaTypeSelect } from "../../../types/tmdb";
 
 type MediaRailState = {
-    title: string;
-    category: TStreamCategories;
-    variant: TSwiperVariant;
     mediaType: TMediaTypeSelect;
     setMediaType: (mediaType: TMediaTypeSelect) => void;
-    activeTab: TLabelValue | null;
-    setActiveTab: (tab : TLabelValue) => void;
-    genre?: string;
-    setGenre: (genre: string) => void;
-    provider?: TStreamProviders | "";
-    setProvider: (provider : TStreamProviders) => void;
-}
+
+    selectedValue?: string;
+    setSelectedValue: (value: string) => void;
+};
 
 const MediaRailContext = createContext<MediaRailState | null>(null);
 
 export const MediaRailProvider = ({
-    category, 
-    variant,
-    mediaType, 
-    title, 
-    children 
-} : { 
-    category: TStreamCategories, 
-    variant: TSwiperVariant,
-    mediaType: TMediaTypeSelect, 
-    title: string;
-    children: React.ReactNode
+    children,
+    defaultSelect
+}: {
+    children: React.ReactNode;
+    defaultSelect?: string;
 }) => {
-    const [activeTab, setActiveTab] = useState<TLabelValue | null>(null);
-    const [type, setType] = useState<TMediaTypeSelect>("movie");
-    const [genre, setGenre] = useState<string>("35");
-    const [provider, setProvider] = useState<TStreamProviders>("netflix")
-    
-    useEffect(()=> {
-        setType(mediaType);
-    }, [mediaType]);
+    const [mediaType, setMediaType] =
+        useState<TMediaTypeSelect>("movie");
 
-    useEffect(() => {
-        if(!activeTab) return;
-        switch(category) {
-            case "by_genre":
-                setGenre(activeTab.value);
-                break;
-            case "provider":
-                setProvider(activeTab.value as TStreamProviders);
-                break;
-            case "top_10":
-            case "trending":
-            case "top_rated":
-            case "for_you":
-                setType(activeTab.value as TMediaTypeSelect);
-                break;
-            default: 
-
-        }
-    }, [activeTab, category])
+    const [selectedValue, setSelectedValue] =
+        useState(defaultSelect);
 
     return (
-        <MediaRailContext.Provider 
-            value={{ 
-                category, 
-                variant,
-                title,
-                mediaType: type, 
-                setMediaType: setType,
-                genre,
-                setGenre,
-                provider,
-                setProvider,
-                activeTab, 
-                setActiveTab
-            }}>
+        <MediaRailContext.Provider
+            value={{
+                mediaType,
+                setMediaType,
+
+                selectedValue,
+                setSelectedValue
+            }}
+        >
             {children}
         </MediaRailContext.Provider>
-    )
-}
+    );
+};
 
 export const useMediaRail = () => {
     const ctx = useContext(MediaRailContext);
-    if(!ctx) throw new Error("useMediaRail must be used inside MediaRailProvider");
+
+    if (!ctx) {
+        throw new Error(
+            "useMediaRail must be used inside MediaRailProvider"
+        );
+    }
+
     return ctx;
-}
+};

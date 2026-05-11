@@ -7,7 +7,6 @@ import { useWatchHistoryContext } from "../../context/WatchHistoryContext";
 const WatchHistory = () => {
 
     const { historyMedia } = useWatchHistoryContext();
-    console.log(historyMedia)
     return (
         <div className="saved-media-page">
             <PageHeader

@@ -2,6 +2,9 @@
     width: 4px;
     background-color: var(--accent-primary);
     align-self: stretch;
-    margin-right: 10px;
     border-radius: calc(var(--border-radius) * 2);
+    height: 30px;
+    margin-top: auto;
+    margin-bottom: auto;
+    margin-right: 10px;
 }
