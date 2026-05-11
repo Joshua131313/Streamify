@@ -16,7 +16,7 @@ html, body {
 
 @media(max-width: 1400px) {
     .layout-container {
-        margin: 0 50px;
+        margin: 0 20px;
     }
 }
 
@@ -35,7 +35,7 @@ html, body {
       /* Text */
       --text-primary: #F5F5F5;
       --text-body: #C7C7C7;
-      --text-muted: #49494a;
+      --text-muted: #8a94a6;
       --badge-bg: rgba(255, 255, 255, 0.2);
       /* Inputs */
       --border: #35383F;
@@ -43,6 +43,7 @@ html, body {
       --input-bg: var(--bg-primary);
   /* Accents */
   --accent-primary: #D81F26;
+  --accent-primary-light: #f87171;
   --accent-hover: #FF2D36;
   --accent-subtle: #8A1119;
   /* UI Helpers */
@@ -78,8 +79,8 @@ html, body {
   --container-padding: 4rem;
 
   --max-container-width: 1400px;
-  --border-radius: 40px;
-  --border-radius-small: 20px;
+  --border-radius: 30px;
+  --border-radius-small: 10px;
 }
 body {
   overflow: hidden;

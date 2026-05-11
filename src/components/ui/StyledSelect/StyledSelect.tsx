@@ -16,7 +16,8 @@ const styles = {
     "&:hover": {
       borderColor: "var(--border)",
     },
-    zIndex: 100
+    zIndex: 100,
+    cursor: "pointer"
   }),
 
   menu: (base: any) => ({

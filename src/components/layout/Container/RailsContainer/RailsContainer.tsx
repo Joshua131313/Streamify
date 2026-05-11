@@ -1,64 +1,130 @@
-import { useWatchHistoryContext } from "../../../../context/WatchHistoryContext"
-import MediaRail from "../../../media/MediaRail/MediaRail"
-import { AppSwiper } from "../../../ui/AppSwiper/AppSwiper"
-import { ContinueWatchingCard } from "../../../ui/MediaCard/ContinueWatchingCard"
-import { SwiperSkeletonCard } from "../../../ui/MediaCard/SkeletonCards/MediaSkeletonCard"
-import { Title } from "../../../ui/Title/Title"
-import "./RailsContainer.css"
+import { useWatchHistoryContext } from "../../../../context/WatchHistoryContext";
+
+import MediaRail from "../../../media/MediaRail/MediaRail";
+
+import { AppSwiper } from "../../../ui/AppSwiper/AppSwiper";
+
+import { ContinueWatchingCard }
+from "../../../ui/MediaCard/ContinueWatchingCard";
+
+import { SwiperSkeletonCard }
+from "../../../ui/MediaCard/SkeletonCards/MediaSkeletonCard";
+
+import { Title } from "../../../ui/Title/Title";
+
+import { providers }
+from "../../../../data/providers";
+
+import { getMainGenres }
+from "../../../../data/TMDBGenres";
+
+import "./RailsContainer.css";
 
 export const RailsContainer = () => {
 
-    const { historyMedia } = useWatchHistoryContext();
+    const { historyMedia } =
+        useWatchHistoryContext();
 
     return (
         <div className="rails-container app-container flex-col">
+
             {
-                historyMedia.length > 0 &&
-                <div className="continue-watching-container">
-                    <Title title="Continue watching" />
-                    <AppSwiper
-                        items={historyMedia}
-                        isLoading={false}
-                        skeleton={<SwiperSkeletonCard />}
-                        variant={"normal"}
-                        itemKey={(item) => String(item.id)}
-                        renderItem={(m, i) =>
-                            <ContinueWatchingCard media={m} />
-                        }
-                    />
-                </div>
+                historyMedia.length > 0 && (
+                    <div className="continue-watching-container">
+
+                        <Title title="Continue watching" />
+
+                        <AppSwiper
+                            items={historyMedia}
+                            isLoading={false}
+                            skeleton={<SwiperSkeletonCard />}
+                            variant="normal"
+                            itemKey={(item) => String(item.id)}
+                            renderItem={(m) => (
+                                <ContinueWatchingCard media={m} />
+                            )}
+                        />
+
+                    </div>
+                )
             }
+
             <MediaRail
-                title="Top 10"
+                title="TOP 10 Today"
+
                 variant="top10"
-                category="top_10"
-                mediaType="movie"
+
+                buildQuery={() => ({
+                    category: "top_10"
+                })}
             />
+
             <MediaRail
-                category="for_you"
-                mediaType="movie"
                 title="For you"
+
+                showMediaTabs
+
+                buildQuery={() => ({
+                    category: "for_you"
+                })}
             />
+
             <MediaRail
-                category="trending"
-                mediaType="movie"
                 title="Trending Today"
+
+                showMediaTabs
+
+                buildQuery={() => ({
+                    category: "trending"
+                })}
             />
+
             <MediaRail
-                category="provider"
-                mediaType="movie"
-                title="Movies on"
+                title="Only on"
+
+                showMediaTabs
+
+                selectOptions={
+                    providers.map((p) => ({
+                        label: p.name,
+                        value: p.provider
+                    }))
+                }
+
+                defaultSelect="netflix"
+
+                buildQuery={({ selectedValue }) => ({
+                    category: "provider",
+                    provider: selectedValue as any
+                })}
             />
+
             <MediaRail
-                category="top_rated"
-                mediaType="movie"
                 title="Top rated"
+
+                showMediaTabs
+
+                buildQuery={() => ({
+                    category: "top_rated"
+                })}
             />
+
             <MediaRail
-                category="by_genre"
-                mediaType="movie"
-                title="Genres"
+                title=""
+                
+                className="genres-rail"
+                showMediaTabs
+
+                selectOptions={getMainGenres("movie")}
+
+                defaultSelect="16"
+
+                buildQuery={({ selectedValue }) => ({
+                    category: "by_genre",
+                    genreId: selectedValue
+                })}
             />
+
         </div>
-    )
-}
+    );
+};

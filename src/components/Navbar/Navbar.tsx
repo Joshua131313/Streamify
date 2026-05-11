@@ -10,6 +10,7 @@ import { AppNavLink } from "./AppNavLink"
 import { BsBookmarkFill } from "react-icons/bs"
 import { UserIcon } from "../ui/User/UserIcon"
 import { useEffect, useState } from "react"
+import { HiHome } from "react-icons/hi2"
 
 export interface Link {
     path: string,
@@ -22,7 +23,7 @@ export interface Link {
 export const navLinks: Link[] = [
     {
         path: "/",
-        icon: FaHouse,
+        icon: HiHome,
         label: "Discover",
     },
     {

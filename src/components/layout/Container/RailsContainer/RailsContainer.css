@@ -7,3 +7,6 @@
     flex-direction: column;
     gap: 20px;
 }
+.genres-rail .styled-select__control {
+    left: -10px;
+}

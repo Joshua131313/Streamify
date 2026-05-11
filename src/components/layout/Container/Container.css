@@ -25,6 +25,10 @@
 .container-title {
     display: flex;
 }
+.is-mobile .media-grid .container-content {
+    grid-template-columns: repeat(auto-fit, minmax(var(--media-card-width-v), 1fr));
+
+}
 .media-grid .container-content {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(var(--media-card-width), 1fr));
@@ -50,7 +54,7 @@
 }
 @media(max-width: 1400px) {
     :root {
-        --layout-padding-horizontal: 50px;
+        --layout-padding-horizontal: 20px;
     }
     .episodes-title.app-container {
         padding: 0;

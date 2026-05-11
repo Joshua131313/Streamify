@@ -103,7 +103,7 @@ export type TMDBShowMedia = TMDBMediaBase & {
   origin_country?: string[];
   original_name?: string;
   first_air_date?: string;
-
+  
   created_by?: {
     id: number;
     credit_id: string;

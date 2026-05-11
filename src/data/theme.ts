@@ -10,9 +10,9 @@ export const darkThemeColors = {
 
     "--text-primary": "#F5F5F5",
     "--text-body": "#C7C7C7",
-    "--text-muted": "#49494a",
+    "--text-muted": "#8a94a6",
     "--badge-bg": "rgba(255, 255, 255, 0.2)",
-    "--border": "#35383F",
+    "--border": "#1d2430",
     "--border-white": "hsla(0,0%,100%,.2)",
 };
 
@@ -28,7 +28,7 @@ export const lightThemeColors = {
 
     "--text-primary": "#0B0D10",
     "--text-body": "#3A3D45",
-    "--text-muted": "#6B7280",
+    "--text-muted": "#8a94a6",
     "--badge-bg": "rgba(0, 0, 0, 0.08)",
     "--border": "#D1D5DB",
     "--border-white": "hsla(0,0%,0%,.1)",
