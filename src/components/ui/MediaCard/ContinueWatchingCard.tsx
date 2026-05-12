@@ -6,6 +6,7 @@ import { TMDBImg } from "../ImgProxy/TMDBImg";
 import { Icon } from "../Icon/Icon";
 import { usePlayUrl } from "../../../hooks/mediaHooks/usePlayUrl";
 import { MediaCardInfo } from "./MediaCardInfo";
+import { useApp } from "../../../context/AppContext";
 
 interface Props {
     media: TMDBMedia;
@@ -18,11 +19,13 @@ export const ContinueWatchingCard = (props: Props) => {
 
     const { url, season, episode } = usePlayUrl(media.id, media.mediaType);
 
+    const { isMobile } = useApp();
+
     return (
-        <Link to={url} className={`media-card continue-watching-card ${className}`}>
-            <div>
-                <TMDBImg type="backdrop" size="w780" path={media.backdrop_path ?? ""} />
-            <Icon Icon={FaPlay} />
+        <Link to={url} className={`${isMobile ? "mobile-media-card" : ""} media-card continue-watching-card ${className}`}>
+            <div className="media-card-content">
+                <TMDBImg type="backdrop" size="w780" path={isMobile ? media.poster_path : media.backdrop_path ?? ""} />
+                <Icon Icon={FaPlay} />
             </div>
             {
                 media.mediaType === "tv" &&
