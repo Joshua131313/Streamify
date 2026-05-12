@@ -33,7 +33,10 @@
     border: solid 1px var(--border-white);
     color: var(--text-primary);
 }
-
+.button.secondary:hover {
+    border: solid 1px var(--accent-primary-light);
+    color: var(--accent-primary-light);
+}
 .button.espn {
     background-color: var(--espn-red);
     min-width: 0;

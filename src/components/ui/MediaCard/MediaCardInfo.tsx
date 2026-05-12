@@ -66,7 +66,10 @@ export const MediaCardInfo = (props: Props) => {
 
             <div className="media-details">
 
-                <FaStar />
+                <span className="rating">
+                    <FaStar />
+                    {media.vote_average}
+                </span>
 
                 {
                     yearLabel && (
