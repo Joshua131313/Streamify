@@ -31,26 +31,10 @@ export const MediaCardInfo = (props: Props) => {
     const startYear =
         startDate?.split("-")[0];
 
-    const endYear =
-        showMedia.last_air_date?.split("-")[0];
-
     const yearLabel = (() => {
 
         if (!isShow) {
             return startYear;
-        }
-
-        if (showMedia.in_production) {
-            return `${startYear} - Present`;
-        }
-
-        if (startYear && endYear) {
-
-            if (startYear === endYear) {
-                return startYear;
-            }
-
-            return `${startYear} - ${endYear}`;
         }
 
         return startYear;

@@ -20,6 +20,12 @@
     border-radius: var(--border-radius-small);
     height: var(--media-card-height-v);
 }
+.mobile-media-card .media-card-content {
+    height: var(--media-card-height-v);
+}
+.mobile-media-card .media-card-content img {
+    height: 100%;
+}
 .mobile-media-card:hover strong {
     color: var(--accent-primary);
 }
@@ -351,6 +357,16 @@
     font-size: var(--font-lg);
     width: 50px;
     height: 50px;
+}
+.continue-watching-card:hover .app-icon {
+    color: var(--accent-primary-light);
+    border: solid 1px var(--accent-primary-light);
+}
+.continue-watching-card.media-card .app-icon {
+    width: 50px;
+    height: 50px;
+    font-size: var(--font-lg
+    );
 }
 .media-card.continue-watching-card:hover img {
     transform: initial
