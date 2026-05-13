@@ -150,11 +150,10 @@ export const useMediaDiscover = ({
     params: { page },
     enabled: !!endpoint,
   });
-  console.log("end", endpoint)
 
   const normalized: TMDBMedia[] = useMemo(() => {
     const results = query.data?.results ?? [];
-    if(category === "for_you") console.log("res", query.data)
+
     return mediaType === "movie"
       ? (results as TMDBRawMovie[]).map(normalizeMovie)
       : (results as TMDBRawShow[]).map(normalizeShow);

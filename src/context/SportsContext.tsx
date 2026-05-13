@@ -141,7 +141,6 @@ export const SportsProvider = ({ children }: { children: React.ReactNode }) => {
 
     useEffect(() => {
         setFilters([]);
-        console.log(location.pathname)
     }, [location])
 
     return (

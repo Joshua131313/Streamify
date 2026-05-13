@@ -70,7 +70,6 @@ export const nhlStreams: SportStream[] = [
             const homeId = nhlTeamsMap[homeTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
             const awayId = nhlTeamsMap[awayTeamAbbrev as keyof typeof nhlTeamsMap]?.id;
             // return `https://embedsports.top/embed/admin/ppv-${awayId}-vs-${homeId}/1`;
-            console.log(homeTeamAbbrev)
             return `https://embedsports.me/nhl/${homeId}-vs-${awayId}-stream-1`;
         },
     },

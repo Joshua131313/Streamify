@@ -23,7 +23,6 @@ const MultiWatchContext = createContext<MultiWatchContextType | null>(null);
 export const MultiWatchProvider = ({ children }: { children: ReactNode }) => {
     const [multiWatch, setMultiWatch] = useState<GameProps[]>([]);
     const { append, remove, set, clear, get } = useLocalStorage();
-    console.log(multiWatch)
     const clearMultiWatch = () => {
         setMultiWatch([]);
         clear("multi-watch");

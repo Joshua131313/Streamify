@@ -44,7 +44,6 @@ useEffect(() => {
   });
 
   if (isMainRoute) {
-    console.log("current route", location.pathname);
 
     const search = location.search.includes("provider") ? "" : location.search;
 

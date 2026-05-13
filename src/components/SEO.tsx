@@ -6,7 +6,7 @@ type SEOProps = {
 };
 
 export const SEO = ({ title, description }: SEOProps) => {
-    console.log(title)
+
     return (
         <Helmet title={title === "Home" ? "Streamify" : title + " | Streamify"}>
             <meta name="google-site-verification" content="4Rc6hgYHHSh5JLWl_bc6YQFKJvv7_tOzXw7MH7ogtzU" />

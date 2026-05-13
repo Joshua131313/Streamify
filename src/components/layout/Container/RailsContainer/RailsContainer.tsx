@@ -7,7 +7,7 @@ import { AppSwiper } from "../../../ui/AppSwiper/AppSwiper";
 import { ContinueWatchingCard }
 from "../../../ui/MediaCard/ContinueWatchingCard";
 
-import { SwiperSkeletonCard }
+import { MediaSkeletonCard }
 from "../../../ui/MediaCard/SkeletonCards/MediaSkeletonCard";
 
 import { Title } from "../../../ui/Title/Title";
@@ -22,7 +22,7 @@ import "./RailsContainer.css";
 
 export const RailsContainer = () => {
 
-    const { historyMedia } =
+    const { historyMedia, isLoading } =
         useWatchHistoryContext();
 
     return (
@@ -36,8 +36,8 @@ export const RailsContainer = () => {
 
                         <AppSwiper
                             items={historyMedia}
-                            isLoading={false}
-                            skeleton={<SwiperSkeletonCard />}
+                            isLoading={isLoading}
+                            skeleton={<MediaSkeletonCard />}
                             variant="normal"
                             itemKey={(item) => String(item.id)}
                             renderItem={(m) => (

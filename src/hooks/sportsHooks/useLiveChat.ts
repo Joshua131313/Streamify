@@ -19,7 +19,6 @@ export const useLiveChat = ({ gameId }: Props): LiveChat => {
     const generatedName = getOrCreateGuestUsername();
 
     useEffect(() => {
-        console.log(",g",gameId)
         const q = query(
             collection(db, "live-chats", gameId, "messages"),
             orderBy("sentAt", "asc")
@@ -30,7 +29,6 @@ export const useLiveChat = ({ gameId }: Props): LiveChat => {
                 firebaseId: docSnap.id,
                 ...(docSnap.data() as LiveChatMessage),
             }));
-            console.log("d", data)
             setLiveChatMessages(data);
         });
 
@@ -38,7 +36,6 @@ export const useLiveChat = ({ gameId }: Props): LiveChat => {
     }, [gameId]);
 
     const sendMessage = async (message: string) => {
-        console.log("asd", message)
         if (!message.trim()) return;
 
         await addDoc(collection(db, "live-chats", gameId, "messages"), {

@@ -39,8 +39,6 @@ export const Login = () => {
 
         } catch (err: any) {
             const code = err.code;
-            console.log(err.code)
-            console.log(err.message)
             if (code === "auth/user-not-found") {
                 setEmailError("No account found with this email");
                 setPasswordError("");

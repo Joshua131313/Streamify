@@ -67,7 +67,6 @@ export const SportsPlayer = () => {
     };
 
     const cancelWatch = () => {
-        console.log("canl", lastMainRoute)
         navigate(lastMainRoute);
     };
 

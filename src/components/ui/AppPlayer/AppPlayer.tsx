@@ -97,7 +97,7 @@ export const AppPlayer = React.memo((props: Props) => {
 
             <div className="iframe">
                 <div className="iframe-intercept"></div>
-                <iframe onMouseMove={() => console.log("asd")}
+                <iframe
                     ref={iframeRef}
                     allow="encrypted-media; autoplay; fullscreen"
                     src={src}

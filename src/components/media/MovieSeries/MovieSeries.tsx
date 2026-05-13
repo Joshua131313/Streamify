@@ -6,6 +6,7 @@ import { Container } from "../../layout/Container/Container"
 import { MediaCard } from "../../ui/MediaCard/MediaCard";
 import { TMDBImg } from "../../ui/ImgProxy/TMDBImg";
 import "./MovieSeries.css"
+import { MediaSkeletonCard } from "../../ui/MediaCard/SkeletonCards/MediaSkeletonCard";
 
 interface Props {
     movieSeriesID: TMovieSeriesID;
@@ -13,11 +14,16 @@ interface Props {
 
 const MovieSeries = (props: Props) => {
     const { movieSeriesID } = props;
-    const { movies, seriesBackdropPath, seriesPosterPath } = useMovieCollection(movieSeriesID.id);
+    const { movies, seriesBackdropPath, seriesPosterPath, isLoading } = useMovieCollection(movieSeriesID.id);
     const moviesRow = movies.map(movie => {
-        return (
+       if(isLoading) {
+        return <MediaSkeletonCard />
+       }
+       else {
+         return (
             <MediaCard media={movie} key={movie.id} />
         )
+       }
     })
     return (
         <Container className="movie-series media-grid" title={movieSeriesID.name} backdropImg={movieSeriesID.backdrop}>

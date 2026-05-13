@@ -29,7 +29,6 @@ export const AppLayout = (props: Props) => {
         if(loading) return;
         if(!user || !userData) return;
         
-        console.log("userdata", userData)
         if(!userData.onboardingComplete) {
             setOpenOnboardingModel(true);
         }
