@@ -32,7 +32,7 @@ export const EpisodeSelector = () => {
           showSelector && (
             <div ref={panelRef} className="inner-episode-selector">
               <EpisodesControls />
-              <EpisodesList />
+              <EpisodesList onClose={() => setShowSelector(false)}/>
             </div>
           )}
         <NextEpisodeIcon />

@@ -55,7 +55,7 @@ type ContextType = {
     loadMore: () => Promise<void>;
     saveHistory: (entry: {
         mediaType: "movie" | "tv";
-        genres: {id: number, name: string}[];
+        genres: { id: number, name: string }[];
         mediaId: number;
         season?: number;
         episode?: number;
@@ -207,7 +207,7 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
 
     const saveHistory = async (entry: {
         mediaType: "movie" | "tv";
-        genres: {id: number, name: string}[];
+        genres: { id: number, name: string }[];
         mediaId: number;
         season?: number;
         episode?: number;
@@ -216,7 +216,7 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
 
         const payload: any = {
             mediaType: entry.mediaType,
-            genreIds: entry.genres.map(genre => genre.id), 
+            genreIds: entry.genres.map(genre => genre.id),
             mediaId: entry.mediaId,
             updatedAt: now,
         };
@@ -269,10 +269,54 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
                 const snapshot = await getDocs(q);
 
                 if (!snapshot.empty) {
-                    const firebaseId = snapshot.docs[0].id;
+
+                    const firebaseId =
+                        snapshot.docs[0].id;
+
+                    const existingData =
+                        snapshot.docs[0].data();
+
+                    const sameSeason =
+                        Number(existingData.season ?? 0) ===
+                        Number(entry.season ?? 0);
+
+                    const sameEpisode =
+                        Number(existingData.episode ?? 0) ===
+                        Number(entry.episode ?? 0);
+
+                    const sameMedia =
+                        existingData.mediaId === entry.mediaId;
+
+                    const sameType =
+                        existingData.mediaType === entry.mediaType;
+
+                    const sameGenres =
+                        JSON.stringify(existingData.genreIds ?? []) ===
+                        JSON.stringify(
+                            entry.genres.map(g => g.id)
+                        );
+
+                    // IMPORTANT:
+                    // If nothing actually changed,
+                    // do NOT update Firestore.
+                    if (
+                        sameSeason &&
+                        sameEpisode &&
+                        sameMedia &&
+                        sameType &&
+                        sameGenres
+                    ) {
+                        return;
+                    }
 
                     await updateDoc(
-                        doc(db, "users", uid, "watchHistory", firebaseId),
+                        doc(
+                            db,
+                            "users",
+                            uid,
+                            "watchHistory",
+                            firebaseId
+                        ),
                         {
                             ...payload,
                             updatedAt: Timestamp.fromDate(now),
@@ -283,14 +327,22 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
                         ...payload,
                         firebaseId,
                     });
+
                 } else {
-                    const docRef = await addDoc(
-                        collection(db, "users", uid, "watchHistory"),
-                        {
-                            ...payload,
-                            updatedAt: Timestamp.fromDate(now),
-                        }
-                    );
+
+                    const docRef =
+                        await addDoc(
+                            collection(
+                                db,
+                                "users",
+                                uid,
+                                "watchHistory"
+                            ),
+                            {
+                                ...payload,
+                                updatedAt: Timestamp.fromDate(now),
+                            }
+                        );
 
                     updateLocalHistory({
                         ...payload,
@@ -301,34 +353,34 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
                 return;
             }
         };
-             const existing = get<any[]>("watch-history", []);
+        const existing = get<any[]>("watch-history", []);
 
-            const normalizedExisting = existing.map(item => ({
-                ...item,
-                updatedAt: normalizeDate(item.updatedAt),
-            }));
+        const normalizedExisting = existing.map(item => ({
+            ...item,
+            updatedAt: normalizeDate(item.updatedAt),
+        }));
 
-            const index = normalizedExisting.findIndex(
-                h => h.mediaId === entry.mediaId && h.mediaType === entry.mediaType
-            );
+        const index = normalizedExisting.findIndex(
+            h => h.mediaId === entry.mediaId && h.mediaType === entry.mediaType
+        );
 
-            let updated: WatchHistoryItem[];
+        let updated: WatchHistoryItem[];
 
-            if (index !== -1) {
-                updated = [...normalizedExisting];
-                updated[index] = payload;
-            } else {
-                updated = [payload, ...normalizedExisting];
-            }
+        if (index !== -1) {
+            updated = [...normalizedExisting];
+            updated[index] = payload;
+        } else {
+            updated = [payload, ...normalizedExisting];
+        }
 
-            updated.sort(
-                (a, b) =>
-                    b.updatedAt.getTime() - a.updatedAt.getTime()
-            );
+        updated.sort(
+            (a, b) =>
+                b.updatedAt.getTime() - a.updatedAt.getTime()
+        );
 
-            set("watch-history", updated);
-            historyRef.current = updated;
-            setHistory(updated);
+        set("watch-history", updated);
+        historyRef.current = updated;
+        setHistory(updated);
     }
 
     const removeHistory = async (mediaId: number, mediaType: "movie" | "tv") => {
