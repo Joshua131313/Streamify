@@ -1,0 +1,297 @@
+/*
+|--------------------------------------------------------------------------
+| SKELETON CARD
+|--------------------------------------------------------------------------
+*/
+
+.media-skeleton-card {
+    width: var(--media-card-width);
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 12px;
+
+    overflow: hidden;
+}
+
+/*
+|--------------------------------------------------------------------------
+| SHARED SHIMMER
+|--------------------------------------------------------------------------
+*/
+.skeleton-img,
+.skeleton-line,
+.skeleton-circle {
+    position: relative;
+
+    overflow: hidden;
+
+    background:
+        linear-gradient(
+            90deg,
+            rgba(255,255,255,0.04) 0%,
+            rgba(255,255,255,0.08) 50%,
+            rgba(255,255,255,0.04) 100%
+        );
+
+    background-size: 200% 100%;
+
+    animation:
+        skeleton-shimmer 1.8s infinite linear;
+
+    border-radius: var(--border-radius-small);
+}
+
+/*
+|--------------------------------------------------------------------------
+| IMAGE
+|--------------------------------------------------------------------------
+*/
+
+.skeleton-img {
+    width: 100%;
+
+    height: var(--media-card-height);
+
+    border-radius: var(--border-radius-small);
+}
+
+/*
+|--------------------------------------------------------------------------
+| CONTENT
+|--------------------------------------------------------------------------
+*/
+
+.skeleton-content {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 10px;
+
+    padding: 2px;
+}
+
+/*
+|--------------------------------------------------------------------------
+| TITLE
+|--------------------------------------------------------------------------
+*/
+
+.skeleton-title {
+    width: 75%;
+
+    height: 20px;
+
+    border-radius: 8px;
+}
+
+/*
+|--------------------------------------------------------------------------
+| DETAILS ROW
+|--------------------------------------------------------------------------
+*/
+
+.skeleton-details {
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+}
+
+.skeleton-small {
+    height: 14px;
+
+    border-radius: 999px;
+}
+
+.skeleton-rating {
+    width: 45px;
+}
+
+.skeleton-year {
+    width: 55px;
+}
+
+.skeleton-type {
+    width: 70px;
+}
+
+/*
+|--------------------------------------------------------------------------
+| SHIMMER OVERLAY
+|--------------------------------------------------------------------------
+*/
+
+.skeleton-img::before,
+.skeleton-line::before,
+.skeleton-circle::before {
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+    left: -100%;
+
+    width: 100%;
+    height: 100%;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(255,255,255,0.12),
+            transparent
+        );
+
+    animation:
+        skeleton-slide 1.8s infinite;
+}
+
+/*
+|--------------------------------------------------------------------------
+| MOBILE
+|--------------------------------------------------------------------------
+*/
+
+.mobile-media-card .skeleton-img {
+    height: var(--media-card-height-v);
+}
+
+/*
+|--------------------------------------------------------------------------
+| TOP 10 SKELETON
+|--------------------------------------------------------------------------
+*/
+
+.top-10-media-swiper .media-skeleton-card {
+    width: var(--media-card-width-v);
+}
+
+/*
+|--------------------------------------------------------------------------
+| FORCE VERTICAL IMAGE
+|--------------------------------------------------------------------------
+*/
+
+.top-10-media-swiper .media-skeleton-card .skeleton-img {
+    height: var(--media-card-height-v);
+}
+
+/*
+|--------------------------------------------------------------------------
+| TITLE
+|--------------------------------------------------------------------------
+*/
+
+.top-10-media-swiper .media-skeleton-card .skeleton-title {
+    width: 92%;
+
+    height: 24px;
+}
+
+/*
+|--------------------------------------------------------------------------
+| DETAILS
+|--------------------------------------------------------------------------
+*/
+
+.top-10-media-swiper .media-skeleton-card .skeleton-details {
+    gap: 8px;
+}
+
+.top-10-media-swiper .media-skeleton-card .skeleton-small {
+    height: 14px;
+}
+
+.top-10-media-swiper .media-skeleton-card .skeleton-rating {
+    width: 40px;
+}
+
+.top-10-media-swiper .media-skeleton-card .skeleton-year {
+    width: 52px;
+}
+
+.top-10-media-swiper .media-skeleton-card .skeleton-type {
+    width: 65px;
+}
+
+/*
+|--------------------------------------------------------------------------
+| MOBILE BODY CLASS
+|--------------------------------------------------------------------------
+*/
+
+body.is-mobile .media-skeleton-card {
+    width: var(--media-card-width-v);
+}
+
+/*
+|--------------------------------------------------------------------------
+| MOBILE IMAGE HEIGHT
+|--------------------------------------------------------------------------
+*/
+
+body.is-mobile .media-skeleton-card .skeleton-img {
+    height: var(--media-card-height-v);
+}
+
+/*
+|--------------------------------------------------------------------------
+| MOBILE CONTENT
+|--------------------------------------------------------------------------
+*/
+
+body.is-mobile .media-skeleton-card .skeleton-title {
+    width: 88%;
+
+    height: 20px;
+}
+
+body.is-mobile .media-skeleton-card .skeleton-small {
+    height: 13px;
+}
+
+/*
+|--------------------------------------------------------------------------
+| MOBILE + TOP10
+|--------------------------------------------------------------------------
+*/
+
+body.is-mobile .top-10-media-swiper .media-skeleton-card {
+    width: var(--media-card-width-v);
+}
+
+body.is-mobile .top-10-media-swiper .media-skeleton-card .skeleton-img {
+    height: var(--media-card-height-v);
+}
+
+/*
+|--------------------------------------------------------------------------
+| ANIMATIONS
+|--------------------------------------------------------------------------
+*/
+
+@keyframes skeleton-shimmer {
+
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+@keyframes skeleton-slide {
+
+    0% {
+        left: -100%;
+    }
+
+    100% {
+        left: 100%;
+    }
+}

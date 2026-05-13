@@ -7,7 +7,7 @@ export const Logo = () => {
     return (
         <Link to={"/"}  className="logo">
             <AppImg 
-                src="/logo/streamify-logo.png"
+                src="/logo/logo.png"
             />
             {/* Streamify */}
         </Link>

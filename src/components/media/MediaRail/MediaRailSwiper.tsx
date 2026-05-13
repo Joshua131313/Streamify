@@ -9,7 +9,7 @@ import { AppSwiper } from "../../ui/AppSwiper/AppSwiper";
 import { MediaCard } from "../../ui/MediaCard/MediaCard";
 import { Top10MediaCard } from "../../ui/MediaCard/Top10MediaCard";
 
-import { SwiperSkeletonCard }
+import { MediaSkeletonCard }
 from "../../ui/MediaCard/SkeletonCards/MediaSkeletonCard";
 
 import type { TSwiperVariant }
@@ -60,7 +60,7 @@ export const MediaRailSwiper = ({
         <AppSwiper
             items={media}
             isLoading={isLoading}
-            skeleton={<SwiperSkeletonCard />}
+            skeleton={<MediaSkeletonCard />}
             variant={variant}
             itemKey={(item) => String(item.id)}
             renderItem={(m, i) =>

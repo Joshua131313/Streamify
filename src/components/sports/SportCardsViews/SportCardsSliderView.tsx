@@ -2,9 +2,9 @@ import type { SportCardsViewsProps } from ".";
 import type { GameProps, Leagues } from "../../../types/sports/sportsTypes";
 import { FilteredSportsContainer } from "../../layout/Container/FilteredSportsContainer";
 import { AppSwiper } from "../../ui/AppSwiper/AppSwiper";
+import { MediaSkeletonCard } from "../../ui/MediaCard/SkeletonCards/MediaSkeletonCard";
 import HorizontalGameCard from "../GameCard/HorizontalGameCard";
 import RegularGameCard from "../GameCard/RegularGameCard";
-import { SwiperSkeletonCard } from "../../ui/MediaCard/SkeletonCards/MediaSkeletonCard";
 import "./SportCardsViews.css"
 
 export const SportCardsSliderView = (props: SportCardsViewsProps) => {
@@ -20,7 +20,7 @@ export const SportCardsSliderView = (props: SportCardsViewsProps) => {
                     renderItem={(game) => (
                         <RegularGameCard game={game} />
                     )}
-                    skeleton={<SwiperSkeletonCard className="game-card-skeleton" />}
+                    skeleton={<MediaSkeletonCard className="game-card-skeleton" />}
                 />
             </FilteredSportsContainer>
     )

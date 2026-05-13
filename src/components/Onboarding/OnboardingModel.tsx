@@ -9,7 +9,7 @@ interface Props {
 }
 
 export const OnboardingModel = (props: Props) => {
-    console.log("mode", props.open)
+
     return (
         <Model open={props.open} onClose={props.onClose}>
             <Customization onClose={props.onClose}/>

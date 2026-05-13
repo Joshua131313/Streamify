@@ -1,13 +1,11 @@
 import React from "react";
-import { FaAt } from "react-icons/fa";
+import { FaArrowUp, FaAt } from "react-icons/fa";
 
-import "./GameCard.css";
-import type { GameProps } from "../../../types/sports/sportsTypes";
+import "./MLBGameCard.css";
 
-import { WatchButton } from "../../ui/Button/WatchButton";
-import ExternalGameInfoButton from "../../ui/Button/ExternalGameInfoButton";
-import { GameCardTeam } from "./GameCardTeam";
-import { useGameCard } from "./useGameCard";
+import type { GameProps } from "../../../../types/sports/sportsTypes";
+import { useGameCard } from "../useGameCard";
+import { GameCardTeam } from "../GameCardTeam";
 
 interface Props {
   game: GameProps;
@@ -15,7 +13,7 @@ interface Props {
   className?: string;
 }
 
-export const RegularGameCard: React.FC<Props> = ({
+export const MLBGameCard: React.FC<Props> = ({
   game,
   showSportName,
   className = "",
@@ -35,10 +33,10 @@ export const RegularGameCard: React.FC<Props> = ({
 
   return (
     <div
-      className={`${className} game-card`}
+      className={`${className} mlb-game-card`}
       onContextMenu={openContextMenu}
     >
-      <div className="inner-game-card">
+      {/* <div className="inner-game-card">
         <div className="game-card-badges">
           <div className={badgeClass}>{badgeLabel}</div>
           {statusDetail && <div className="status-tag">{statusDetail}</div>}
@@ -68,9 +66,49 @@ export const RegularGameCard: React.FC<Props> = ({
             league={game.leagueName}
           />
         )}
+      </div> */}
+      <div className="top">
+        <div className="left">
+        <GameCardTeam game={game} leadingTeam={leadingTeam} teamKey="awayTeam" />
+        <div className="inning">
+            <FaArrowUp />
+            <span>8th</span>
+        </div>
+      </div>
+      <div className="field">
+            <div className="diamond">
+                <div className="first filled"></div>
+                <div className="second"></div>
+                <div className="third filled"></div>
+            </div>
+            <div className="outs">
+                <div className="out-1 out filled"></div>
+                <div className="out-2 out"></div>
+            </div>
+      </div>
+      <div className="right">
+        <GameCardTeam game={game} leadingTeam={leadingTeam}  teamKey="homeTeam" />
+        <div className="balls-strikes">
+            1-2
+        </div>
+      </div>
+      </div>
+      <div className="bottom">
+        <div className="pitcher">
+            <div className="line-indicator">
+                <span>Herrin</span>
+                <span>P:4</span>
+            </div>
+        </div>
+        <div className="batter">
+            <div className="line-indicator">
+                <span>7. Caratini</span>
+                <span>0-3</span>
+            </div>
+        </div>
       </div>
     </div>
   );
 };
 
-export default RegularGameCard;
+export default MLBGameCard;

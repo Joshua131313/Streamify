@@ -3,7 +3,7 @@ import type { TMediaType } from "../../../types/tmdb.ts"
 import { Container } from "../../layout/Container/Container"
 import { AppSwiper } from "../../ui/AppSwiper/AppSwiper.tsx";
 import { MediaCard } from "../../ui/MediaCard/MediaCard";
-import { SwiperSkeletonCard } from "../../ui/MediaCard/SkeletonCards/MediaSkeletonCard.tsx";
+import { MediaSkeletonCard } from "../../ui/MediaCard/SkeletonCards/MediaSkeletonCard.tsx";
 
 interface Props {
     mediaType: TMediaType;
@@ -24,7 +24,7 @@ export const RelatedMedia = ({ mediaId, mediaType }: Props) => {
                 )}
                 itemKey={(item) => String(item.id)}
                 isLoading={isLoading}
-                skeleton={<SwiperSkeletonCard />}
+                skeleton={<MediaSkeletonCard />}
             />
         </Container>
     )

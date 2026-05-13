@@ -41,12 +41,7 @@ body.player-open.modal-player {
     height: 200px;
 }
 .player .fullscreen-icon.player-control-icon {
-    right: 10px;
-    left: initial;
-    bottom: 5px;
-    top: initial;
-    background-color: transparent;
-    border: none;
+    left: 70px;
 }
 /* .light .player .fullscreen-icon.player-control-icon {
     color: var(--text-primary);
@@ -84,12 +79,12 @@ body.player-open.modal-player {
     }
 }
 
-body .player .next-episode-icon {
+/* body .player .next-episode-icon {
     left: initial;
     top: initial;
     bottom: calc(env(safe-area-inset-top, 0px) + 110px);
     right: 16px;
-}
+} */
 
 .player .episode-selector-icon {
     right: 16px;

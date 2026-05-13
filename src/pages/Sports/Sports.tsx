@@ -2,13 +2,12 @@ import { Container } from "../../components/layout/Container/Container";
 import "./Sports.css";
 import { useSports } from "../../context/SportsContext";
 import { AppSwiper } from "../../components/ui/AppSwiper/AppSwiper";
-import { SwiperSkeletonCard } from "../../components/ui/MediaCard/SkeletonCards/MediaSkeletonCard";
 import { channelStreams } from "../../data/sports/sportsData";
 import { ChannelCard } from "../../components/ui/ChannelCard/ChannelCard";
 import SportsLayout from "./SportsLayout";
 import { FilteredSportsContainer } from "../../components/layout/Container/FilteredSportsContainer";
-import RegularGameCard from "../../components/sports/GameCard/RegularGameCard";
 import { SportCardsViewFactory } from "../../components/sports/SportCardsViews/SportCardsViewFactory";
+import { MediaSkeletonCard } from "../../components/ui/MediaCard/SkeletonCards/MediaSkeletonCard";
 
 const Sports = () => {
     const {
@@ -49,7 +48,7 @@ const Sports = () => {
                     renderItem={(stream) => (
                         <ChannelCard stream={stream} />
                     )}
-                    skeleton={<SwiperSkeletonCard className="game-card-skeleton" />}
+                    skeleton={<MediaSkeletonCard className="game-card-skeleton" />}
                 />
             </FilteredSportsContainer>
 

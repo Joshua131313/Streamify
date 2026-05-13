@@ -37,7 +37,6 @@ export const useMediaBrowse = (page: number) : MediaBrowseResult => {
 
     const media = useMemo(() => {
         const results = query.data?.results || [];
-        console.log(results)
         return normalizeTMDBMedia(results);
     }, [query.data?.results]);
 

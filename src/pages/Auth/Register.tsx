@@ -52,7 +52,6 @@ export const Register = () => {
         await register(firstName, lastName, email, password);
         navigate("/")
     } catch (err: any) {
-        console.log(err.code);
 
         switch (err.code) {
             case "auth/email-already-in-use":

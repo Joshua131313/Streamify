@@ -1,0 +1,390 @@
+.mlb-game-card {
+    position: relative;
+
+    width: 100%;
+    max-width: 360px;
+    min-height: 250px;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 18px;
+
+    padding: 22px;
+
+    border-radius: 32px;
+
+    overflow: hidden;
+
+    color: white;
+
+    background:
+        linear-gradient(
+            90deg,
+            #0b2a63 0%,
+            #05070d 45%,
+            #6b624f 100%
+        );
+
+    box-shadow:
+        0 12px 35px rgba(0, 0, 0, 0.45);
+}
+
+/*
+|--------------------------------------------------------------------------
+| TOP
+|--------------------------------------------------------------------------
+*/
+
+.mlb-game-card .top {
+    display: grid;
+
+    grid-template-columns: 1fr auto 1fr;
+
+    align-items: center;
+
+    gap: 14px;
+}
+
+/*
+|--------------------------------------------------------------------------
+| LEFT / RIGHT
+|--------------------------------------------------------------------------
+*/
+
+.mlb-game-card .left,
+.mlb-game-card .right {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 14px;
+}
+
+.mlb-game-card .right {
+    align-items: flex-end;
+}
+
+/*
+|--------------------------------------------------------------------------
+| FORCE GAME CARD TEAM LAYOUT
+|--------------------------------------------------------------------------
+*/
+
+.mlb-game-card .game-card-team {
+    display: flex !important;
+
+    align-items: center !important;
+
+    gap: 10px !important;
+}
+
+/*
+|--------------------------------------------------------------------------
+| FORCE IMAGE SIZE
+|--------------------------------------------------------------------------
+*/
+
+.mlb-game-card .game-card-team img,
+.mlb-game-card .team-logo,
+.mlb-game-card img {
+    width: 58px !important;
+    height: 58px !important;
+
+    min-width: 58px !important;
+    min-height: 58px !important;
+
+    max-width: 58px !important;
+    max-height: 58px !important;
+
+    object-fit: contain !important;
+
+    flex-shrink: 0 !important;
+}
+
+/*
+|--------------------------------------------------------------------------
+| SCORE
+|--------------------------------------------------------------------------
+*/
+
+.mlb-game-card .team-score,
+.mlb-game-card .score {
+    font-size: 3.5rem !important;
+
+    line-height: 1;
+
+    font-weight: 800;
+
+    letter-spacing: -2px;
+}
+
+/*
+|--------------------------------------------------------------------------
+| INNING
+|--------------------------------------------------------------------------
+*/
+
+.mlb-game-card .inning {
+    display: flex;
+
+    align-items: center;
+
+    gap: 6px;
+
+    font-size: 1.1rem;
+
+    font-weight: 700;
+}
+
+.mlb-game-card .inning svg {
+    color: #ffd500;
+}
+
+/*
+|--------------------------------------------------------------------------
+| FIELD
+|--------------------------------------------------------------------------
+*/
+
+.mlb-game-card .field {
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 14px;
+}
+
+/*
+|--------------------------------------------------------------------------
+| DIAMOND
+|--------------------------------------------------------------------------
+*/
+
+.mlb-game-card .diamond {
+    position: relative;
+
+    width: 60px;
+    height: 60px;
+}
+
+.mlb-game-card .diamond div {
+    position: absolute;
+
+    width: 15px;
+    height: 15px;
+
+    border-radius: 2px;
+
+    transform: rotate(45deg);
+
+    background-color:
+        rgba(255, 255, 255, 0.18);
+}
+
+.mlb-game-card .diamond .filled {
+    background-color: white;
+
+    box-shadow:
+        0 0 10px rgba(255, 255, 255, 0.55);
+}
+
+/*
+|--------------------------------------------------------------------------
+| BASE POSITIONS
+|--------------------------------------------------------------------------
+*/
+
+.mlb-game-card .diamond .first {
+    right: 0;
+    top: 50%;
+
+    transform:
+        translateY(-50%)
+        rotate(45deg);
+}
+
+.mlb-game-card .diamond .second {
+    top: 0;
+    left: 50%;
+
+    transform:
+        translateX(-50%)
+        rotate(45deg);
+}
+
+.mlb-game-card .diamond .third {
+    left: 0;
+    top: 50%;
+
+    transform:
+        translateY(-50%)
+        rotate(45deg);
+}
+
+/*
+|--------------------------------------------------------------------------
+| OUTS
+|--------------------------------------------------------------------------
+*/
+
+.mlb-game-card .outs {
+    display: flex;
+
+    gap: 10px;
+}
+
+.mlb-game-card .out {
+    width: 13px;
+    height: 13px;
+
+    border-radius: 50%;
+
+    background-color:
+        rgba(255, 255, 255, 0.18);
+}
+
+.mlb-game-card .out.filled {
+    background-color: white;
+
+    box-shadow:
+        0 0 8px rgba(255, 255, 255, 0.5);
+}
+
+/*
+|--------------------------------------------------------------------------
+| BALLS / STRIKES
+|--------------------------------------------------------------------------
+*/
+
+.mlb-game-card .balls-strikes {
+    font-size: 2rem;
+
+    font-weight: 800;
+}
+
+/*
+|--------------------------------------------------------------------------
+| BOTTOM
+|--------------------------------------------------------------------------
+*/
+
+.mlb-game-card .bottom {
+    margin-top: auto;
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 12px;
+
+    padding-top: 16px;
+
+    border-top:
+        1px solid rgba(255, 255, 255, 0.1);
+}
+
+/*
+|--------------------------------------------------------------------------
+| LINE INDICATOR
+|--------------------------------------------------------------------------
+*/
+
+.mlb-game-card .line-indicator {
+    position: relative;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 10px;
+
+    padding-left: 16px;
+}
+
+.mlb-game-card .line-indicator::before {
+    content: "";
+
+    position: absolute;
+
+    left: 0;
+    top: 50%;
+
+    transform: translateY(-50%);
+
+    width: 6px;
+    height: 28px;
+
+    border-radius: 999px;
+}
+
+/*
+|--------------------------------------------------------------------------
+| COLORS
+|--------------------------------------------------------------------------
+*/
+
+.mlb-game-card .pitcher .line-indicator::before {
+    background-color: #f4d548;
+}
+
+.mlb-game-card .batter .line-indicator::before {
+    background-color: #0077ff;
+}
+
+/*
+|--------------------------------------------------------------------------
+| TEXT
+|--------------------------------------------------------------------------
+*/
+
+.mlb-game-card .line-indicator span:first-child {
+    font-size: 1rem;
+
+    font-weight: 700;
+}
+
+.mlb-game-card .line-indicator span:last-child {
+    font-size: 1rem;
+
+    font-weight: 700;
+
+    opacity: 0.88;
+}
+
+/*
+|--------------------------------------------------------------------------
+| MOBILE
+|--------------------------------------------------------------------------
+*/
+
+@media (max-width: 500px) {
+
+    .mlb-game-card {
+        padding: 18px;
+    }
+
+    .mlb-game-card .team-score,
+    .mlb-game-card .score {
+        font-size: 2.7rem !important;
+    }
+
+    .mlb-game-card .game-card-team img,
+    .mlb-game-card .team-logo,
+    .mlb-game-card img {
+        width: 48px !important;
+        height: 48px !important;
+
+        min-width: 48px !important;
+        min-height: 48px !important;
+
+        max-width: 48px !important;
+        max-height: 48px !important;
+    }
+}
