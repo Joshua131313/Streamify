@@ -3,7 +3,12 @@ import { EpisodeCard } from "../../components/ui/MediaCard/EpisodeCard";
 import { EpisodeSkeletonCard } from "../../components/ui/MediaCard/SkeletonCards/EpisodeSkeletonCard";
 import { useEpisodesContext } from "./EpisodesProvider";
 
-export const EpisodesList = () => {
+interface Props {
+    onClose?: () => void;
+}
+
+export const EpisodesList = (props: Props) => {
+    const { onClose} = props;
     const { episodes, isLoading, search, direction, currentEpisode } = useEpisodesContext();
     const filtered = episodes
         ?.filter(
@@ -20,7 +25,9 @@ export const EpisodesList = () => {
           <EpisodeSkeletonCard key={i} />
     )) 
     const episodesRow = filtered.map((ep) => (
-        <EpisodeCard key={ep.id} episode={ep} isSelected={currentEpisode === ep.episode_number}/>
+        <div onClick={() => onClose?.()}>
+            <EpisodeCard key={ep.id} episode={ep} isSelected={currentEpisode === ep.episode_number}/>
+        </div>
     ))
 
   return (
