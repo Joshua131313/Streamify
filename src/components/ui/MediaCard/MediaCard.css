@@ -18,7 +18,15 @@
 
     flex-direction: column;
 }
-
+.is-mobile .media-card .img-skeleton {
+    height: var(--media-card-height-v);
+}
+.media-card.top10-media-card .img-skeleton {
+    height: var(--media-card-height-v);
+}
+.media-card .img-skeleton {
+    height: var(--media-card-height);
+}
 .mobile-media-card {
     width: var(--media-card-width-v);
 }
