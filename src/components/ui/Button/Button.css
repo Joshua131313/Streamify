@@ -13,12 +13,10 @@
     display: flex;
     align-items: center;
     height: 40px;
+    font-weight: 900;
 }
 .button .spinner {
     border-top-color: var(--accent-primary)
-}
-.button div {
-    
 }
 .button svg {
     margin-right: 10px;

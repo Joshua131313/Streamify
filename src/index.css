@@ -233,6 +233,9 @@ details[open] > summary::before {
     cursor: pointer;
     font-size: var(--font-sm);
 }
+.light .context-option:hover, .light .dropdown-option:hover {
+  color: var(--white);
+}
 .context-option:hover, .dropdown-option:hover {
     background-color: var(--accent-primary);
 }

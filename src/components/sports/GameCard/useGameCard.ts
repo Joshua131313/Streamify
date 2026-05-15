@@ -2,10 +2,15 @@ import { useNavigate } from "react-router-dom";
 import { DateTime } from "luxon";
 import {
     FaBell,
+    FaCalendarAlt,
+    FaChartBar,
+    FaChartPie,
     FaExternalLinkAlt,
     FaEyeSlash,
+    FaNewspaper,
     FaPlay,
     FaThLarge,
+    FaVideo,
 } from "react-icons/fa";
 
 import type { MenuOption } from "../../../types";
@@ -93,6 +98,8 @@ export const useGameCard = (game: GameProps): UseGameCardReturn => {
         }
     };
 
+    const leagueLowerCase = game.leagueName.toLowerCase();
+
     const mediaCardContextOptions: MenuOption[] = [
         ...(showPlayButtons
             ? [
@@ -141,7 +148,12 @@ export const useGameCard = (game: GameProps): UseGameCardReturn => {
                 },
             ]
             : []),
-
+        {
+            key: "gamecast",
+            value: "View Gamecast",
+            icon: FaChartBar,
+            onClick: () => navigate(`/sports/${leagueLowerCase}/${game.id}/boxscore`),
+        },
         ...((game.status === "PRE" || game.status === "FUT")
             ? [
                 {
@@ -152,6 +164,98 @@ export const useGameCard = (game: GameProps): UseGameCardReturn => {
                 },
             ]
             : []),
+        ...((game.status === "FINAL")
+            ? [
+                {
+                    key: "highlights",
+                    value: "Watch Highlights",
+                    icon: FaVideo,
+                    onClick: () => {
+                        const home = game.homeTeam.abbrev;
+                        const away = game.awayTeam.abbrev;
+
+                        let query = "";
+
+                        switch (leagueLowerCase) {
+
+                            case "mlb":
+                                query = `${away} vs ${home} MLB highlights`;
+                                break;
+
+                            case "nba":
+                                query = `${away} vs ${home} NBA highlights`;
+                                break;
+
+                            case "nhl":
+                                query = `${away} vs ${home} NHL highlights`;
+                                break;
+
+                            case "nfl":
+                                query = `${away} vs ${home} NFL highlights`;
+                                break;
+
+                            default:
+                                return;
+                        }
+
+                        const url =
+                            `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+
+                        window.open(url, "_blank", "noopener,noreferrer");
+                    },
+                },
+                {
+                    key: "recap",
+                    value: "Game Recap",
+                    icon: FaNewspaper,
+                    onClick: () => {
+                        const home = game.homeTeam.abbrev;
+                        const away = game.awayTeam.abbrev;
+
+                        let query = "";
+
+                        switch (leagueLowerCase) {
+
+                            case "mlb":
+                                query = `${away} vs ${home} MLB recap`;
+                                break;
+
+                            case "nba":
+                                query = `${away} vs ${home} NBA recap`;
+                                break;
+
+                            case "nhl":
+                                query = `${away} vs ${home} NHL recap`;
+                                break;
+
+                            case "nfl":
+                                query = `${away} vs ${home} NFL recap`;
+                                break;
+
+                            default:
+                                return;
+                        }
+
+                        const url =
+                            `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+
+                        window.open(url, "_blank", "noopener,noreferrer");
+                    },
+                },
+                {
+                    key: "stats",
+                    value: "Team Stats",
+                    icon: FaChartPie,
+                    onClick: () => navigate(`/sports/${leagueLowerCase}/${game.id}/stats`),
+                },
+                {
+                    key: "schedule",
+                    value: "View Other Matchups",
+                    icon: FaCalendarAlt,
+                    onClick: () => navigate(`/sports/${leagueLowerCase}`),
+                },
+            ]
+            : [])
     ];
 
     const openContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {

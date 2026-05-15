@@ -1,8 +1,14 @@
-import type { GameProps, Leagues } from "../../../types/sports/sportsTypes";
+import type { Leagues } from "../../../types/sports/sportsTypes";
+import type { SportDisplayGame } from "../../../types/sports/sportsDisplayTypes";
 
-export interface SportCardsViewsProps {
+export type SportCardsViewType =
+    | Leagues
+    | "TV"
+    | "FOLLOW";
+
+export type SportCardsViewsProps = {
     title: string;
-    type?: Leagues | "TV" | "FOLLOW";
-    games: GameProps[];
+    type?: SportCardsViewType;
+    games: SportDisplayGame[];
     gamesLoading: boolean;
-}
+};

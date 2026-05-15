@@ -56,14 +56,14 @@ export const MultiWatchContentEmpty = () => {
 
 
     const options = allOfTodaysGames
-        .filter((g) => !multiWatch.some((mw) => mw.id === g.id) && gameIsWatchable(g.startTime, g.status))
+        .filter((g) => !multiWatch.some((mw) => mw.id === g.id) && gameIsWatchable(g.card.startTime, g.card.status))
         .map((g) => ({
             value: g,
-            label: `${g.homeTeam.name} vs ${g.awayTeam.name}`,
-            homeLogo: g.homeTeam.logo,
-            awayLogo: g.awayTeam.logo,
-            homeAbbrev: g.homeTeam.abbrev,
-            awayAbbrev: g.awayTeam.abbrev,
+            label: `${g.card.homeTeam.name} vs ${g.card.awayTeam.name}`,
+            homeLogo: g.card.homeTeam.logo,
+            awayLogo: g.card.awayTeam.logo,
+            homeAbbrev: g.card.homeTeam.abbrev,
+            awayAbbrev: g.card.awayTeam.abbrev,
         }));
 
     const handleAddAll = () => {
@@ -86,7 +86,7 @@ export const MultiWatchContentEmpty = () => {
                 getOptionValue={(opt) => opt.value.id}
                 closeMenuOnSelect={false}
                 hideSelectedOptions={false}
-
+                noOptionsMessage={() => ("No games available")}
                 components={{ Option: CheckboxOption, MultiValueLabel }}
 
                 onChange={(opts) => setSelectedGames(opts ? [...opts] : [])}

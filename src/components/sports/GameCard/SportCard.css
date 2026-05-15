@@ -1,0 +1,773 @@
+.sport-game-card {
+    width: 100%;
+
+    max-width: 325px;
+
+    position: relative;
+
+    overflow: hidden;
+
+    border-radius: var(--border-radius-small);
+
+    color: var(--text-primary);
+
+    background:
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--bg-secondary) 92%, black) 0%,
+            color-mix(in srgb, var(--bg-primary) 96%, black) 100%
+        );
+
+    border:
+        1px solid var(--border);
+
+    box-shadow:
+        0 14px 42px rgba(0, 0, 0, 0.18);
+
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease,
+        border-color 0.2s ease;
+}
+/*  views */
+.sport-cards-list {
+    gap: 20px;
+    display: flex;
+    flex-direction: column;
+}
+.sport-cards-list .sport-card-bottom {
+    justify-content: space-between;
+}
+.sport-cards-list .sport-game-card {
+    display: flex;
+    flex-direction: row;
+    max-width: initial;
+}
+.sport-cards-list .game-card-buttons  {
+    flex-direction: column;
+    display: flex;
+}
+.sport-cards-list .sport-linescore-header, .sport-cards-list .sport-linescore-row {
+    gap: 15px;
+}
+.sport-cards-list .totals-group {
+    gap: 10px;
+    grid-template-columns: repeat(3, 25px)
+}
+.sport-cards-list .nhl-totals-group  {
+        gap: 10px;
+    grid-template-columns: repeat(2, 25px)
+}
+.sport-cards-list .mlb-game-card .innings-group {
+    gap: 10px;
+}
+.sport-cards-list .innings-group {
+    gap: 20px;
+}
+.sport-cards-list .inning-cell, .sport-cards-list .total-cell {
+    font-size: var(--font-lg);
+}
+.sport-cards-list .sport-linescore {
+    gap: 20px;
+}
+.sport-cards-list .sport-card-top {
+}
+.sport-cards-list .sport-card-top {
+    width: 300px;
+}
+.sport-cards-list .game-card-buttons  {
+    flex-direction: column;
+    gap: 15px;
+}
+.sport-cards-list .sport-linescore {
+    max-width: initial;
+}
+.sport-cards-list .sport-card-bottom {
+    flex-direction: row;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+.sport-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(var(--game-card-width), 1fr));
+    gap: 10px;
+}
+.sport-cards-grid .sport-game-card {
+    width: initial;
+    max-width: initial;
+}
+.sport-game-card:hover {
+
+    border-color:
+        var(--border-white);
+
+    box-shadow:
+        0 18px 48px rgba(0,0,0,0.22);
+}
+
+.sport-card-top {
+    position: relative;
+
+    overflow: hidden;
+
+    isolation: isolate;
+
+    padding:
+        18px 18px 20px;
+
+    border-bottom:
+        1px solid var(--border);
+
+    background:
+        radial-gradient(
+            circle at 0% 0%,
+            color-mix(in srgb, var(--away-color) 45%, transparent) 0%,
+            transparent 52%
+        ),
+
+        radial-gradient(
+            circle at 100% 0%,
+            color-mix(in srgb, var(--home-color) 45%, transparent) 0%,
+            transparent 52%
+        ),
+
+        linear-gradient(
+            145deg,
+            color-mix(in srgb, var(--bg-secondary) 95%, black) 0%,
+            color-mix(in srgb, var(--bg-primary) 92%, black) 100%
+        );
+}
+
+.sport-card-top::before {
+    content: "";
+
+    position: absolute;
+
+    inset: 0;
+
+    z-index: -1;
+
+    pointer-events: none;
+
+    background:
+        linear-gradient(
+            to bottom,
+            rgba(255,255,255,0.02),
+            transparent 30%,
+            rgba(0,0,0,0.08) 100%
+        );
+}
+
+.sport-card-backdrop-logo {
+    position: absolute;
+
+    width: 64px;
+    height: 64px;
+
+    top: 10px;
+
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+
+    opacity: 0.025;
+
+    filter:
+        grayscale(1)
+        brightness(0)
+        invert(1);
+
+    pointer-events: none;
+
+    z-index: -2;
+}
+
+.light .sport-card-backdrop-logo,
+[data-theme="light"] .sport-card-backdrop-logo {
+    filter:
+        grayscale(1)
+        brightness(0);
+}
+
+.sport-card-backdrop-logo.away {
+    left: 8px;
+
+    background-image:
+        var(--away-logo);
+}
+
+.sport-card-backdrop-logo.home {
+    right: 8px;
+
+    background-image:
+        var(--home-logo);
+}
+
+.sport-card-team-glow {
+    position: absolute;
+
+    width: 170px;
+    height: 170px;
+
+    top: -95px;
+
+    border-radius: 999px;
+
+    filter: blur(60px);
+
+    opacity: 0.22;
+
+    pointer-events: none;
+
+    z-index: -3;
+}
+
+.sport-card-team-glow.away {
+    left: -70px;
+
+    background:
+        var(--away-color);
+}
+
+.sport-card-team-glow.home {
+    right: -70px;
+
+    background:
+        var(--home-color);
+}
+
+.sport-scoreboard-grid {
+    display: grid;
+
+    grid-template-columns:
+        minmax(0, 1fr)
+        82px
+        minmax(0, 1fr);
+
+    align-items: start;
+
+    column-gap: 10px;
+}
+
+.sport-team-column {
+    min-width: 0;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    gap: 10px;
+}
+
+.sport-team-abbrev {
+    font-size: 0.74rem;
+
+    line-height: 1;
+
+    font-weight: 900;
+
+    letter-spacing: 1px;
+
+    color:
+        var(--text-body);
+}
+
+.sport-game-card .game-card-team {
+    width: 100% !important;
+
+    display: flex !important;
+
+    flex-direction: column !important;
+
+    align-items: center !important;
+
+    justify-content: center !important;
+
+    gap: 10px !important;
+}
+
+.sport-game-card .game-card-team img,
+.sport-game-card .team-logo,
+.sport-game-card img {
+    width: 44px !important;
+    height: 44px !important;
+
+    min-width: 44px !important;
+    min-height: 44px !important;
+
+    max-width: 44px !important;
+    max-height: 44px !important;
+
+    object-fit: contain !important;
+
+    filter:
+        drop-shadow(0 6px 10px rgba(0,0,0,0.18));
+}
+
+.sport-game-card .team-score,
+.sport-game-card .score {
+    font-size: 3rem !important;
+
+    line-height: 0.92;
+
+    font-weight: 950;
+
+    letter-spacing: -2px;
+
+    color: var(--text-primary);
+}
+
+.sport-center-column {
+    min-width: 82px;
+
+    gap: 5px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    padding-top: 34px;
+}
+
+.sport-inning-row {
+    display: flex;
+
+    margin-top: -20px;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 6px;
+
+    min-height: 22px;
+
+    font-size: 0.98rem;
+
+    line-height: 1;
+
+    font-weight: 850;
+
+    color:
+        var(--text-primary);
+}
+
+.sport-inning-row svg {
+    font-size: 0.92rem;
+
+    color: #ffd84d;
+}
+
+.sport-count-row {
+    margin-top: 12px;
+
+    font-size: var(--font-xs);
+
+    line-height: 1;
+
+    font-weight: 850;
+
+    text-align: center;
+
+    color:
+        var(--text-body);
+}
+
+.sport-diamond {
+    position: relative;
+
+    width: 52px;
+    height: 52px;
+
+    margin-top: 16px;
+}
+
+.sport-diamond .base {
+    position: absolute;
+
+    width: 20px;
+    height: 20px;
+
+    border-radius: 2px;
+
+    transform:
+        rotate(45deg);
+
+    background:
+        var(--bg-white);
+
+    border:
+        1px solid var(--border);
+}
+
+.sport-diamond .base.filled {
+    background:
+        var(--text-primary);
+
+    border-color:
+        var(--text-primary);
+
+    box-shadow:
+        0 0 12px color-mix(in srgb, var(--text-primary) 45%, transparent);
+}
+
+.sport-diamond .base.second {
+    top: 2px;
+    left: 50%;
+
+    transform:
+        translateX(-50%)
+        rotate(45deg);
+}
+.sport-game-card .play-button {
+    width: 100%;
+    justify-content: center;
+}
+.sport-diamond .base.third {
+    bottom: 10px;
+    left: -2px;
+}
+
+.sport-diamond .base.first {
+    bottom: 10px;
+    right: -2px;
+}
+
+.sport-outs {
+    display: flex;
+
+    justify-content: center;
+
+    gap: 10px;
+
+    margin-top: 14px;
+}
+
+.sport-outs .out {
+    width: 10px;
+    height: 10px;
+
+    border-radius: 999px;
+
+    background:
+        var(--bg-white);
+
+    border:
+        1px solid var(--border);
+}
+
+.sport-outs .out.filled {
+    background:
+        var(--text-primary);
+
+    border-color:
+        var(--text-primary);
+}
+
+.sport-card-bottom {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 16px;
+
+    padding:
+        16px 18px 18px;
+
+    background:
+        linear-gradient(
+            to bottom,
+            rgba(255,255,255,0.01),
+            rgba(0,0,0,0.04)
+        );
+}
+
+.sport-live-info {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 14px;
+}
+
+.sport-live-line {
+    display: grid;
+
+    grid-template-columns:
+        5px
+        minmax(0, 1fr)
+        auto;
+
+    align-items: center;
+
+    column-gap: 12px;
+
+    min-height: 40px;
+}
+
+.sport-line-indicator {
+    width: 5px;
+    height: 100%;
+
+    border-radius: 999px;
+}
+
+.sport-live-line.pitcher .sport-line-indicator {
+    background:
+        #ffd84d;
+}
+
+.sport-live-line.batter .sport-line-indicator {
+    background:
+        #3b82f6;
+}
+
+.sport-player-copy {
+    min-width: 0;
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 10sport-player-namepx;
+}
+.player-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.sport-player-role {
+    font-size: var(--font-xxs);
+
+    line-height: 1;
+
+    font-weight: 850;
+
+    letter-spacing: 1px;
+
+    text-transform: uppercase;
+
+    color:
+        var(--text-muted);
+}
+
+.sport-player-name {
+    overflow: hidden;
+
+    white-space: nowrap;
+
+    text-overflow: ellipsis;
+
+    font-size: var(--font-sm);
+
+    line-height: 1.1;
+
+    font-weight: 850;
+
+    color:
+        var(--text-primary);
+}
+
+.sport-player-stat {
+    font-size: 0.9rem;
+
+    font-weight: 850;
+
+    color:
+        var(--text-body);
+    max-width: 100px;
+    overflow: auto;
+    max-height: 40px;
+    
+}
+.sport-player-stat::-webkit-scrollbar {
+    width: 0;
+}
+.sport-game-start {
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 10px;
+
+    padding:
+        8px 4px 4px;
+
+    text-align: center;
+}
+
+.sport-game-start-time {
+    font-size: 1.55rem;
+
+    line-height: 1;
+
+    font-weight: 900;
+
+    color:
+        var(--text-primary);
+}
+
+.sport-game-start-venue {
+    font-size: 0.82rem;
+
+    line-height: 1.3;
+
+    font-weight: 700;
+
+    color:
+        var(--text-muted);
+
+    max-width: 220px;
+}
+
+.game-card-buttons.single > * {
+    width: 100%;
+}
+
+.sport-linescore {
+
+    display: flex;
+
+    flex-direction: column;
+    max-width: 300px;
+    overflow-x: auto;
+    gap: 10px;
+}
+.sport-linescore::-webkit-scrollbar {
+    height: 0;
+}
+.sport-game-card .sport-toggle-button {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    width: 30px;
+    height: 30px;
+    font-size: var(--font-sm);
+}
+.sport-linescore-header,
+.sport-linescore-row {
+    display: grid;
+
+    grid-template-columns:
+        40px
+        1fr
+        auto;
+
+    align-items: center;
+
+    column-gap: 7px;
+}
+
+
+.totals-group {
+    display: grid;
+
+    grid-template-columns:
+        repeat(3, 20px);
+
+    align-items: center;
+
+    column-gap: 2px;
+}
+
+.team-cell {
+    font-size: 0.92rem;
+
+    font-weight: 900;
+
+    opacity: 0.95;
+}
+
+.inning-cell,
+.total-cell {
+    text-align: center;
+
+    font-size: 0.84rem;
+
+    font-weight: 800;
+
+    color:
+        var(--text-body);
+}
+
+.sport-linescore-header {
+    opacity: 0.55;
+}
+
+.sport-linescore-row {
+    color:
+        var(--text-primary);
+}
+
+.sport-linescore-row .total-cell {
+    font-weight: 900;
+
+    color:
+        var(--text-primary);
+}
+.game-player {
+    display: flex;
+    align-items: center;
+    gap: 5px;    
+}
+.game-player img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: var(--bg-white);
+}
+
+@media (max-width: 520px) {
+
+    .sport-game-card {
+        max-width: 100%;
+    }
+
+    .sport-card-top {
+        padding:
+            16px 16px 18px;
+    }
+
+    .sport-game-card .team-score,
+    .sport-game-card .score {
+        font-size: 2.8rem !important;
+    }
+
+    .sport-game-card .game-card-team img,
+    .sport-game-card .team-logo,
+    .sport-game-card img {
+        width: 40px !important;
+        height: 40px !important;
+
+        min-width: 40px !important;
+        min-height: 40px !important;
+
+        max-width: 40px !important;
+        max-height: 40px !important;
+    }
+
+    .sport-center-column {
+        min-width: 74px;
+
+        padding-top: 30px;
+    }
+
+    .sport-diamond {
+        width: 48px;
+        height: 48px;
+    }
+
+    .sport-card-backdrop-logo {
+        width: 56px;
+        height: 56px;
+    }
+}

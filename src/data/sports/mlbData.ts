@@ -4,257 +4,41 @@ import { createViewEmbedStreams } from "./sportsData";
 
 
 export const mlbTeamsMap: Record<string, TeamInfo> = {
-    // AL EAST
-    BAL: {
-        abbreviation: "BAL",
-        teamName: "Baltimore Orioles",
-        id: "baltimore-orioles",
-        conference: "AL",
-        division: "East",
-        league: "MLB"
-    },
-    BOS: {
-        abbreviation: "BOS",
-        teamName: "Boston Red Sox",
-        id: "boston-red-sox",
-        conference: "AL",
-        division: "East",
-        league: "MLB"
-    },
-    NYY: {
-        abbreviation: "NYY",
-        teamName: "New York Yankees",
-        id: "new-york-yankees",
-        conference: "AL",
-        division: "East",
-        league: "MLB"
-    },
-    TB: {
-        abbreviation: "TB",
-        teamName: "Tampa Bay Rays",
-        id: "tampa-bay-rays",
-        conference: "AL",
-        division: "East",
-        league: "MLB"
-    },
-    TOR: {
-        abbreviation: "TOR",
-        teamName: "Toronto Blue Jays",
-        id: "toronto-blue-jays",
-        conference: "AL",
-        division: "East",
-        league: "MLB"
-    },
+  BAL: { abbreviation: "BAL", teamName: "Baltimore Orioles", id: "baltimore-orioles", conference: "AL", division: "East", league: "MLB", color: "#DF4601" },
+  BOS: { abbreviation: "BOS", teamName: "Boston Red Sox", id: "boston-red-sox", conference: "AL", division: "East", league: "MLB", color: "#BD3039" },
+  NYY: { abbreviation: "NYY", teamName: "New York Yankees", id: "new-york-yankees", conference: "AL", division: "East", league: "MLB", color: "#003087" },
+  TB: { abbreviation: "TB", teamName: "Tampa Bay Rays", id: "tampa-bay-rays", conference: "AL", division: "East", league: "MLB", color: "#092C5C" },
+  TOR: { abbreviation: "TOR", teamName: "Toronto Blue Jays", id: "toronto-blue-jays", conference: "AL", division: "East", league: "MLB", color: "#134A8E" },
 
-    // AL CENTRAL
-    CHW: {
-        abbreviation: "CHW",
-        teamName: "Chicago White Sox",
-        id: "chicago-white-sox",
-        conference: "AL",
-        division: "Central",
-        league: "MLB"
-    },
-    CLE: {
-        abbreviation: "CLE",
-        teamName: "Cleveland Guardians",
-        id: "cleveland-guardians",
-        conference: "AL",
-        division: "Central",
-        league: "MLB"
-    },
-    DET: {
-        abbreviation: "DET",
-        teamName: "Detroit Tigers",
-        id: "detroit-tigers",
-        conference: "AL",
-        division: "Central",
-        league: "MLB"
-    },
-    KC: {
-        abbreviation: "KC",
-        teamName: "Kansas City Royals",
-        id: "kansas-city-royals",
-        conference: "AL",
-        division: "Central",
-        league: "MLB"
-    },
-    MIN: {
-        abbreviation: "MIN",
-        teamName: "Minnesota Twins",
-        id: "minnesota-twins",
-        conference: "AL",
-        division: "Central",
-        league: "MLB"
-    },
+  CHW: { abbreviation: "CHW", teamName: "Chicago White Sox", id: "chicago-white-sox", conference: "AL", division: "Central", league: "MLB", color: "#000000" },
+  CLE: { abbreviation: "CLE", teamName: "Cleveland Guardians", id: "cleveland-guardians", conference: "AL", division: "Central", league: "MLB", color: "#E50022" },
+  DET: { abbreviation: "DET", teamName: "Detroit Tigers", id: "detroit-tigers", conference: "AL", division: "Central", league: "MLB", color: "#0C2340" },
+  KC: { abbreviation: "KC", teamName: "Kansas City Royals", id: "kansas-city-royals", conference: "AL", division: "Central", league: "MLB", color: "#004687" },
+  MIN: { abbreviation: "MIN", teamName: "Minnesota Twins", id: "minnesota-twins", conference: "AL", division: "Central", league: "MLB", color: "#002B5C" },
 
-    // AL WEST
-    HOU: {
-        abbreviation: "HOU",
-        teamName: "Houston Astros",
-        id: "houston-astros",
-        conference: "AL",
-        division: "West",
-        league: "MLB"
-    },
-    LAA: {
-        abbreviation: "LAA",
-        teamName: "Los Angeles Angels",
-        id: "los-angeles-angels",
-        conference: "AL",
-        division: "West",
-        league: "MLB"
-    },
-    ATH: {
-        abbreviation: "ATH",
-        teamName: "Athletics",
-        id: "athletics",
-        conference: "AL",
-        division: "West",
-        league: "MLB"
-    },
-    SEA: {
-        abbreviation: "SEA",
-        teamName: "Seattle Mariners",
-        id: "seattle-mariners",
-        conference: "AL",
-        division: "West",
-        league: "MLB"
-    },
-    TEX: {
-        abbreviation: "TEX",
-        teamName: "Texas Rangers",
-        id: "texas-rangers",
-        conference: "AL",
-        division: "West",
-        league: "MLB"
-    },
+  HOU: { abbreviation: "HOU", teamName: "Houston Astros", id: "houston-astros", conference: "AL", division: "West", league: "MLB", color: "#EB6E1F" },
+  LAA: { abbreviation: "LAA", teamName: "Los Angeles Angels", id: "los-angeles-angels", conference: "AL", division: "West", league: "MLB", color: "#BA0021" },
+  ATH: { abbreviation: "ATH", teamName: "Athletics", id: "athletics", conference: "AL", division: "West", league: "MLB", color: "#003831" },
+  SEA: { abbreviation: "SEA", teamName: "Seattle Mariners", id: "seattle-mariners", conference: "AL", division: "West", league: "MLB", color: "#005C5C" },
+  TEX: { abbreviation: "TEX", teamName: "Texas Rangers", id: "texas-rangers", conference: "AL", division: "West", league: "MLB", color: "#003278" },
 
-    // NL EAST
-    ATL: {
-        abbreviation: "ATL",
-        teamName: "Atlanta Braves",
-        id: "atlanta-braves",
-        conference: "NL",
-        division: "East",
-        league: "MLB"
-    },
-    MIA: {
-        abbreviation: "MIA",
-        teamName: "Miami Marlins",
-        id: "miami-marlins",
-        conference: "NL",
-        division: "East",
-        league: "MLB"
-    },
-    NYM: {
-        abbreviation: "NYM",
-        teamName: "New York Mets",
-        id: "new-york-mets",
-        conference: "NL",
-        division: "East",
-        league: "MLB"
-    },
-    PHI: {
-        abbreviation: "PHI",
-        teamName: "Philadelphia Phillies",
-        id: "philadelphia-phillies",
-        conference: "NL",
-        division: "East",
-        league: "MLB"
-    },
-    WSH: {
-        abbreviation: "WSH",
-        teamName: "Washington Nationals",
-        id: "washington-nationals",
-        conference: "NL",
-        division: "East",
-        league: "MLB"
-    },
+  ATL: { abbreviation: "ATL", teamName: "Atlanta Braves", id: "atlanta-braves", conference: "NL", division: "East", league: "MLB", color: "#CE1141" },
+  MIA: { abbreviation: "MIA", teamName: "Miami Marlins", id: "miami-marlins", conference: "NL", division: "East", league: "MLB", color: "#00A3E0" },
+  NYM: { abbreviation: "NYM", teamName: "New York Mets", id: "new-york-mets", conference: "NL", division: "East", league: "MLB", color: "#002D72" },
+  PHI: { abbreviation: "PHI", teamName: "Philadelphia Phillies", id: "philadelphia-phillies", conference: "NL", division: "East", league: "MLB", color: "#E81828" },
+  WSH: { abbreviation: "WSH", teamName: "Washington Nationals", id: "washington-nationals", conference: "NL", division: "East", league: "MLB", color: "#AB0003" },
 
-    // NL CENTRAL
-    CHC: {
-        abbreviation: "CHC",
-        teamName: "Chicago Cubs",
-        id: "chicago-cubs",
-        conference: "NL",
-        division: "Central",
-        league: "MLB"
-    },
-    CIN: {
-        abbreviation: "CIN",
-        teamName: "Cincinnati Reds",
-        id: "cincinnati-reds",
-        conference: "NL",
-        division: "Central",
-        league: "MLB"
-    },
-    MIL: {
-        abbreviation: "MIL",
-        teamName: "Milwaukee Brewers",
-        id: "milwaukee-brewers",
-        conference: "NL",
-        division: "Central",
-        league: "MLB"
-    },
-    PIT: {
-        abbreviation: "PIT",
-        teamName: "Pittsburgh Pirates",
-        id: "pittsburgh-pirates",
-        conference: "NL",
-        division: "Central",
-        league: "MLB"
-    },
-    STL: {
-        abbreviation: "STL",
-        teamName: "St. Louis Cardinals",
-        id: "st-louis-cardinals", 
-        conference: "NL",
-        division: "Central",
-        league: "MLB"
-    },
+  CHC: { abbreviation: "CHC", teamName: "Chicago Cubs", id: "chicago-cubs", conference: "NL", division: "Central", league: "MLB", color: "#0E3386" },
+  CIN: { abbreviation: "CIN", teamName: "Cincinnati Reds", id: "cincinnati-reds", conference: "NL", division: "Central", league: "MLB", color: "#C6011F" },
+  MIL: { abbreviation: "MIL", teamName: "Milwaukee Brewers", id: "milwaukee-brewers", conference: "NL", division: "Central", league: "MLB", color: "#FFC52F" },
+  PIT: { abbreviation: "PIT", teamName: "Pittsburgh Pirates", id: "pittsburgh-pirates", conference: "NL", division: "Central", league: "MLB", color: "#FDB827" },
+  STL: { abbreviation: "STL", teamName: "St. Louis Cardinals", id: "st-louis-cardinals", conference: "NL", division: "Central", league: "MLB", color: "#C41E3A" },
 
-    // NL WEST
-    ARI: {
-        abbreviation: "ARI",
-        teamName: "Arizona Diamondbacks",
-        id: "arizona-diamondbacks",
-        conference: "NL",
-        division: "West",
-        league: "MLB"
-    },
-    COL: {
-        abbreviation: "COL",
-        teamName: "Colorado Rockies",
-        id: "colorado-rockies",
-        conference: "NL",
-        division: "West",
-        league: "MLB"
-    },
-    LAD: {
-        abbreviation: "LAD",
-        teamName: "Los Angeles Dodgers",
-        id: "los-angeles-dodgers",
-        conference: "NL",
-        division: "West",
-        league: "MLB"
-    },
-    SD: {
-        abbreviation: "SD",
-        teamName: "San Diego Padres",
-        id: "san-diego-padres",
-        conference: "NL",
-        division: "West",
-        league: "MLB"
-    },
-    SF: {
-        abbreviation: "SF",
-        teamName: "San Francisco Giants",
-        id: "san-francisco-giants",
-        conference: "NL",
-        division: "West",
-        league: "MLB"
-    }
+  ARI: { abbreviation: "ARI", teamName: "Arizona Diamondbacks", id: "arizona-diamondbacks", conference: "NL", division: "West", league: "MLB", color: "#A6192E" },
+  COL: { abbreviation: "COL", teamName: "Colorado Rockies", id: "colorado-rockies", conference: "NL", division: "West", league: "MLB", color: "#33006F" },
+  LAD: { abbreviation: "LAD", teamName: "Los Angeles Dodgers", id: "los-angeles-dodgers", conference: "NL", division: "West", league: "MLB", color: "#005A9C" },
+  SD: { abbreviation: "SD", teamName: "San Diego Padres", id: "san-diego-padres", conference: "NL", division: "West", league: "MLB", color: "#2F241D" },
+  SF: { abbreviation: "SF", teamName: "San Francisco Giants", id: "san-francisco-giants", conference: "NL", division: "West", league: "MLB", color: "#FD5A1E" }
 };
 
 export const mlbStreams: SportStream[] = [

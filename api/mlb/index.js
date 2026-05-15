@@ -7,9 +7,7 @@ export default async function handler(req, res) {
         const scoreboardData = await scoreboardResponse.json();
 
         const formatAthlete = (athlete, summary = null, stats = null) => {
-            if (!athlete) {
-                return null;
-            }
+            if (!athlete) return null;
 
             return {
                 id: athlete.id || null,
@@ -41,10 +39,47 @@ export default async function handler(req, res) {
                 : null;
         };
 
-        const addAthletesToMap = (value, athleteMap, playerStatsMap) => {
-            if (!value || typeof value !== "object") {
-                return;
+        const buildLinescore = (home, away) => {
+            const homeLines = home?.linescores || [];
+            const awayLines = away?.linescores || [];
+
+            const inningNumbers = [
+                ...homeLines.map(line => Number(line.period)),
+                ...awayLines.map(line => Number(line.period)),
+                9
+            ];
+
+            const maxInning = Math.max(...inningNumbers);
+
+            const innings = [];
+
+            for (let inning = 1; inning <= maxInning; inning++) {
+                const homeLine = homeLines.find(
+                    line => Number(line.period) === inning
+                );
+
+                const awayLine = awayLines.find(
+                    line => Number(line.period) === inning
+                );
+
+                innings.push({
+                    inning,
+                    away:
+                        awayLine?.displayValue != null
+                            ? Number(awayLine.displayValue)
+                            : null,
+                    home:
+                        homeLine?.displayValue != null
+                            ? Number(homeLine.displayValue)
+                            : null
+                });
             }
+
+            return innings;
+        };
+
+        const addAthletesToMap = (value, athleteMap, playerStatsMap) => {
+            if (!value || typeof value !== "object") return;
 
             if (value.athlete?.id) {
                 athleteMap[String(value.athlete.id)] = value.athlete;
@@ -72,9 +107,7 @@ export default async function handler(req, res) {
         };
 
         const getPlayerId = (player) => {
-            if (!player || player === true) {
-                return null;
-            }
+            if (!player || player === true) return null;
 
             return String(
                 player.playerId ||
@@ -118,26 +151,20 @@ export default async function handler(req, res) {
         const parseProbabilityPercent = (text) => {
             const match = text?.match(/([\d.]+)%/);
 
-            return match
-                ? Number(match[1])
-                : null;
+            return match ? Number(match[1]) : null;
         };
 
         const parseAtBatPitchCount = (lastPlay) => {
             const match = lastPlay?.text?.match(/Pitch\s+(\d+)/i);
 
-            return match
-                ? Number(match[1])
-                : null;
+            return match ? Number(match[1]) : null;
         };
 
         const games = await Promise.all(
             scoreboardData.events.map(async (event) => {
                 const comp = event.competitions?.[0];
 
-                if (!comp) {
-                    return null;
-                }
+                if (!comp) return null;
 
                 const home = comp.competitors.find(
                     team => team.homeAway === "home"
@@ -147,9 +174,9 @@ export default async function handler(req, res) {
                     team => team.homeAway === "away"
                 );
 
-                if (!home || !away) {
-                    return null;
-                }
+                if (!home || !away) return null;
+
+                const linescore = buildLinescore(home, away);
 
                 const detail =
                     event.status?.type?.detail ||
@@ -197,7 +224,10 @@ export default async function handler(req, res) {
                         score2Plus: null,
                         score2PlusPercent: null
                     },
-                    lastPlay: null
+                    lastPlay: null,
+                    linescore,
+                    basesLoaded: false,
+                    runnersInScoringPosition: false
                 };
 
                 try {
@@ -245,143 +275,140 @@ export default async function handler(req, res) {
                             summarySituation.lastPlay
                     };
 
-                    if (Object.keys(situation).length > 0) {
-                        const pitcherId = getPlayerId(situation.pitcher);
-                        const batterId = getPlayerId(situation.batter);
+                    const pitcherId = getPlayerId(situation.pitcher);
+                    const batterId = getPlayerId(situation.batter);
 
-                        const pitcherAthlete =
-                            situation.pitcher?.athlete ||
-                            athleteMap[pitcherId] ||
-                            null;
+                    const pitcherAthlete =
+                        situation.pitcher?.athlete ||
+                        athleteMap[pitcherId] ||
+                        null;
 
-                        const batterAthlete =
-                            situation.batter?.athlete ||
-                            athleteMap[batterId] ||
-                            null;
+                    const batterAthlete =
+                        situation.batter?.athlete ||
+                        athleteMap[batterId] ||
+                        null;
 
-                        const pitcherStats =
-                            playerStatsMap[pitcherId] || [];
+                    const pitcherStats = playerStatsMap[pitcherId] || [];
+                    const batterStats = playerStatsMap[batterId] || [];
 
-                        const batterStats =
-                            playerStatsMap[batterId] || [];
+                    const firstRunner = getRunner(
+                        1,
+                        summarySituation.onFirst,
+                        scoreboardSituation.onFirst,
+                        athleteMap
+                    );
 
-                        const firstRunner = getRunner(
-                            1,
-                            summarySituation.onFirst,
-                            scoreboardSituation.onFirst,
-                            athleteMap
-                        );
+                    const secondRunner = getRunner(
+                        2,
+                        summarySituation.onSecond,
+                        scoreboardSituation.onSecond,
+                        athleteMap
+                    );
 
-                        const secondRunner = getRunner(
-                            2,
-                            summarySituation.onSecond,
-                            scoreboardSituation.onSecond,
-                            athleteMap
-                        );
+                    const thirdRunner = getRunner(
+                        3,
+                        summarySituation.onThird,
+                        scoreboardSituation.onThird,
+                        athleteMap
+                    );
 
-                        const thirdRunner = getRunner(
-                            3,
-                            summarySituation.onThird,
-                            scoreboardSituation.onThird,
-                            athleteMap
-                        );
+                    const runners = [
+                        firstRunner,
+                        secondRunner,
+                        thirdRunner
+                    ].filter(Boolean);
 
-                        const runners = [
-                            firstRunner,
-                            secondRunner,
-                            thirdRunner
-                        ].filter(Boolean);
+                    const notes = situation.situationNotes || [];
 
-                        const notes = situation.situationNotes || [];
+                    const score1Plus = notes.find(
+                        note => note.type === "CHANCES_TO_SCORE_1PLUS"
+                    );
 
-                        const score1Plus = notes.find(
-                            note => note.type === "CHANCES_TO_SCORE_1PLUS"
-                        );
+                    const score2Plus = notes.find(
+                        note => note.type === "CHANCES_TO_SCORE_2PLUS"
+                    );
 
-                        const score2Plus = notes.find(
-                            note => note.type === "CHANCES_TO_SCORE_2PLUS"
-                        );
+                    const lastPlay = situation.lastPlay || null;
+                    const pitcherPitchStat = getStatValue(
+                        pitcherStats,
+                        [
+                            "pitchCount",
+                            "pitches",
+                            "pitchesThrown",
+                            "P"
+                        ]
+                    );
+                    liveData = {
+                        balls: Number(situation.balls ?? 0),
+                        strikes: Number(situation.strikes ?? 0),
+                        outs: Number(situation.outs ?? 0),
 
-                        const lastPlay = situation.lastPlay || null;
+                        pitchCount: pitcherPitchStat?.value ?? null,
 
-                        const pitcherPitchStat = getStatValue(
-                            pitcherStats,
-                            ["pitches"]
-                        );
+                        atBatPitchCount: parseAtBatPitchCount(lastPlay),
 
-                        liveData = {
-                            balls: Number(situation.balls ?? 0),
+                        batter: formatAthlete(
+                            batterAthlete,
+                            situation.batter?.summary || null,
+                            {
+                                atBats: getStatValue(batterStats, ["atBats"]),
+                                hits: getStatValue(batterStats, ["hits"]),
+                                runs: getStatValue(batterStats, ["runs"]),
+                                rbis: getStatValue(batterStats, ["RBIs"]),
+                                pitchesSeen: getStatValue(batterStats, ["pitches"])
+                            }
+                        ),
 
-                            strikes: Number(situation.strikes ?? 0),
+                        pitcher: formatAthlete(
+                            pitcherAthlete,
+                            situation.pitcher?.summary || null,
+                            {
+                                pitches: pitcherPitchStat,
+                                strikeouts: getStatValue(pitcherStats, ["strikeouts"]),
+                                walks: getStatValue(pitcherStats, ["walks"]),
+                                earnedRuns: getStatValue(pitcherStats, ["earnedRuns"]),
+                                hitsAllowed: getStatValue(pitcherStats, ["hits"])
+                            }
+                        ),
 
-                            outs: Number(situation.outs ?? 0),
+                        bases: {
+                            first: !!situation.onFirst,
+                            second: !!situation.onSecond,
+                            third: !!situation.onThird
+                        },
 
-                            pitchCount:
-                                pitcherPitchStat?.value ??
-                                null,
+                        runners,
 
-                            atBatPitchCount:
-                                parseAtBatPitchCount(lastPlay),
+                        probabilities: {
+                            score1Plus: score1Plus?.text || null,
+                            score1PlusPercent: parseProbabilityPercent(score1Plus?.text),
+                            score2Plus: score2Plus?.text || null,
+                            score2PlusPercent: parseProbabilityPercent(score2Plus?.text)
+                        },
 
-                            batter: formatAthlete(
-                                batterAthlete,
-                                situation.batter?.summary || null,
-                                {
-                                    atBats: getStatValue(batterStats, ["atBats"]),
-                                    hits: getStatValue(batterStats, ["hits"]),
-                                    runs: getStatValue(batterStats, ["runs"]),
-                                    rbis: getStatValue(batterStats, ["RBIs"]),
-                                    pitchesSeen: getStatValue(batterStats, ["pitches"])
-                                }
-                            ),
+                        lastPlay: lastPlay
+                            ? {
+                                id: lastPlay.id || null,
+                                text: lastPlay.text || null,
+                                type: lastPlay.type?.text || null,
+                                shortType: lastPlay.type?.abbreviation || null,
+                                playType: lastPlay.type?.type || null,
+                                scoreValue: lastPlay.scoreValue ?? null,
+                                teamId: lastPlay.team?.id || null
+                            }
+                            : null,
 
-                            pitcher: formatAthlete(
-                                pitcherAthlete,
-                                situation.pitcher?.summary || null,
-                                {
-                                    pitches: pitcherPitchStat,
-                                    strikeouts: getStatValue(pitcherStats, ["strikeouts"]),
-                                    walks: getStatValue(pitcherStats, ["walks"]),
-                                    earnedRuns: getStatValue(pitcherStats, ["earnedRuns"]),
-                                    hitsAllowed: getStatValue(pitcherStats, ["hits"])
-                                }
-                            ),
+                        linescore,
 
-                            bases: {
-                                first: !!situation.onFirst,
-                                second: !!situation.onSecond,
-                                third: !!situation.onThird
-                            },
+                        basesLoaded:
+                            !!situation.onFirst &&
+                            !!situation.onSecond &&
+                            !!situation.onThird,
 
-                            runners,
-
-                            probabilities: {
-                                score1Plus:
-                                    score1Plus?.text || null,
-
-                                score1PlusPercent:
-                                    parseProbabilityPercent(score1Plus?.text),
-
-                                score2Plus:
-                                    score2Plus?.text || null,
-
-                                score2PlusPercent:
-                                    parseProbabilityPercent(score2Plus?.text)
-                            },
-
-                            lastPlay: lastPlay
-                                ? {
-                                    id: lastPlay.id || null,
-                                    text: lastPlay.text || null,
-                                    type: lastPlay.type?.text || null,
-                                    shortType: lastPlay.type?.abbreviation || null,
-                                    playType: lastPlay.type?.type || null,
-                                    scoreValue: lastPlay.scoreValue ?? null,
-                                    teamId: lastPlay.team?.id || null
-                                }
-                                : null
-                        };
-                    }
+                        runnersInScoringPosition:
+                            !!situation.onSecond ||
+                            !!situation.onThird
+                    };
                 }
                 catch (liveErr) {
                     console.log("LIVE DATA FAILED:", event.id);
@@ -421,25 +448,21 @@ export default async function handler(req, res) {
                             event.status?.period ||
                             comp.status?.period ||
                             null,
-
                         type:
                             event.status?.type?.name ||
                             comp.status?.type?.name ||
                             null,
-
                         inningHalf,
                         isHalftime: false
                     },
 
                     inningDisplay:
                         inningHalf &&
-                        (
-                            event.status?.period ||
-                            comp.status?.period
-                        )
-                            ? `${inningHalf.charAt(0).toUpperCase()}${inningHalf.slice(1)} ${
+                            (
                                 event.status?.period ||
                                 comp.status?.period
+                            )
+                            ? `${inningHalf.charAt(0).toUpperCase()}${inningHalf.slice(1)} ${event.status?.period || comp.status?.period
                             }`
                             : null,
 
@@ -495,24 +518,21 @@ export default async function handler(req, res) {
                                 ? liveData.runners
                                 : [],
 
-                        probabilities:
-                            liveData.probabilities,
+                        linescore: liveData.linescore,
 
-                        lastPlay:
-                            liveData.lastPlay,
+                        probabilities: liveData.probabilities,
+
+                        lastPlay: liveData.lastPlay,
 
                         basesLoaded:
-                            isActiveAtBat &&
-                            liveData.bases.first &&
-                            liveData.bases.second &&
-                            liveData.bases.third,
+                            isActiveAtBat
+                                ? liveData.basesLoaded
+                                : false,
 
                         runnersInScoringPosition:
-                            isActiveAtBat &&
-                            (
-                                liveData.bases.second ||
-                                liveData.bases.third
-                            )
+                            isActiveAtBat
+                                ? liveData.runnersInScoringPosition
+                                : false
                     },
 
                     homeTeam: {
@@ -537,16 +557,14 @@ export default async function handler(req, res) {
                         records: away.records || []
                     },
 
-                    venue:
-                        comp.venue?.fullName || null,
+                    venue: comp.venue?.fullName || null,
 
                     broadcasts:
                         comp.broadcasts
                             ?.flatMap(broadcast => broadcast.names || [])
                             .filter(Boolean) || [],
 
-                    gameLink:
-                        event.links?.[0]?.href || null
+                    gameLink: event.links?.[0]?.href || null
                 };
             })
         );

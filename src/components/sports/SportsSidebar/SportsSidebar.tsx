@@ -3,7 +3,6 @@ import { useSports } from "../../../context/SportsContext";
 import { mlbTeamsMap } from "../../../data/sports/mlbData";
 import { nbaTeamsMap } from "../../../data/sports/nbaData";
 import { nhlTeamsMap } from "../../../data/sports/nhlData";
-import { getLeagueFromTeam, getTeamLogo } from "../../../utils/sports/sportsUtils";
 import { SearchableContainer } from "../../layout/Container/SearchableContainer";
 import { SidebarCard } from "../GameCard/SidebarCard";
 import "./SportsSidebar.css"
@@ -33,11 +32,11 @@ export const SportsSidebar = () => {
                 data={liveGames}
                 defaultOpened
                 searchFn={(game, search) =>
-                    game.homeTeam.name.toLowerCase().includes(search) ||
-                    game.awayTeam.name.toLowerCase().includes(search)
+                    game.card.homeTeam.name.toLowerCase().includes(search) ||
+                    game.card.awayTeam.name.toLowerCase().includes(search)
                 }
                 renderItem={(game) => (
-                    <GameGroupCard game={game} key={game.id}/>
+                    <GameGroupCard game={game.card} key={game.id}/>
                 )} 
             />
             <SearchableContainer
@@ -50,8 +49,8 @@ export const SportsSidebar = () => {
                 }
                 renderItem={(team) => {
                     const game = liveGames.find(g =>
-                        g.homeTeam.abbrev === team.abbrev ||
-                        g.awayTeam.abbrev === team.abbrev
+                        g.card.homeTeam.abbrev === team.abbrev ||
+                        g.card.awayTeam.abbrev === team.abbrev
                     );
 
                     if (!game) {
@@ -63,8 +62,8 @@ export const SportsSidebar = () => {
                         );
                     }
 
-                    const isHome = game.homeTeam.abbrev === team.abbrev;
-                    const opponent = isHome ? game.awayTeam : game.homeTeam;
+                    const isHome = game.card.homeTeam.abbrev === team.abbrev;
+                    const opponent = isHome ? game.card.awayTeam : game.card.homeTeam;
 
                     const isOpponentFollowed = favoriteTeams.some(
                         t => t.abbrev === opponent.abbrev
@@ -77,8 +76,8 @@ export const SportsSidebar = () => {
 
                         return (
                             <div className="game-group" key={game.id}>
-                                <SidebarCard team={game.awayTeam} game={game} />
-                                <SidebarCard team={game.homeTeam} game={game} />
+                                <SidebarCard team={game.card.awayTeam} game={game.card} />
+                                <SidebarCard team={game.card.homeTeam} game={game.card} />
                             </div>
                         );
                     }
@@ -87,7 +86,7 @@ export const SportsSidebar = () => {
                         <SidebarCard
                             key={team.abbrev}
                             team={team}
-                            game={game}
+                            game={game.card}
                         />
                     );
                 }}

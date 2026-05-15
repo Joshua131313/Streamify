@@ -1,59 +1,141 @@
 import type { nbaTeamsMap } from "../../data/sports/nbaData";
 
+export type NBAGameState =
+    | "pre"
+    | "in"
+    | "post";
+
 export type NBAGameStatus =
-  | "SCHEDULED"
-  | "PRE"
-  | "LIVE"
-  | "HALFTIME"
-  | "FINAL";
+    | "SCHEDULED"
+    | "PRE"
+    | "LIVE"
+    | "HALFTIME"
+    | "FINAL";
 
 export interface NBATeam {
-  id: string;
-  name: string;
-  abbreviation: keyof typeof nbaTeamsMap;
-  logo: string;
 
-  score: number;
+    id: string;
 
-  record?: string;
+    name: string;
 
-  // optional stats later
-  fouls?: number;
-  timeouts?: number;
+    abbreviation: keyof typeof nbaTeamsMap;
+
+    logo: string;
+
+    score: number;
+
+    record?: string | null;
+
+    fouls?: number | null;
+
+    timeouts?: number | null;
+
+    wins?: number | null;
+
+    losses?: number | null;
 }
 
 export interface NBAPeriod {
-  current: number;        // quarter (1–4)
-  type: "REG" | "OT";
-  isHalftime: boolean;
+
+    current: number;
+
+    type: "REG" | "OT";
+
+    isHalftime: boolean;
+}
+
+export interface NBAPlayer {
+
+    id: string | null;
+
+    name: string | null;
+
+    shortName: string | null;
+
+    jersey: string | null;
+
+    position: string | null;
+
+    headshot: string | null;
+
+    summary?: string | null;
+}
+
+export interface NBALastPlay {
+
+    id: string | null;
+
+    text: string | null;
+
+    type: string | null;
+
+    shortType: string | null;
+
+    teamId: string | null;
+}
+
+export interface NBAPeriodScore {
+
+    period: number;
+
+    home: number | null;
+
+    away: number | null;
 }
 
 export interface NBABroadcast {
-  market: string;
-  network: string;
+
+    market?: string;
+
+    network: string;
+}
+
+export interface NBALiveGameData {
+
+    homeFouls: number | null;
+
+    awayFouls: number | null;
+
+    homeTimeouts: number | null;
+
+    awayTimeouts: number | null;
+
+    possessionTeamId: string | null;
+
+    player: NBAPlayer | null;
+
+    lastPlay: NBALastPlay | null;
+
+    periodScores: NBAPeriodScore[];
 }
 
 export interface INBAGame {
-  id: string;
 
-  date: string;
+    id: string;
 
-  venue?: {
-    name: string;
-    city?: string;
-    state?: string;
-  };
+    date: string;
 
-  status: NBAGameStatus;
-  clock?: string;
+    venue?: {
+        name: string;
+        city?: string;
+        state?: string;
+    };
 
-  homeTeam: NBATeam;
-  awayTeam: NBATeam;
+    status: string;
 
-  period?: NBAPeriod;
+    state: NBAGameState;
 
-  broadcasts?: NBABroadcast[];
+    clock?: string;
 
-  gameLink?: string;
+    period?: NBAPeriod;
 
+    live?: NBALiveGameData;
+
+    homeTeam: NBATeam;
+
+    awayTeam: NBATeam;
+
+    broadcasts?: string[];
+
+    gameLink?: string | null;
 }

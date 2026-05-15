@@ -1,0 +1,253 @@
+.sidebar-card {
+    position: relative;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 10px;
+
+    padding: 10px 12px;
+
+    border-radius: 14px;
+
+    background:
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--bg-secondary) 92%, black) 0%,
+            color-mix(in srgb, var(--bg-primary) 96%, black) 100%
+        );
+
+    border:
+        1px solid var(--border);
+
+    transition: all 0.3s;
+
+    overflow: hidden;
+}
+
+.sidebar-card:hover {
+    border-color:
+        var(--border-white);
+
+    transform:
+        translateY(-1px);
+
+    background:
+        color-mix(in srgb, var(--bg-secondary) 94%, white 2%);
+}
+
+.sidebar-card::before {
+    content: "";
+
+    position: absolute;
+
+    inset: 0;
+
+    background:
+        linear-gradient(
+            to bottom,
+            rgba(255,255,255,0.03),
+            transparent 35%
+        );
+
+    pointer-events: none;
+}
+
+.team-logo-name {
+    min-width: 0;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+}
+
+.team-logo-name img,
+.team-logo-name .img-skeleton {
+    width: 34px;
+    height: 34px;
+
+    min-width: 34px;
+    min-height: 34px;
+
+    object-fit: contain;
+
+    filter:
+        drop-shadow(0 4px 8px rgba(0,0,0,0.18));
+}
+
+.team-logo-name span {
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+
+    white-space: nowrap;
+
+    font-size: 0.84rem;
+
+    line-height: 1.1;
+
+    font-weight: 800;
+
+    color:
+        var(--text-primary);
+}
+
+.sidebar-card-controls {
+    display: flex;
+
+    align-items: center;
+
+    gap: 6px;
+
+    flex-shrink: 0;
+}
+
+.sidebar-card .app-icon {
+    width: 32px;
+    height: 32px;
+
+    font-size: var(--font-xs);
+}
+
+.sidebar-card .watch-button svg {
+    display: block;
+}
+
+.game-group {
+    position: relative;
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 8px;
+
+    padding: 10px;
+
+    border-radius: 16px;
+
+    background:
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--bg-secondary) 90%, black) 0%,
+            color-mix(in srgb, var(--bg-primary) 95%, black) 100%
+        );
+
+    border:
+        1px solid var(--border);
+
+    overflow: hidden;
+}
+
+.game-group::before {
+    content: "";
+
+    position: absolute;
+
+    inset: 0;
+
+    background:
+        linear-gradient(
+            to bottom,
+            rgba(255,255,255,0.025),
+            transparent 40%
+        );
+
+    pointer-events: none;
+}
+
+.game-group .sidebar-card {
+    background:
+        color-mix(in srgb, var(--bg-white) 55%, transparent);
+
+    border:
+        1px solid transparent;
+
+    padding: 8px 10px;
+
+    border-radius: 12px;
+}
+
+.game-group .sidebar-card:hover {
+    border-color:
+        var(--border);
+}
+
+.game-group-badges {
+    position: absolute;
+
+    top: 0;
+    left: 50%;
+
+    transform:
+        translate(-50%, -50%);
+
+    z-index: 5;
+}
+
+.game-group-badges .status {
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    padding: 4px 10px;
+
+    border-radius: 999px;
+
+    font-size: 0.68rem;
+
+    line-height: 1;
+
+    font-weight: 900;
+
+    letter-spacing: 0.4px;
+
+    text-transform: uppercase;
+
+    background:
+        color-mix(in srgb, var(--bg-secondary) 94%, black);
+
+    border:
+        1px solid var(--border);
+
+    color:
+        var(--text-body);
+
+    backdrop-filter:
+        blur(8px);
+}
+@media (max-width: 600px) {
+
+    .sidebar-card {
+        padding: 9px 10px;
+    }
+
+    .team-logo-name img,
+    .team-logo-name .img-skeleton {
+        width: 30px;
+        height: 30px;
+
+        min-width: 30px;
+        min-height: 30px;
+    }
+
+    .team-logo-name span {
+        font-size: 0.78rem;
+    }
+
+    .sidebar-card .app-icon {
+        width: 30px;
+        height: 30px;
+    }
+
+    .game-group {
+        padding: 8px;
+    }
+}

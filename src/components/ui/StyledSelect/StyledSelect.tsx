@@ -7,7 +7,7 @@ import "./StyledSelect.css"
 const styles = {
   control: (base: any, state: any) => ({
     ...base,
-    backgroundColor: "var(--bg-primary)",
+    backgroundColor: "var(--bg-white)",
     borderColor: "var(--border)",
     boxShadow: "none",
     minHeight: "40px",

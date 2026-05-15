@@ -1,0 +1,283 @@
+.game-card-skeleton {
+    width: 227.6px;
+    height: 308.24px;
+
+    display: flex;
+    flex-direction: column;
+
+    overflow: hidden;
+
+    border-radius: 24px;
+
+    border: 1px solid var(--border);
+
+    background:
+        linear-gradient(
+            180deg,
+            var(--bg-secondary) 0%,
+            var(--bg-primary) 100%
+        );
+}
+
+.skeleton-shimmer,
+.game-card-skeleton-status,
+.game-card-skeleton-venue,
+.game-card-skeleton-time,
+.game-card-skeleton-network,
+.game-card-skeleton-button {
+    position: relative;
+
+    overflow: hidden;
+
+    background:
+        linear-gradient(
+            90deg,
+            var(--bg-white) 0%,
+            var(--bg-white-hover) 50%,
+            var(--bg-white) 100%
+        );
+
+    background-size: 200% 100%;
+
+    animation:
+        skeleton-shimmer 1.8s infinite linear;
+}
+
+.skeleton-shimmer::before,
+.game-card-skeleton-status::before,
+.game-card-skeleton-venue::before,
+.game-card-skeleton-time::before,
+.game-card-skeleton-network::before,
+.game-card-skeleton-button::before {
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+    left: -100%;
+
+    width: 100%;
+    height: 100%;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            var(--bg-transparent),
+            transparent
+        );
+
+    animation:
+        skeleton-slide 1.8s infinite;
+}
+
+.game-card-skeleton-top {
+    flex: 1;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 22px 18px;
+
+    position: relative;
+
+    background:
+        radial-gradient(
+            circle at top left,
+            rgba(255, 0, 70, 0.18),
+            transparent 42%
+        ),
+        radial-gradient(
+            circle at top right,
+            rgba(255, 200, 0, 0.16),
+            transparent 42%
+        );
+}
+
+.game-card-skeleton-status {
+    position: absolute;
+
+    top: 40px;
+
+    width: 80px;
+    height: 26px;
+
+    border-radius: 10px;
+}
+
+.game-card-skeleton-venue {
+    position: absolute;
+
+    top: 75px;
+
+    width: 50px;
+    height: 18px;
+
+    border-radius: 8px;
+}
+
+.game-card-skeleton-matchup {
+    width: 100%;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.game-card-skeleton-team {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    gap: 25px;
+}
+
+.game-card-skeleton-logo {
+    width: 40px;
+    height: 40px;
+
+    border-radius: 18px;
+}
+
+.game-card-skeleton-score {
+    width: 28px;
+    height: 16px;
+
+    border-radius: 6px;
+}
+
+.game-card-skeleton-abbr {
+    width: 42px;
+    height: 18px;
+
+    border-radius: 8px;
+}
+
+.game-card-skeleton-bottom {
+    height: 126px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    gap: 18px;
+
+    padding: 18px;
+
+    border-top: 1px solid var(--border);
+}
+
+.game-card-skeleton-time {
+    width: 105px;
+    height: 38px;
+
+    border-radius: 12px;
+}
+
+.game-card-skeleton-network {
+    width: 72px;
+    height: 18px;
+
+    border-radius: 8px;
+}
+
+.game-card-skeleton-button {
+    width: 160px;
+    height: 44px;
+
+    border-radius: 999px;
+}
+
+.sport-cards-grid .game-card-skeleton {
+    width: initial;
+}
+
+.sport-cards-grid .game-card-skeleton-top {
+    width: 100%;
+
+    border-bottom: 1px solid var(--border);
+}
+
+.sport-cards-list .game-card-skeleton {
+    width: 100%;
+    height: 170px;
+
+    flex-direction: row;
+
+    align-items: stretch;
+}
+
+.sport-cards-list .game-card-skeleton-top {
+    flex: unset;
+
+    width: 310px;
+    min-width: 310px;
+
+    height: 100%;
+
+    border-right: 1px solid var(--border);
+}
+
+.sport-cards-list .game-card-skeleton-bottom {
+    flex: 1;
+
+    height: 100%;
+
+    align-items: flex-start;
+    justify-content: center;
+
+    padding: 24px 28px;
+
+    position: relative;
+
+    border-top: none;
+}
+
+.sport-cards-list .game-card-skeleton-time {
+    width: 150px;
+    height: 42px;
+}
+
+.sport-cards-list .game-card-skeleton-network {
+    width: 90px;
+    height: 18px;
+
+    margin-top: 0;
+}
+
+.sport-cards-list .game-card-skeleton-button {
+    position: absolute;
+
+    top: 50%;
+    right: 28px;
+
+    transform: translateY(-50%);
+
+    width: 110px;
+    height: 52px;
+}
+
+@keyframes skeleton-shimmer {
+
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+@keyframes skeleton-slide {
+
+    0% {
+        left: -100%;
+    }
+
+    100% {
+        left: 100%;
+    }
+}

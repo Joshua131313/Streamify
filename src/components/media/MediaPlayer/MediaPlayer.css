@@ -117,9 +117,7 @@
 .vidsrc.player .next-episode-icon {
         transform: translateY(30px) translateX(-50%);
 }
-.light .player.modal-player .app-icon  {
-    color: var(--bg-primary);
-}
+
 .player .inner-episode-selector .container-header {
     margin-top: 0;
 }
