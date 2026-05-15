@@ -24,8 +24,8 @@ export const PlayerWindow = (props: Props) => {
     const MinimizedIcon = () => {
         return (
             <div className="player-window-icon app-icon">
-                <AppImg src={getTeamLogo(leagueName, homeAbbrev)} />
                 <AppImg src={getTeamLogo(leagueName, awayAbbrev)} />
+                <AppImg src={getTeamLogo(leagueName, homeAbbrev)} />
             </div>
         );
     };

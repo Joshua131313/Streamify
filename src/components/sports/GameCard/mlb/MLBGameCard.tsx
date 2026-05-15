@@ -1,113 +1,227 @@
-import React from "react";
-import { FaArrowUp, FaAt } from "react-icons/fa";
+import React, {
+  useState,
+} from "react";
 
 import "./MLBGameCard.css";
+import "../SportCard.css";
 
-import type { GameProps } from "../../../../types/sports/sportsTypes";
-import { useGameCard } from "../useGameCard";
-import { GameCardTeam } from "../GameCardTeam";
+import type {
+  GameProps
+} from "../../../../types/sports/sportsTypes";
+
+import type {
+  IMLBGame
+} from "../../../../types/sports/mlbTypes";
+
+import {
+  mlbTeamsMap
+} from "../../../../data/sports/mlbData";
+
+import {
+  useGameCard
+} from "../useGameCard";
+
+import {
+  MLBGameCardHeader
+} from "./components/MLBGameCardHeader";
+
+import {
+  MLBGameCardPregame
+} from "./components/MLBGameCardPregame";
+
+import {
+  MLBGameCardLiveInfo
+} from "./components/MLBGameCardLiveInfo";
+
+import {
+  WatchButton
+} from "../../../ui/Button/WatchButton";
+
+import ExternalGameInfoButton from "../../../ui/Button/ExternalGameInfoButton";
+import { MLBGameCardLinescore } from "./components/MLBGameCardLinescore";
+import { useSports } from "../../../../context/SportsContext";
 
 interface Props {
-  game: GameProps;
+  game: IMLBGame;
+
+  card: GameProps;
+
   showSportName?: boolean;
+
   className?: string;
 }
 
 export const MLBGameCard: React.FC<Props> = ({
   game,
-  showSportName,
+  card,
   className = "",
 }) => {
+
+  const [
+    showScoreboard,
+    setShowScoreboard
+  ] = useState(false);
+
+  const { layout } = useSports();
+
   const {
     openContextMenu,
     defaultSportStreamProvider,
     showPlayButtons,
-    getGameStatusUI,
-    leadingTeam
-  } = useGameCard(game);
-  const isLive = game.status === "LIVE" || game.status === "HALFTIME";
-  const badgeClass = isLive ? "live-badge" : "not-started-badge";
+  } = useGameCard(card);
 
-  const badgeLabel = getGameStatusUI("full").badgeLabel;
-  const statusDetail = getGameStatusUI("full").statusDetail;
+  const isPregame =
+    game.state === "pre";
+
+  const isFinal =
+    game.state === "post" ||
+    game.completed ||
+    card.status === "FINAL";
+
+  const isLive =
+    !isPregame &&
+    !isFinal;
+
+  const shouldShowScoreboard =
+    isFinal ||
+    (
+      isLive &&
+      showScoreboard
+    );
+
+  const awayColor =
+    mlbTeamsMap[
+      card.awayTeam.abbrev
+    ]?.color ??
+    "#2563eb";
+
+  const homeColor =
+    mlbTeamsMap[
+      card.homeTeam.abbrev
+    ]?.color ??
+    "#dc2626";
+
+  const inningsPlayed =
+    game.live?.linescore?.length ?? 9;
+
+  const startTime =
+    new Date(game.date).toLocaleTimeString(
+      [],
+      {
+        hour: "numeric",
+        minute: "2-digit",
+      }
+    );
 
   return (
-    <div
-      className={`${className} mlb-game-card`}
+    <article
+      className={`${className} mlb-game-card sport-game-card`}
       onContextMenu={openContextMenu}
+      style={{
+        ["--away-color" as string]:
+          awayColor,
+
+        ["--home-color" as string]:
+          homeColor,
+
+        ["--away-logo" as string]:
+          `url(${card.awayTeam.logo})`,
+
+        ["--home-logo" as string]:
+          `url(${card.homeTeam.logo})`,
+      }}
     >
-      {/* <div className="inner-game-card">
-        <div className="game-card-badges">
-          <div className={badgeClass}>{badgeLabel}</div>
-          {statusDetail && <div className="status-tag">{statusDetail}</div>}
-        </div>
 
-        {showSportName && (
-          <div className="game-card-sport-name">{game.leagueName}</div>
-        )}
+      <MLBGameCardHeader
+        game={game}
+        card={card}
+        showScoreboard={showScoreboard}
+        setShowScoreboard={setShowScoreboard}
+      />
 
-        <div className="logos">
-          <GameCardTeam game={game} leadingTeam={leadingTeam} teamKey="awayTeam" />
-          <span className="vs">
-            <FaAt />
-          </span>
-          <GameCardTeam game={game} leadingTeam={leadingTeam}  teamKey="homeTeam" />
-        </div>
-      </div>
+      <section className="sport-card-bottom">
 
-      <div className={`game-card-buttons ${!showPlayButtons ? "single" : ""}`}>
-        <ExternalGameInfoButton url={game.gameLink} />
-        {showPlayButtons && (
-          <WatchButton
-            variant="button"
-            awayTeamAbbrev={game.awayTeam.abbrev}
-            homeTeamAbbrev={game.homeTeam.abbrev}
-            streamProvider={defaultSportStreamProvider}
-            league={game.leagueName}
+        {isPregame ? (
+
+          <MLBGameCardPregame
+            startTime={startTime}
           />
+
+        ) : (
+
+          <>
+            {layout === "list" ? (
+
+              <>
+                {
+                  isLive &&
+                  <MLBGameCardLiveInfo
+                    game={game}
+                    card={card}
+                  />
+
+                }
+                <MLBGameCardLinescore
+                  game={game}
+                  card={card}
+                />
+              </>
+
+            ) : (
+
+              shouldShowScoreboard ? (
+
+                <MLBGameCardLinescore
+                  game={game}
+                  card={card}
+                />
+
+              ) : (
+
+                <MLBGameCardLiveInfo
+                  game={game}
+                  card={card}
+                />
+
+              )
+
+            )}
+          </>
+
         )}
-      </div> */}
-      <div className="top">
-        <div className="left">
-        <GameCardTeam game={game} leadingTeam={leadingTeam} teamKey="awayTeam" />
-        <div className="inning">
-            <FaArrowUp />
-            <span>8th</span>
+
+        <div
+          className={`game-card-buttons ${!showPlayButtons
+            ? "single"
+            : ""
+            }`}
+        >
+
+          <ExternalGameInfoButton
+            url={card.gameLink}
+          />
+
+          {showPlayButtons && (
+            <WatchButton
+              variant="button"
+              awayTeamAbbrev={
+                card.awayTeam.abbrev
+              }
+              homeTeamAbbrev={
+                card.homeTeam.abbrev
+              }
+              streamProvider={
+                defaultSportStreamProvider
+              }
+              league={card.leagueName}
+            />
+          )}
+
         </div>
-      </div>
-      <div className="field">
-            <div className="diamond">
-                <div className="first filled"></div>
-                <div className="second"></div>
-                <div className="third filled"></div>
-            </div>
-            <div className="outs">
-                <div className="out-1 out filled"></div>
-                <div className="out-2 out"></div>
-            </div>
-      </div>
-      <div className="right">
-        <GameCardTeam game={game} leadingTeam={leadingTeam}  teamKey="homeTeam" />
-        <div className="balls-strikes">
-            1-2
-        </div>
-      </div>
-      </div>
-      <div className="bottom">
-        <div className="pitcher">
-            <div className="line-indicator">
-                <span>Herrin</span>
-                <span>P:4</span>
-            </div>
-        </div>
-        <div className="batter">
-            <div className="line-indicator">
-                <span>7. Caratini</span>
-                <span>0-3</span>
-            </div>
-        </div>
-      </div>
-    </div>
+
+      </section>
+
+    </article>
   );
 };
 

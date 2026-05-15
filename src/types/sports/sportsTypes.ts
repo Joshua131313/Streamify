@@ -21,6 +21,7 @@ export interface TeamInfo {
     conference: string;
     division: string;
     league: Leagues;
+    color: string;
 }
 
 export type TeamAbbrevs = 

@@ -280,6 +280,16 @@
     gap: 5px;
     border: solid 1px var(--border);
     border-radius: var(--border-radius);
+        background:
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--bg-secondary) 92%, black) 0%,
+            color-mix(in srgb, var(--bg-primary) 96%, black) 100%
+        );
+
+}
+.sidebar-card:hover {
+    border: solid 1px var(--accent-primary-light);
 }
 .game-group {
     display: flex;
@@ -288,24 +298,40 @@
     border: solid 1px var(--border);
     padding: 9px 7px;
     border-radius: var(--border-radius-small);
+        background:
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--bg-secondary) 92%, black) 0%,
+            color-mix(in srgb, var(--bg-primary) 96%, black) 100%
+        );
+
 }
 .game-group .sidebar-card {
     padding: 0;
+    background: initial;
 }
 .game-group .sidebar-card {
     border: none;
     border-radius: 0;
 }
+.game-group:hover {
+    border: solid 1px var(--accent-primary-light);
+}
+.game-group:hover .game-group-badges {
+    border: solid 1px var(--accent-primary-light)
+}
 .game-group .game-group-badges {
     position: absolute;
-    font-size: 8px;
     top: 0;
     left: 20px;
     transform: translateY(-50%);
     background-color: var(--bg-secondary);
     padding: 5px;
-    color: var(--border);
-    font-size: var(--font-xxs);
+    color: var(--white);
+    font-size: 8px;
+    border-radius: var(--border-radius);
+    font-weight: 900;
+    border: solid 1px var(--border);
 }
 .sidebar-card .app-icon {
     width: 30px;

@@ -1,0 +1,8 @@
+
+
+.nhl-totals-group {
+    display: grid;
+    grid-template-columns: repeat(2, 20px);
+    column-gap: 5px;
+    align-items: center;
+}

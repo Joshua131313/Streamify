@@ -1,25 +1,155 @@
 .channel-card {
-    background-color: var(--bg-white);
-    padding: 20px;
-    border-radius: 20px;
+    position: relative;
+
+    overflow: hidden;
+
     display: flex;
+
     flex-direction: column;
-    gap: 30px;
-    border: solid 1px var(--border);
+
+    gap: 20px;
+
+    padding: 16px;
+
+    border-radius: var(--border-radius);
+
+    background:
+        linear-gradient(
+            145deg,
+            color-mix(in srgb, var(--bg-secondary) 96%, black) 0%,
+            color-mix(in srgb, var(--bg-primary) 94%, black) 100%
+        );
+
+    border:
+        1px solid var(--border);
+
+    box-shadow:
+        0 8px 22px rgba(0,0,0,0.14);
+
+    transition:
+        border-color .18s ease,
+        box-shadow .18s ease;
 }
+
+.channel-card:hover {
+    border-color:
+        var(--border-white);
+
+    box-shadow:
+        0 12px 28px rgba(0,0,0,0.18);
+}
+
+.channel-card strong {
+    font-size: 1rem;
+
+    line-height: 1.1;
+
+    font-weight: 900;
+
+    color:
+        var(--text-primary);
+}
+
 .channel-card .channel-controls {
     display: flex;
+
+    align-items: center;
+
     gap: 10px;
 }
+
 .channel-card .input-container {
-    width: var(--app-icon-dimension);
-    height: var(--app-icon-dimension);
+    flex: 1;
+    max-width: 100px;
+    min-width: 0;
+
+    height: 40px;
 }
-.channel-card .play-button button {
-    height: 100%;
-}
+
 .channel-card .input-container input {
     width: 100%;
+
+    height: 100%;
+
+    padding: 0 14px;
+
     text-align: center;
-    padding: 0;
+
+    font-size: .95rem;
+
+    font-weight: 850;
+
+    border-radius: var(--border-radius);
+
+    background:
+        color-mix(in srgb, var(--bg-white) 78%, transparent);
+
+    border:
+        1px solid var(--border);
+
+    color:
+        var(--text-primary);
+
+    transition: all 0.18s ease
+}
+
+.channel-card .input-container input:focus {
+    border-color:
+        var(--accent-primary);
+
+    outline: none;
+}
+
+.channel-card .play-button {
+    width: auto !important;
+
+    flex-shrink: 0;
+}
+
+.channel-card .play-button,
+.channel-card .play-button button {
+    height: 40px !important;
+}
+
+.channel-card .play-button button {
+    min-width: 120px;
+
+    border-radius: var(--border-radius);
+
+    gap: 10px;
+}
+
+.channel-card .play-button button:hover {
+    transform: none !important;
+}
+
+.channel-card .play-button button:active {
+    transform: none !important;
+}
+
+.channel-card .play-button svg {
+    font-size: .9rem;
+}
+
+@media (max-width: 520px) {
+
+    .channel-card {
+        padding: 14px;
+    }
+
+    .channel-card .channel-controls {
+        gap: 8px;
+    }
+
+    .channel-card .input-container,
+    .channel-card .play-button,
+    .channel-card .play-button button {
+        height: 42px !important;
+    }
+
+    .channel-card .play-button button {
+        min-width: 105px;
+
+        padding: 0 14px;
+    }
 }

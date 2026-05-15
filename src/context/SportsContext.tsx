@@ -1,22 +1,29 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
+
 import { useNBAGames } from "../hooks/sportsHooks/useNBAGames";
 import { useNHLGames } from "../hooks/sportsHooks/useNHLGames";
 import { useMLBGames } from "../hooks/sportsHooks/useMLBGames";
-import { mapNBAToGameProps } from "../utils/sports/nbaUtils";
-import { mapNHLToGameProps } from "../utils/sports/nhlUtils";
-import { mapMLBToGameProps } from "../utils/sports/mlbUtils";
-import { filterGames, getPriority } from "../utils/sports/sportsUtils";
 import { useFavoriteTeamsContext } from "./FavoriteTeamsContext";
-import type { GameProps, GameTeam } from "../types/sports/sportsTypes";
-import { SportsPlayer } from "../pages/Sports/SportsPlayer";
-import { useLocation } from "react-router-dom";
+
+import type { SportDisplayGame } from "../types/sports/sportsDisplayTypes";
+
+import {
+    createNBADisplayGame,
+    createNHLDisplayGame,
+    createMLBDisplayGame,
+    filterDisplayGames,
+    isFavoriteDisplayGame,
+} from "../utils/sports/sportDisplayUtils";
 
 export type SportFilterType = "status" | "league" | "sport";
+
 export type SportFilter = {
     label: string;
     value: string;
     type: SportFilterType;
 };
+
 export type SportsCardsLayout = "slider" | "grid" | "list";
 
 export const quickFilters: SportFilter[] = [
@@ -29,15 +36,17 @@ export const quickFilters: SportFilter[] = [
     { label: "NHL", value: "NHL", type: "league" },
     { label: "MLB", value: "MLB", type: "league" },
 
-    { label: "TV", value: "TV", type: "league" }
+    { label: "TV", value: "TV", type: "league" },
 ];
 
 interface SportsContextType {
-    nbaGames: GameProps[];
-    nhlGames: GameProps[];
-    mlbGames: GameProps[];
-    allOfTodaysGames: GameProps[];
-    liveGames: GameProps[];
+    nbaGames: SportDisplayGame[];
+    nhlGames: SportDisplayGame[];
+    mlbGames: SportDisplayGame[];
+
+    allOfTodaysGames: SportDisplayGame[];
+    liveGames: SportDisplayGame[];
+
     nbaGamesLoading: boolean;
     nhlGamesLoading: boolean;
     mlbGamesLoading: boolean;
@@ -49,36 +58,75 @@ interface SportsContextType {
     setFilters: React.Dispatch<React.SetStateAction<SportFilter[]>>;
     addSportFilter: (filter: SportFilter) => void;
 
-    nbaGameCards: GameProps[];
-    nhlGameCards: GameProps[];
-    mlbGameCards: GameProps[];
-    favoriteNBAGameCards: GameProps[];
-    favoriteNHLGameCards: GameProps[];
-    favoriteMLBGameCards: GameProps[];
+    nbaGameCards: SportDisplayGame[];
+    nhlGameCards: SportDisplayGame[];
+    mlbGameCards: SportDisplayGame[];
 
-    favoriteGameCards: GameProps[];
+    favoriteNBAGameCards: SportDisplayGame[];
+    favoriteNHLGameCards: SportDisplayGame[];
+    favoriteMLBGameCards: SportDisplayGame[];
+    favoriteGameCards: SportDisplayGame[];
 
     layout: SportsCardsLayout;
     setLayout: React.Dispatch<React.SetStateAction<SportsCardsLayout>>;
 }
 
-const SportsContext = createContext<SportsContextType | null>(null);
+const SportsContext =
+    createContext<SportsContextType | null>(null);
 
-export const SportsProvider = ({ children }: { children: React.ReactNode }) => {
-    const [search, setSearch] = useState("");
-    const [filters, setFilters] = useState<SportFilter[]>([]);
-    const [layout, setLayout] = useState<SportsCardsLayout>("slider");
-    const { favoriteTeams } = useFavoriteTeamsContext();
-    const location = useLocation()
-    const { nbaGames, nbaGamesLoading } = useNBAGames();
-    const { games: nhlGames, isLoading: nhlGamesLoading } = useNHLGames();
-    const { games: mlbGames, isLoading: mlbGamesLoading } = useMLBGames();
-    
-    const mappedNBAGames = nbaGames.map(mapNBAToGameProps);
-    const mappedNHLGames = nhlGames.map(mapNHLToGameProps);
-    const mappedMLBGames = mlbGames.map(mapMLBToGameProps);
+export const SportsProvider = ({
+    children,
+}: {
+    children: React.ReactNode;
+}) => {
+    const [search, setSearch] =
+        useState("");
 
-    const addSportFilter = (filter: SportFilter) => {
+    const [filters, setFilters] =
+        useState<SportFilter[]>([]);
+
+    const [layout, setLayout] =
+        useState<SportsCardsLayout>("slider");
+
+    const { favoriteTeams } =
+        useFavoriteTeamsContext();
+
+    const location =
+        useLocation();
+
+    const {
+        nbaGames,
+        nbaGamesLoading,
+    } = useNBAGames();
+
+    const {
+        games: nhlGames,
+        isLoading: nhlGamesLoading,
+    } = useNHLGames();
+
+    const {
+        games: mlbGames,
+        isLoading: mlbGamesLoading,
+    } = useMLBGames();
+
+    const mappedNBAGames =
+        useMemo(() => {
+            return nbaGames.map(createNBADisplayGame);
+        }, [nbaGames]);
+
+    const mappedNHLGames =
+        useMemo(() => {
+            return nhlGames.map(createNHLDisplayGame);
+        }, [nhlGames]);
+
+    const mappedMLBGames =
+        useMemo(() => {
+            return mlbGames.map(createMLBDisplayGame);
+        }, [mlbGames]);
+
+    const addSportFilter = (
+        filter: SportFilter
+    ) => {
         setFilters(prev =>
             prev.some(f => f.value === filter.value)
                 ? prev.filter(f => f.value !== filter.value)
@@ -86,62 +134,104 @@ export const SportsProvider = ({ children }: { children: React.ReactNode }) => {
         );
     };
 
-    const nbaGameCards = useMemo(() => {
-        return filterGames(mappedNBAGames, search, filters);
-    }, [mappedNBAGames, search, filters]);
+    const nbaGameCards =
+        useMemo(() => {
+            return filterDisplayGames(
+                mappedNBAGames,
+                search,
+                filters
+            );
+        }, [mappedNBAGames, search, filters]);
 
-    const nhlGameCards = useMemo(() => {
-        return filterGames(mappedNHLGames, search, filters);
-    }, [mappedNHLGames, search, filters]);
+    const nhlGameCards =
+        useMemo(() => {
+            return filterDisplayGames(
+                mappedNHLGames,
+                search,
+                filters
+            );
+        }, [mappedNHLGames, search, filters]);
 
-    const mlbGameCards = useMemo(() => {
-        return filterGames(mappedMLBGames, search, filters);
-    }, [mappedMLBGames, search, filters]);
+    const mlbGameCards =
+        useMemo(() => {
+            return filterDisplayGames(
+                mappedMLBGames,
+                search,
+                filters
+            );
+        }, [mappedMLBGames, search, filters]);
 
-    const allOfTodaysGames = [
-        ...mappedNBAGames,
-        ...mappedNHLGames,
-        ...mappedMLBGames
-    ];
-    const favSet = useMemo(
-        () => new Set(favoriteTeams.map(t => t.name)),
-        [favoriteTeams]
-    );
+    const allOfTodaysGames =
+        useMemo(() => {
+            return [
+                ...mappedNBAGames,
+                ...mappedNHLGames,
+                ...mappedMLBGames,
+            ];
+        }, [
+            mappedNBAGames,
+            mappedNHLGames,
+            mappedMLBGames,
+        ]);
 
-    const favoriteNBAGameCards = useMemo(() => {
-        return nbaGameCards.filter(
-            game =>
-                favSet.has(game.awayTeam.name) ||
-                favSet.has(game.homeTeam.name)
-        );
-    }, [nbaGameCards, favSet]);
+    const liveGames =
+        useMemo(() => {
+            return allOfTodaysGames.filter(game =>
+                game.card.status === "LIVE" ||
+                game.card.status === "HALFTIME"
+            );
+        }, [allOfTodaysGames]);
 
-    const favoriteNHLGameCards = useMemo(() => {
-        return nhlGameCards.filter(
-            game =>
-                favSet.has(game.awayTeam.name) ||
-                favSet.has(game.homeTeam.name)
-        );
-    }, [nhlGameCards, favSet]);
+    const favSet =
+        useMemo(() => {
+            return new Set(
+                favoriteTeams.map(team => team.name)
+            );
+        }, [favoriteTeams]);
 
-    const favoriteMLBGameCards = useMemo(() => {
-        return mlbGameCards.filter(
-            game =>
-                favSet.has(game.awayTeam.name) ||
-                favSet.has(game.homeTeam.name)
-        );
-    }, [mlbGameCards, favSet]);
-    const favoriteGameCards = useMemo(() => {
-        return filterGames([
-            ...favoriteNBAGameCards,
-            ...favoriteNHLGameCards,
-            ...favoriteMLBGameCards
-        ], search, filters);
-    }, [favoriteNBAGameCards, favoriteNHLGameCards, favoriteMLBGameCards, search, filters]);
+    const favoriteNBAGameCards =
+        useMemo(() => {
+            return nbaGameCards.filter(game =>
+                isFavoriteDisplayGame(game, favSet)
+            );
+        }, [nbaGameCards, favSet]);
+
+    const favoriteNHLGameCards =
+        useMemo(() => {
+            return nhlGameCards.filter(game =>
+                isFavoriteDisplayGame(game, favSet)
+            );
+        }, [nhlGameCards, favSet]);
+
+    const favoriteMLBGameCards =
+        useMemo(() => {
+            return mlbGameCards.filter(game =>
+                isFavoriteDisplayGame(game, favSet)
+            );
+        }, [mlbGameCards, favSet]);
+
+    const favoriteGameCards =
+        useMemo(() => {
+            return filterDisplayGames(
+                [
+                    ...favoriteNBAGameCards,
+                    ...favoriteNHLGameCards,
+                    ...favoriteMLBGameCards,
+                ],
+                search,
+                filters
+            );
+        }, [
+            favoriteNBAGameCards,
+            favoriteNHLGameCards,
+            favoriteMLBGameCards,
+            search,
+            filters,
+        ]);
 
     useEffect(() => {
         setFilters([]);
-    }, [location])
+    }, [location]);
 
     return (
         <SportsContext.Provider
@@ -149,8 +239,10 @@ export const SportsProvider = ({ children }: { children: React.ReactNode }) => {
                 nbaGames: mappedNBAGames,
                 nhlGames: mappedNHLGames,
                 mlbGames: mappedMLBGames,
+
                 allOfTodaysGames,
-                liveGames: allOfTodaysGames.filter(x=> x.status === "LIVE" || x.status === "HALFTIME"),
+                liveGames,
+
                 nbaGamesLoading,
                 nhlGamesLoading,
                 mlbGamesLoading,
@@ -164,15 +256,17 @@ export const SportsProvider = ({ children }: { children: React.ReactNode }) => {
 
                 nbaGameCards,
                 favoriteNBAGameCards,
+
                 nhlGameCards,
                 favoriteNHLGameCards,
+
                 mlbGameCards,
                 favoriteMLBGameCards,
 
                 favoriteGameCards,
 
                 layout,
-                setLayout
+                setLayout,
             }}
         >
             {children}
@@ -182,6 +276,10 @@ export const SportsProvider = ({ children }: { children: React.ReactNode }) => {
 
 export const useSports = () => {
     const ctx = useContext(SportsContext);
-    if (!ctx) throw new Error("useSports must be used inside SportsProvider");
+
+    if (!ctx) {
+        throw new Error("useSports must be used inside SportsProvider");
+    }
+
     return ctx;
 };

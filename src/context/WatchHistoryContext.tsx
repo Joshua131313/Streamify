@@ -6,7 +6,6 @@ import {
     useState,
     type ReactNode,
 } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 
 import {
     collection,
@@ -22,6 +21,7 @@ import {
     orderBy,
     startAfter,
     QueryDocumentSnapshot,
+    setDoc,
 } from "firebase/firestore";
 
 import { useAuthProvider } from "./AuthContext";
@@ -29,7 +29,6 @@ import { useLocalStorage } from "../hooks/utilHooks/useLocalStorage";
 import { auth, db } from "../firebase/firebase";
 import type { TMDBMedia } from "../types/TMDBMediaType";
 import { useTMDBByIds } from "../hooks/mediaHooks/tmdbHooks/useTMDBByIds";
-import type { TMediaType } from "../types/tmdb";
 
 export type WatchHistoryItem = {
     mediaType: "movie" | "tv";
@@ -212,176 +211,241 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
         season?: number;
         episode?: number;
     }) => {
-        const now = new Date();
+
+        const now =
+            new Date();
 
         const payload: any = {
             mediaType: entry.mediaType,
-            genreIds: entry.genres.map(genre => genre.id),
+            genreIds: entry.genres.map(
+                genre => genre.id
+            ),
             mediaId: entry.mediaId,
             updatedAt: now,
         };
 
-        if (entry.season !== undefined) payload.season = entry.season;
-        if (entry.episode !== undefined) payload.episode = entry.episode;
+        if (entry.season !== undefined) {
+            payload.season = entry.season;
+        }
 
-        const updateLocalHistory = (item: WatchHistoryItem) => {
-            const existing = historyRef.current;
+        if (entry.episode !== undefined) {
+            payload.episode = entry.episode;
+        }
 
-            const index = existing.findIndex(
-                h => h.mediaId === item.mediaId && h.mediaType === item.mediaType
-            );
+        const updateLocalHistory = (
+            item: WatchHistoryItem
+        ) => {
+
+            const existing =
+                historyRef.current;
+
+            const index =
+                existing.findIndex(
+                    h =>
+                        h.mediaId === item.mediaId &&
+                        h.mediaType === item.mediaType &&
+                        h.season === item.season &&
+                        h.episode === item.episode
+                );
 
             let updated: WatchHistoryItem[];
 
             const normalizedItem = {
                 ...item,
-                updatedAt: normalizeDate(item.updatedAt),
+                updatedAt: normalizeDate(
+                    item.updatedAt
+                ),
             };
 
             if (index !== -1) {
+
                 updated = [...existing];
+
                 updated[index] = {
                     ...updated[index],
                     ...normalizedItem,
                 };
+
             } else {
-                updated = [normalizedItem, ...existing];
+
+                updated = [
+                    normalizedItem,
+                    ...existing
+                ];
             }
 
             updated.sort(
                 (a, b) =>
-                    b.updatedAt.getTime() - a.updatedAt.getTime()
+                    b.updatedAt.getTime() -
+                    a.updatedAt.getTime()
             );
 
             historyRef.current = updated;
+
             setHistory(updated);
         };
 
-        if (isAuthenticated) {
-            if (uid) {
-                const q = query(
-                    collection(db, "users", uid, "watchHistory"),
-                    where("mediaId", "==", entry.mediaId),
-                    where("mediaType", "==", entry.mediaType),
-                    limit(1)
-                );
+        if (isAuthenticated && uid) {
 
-                const snapshot = await getDocs(q);
+            const documentId =
+                entry.mediaType === "tv"
+                    ? `${entry.mediaId}-${entry.season ?? 0}-${entry.episode ?? 0}`
+                    : `${entry.mediaId}`;
 
-                if (!snapshot.empty) {
+            const documentRef = doc(
+                db,
+                "users",
+                uid,
+                "watchHistory",
+                documentId
+            );
 
-                    const firebaseId =
-                        snapshot.docs[0].id;
-
-                    const existingData =
-                        snapshot.docs[0].data();
-
-                    const sameSeason =
-                        Number(existingData.season ?? 0) ===
-                        Number(entry.season ?? 0);
-
-                    const sameEpisode =
-                        Number(existingData.episode ?? 0) ===
-                        Number(entry.episode ?? 0);
-
-                    const sameMedia =
-                        existingData.mediaId === entry.mediaId;
-
-                    const sameType =
-                        existingData.mediaType === entry.mediaType;
-
-                    const sameGenres =
-                        JSON.stringify(existingData.genreIds ?? []) ===
-                        JSON.stringify(
-                            entry.genres.map(g => g.id)
-                        );
-
-                    // IMPORTANT:
-                    // If nothing actually changed,
-                    // do NOT update Firestore.
-                    if (
-                        sameSeason &&
-                        sameEpisode &&
-                        sameMedia &&
-                        sameType &&
-                        sameGenres
-                    ) {
-                        return;
-                    }
-
-                    await updateDoc(
-                        doc(
+            const snapshot =
+                await getDocs(
+                    query(
+                        collection(
                             db,
                             "users",
                             uid,
-                            "watchHistory",
-                            firebaseId
+                            "watchHistory"
                         ),
-                        {
-                            ...payload,
-                            updatedAt: Timestamp.fromDate(now),
-                        }
-                    );
+                        where(
+                            "__name__",
+                            "==",
+                            documentId
+                        ),
+                        limit(1)
+                    )
+                );
 
-                    updateLocalHistory({
-                        ...payload,
-                        firebaseId,
-                    });
+            const existingData =
+                snapshot.empty
+                    ? null
+                    : snapshot.docs[0].data();
 
-                } else {
+            const sameSeason =
+                Number(
+                    existingData?.season ?? 0
+                ) ===
+                Number(
+                    entry.season ?? 0
+                );
 
-                    const docRef =
-                        await addDoc(
-                            collection(
-                                db,
-                                "users",
-                                uid,
-                                "watchHistory"
-                            ),
-                            {
-                                ...payload,
-                                updatedAt: Timestamp.fromDate(now),
-                            }
-                        );
+            const sameEpisode =
+                Number(
+                    existingData?.episode ?? 0
+                ) ===
+                Number(
+                    entry.episode ?? 0
+                );
 
-                    updateLocalHistory({
-                        ...payload,
-                        firebaseId: docRef.id,
-                    });
-                }
+            const sameMedia =
+                existingData?.mediaId ===
+                entry.mediaId;
 
+            const sameType =
+                existingData?.mediaType ===
+                entry.mediaType;
+
+            const sameGenres =
+                JSON.stringify(
+                    existingData?.genreIds ?? []
+                ) ===
+                JSON.stringify(
+                    entry.genres.map(
+                        g => g.id
+                    )
+                );
+
+            // Prevent infinite sync loops
+            if (
+                existingData &&
+                sameSeason &&
+                sameEpisode &&
+                sameMedia &&
+                sameType &&
+                sameGenres
+            ) {
                 return;
             }
-        };
-        const existing = get<any[]>("watch-history", []);
 
-        const normalizedExisting = existing.map(item => ({
-            ...item,
-            updatedAt: normalizeDate(item.updatedAt),
-        }));
+            await setDoc(
+                documentRef,
+                {
+                    ...payload,
+                    updatedAt:
+                        Timestamp.fromDate(now),
+                },
+                {
+                    merge: true
+                }
+            );
 
-        const index = normalizedExisting.findIndex(
-            h => h.mediaId === entry.mediaId && h.mediaType === entry.mediaType
-        );
+            updateLocalHistory({
+                ...payload,
+                firebaseId: documentId,
+            });
+
+            return;
+        }
+
+        // Local storage fallback
+
+        const existing =
+            get<any[]>(
+                "watch-history",
+                []
+            );
+
+        const normalizedExisting =
+            existing.map(item => ({
+                ...item,
+                updatedAt: normalizeDate(
+                    item.updatedAt
+                ),
+            }));
+
+        const index =
+            normalizedExisting.findIndex(
+                h =>
+                    h.mediaId === entry.mediaId &&
+                    h.mediaType === entry.mediaType &&
+                    h.season === entry.season &&
+                    h.episode === entry.episode
+            );
 
         let updated: WatchHistoryItem[];
 
         if (index !== -1) {
+
             updated = [...normalizedExisting];
+
             updated[index] = payload;
+
         } else {
-            updated = [payload, ...normalizedExisting];
+
+            updated = [
+                payload,
+                ...normalizedExisting
+            ];
         }
 
         updated.sort(
             (a, b) =>
-                b.updatedAt.getTime() - a.updatedAt.getTime()
+                b.updatedAt.getTime() -
+                a.updatedAt.getTime()
         );
 
-        set("watch-history", updated);
-        historyRef.current = updated;
+        set(
+            "watch-history",
+            updated
+        );
+
+        historyRef.current =
+            updated;
+
         setHistory(updated);
-    }
+    };
 
     const removeHistory = async (mediaId: number, mediaType: "movie" | "tv") => {
         if (uid) {

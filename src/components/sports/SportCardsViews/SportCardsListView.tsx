@@ -1,24 +1,40 @@
 import type { SportCardsViewsProps } from ".";
-import type { GameProps, Leagues } from "../../../types/sports/sportsTypes";
 import { FilteredSportsContainer } from "../../layout/Container/FilteredSportsContainer";
-import HorizontalGameCard from "../GameCard/HorizontalGameCard";
-import "./SportCardsViews.css"
+import { MediaSkeletonCard } from "../../ui/MediaCard/SkeletonCards/MediaSkeletonCard";
+import { GameCardSkeleton } from "../GameCard/GameCardSkeleton/GameCardSkeleton";
+import { SportGameCardRenderer } from "../GameCard/SportGameCardRenderer";
+import "./SportCardsViews.css";
 
-export const SportCardsListView = (props: SportCardsViewsProps) => {
+export const SportCardsListView = (
+    props: SportCardsViewsProps
+) => {
+    const {
+        title,
+        type,
+        games,
+        gamesLoading,
+    } = props;
 
-    const { title, type, games, gamesLoading } = props;
-    
     return (
         <FilteredSportsContainer
-            className="games-list"
-            title={title}
             type={type}
+            title={title}
         >
-            {games.map((gameCard) => (
-                <HorizontalGameCard
-                    game={gameCard}
-                />
-            ))}
+            <div className="sport-cards-list">
+                {gamesLoading
+                    ? Array.from({ length: 6 }).map((_, index) => (
+                        <GameCardSkeleton
+                            key={index}
+                            className="game-card-skeleton"
+                        />
+                    ))
+                    : games.map(game => (
+                        <SportGameCardRenderer
+                            key={`${game.league}-${game.id}`}
+                            game={game}
+                        />
+                    ))}
+            </div>
         </FilteredSportsContainer>
-    )
-}
+    );
+};
