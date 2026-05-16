@@ -11,6 +11,7 @@ interface SportLeaguePageProps {
     favoriteGames: SportDisplayGame[];
     followedTitle?: string;
     gamesTitle?: string;
+    gamesLoading: boolean;
 }
 
 const SportLeaguePage = ({
@@ -21,23 +22,27 @@ const SportLeaguePage = ({
     favoriteGames,
     followedTitle = "Followed Teams",
     gamesTitle = `Today's ${title} Games`,
+    gamesLoading
 }: SportLeaguePageProps) => {
     return (
         <>
-        <SportsLayout title={title} subTitle={subTitle} league={league}>
-            <SportCardsViewFactory 
-                games={favoriteGames}
-                gamesLoading={false}
-                title={followedTitle}
-                type={league}
-            />
-            <SportCardsViewFactory 
-                games={games}
-                gamesLoading={false}
-                title={gamesTitle}
-                type={league}
-            />
-        </SportsLayout>
+            <SportsLayout title={title} subTitle={subTitle} league={league}>
+                {
+                    favoriteGames.length !== 0 &&
+                    <SportCardsViewFactory
+                        games={favoriteGames}
+                        gamesLoading={false}
+                        title={followedTitle}
+                        type={league}
+                    />
+                }
+                <SportCardsViewFactory
+                    games={games}
+                    gamesLoading={gamesLoading}
+                    title={gamesTitle}
+                    type={league}
+                />
+            </SportsLayout>
         </>
     );
 };

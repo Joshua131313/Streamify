@@ -19,6 +19,7 @@ export const useMLBGames = (): UseMLBGames => {
         },
         refetchInterval: 30000
     });
+    console.log("isLoading", isLoading)
     return {
         games: Array.isArray(data) ? data : [],
         isLoading: isLoading,

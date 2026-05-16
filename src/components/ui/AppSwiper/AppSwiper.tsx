@@ -24,7 +24,8 @@ export const AppSwiper = <T,>({
 }: AppSwiperProps<T>) => {
     const prevRef = useRef<HTMLDivElement | null>(null);
     const nextRef = useRef<HTMLDivElement | null>(null);
-
+    const shouldShowSkeletons =
+        isLoading && items.length === 0;
     return (
         <div className="swiper-container">
             {/* <div ref={prevRef} className="prev-button swiper-nav-button">
@@ -38,6 +39,7 @@ export const AppSwiper = <T,>({
                 <div ref={nextRef}><FaChevronRight /></div>
             </div>
             <Swiper
+                key={isLoading ? "loading" : "loaded"}
                 className={`media-swiper ${variant === "top10" ? "top-10-media-swiper" : ""}`}
                 slidesPerView={"auto"}
                 spaceBetween={10}
@@ -50,7 +52,7 @@ export const AppSwiper = <T,>({
                     swiper.params.navigation.nextEl = nextRef.current;
                 }}
             >
-                {isLoading
+                {shouldShowSkeletons
                     ? Array.from({ length: 5 }).map((_, i) => (
                         <SwiperSlide key={`skeleton-${i}`}>{skeleton}</SwiperSlide>
                     ))

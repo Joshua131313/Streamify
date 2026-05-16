@@ -51,7 +51,7 @@ export const MLBGameCardCenter = ({
         inningHalf === "bottom";
 
     const inningStateText =
-        inningHalf === "middle"
+        inningHalf === "mid"
             ? "Mid"
 
             : inningHalf === "end"

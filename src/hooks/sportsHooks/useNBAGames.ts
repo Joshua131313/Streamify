@@ -10,7 +10,7 @@ interface UseNbaGames {
 
 export const useNBAGames = () : UseNbaGames => {
 
-    const { data = [], isLoading, error } = useQuery({
+    const { data = [], isPending, error } = useQuery({
         queryKey: ["nba-games"],
         queryFn: async () => {
             const API_URL = import.meta.env.VITE_API_URL || "";
@@ -21,7 +21,7 @@ export const useNBAGames = () : UseNbaGames => {
     });
     return {
         nbaGames: Array.isArray(data) ? data : [],
-        nbaGamesLoading: isLoading,
+        nbaGamesLoading: isPending,
         error,
     };
 };

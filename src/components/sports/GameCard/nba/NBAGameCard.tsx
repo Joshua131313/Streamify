@@ -17,6 +17,7 @@ import { GameCardTeam } from "../GameCardTeam";
 import { WatchButton } from "../../../ui/Button/WatchButton";
 import ExternalGameInfoButton from "../../../ui/Button/ExternalGameInfoButton";
 import { getOrdinalSuffix } from "../../../../utils/sports/sportsUtils";
+import { PeriodGroup } from "../PeriodGroup";
 
 interface Props {
   game: INBAGame;
@@ -86,6 +87,17 @@ export const NBAGameCard: React.FC<Props> = ({
         minute: "2-digit",
       }
     );
+
+  const basePeriods =
+    game.live?.periodScores?.length ?? 4;
+
+  const extraPeriods =
+    game.period?.type === "OT"
+      ? 1
+      : 0;
+
+  const periodsPlayed =
+    basePeriods + extraPeriods;
 
   return (
     <article
@@ -310,7 +322,9 @@ export const NBAGameCard: React.FC<Props> = ({
 
                 <span className="team-cell" />
 
-                <div className="periods-group">
+                <PeriodGroup
+                  periodsPlayed={periodsPlayed}
+                >
 
                   {game.live?.periodScores?.map(period => (
                     <span
@@ -327,7 +341,7 @@ export const NBAGameCard: React.FC<Props> = ({
                     </span>
                   )}
 
-                </div>
+                </PeriodGroup>
 
                 <div className="totals-group">
 
@@ -353,7 +367,9 @@ export const NBAGameCard: React.FC<Props> = ({
                   {card.awayTeam.abbrev}
                 </span>
 
-                <div className="innings-group">
+                <PeriodGroup
+                  periodsPlayed={periodsPlayed}
+                >
 
                   {game.live?.periodScores?.map(period => (
                     <span
@@ -364,7 +380,7 @@ export const NBAGameCard: React.FC<Props> = ({
                     </span>
                   ))}
 
-                </div>
+                </PeriodGroup>
 
                 <div className="totals-group">
 
@@ -390,7 +406,9 @@ export const NBAGameCard: React.FC<Props> = ({
                   {card.homeTeam.abbrev}
                 </span>
 
-                <div className="innings-group">
+                <PeriodGroup
+                  periodsPlayed={periodsPlayed}
+                >
 
                   {game.live?.periodScores?.map(period => (
                     <span
@@ -401,7 +419,7 @@ export const NBAGameCard: React.FC<Props> = ({
                     </span>
                   ))}
 
-                </div>
+                </PeriodGroup>
 
                 <div className="totals-group">
 

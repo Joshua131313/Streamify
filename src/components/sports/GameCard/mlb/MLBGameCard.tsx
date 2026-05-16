@@ -63,7 +63,6 @@ export const MLBGameCard: React.FC<Props> = ({
   ] = useState(false);
 
   const { layout } = useSports();
-
   const {
     openContextMenu,
     defaultSportStreamProvider,
