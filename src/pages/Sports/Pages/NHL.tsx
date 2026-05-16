@@ -2,7 +2,7 @@ import { useSports } from "../../../context/SportsContext";
 import SportLeaguePage from "./SportsLeaguePage";
 
 const NHL = () => {
-    const { nhlGameCards, favoriteNHLGameCards } = useSports();
+    const { nhlGameCards, favoriteNHLGameCards, nhlGamesLoading } = useSports();
 
     return (
         <SportLeaguePage
@@ -11,6 +11,7 @@ const NHL = () => {
             subTitle="Browse live NHL games"
             games={nhlGameCards}
             favoriteGames={favoriteNHLGameCards}
+            gamesLoading={nhlGamesLoading}
         />
     );
 };

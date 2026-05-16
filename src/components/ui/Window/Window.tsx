@@ -140,7 +140,7 @@ export const Window = ({ id, title, children, minimizedIcon, className }: Props)
             >
                 <div className="window-shell">
                     {/* HEADER */}
-                    <div className="window-header">
+                    <div className="window-header" onDoubleClick={() => toggleFullscreen()}>
                         <span>{title}</span>
 
                         <div className="window-controls">

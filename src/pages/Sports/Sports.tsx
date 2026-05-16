@@ -22,12 +22,15 @@ const Sports = () => {
 
     return (
         <SportsLayout title="Sports" subTitle="Browse live sports" league="all" >
-            <SportCardsViewFactory 
-                games={favoriteGameCards}
-                gamesLoading={false}
-                title="Followed Teams"
-                type="FOLLOW"
-            />
+            {
+                favoriteGameCards.length !== 0 &&
+                    <SportCardsViewFactory 
+                    games={favoriteGameCards}
+                    gamesLoading={false}
+                    title="Followed Teams"
+                    type="FOLLOW"
+                />
+            }
             <FilteredSportsContainer type="TV" title="Sports Channels">
                 <AppSwiper
                     items={channelStreams}
