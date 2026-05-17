@@ -4,21 +4,26 @@
     bottom: 110px;
     left: 50%;
     transform: translateX(-50%);
-    
+
 }
+
 .player .episode-selector-icon {
     right: 16px;
     left: initial;
 }
+
 .paused.idle .player iframe {
     filter: brightness(50%);
 }
+
 .paused.idle .you-are-watching {
     display: flex;
 }
-body.is-mobile .you-are-watching {
-    display: none;
+
+.is-mobile .you-are-watching {
+    display: none !important;
 }
+
 .you-are-watching {
     position: absolute;
     z-index: 10;
@@ -28,22 +33,26 @@ body.is-mobile .you-are-watching {
     justify-content: center;
     height: 100dvh;
 }
+
 .you-are-watching .container-content {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: 20px;
 }
+
 .you-are-watching .episode-info {
     display: flex;
     gap: 15px;
     font-size: var(--font-sm);
 }
+
 .you-are-watching img {
     height: 100px;
     max-width: 100%;
     object-fit: contain;
 }
+
 .episode-selector {
     width: 100%;
     height: 100%;
@@ -58,11 +67,13 @@ body.is-mobile .you-are-watching {
 .episode-selector .title-container {
     display: none;
 }
+
 .episode-selector .episodes-list .container-content {
     height: initial;
     overflow-y: initial;
     max-height: initial;
 }
+
 .inner-episode-selector {
     max-width: 350px;
     max-height: 600px;
@@ -76,30 +87,40 @@ body.is-mobile .you-are-watching {
 .inner-episode-selector .episode-card {
     height: 80px;
 }
-.inner-episode-selector .episode-card img, .inner-episode-selector .episode-card .img-skeleton {
+
+.inner-episode-selector .episode-card img,
+.inner-episode-selector .episode-card .img-skeleton {
     width: 100px;
 }
+
 .inner-episode-selector .episode-card .still-container .media-badge {
     display: none;
 }
+
 .inner-episode-selector .episode-card .episode-info strong {
     font-size: 12px;
 }
+
 .inner-episode-selector .episode-card .episode-info small {
     font-size: 10px;
 }
+
 .inner-episode-selector .season-selector {
     flex-wrap: wrap;
 }
+
 .inner-episode-selector .season-selector .select {
     flex: 0 0 100%;
 }
+
 .inner-episode-selector .season-selector .input-container {
     flex: 1
 }
-.inner-episode-selector > div {
+
+.inner-episode-selector>div {
     padding: 0;
 }
+
 .stream-provider-buttons {
     position: absolute;
     z-index: 1;
@@ -107,9 +128,10 @@ body.is-mobile .you-are-watching {
     display: flex;
     gap: 10px;
     left: 16px;
-    transform: translateY(0); 
+    transform: translateY(0);
     transition: transform 0.3s ease;
 }
+
 .idle .stream-provider-buttons {
     opacity: 0;
 }
@@ -117,16 +139,17 @@ body.is-mobile .you-are-watching {
 .vidsrc .stream-provider-buttons {
     transform: translateY(30px);
 }
+
 .vidsrc.player .next-episode-icon {
-        transform: translateY(30px) translateX(-50%);
+    transform: translateY(30px) translateX(-50%);
 }
 
 .player .inner-episode-selector .container-header {
     margin-top: 0;
 }
-.player .fullscreen-icon.player-control-icon  {
-    
-}
+
+.player .fullscreen-icon.player-control-icon {}
+
 /* .player.vidking .fullscreen-icon.player-control-icon  {
     width: 65px;
     height: 65px;
@@ -149,7 +172,20 @@ body.is-mobile .you-are-watching {
     background-color: #232323;
 }  */
 @supports not (height: 100dvh) {
-  .player.modal-player {
-    height: 100vh;
-  }
+    .player.modal-player {
+        height: 100vh;
+    }
+}
+
+@media (max-width: 650px) {
+    .player .next-episode-icon {
+        top: initial;
+        bottom: 160px;
+        left: 16px;
+        transform: translateY(0);
+    }
+
+    .vidsrc.player .next-episode-icon {
+        transform: translateY(30px)
+    }
 }

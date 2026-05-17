@@ -9,6 +9,7 @@ import { MediaCardInfo } from "./MediaCardInfo";
 import { useApp } from "../../../context/AppContext";
 import { Button } from "../Button/Button";
 import { useWatchHistoryContext } from "../../../context/WatchHistoryContext";
+import { useState } from "react";
 
 interface Props {
     media: TMDBMedia;
@@ -20,8 +21,9 @@ export const ContinueWatchingCard = (props: Props) => {
     const { media, className } = props;
 
     const { url, season, episode } = usePlayUrl(media.id, media.mediaType);
-    const { removeHistory } = useWatchHistoryContext()
+    const { removeHistory, saveHistory } = useWatchHistoryContext()
     const { isMobile } = useApp();
+    const [isComplete, setIsComplete] = useState(false);
 
     return (
         <Link to={url} className={`${isMobile ? "mobile-media-card" : ""} media-card continue-watching-card ${className}`}>
@@ -36,7 +38,22 @@ export const ContinueWatchingCard = (props: Props) => {
                 </div>
             }
 
-            <Button className="complete-button" onClick={() => removeHistory(media.id, media.mediaType)}>Completed</Button>
+            <Button className={`${isComplete ? "secondary" : ""} complete-button`} onClick={(e) => {
+                e.preventDefault();
+                if(isComplete) {
+                    saveHistory({
+                        genres: media.genres ?? [],
+                        mediaId: media.id,
+                        mediaType: media.mediaType,
+                        episode: episode ?? undefined,
+                        season: season ?? undefined
+                    })
+                }
+                else {
+                    removeHistory(media.id, media.mediaType);
+                }
+                setIsComplete(!isComplete);
+            }}>{isComplete ? "Undo" : "Complete"}</Button>
             <MediaCardInfo media={media} />
         </Link>
     );
