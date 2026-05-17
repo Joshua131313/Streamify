@@ -16,6 +16,9 @@
 .paused.idle .you-are-watching {
     display: flex;
 }
+body.is-mobile .you-are-watching {
+    display: none;
+}
 .you-are-watching {
     position: absolute;
     z-index: 10;

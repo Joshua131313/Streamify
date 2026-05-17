@@ -59,7 +59,14 @@ type ContextType = {
         season?: number;
         episode?: number;
     }) => Promise<void>;
-    removeHistory: (mediaId: number, mediaType: "movie" | "tv") => Promise<void>;
+    removeHistory: (
+        mediaId: number,
+        mediaType: "movie" | "tv"
+    ) => Promise<void>;
+    markAsCompleted: (
+        mediaId: number,
+        mediaType: "movie" | "tv"
+    ) => Promise<void>;
     getHistoryItem: (
         mediaId: number,
         mediaType: "movie" | "tv"
@@ -180,8 +187,18 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
         }
     }, [isAuthenticated]);
 
+    const uniqueHistory = history.filter(
+        (item, index, self) =>
+            index ===
+            self.findIndex(
+                h =>
+                    h.mediaId === item.mediaId &&
+                    h.mediaType === item.mediaType
+            )
+    );
+
     const { media, isLoading } = useTMDBByIds(
-        history.map(h => ({
+        uniqueHistory.map(h => ({
             mediaId: h.mediaId,
             mediaType: h.mediaType
         }))
@@ -189,9 +206,17 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
 
     const historyMedia: HistoryMedia[] = media
         .map(m => {
-            const meta = history.find(
-                h => h.mediaId === m.id && h.mediaType === m.mediaType
-            );
+            const meta = history
+                .filter(
+                    h =>
+                        h.mediaId === m.id &&
+                        h.mediaType === m.mediaType
+                )
+                .sort(
+                    (a, b) =>
+                        b.updatedAt.getTime() -
+                        a.updatedAt.getTime()
+                )[0];
 
             if (!meta) return null;
 
@@ -243,9 +268,7 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
                 existing.findIndex(
                     h =>
                         h.mediaId === item.mediaId &&
-                        h.mediaType === item.mediaType &&
-                        h.season === item.season &&
-                        h.episode === item.episode
+                        h.mediaType === item.mediaType
                 );
 
             let updated: WatchHistoryItem[];
@@ -288,9 +311,7 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
         if (isAuthenticated && uid) {
 
             const documentId =
-                entry.mediaType === "tv"
-                    ? `${entry.mediaId}-${entry.season ?? 0}-${entry.episode ?? 0}`
-                    : `${entry.mediaId}`;
+                `${entry.mediaType}-${entry.mediaId}`;
 
             const documentRef = doc(
                 db,
@@ -409,9 +430,7 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
             normalizedExisting.findIndex(
                 h =>
                     h.mediaId === entry.mediaId &&
-                    h.mediaType === entry.mediaType &&
-                    h.season === entry.season &&
-                    h.episode === entry.episode
+                    h.mediaType === entry.mediaType
             );
 
         let updated: WatchHistoryItem[];
@@ -526,7 +545,71 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
             updatedAt: normalizeDate(item.updatedAt),
         };
     };
+    const markAsCompleted = async (
+        mediaId: number,
+        mediaType: "movie" | "tv"
+    ) => {
 
+        const existing =
+            historyRef.current.find(
+                h =>
+                    h.mediaId === mediaId &&
+                    h.mediaType === mediaType
+            );
+
+        if (uid) {
+
+            if (existing?.firebaseId) {
+
+                await deleteDoc(
+                    doc(
+                        db,
+                        "users",
+                        uid,
+                        "watchHistory",
+                        existing.firebaseId
+                    )
+                );
+            }
+
+        } else {
+
+            const updated =
+                historyRef.current.filter(
+                    h =>
+                        !(
+                            h.mediaId === mediaId &&
+                            h.mediaType === mediaType
+                        )
+                );
+
+            set(
+                "watch-history",
+                updated
+            );
+
+            historyRef.current =
+                updated;
+
+            setHistory(updated);
+
+            return;
+        }
+
+        const updated =
+            historyRef.current.filter(
+                h =>
+                    !(
+                        h.mediaId === mediaId &&
+                        h.mediaType === mediaType
+                    )
+            );
+
+        historyRef.current =
+            updated;
+
+        setHistory(updated);
+    };
     return (
         <WatchHistoryContext.Provider
             value={{
@@ -537,6 +620,7 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
                 loadMore,
                 saveHistory,
                 removeHistory,
+                markAsCompleted,
                 getHistoryItem,
             }}
         >
