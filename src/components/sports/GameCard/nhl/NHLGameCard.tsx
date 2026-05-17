@@ -16,6 +16,7 @@ import { WatchButton } from "../../../ui/Button/WatchButton";
 import ExternalGameInfoButton from "../../../ui/Button/ExternalGameInfoButton";
 import { getOrdinalSuffix } from "../../../../utils/sports/sportsUtils";
 import { PeriodGroup } from "../PeriodGroup";
+import { DateTime } from "luxon";
 
 interface Props {
   game: INHLGame;
@@ -67,7 +68,7 @@ export const NHLGameCard: React.FC<Props> = ({
 
   const periodText =
     isPregame
-      ? "Scheduled"
+      ? DateTime.fromISO(game.date).toFormat("MMM d")
       : game.period.type === "SO"
         ? "Shootout"
         : game.period.type === "OT"

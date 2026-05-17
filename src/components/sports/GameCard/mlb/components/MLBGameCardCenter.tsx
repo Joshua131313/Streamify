@@ -12,6 +12,7 @@ import {
 } from "../../../../../utils/sports/sportsUtils";
 
 import { MLBDiamond } from "./MLBDiamond";
+import { DateTime } from "luxon";
 
 interface Props {
     game: IMLBGame;
@@ -93,7 +94,7 @@ export const MLBGameCardCenter = ({
 
                 <span>
                     {isPregame
-                        ? "Scheduled"
+                        ? DateTime.fromISO(game.date).toFormat("MMM d")
 
                         : isFinal
                             ? "Final"
