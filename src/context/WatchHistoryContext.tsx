@@ -63,10 +63,6 @@ type ContextType = {
         mediaId: number,
         mediaType: "movie" | "tv"
     ) => Promise<void>;
-    markAsCompleted: (
-        mediaId: number,
-        mediaType: "movie" | "tv"
-    ) => Promise<void>;
     getHistoryItem: (
         mediaId: number,
         mediaType: "movie" | "tv"
@@ -545,71 +541,7 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
             updatedAt: normalizeDate(item.updatedAt),
         };
     };
-    const markAsCompleted = async (
-        mediaId: number,
-        mediaType: "movie" | "tv"
-    ) => {
 
-        const existing =
-            historyRef.current.find(
-                h =>
-                    h.mediaId === mediaId &&
-                    h.mediaType === mediaType
-            );
-
-        if (uid) {
-
-            if (existing?.firebaseId) {
-
-                await deleteDoc(
-                    doc(
-                        db,
-                        "users",
-                        uid,
-                        "watchHistory",
-                        existing.firebaseId
-                    )
-                );
-            }
-
-        } else {
-
-            const updated =
-                historyRef.current.filter(
-                    h =>
-                        !(
-                            h.mediaId === mediaId &&
-                            h.mediaType === mediaType
-                        )
-                );
-
-            set(
-                "watch-history",
-                updated
-            );
-
-            historyRef.current =
-                updated;
-
-            setHistory(updated);
-
-            return;
-        }
-
-        const updated =
-            historyRef.current.filter(
-                h =>
-                    !(
-                        h.mediaId === mediaId &&
-                        h.mediaType === mediaType
-                    )
-            );
-
-        historyRef.current =
-            updated;
-
-        setHistory(updated);
-    };
     return (
         <WatchHistoryContext.Provider
             value={{
@@ -620,7 +552,6 @@ export const WatchHistoryProvider = ({ children }: { children: ReactNode }) => {
                 loadMore,
                 saveHistory,
                 removeHistory,
-                markAsCompleted,
                 getHistoryItem,
             }}
         >

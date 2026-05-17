@@ -7,6 +7,8 @@ import { Icon } from "../Icon/Icon";
 import { usePlayUrl } from "../../../hooks/mediaHooks/usePlayUrl";
 import { MediaCardInfo } from "./MediaCardInfo";
 import { useApp } from "../../../context/AppContext";
+import { Button } from "../Button/Button";
+import { useWatchHistoryContext } from "../../../context/WatchHistoryContext";
 
 interface Props {
     media: TMDBMedia;
@@ -18,7 +20,7 @@ export const ContinueWatchingCard = (props: Props) => {
     const { media, className } = props;
 
     const { url, season, episode } = usePlayUrl(media.id, media.mediaType);
-
+    const { removeHistory } = useWatchHistoryContext()
     const { isMobile } = useApp();
 
     return (
@@ -33,6 +35,8 @@ export const ContinueWatchingCard = (props: Props) => {
                     S{season} E{episode}
                 </div>
             }
+
+            <Button className="complete-button" onClick={() => removeHistory(media.id, media.mediaType)}>Completed</Button>
             <MediaCardInfo media={media} />
         </Link>
     );
