@@ -19,7 +19,7 @@ export const SportGameCardRenderer = ({
                     game={game.raw}
                 />
             );
-
+        case "WNBA":
         case "NBA": 
             return (
                 <NBAGameCard

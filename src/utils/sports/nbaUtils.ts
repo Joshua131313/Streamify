@@ -21,7 +21,7 @@ export const mapStatus = (status: string, date: string): GameStatus => {
   return "FUT";
 };
 
-export const mapNBAToGameProps = (game: INBAGame): GameProps => {
+export const mapNBAToGameProps = (game: INBAGame, league: "WNBA" | "NBA" = "NBA"): GameProps => {
   const title = `${game.homeTeam.name} vs ${
     game.awayTeam.name
   }`;
@@ -39,7 +39,7 @@ export const mapNBAToGameProps = (game: INBAGame): GameProps => {
       logo: game.homeTeam.logo,
       score: game.homeTeam.score, 
       abbrev: game.homeTeam.abbreviation,
-      league: "NBA"
+      league
     },
 
     awayTeam: {
@@ -47,7 +47,7 @@ export const mapNBAToGameProps = (game: INBAGame): GameProps => {
       logo: game.awayTeam.logo,
       score: game.awayTeam.score,
       abbrev: game.awayTeam.abbreviation,
-      league: "NBA"
+      league
     },
 
     periodNumber: game.period?.type === "OT"
@@ -58,6 +58,6 @@ export const mapNBAToGameProps = (game: INBAGame): GameProps => {
 
     clock: game.clock ?? undefined,
     gameLink: game.gameLink ?? "",
-    leagueName: "NBA",
+    leagueName: league
   };
 };

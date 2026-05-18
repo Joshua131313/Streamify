@@ -27,6 +27,17 @@ export const createNBADisplayGame = (
         card: mapNBAToGameProps(game),
     };
 };
+export const createWNBADisplayGame = (
+    game: INBAGame
+): SportDisplayGame => {
+
+    return {
+        league: "WNBA",
+        id: game.id,
+        raw: game,
+        card: mapNBAToGameProps(game, "WNBA"),
+    };
+};
 
 export const createNHLDisplayGame = (
     game: INHLGame

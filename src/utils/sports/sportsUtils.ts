@@ -5,6 +5,7 @@ import { nhlStreams, nhlTeamsMap } from "../../data/sports/nhlData";
 import { channelStreams } from "../../data/sports/sportsData";
 import type { GameProps, GameStatus, Leagues, TeamAbbrevs, TeamInfo, TStreamProvider } from "../../types/sports/sportsTypes"
 import type { SportFilter } from "../../context/SportsContext";
+import { wnbaStreams } from "../../data/sports/wnba";
 
 
 const sportsStreamsMap = Object.fromEntries(
@@ -103,6 +104,8 @@ export const getSportStream = (league: Leagues) => {
     switch (league) {
         case "NBA":
             return nbaStreams;
+        case "WNBA":
+            return wnbaStreams;
         case "NHL":
             return nhlStreams;
         case "MLB":

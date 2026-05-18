@@ -11,9 +11,11 @@ import { MediaSkeletonCard } from "../../components/ui/MediaCard/SkeletonCards/M
 const Sports = () => {
     const {
         nbaGamesLoading,
+        wnbaGamesLoading,
         nhlGamesLoading,
         mlbGamesLoading,
         nbaGameCards,
+        wnbaGameCards,
         nhlGameCards,
         mlbGameCards,
         favoriteGameCards,
@@ -24,7 +26,7 @@ const Sports = () => {
         <SportsLayout title="Sports" subTitle="Browse live sports" league="all" >
             {
                 favoriteGameCards.length !== 0 &&
-                    <SportCardsViewFactory 
+                <SportCardsViewFactory
                     games={favoriteGameCards}
                     gamesLoading={false}
                     title="Followed Teams"
@@ -41,19 +43,25 @@ const Sports = () => {
                     skeleton={<MediaSkeletonCard className="game-card-skeleton" />}
                 />
             </FilteredSportsContainer>
-            <SportCardsViewFactory 
+            <SportCardsViewFactory
                 games={nbaGameCards}
                 gamesLoading={nbaGamesLoading}
                 title="NBA"
                 type="NBA"
             />
-            <SportCardsViewFactory 
+            <SportCardsViewFactory
+                games={wnbaGameCards}
+                gamesLoading={wnbaGamesLoading}
+                title="WNBA"
+                type="WNBA"
+            />
+            <SportCardsViewFactory
                 games={nhlGameCards}
                 gamesLoading={nhlGamesLoading}
                 title="NHL"
                 type="NHL"
             />
-            <SportCardsViewFactory 
+            <SportCardsViewFactory
                 games={mlbGameCards}
                 gamesLoading={mlbGamesLoading}
                 title="MLB"

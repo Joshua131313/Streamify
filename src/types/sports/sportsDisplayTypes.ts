@@ -15,6 +15,13 @@ export type SportDisplayGame =
         card: GameProps;
         raw: INBAGame;
     }
+    |
+    {
+        league: "WNBA";
+        id: string;
+        card: GameProps;
+        raw: INBAGame;
+    }
     | {
         league: "NHL";
         id: string;
