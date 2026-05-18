@@ -14,7 +14,9 @@ import {
     createMLBDisplayGame,
     filterDisplayGames,
     isFavoriteDisplayGame,
+    createWNBADisplayGame,
 } from "../utils/sports/sportDisplayUtils";
+import { useWNBAGames } from "../hooks/sportsHooks/useWNBAGames";
 
 export type SportFilterType = "status" | "league" | "sport";
 
@@ -33,6 +35,7 @@ export const quickFilters: SportFilter[] = [
     { label: "Finished", value: "FINAL", type: "status" },
 
     { label: "NBA", value: "NBA", type: "league" },
+    { label: "WNBA", value: "WNBA", type: "league" },
     { label: "NHL", value: "NHL", type: "league" },
     { label: "MLB", value: "MLB", type: "league" },
 
@@ -41,6 +44,7 @@ export const quickFilters: SportFilter[] = [
 
 interface SportsContextType {
     nbaGames: SportDisplayGame[];
+    wnbaGames: SportDisplayGame[];
     nhlGames: SportDisplayGame[];
     mlbGames: SportDisplayGame[];
 
@@ -48,6 +52,7 @@ interface SportsContextType {
     liveGames: SportDisplayGame[];
 
     nbaGamesLoading: boolean;
+    wnbaGamesLoading: boolean;
     nhlGamesLoading: boolean;
     mlbGamesLoading: boolean;
 
@@ -59,10 +64,12 @@ interface SportsContextType {
     addSportFilter: (filter: SportFilter) => void;
 
     nbaGameCards: SportDisplayGame[];
+    wnbaGameCards: SportDisplayGame[];
     nhlGameCards: SportDisplayGame[];
     mlbGameCards: SportDisplayGame[];
 
     favoriteNBAGameCards: SportDisplayGame[];
+    favoriteWNBAGameCards: SportDisplayGame[];
     favoriteNHLGameCards: SportDisplayGame[];
     favoriteMLBGameCards: SportDisplayGame[];
     favoriteGameCards: SportDisplayGame[];
@@ -100,6 +107,11 @@ export const SportsProvider = ({
     } = useNBAGames();
 
     const {
+        wnbaGames,
+        wnbaGamesLoading,
+    } = useWNBAGames();
+
+    const {
         games: nhlGames,
         isLoading: nhlGamesLoading,
     } = useNHLGames();
@@ -113,6 +125,10 @@ export const SportsProvider = ({
         useMemo(() => {
             return nbaGames.map(createNBADisplayGame);
         }, [nbaGames]);
+    const mappedWNBAGames =
+        useMemo(() => {
+            return wnbaGames.map(createWNBADisplayGame);
+        }, [wnbaGames]);
 
     const mappedNHLGames =
         useMemo(() => {
@@ -143,6 +159,15 @@ export const SportsProvider = ({
             );
         }, [mappedNBAGames, search, filters]);
 
+    const wnbaGameCards =
+        useMemo(() => {
+            return filterDisplayGames(
+                mappedWNBAGames,
+                search,
+                filters
+            );
+        }, [mappedWNBAGames, search, filters]);
+        
     const nhlGameCards =
         useMemo(() => {
             return filterDisplayGames(
@@ -165,11 +190,13 @@ export const SportsProvider = ({
         useMemo(() => {
             return [
                 ...mappedNBAGames,
+                ...mappedWNBAGames,
                 ...mappedNHLGames,
                 ...mappedMLBGames,
             ];
         }, [
             mappedNBAGames,
+            mappedWNBAGames,
             mappedNHLGames,
             mappedMLBGames,
         ]);
@@ -196,6 +223,13 @@ export const SportsProvider = ({
             );
         }, [nbaGameCards, favSet]);
 
+    const favoriteWNBAGameCards =
+        useMemo(() => {
+            return wnbaGameCards.filter(game =>
+                isFavoriteDisplayGame(game, favSet)
+            );
+        }, [wnbaGameCards, favSet]);
+
     const favoriteNHLGameCards =
         useMemo(() => {
             return nhlGameCards.filter(game =>
@@ -215,6 +249,7 @@ export const SportsProvider = ({
             return filterDisplayGames(
                 [
                     ...favoriteNBAGameCards,
+                    ...favoriteWNBAGameCards,
                     ...favoriteNHLGameCards,
                     ...favoriteMLBGameCards,
                 ],
@@ -223,6 +258,7 @@ export const SportsProvider = ({
             );
         }, [
             favoriteNBAGameCards,
+            favoriteWNBAGameCards,
             favoriteNHLGameCards,
             favoriteMLBGameCards,
             search,
@@ -237,6 +273,7 @@ export const SportsProvider = ({
         <SportsContext.Provider
             value={{
                 nbaGames: mappedNBAGames,
+                wnbaGames: mappedWNBAGames,
                 nhlGames: mappedNHLGames,
                 mlbGames: mappedMLBGames,
 
@@ -244,6 +281,7 @@ export const SportsProvider = ({
                 liveGames,
 
                 nbaGamesLoading,
+                wnbaGamesLoading,
                 nhlGamesLoading,
                 mlbGamesLoading,
 
@@ -256,6 +294,9 @@ export const SportsProvider = ({
 
                 nbaGameCards,
                 favoriteNBAGameCards,
+
+                wnbaGameCards,
+                favoriteWNBAGameCards,
 
                 nhlGameCards,
                 favoriteNHLGameCards,

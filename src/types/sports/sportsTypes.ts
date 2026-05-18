@@ -5,6 +5,7 @@ import type { nhlTeamsMap } from "../../data/sports/nhlData";
 
 export type TStreamProvider = 
     "trendy47" | "topstreams" | "streamspass" | "sportspass"  // nba providers
+    //wnba
          // nhl providers
     | "mlbwebcast" | "embedsports-d" | "pooembed" // mlb providers
     | "viewembed-away" | "viewembed-home"| "embedsports-home" | "embedsports-away" | "embedsports-top" // provides for all sports
@@ -12,7 +13,7 @@ export type TStreamProvider =
 
 
 export type GameStatus = "LIVE" | "PRE" | "FUT" | "FINAL" | "HALFTIME";
-export type Leagues = "NBA" | "NHL" | "MLB";
+export type Leagues = "NBA" | "WNBA" | "NHL" | "MLB";
 
 export interface TeamInfo {
     abbreviation: TeamAbbrevs;

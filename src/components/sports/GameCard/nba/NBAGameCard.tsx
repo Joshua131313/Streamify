@@ -167,7 +167,7 @@ export const NBAGameCard: React.FC<Props> = ({
 
             </div>
 
-            {!isPregame && (
+            {isLive && (
               <div
                 style={{
                   marginTop: 14,
@@ -347,7 +347,7 @@ export const NBAGameCard: React.FC<Props> = ({
                 <div className="totals-group">
 
                   <span className="total-cell">
-                    PTS
+                    P
                   </span>
 
                   <span className="total-cell">
@@ -375,7 +375,7 @@ export const NBAGameCard: React.FC<Props> = ({
                   {game.live?.periodScores?.map(period => (
                     <span
                       key={`away-${period.period}`}
-                      className="inning-cell"
+                      className={`inning-cell ${Number(period.away) > Number(period.home) ? "greater" : ""}`}
                     >
                       {period.away ?? "-"}
                     </span>
@@ -414,7 +414,7 @@ export const NBAGameCard: React.FC<Props> = ({
                   {game.live?.periodScores?.map(period => (
                     <span
                       key={`home-${period.period}`}
-                      className="inning-cell"
+                      className={`inning-cell ${Number(period.home) > Number(period.away) ? "greater" : ""}`}
                     >
                       {period.home ?? "-"}
                     </span>

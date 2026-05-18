@@ -77,7 +77,7 @@ export const MLBGameCardLinescore = ({
                     {game.live?.linescore?.map(line => (
                         <span
                             key={`away-${line.inning}`}
-                            className="inning-cell"
+                            className={`${Number(line.away) > Number(line.home) ? "greater" : ""} inning-cell`}
                         >
                             {line.away ?? "-"}
                         </span>
@@ -116,7 +116,7 @@ export const MLBGameCardLinescore = ({
                     {game.live?.linescore?.map(line => (
                         <span
                             key={`home-${line.inning}`}
-                            className="inning-cell"
+                            className={`${Number(line.home) > Number(line.away) ? "greater" : ""} inning-cell`}
                         >
                             {line.home ?? "-"}
                         </span>

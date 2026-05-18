@@ -369,7 +369,7 @@ const periodsPlayed =
                     {game.live?.periodScores?.map(period => (
                       <span
                         key={`away-${period.period}`}
-                        className="inning-cell"
+                         className={`${Number(period.away) > Number(period.home) ? "greater" : ""} inning-cell`}
                       >
                         {period.away ?? "-"}
                       </span>
@@ -402,7 +402,7 @@ const periodsPlayed =
                     {game.live?.periodScores?.map(period => (
                       <span
                         key={`home-${period.period}`}
-                        className="inning-cell"
+                         className={`${Number(period.home) > Number(period.away) ? "greater" : ""} inning-cell`}
                       >
                         {period.home ?? "-"}
                       </span>

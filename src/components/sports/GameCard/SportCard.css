@@ -162,8 +162,8 @@
 .sport-card-backdrop-logo {
     position: absolute;
 
-    width: 64px;
-    height: 64px;
+    width: 74px;
+    height: 74px;
 
     top: 10px;
 
@@ -276,32 +276,25 @@
 }
 
 .sport-game-card .game-card-team {
-    width: 100% !important;
+    width: 100%;
 
-    display: flex !important;
+    display: flex;
 
-    flex-direction: column !important;
+    flex-direction: column;
 
-    align-items: center !important;
+    align-items: center;
 
-    justify-content: center !important;
+    justify-content: center;
 
-    gap: 10px !important;
+    gap: 10px;
 }
 
 .sport-game-card .game-card-team img,
 .sport-game-card .team-logo,
 .sport-game-card img {
-    width: 44px !important;
-    height: 44px !important;
-
-    min-width: 44px !important;
-    min-height: 44px !important;
-
-    max-width: 44px !important;
-    max-height: 44px !important;
-
-    object-fit: contain !important;
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
 
     filter:
         drop-shadow(0 6px 10px rgba(0,0,0,0.18));
@@ -309,7 +302,7 @@
 
 .sport-game-card .team-score,
 .sport-game-card .score {
-    font-size: 3rem !important;
+    font-size: 3rem;
 
     line-height: 0.92;
 
@@ -680,23 +673,23 @@
 }
 
 .team-cell {
-    font-size: 0.92rem;
+    font-size: var(--font-xxs);
 
     font-weight: 900;
-
-    opacity: 0.95;
 }
-
+.inning-cell.greater {
+    color: var(--white);
+}
 .inning-cell,
 .total-cell {
     text-align: center;
 
-    font-size: 0.84rem;
+    font-size: var(--font-xxs);
 
     font-weight: 800;
 
     color:
-        var(--text-body);
+        var(--text-muted);
 }
 
 .sport-linescore-header {

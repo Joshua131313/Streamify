@@ -15,6 +15,7 @@ import MLB from "../pages/Sports/Pages/MLB";
 import NHL from "../pages/Sports/Pages/NHL";
 import NBA from "../pages/Sports/Pages/NBA";
 import WatchHistory from "../pages/WatchHistory/WatchHistory";
+import WNBA from "../pages/Sports/Pages/WNBA";
 
 const Movie = lazy(() => import("../pages/Movie/Movie"));
 const Show = lazy(() => import("../pages/Show/Show"));
@@ -41,6 +42,7 @@ export const router = createBrowserRouter([
           { path: "person/:id", element: <PersonPage /> },
           { path: "sports/nhl", element: <NHL />},
           { path: "sports/nba", element: <NBA />},
+          { path: "sports/wnba", element: <WNBA />},
           { path: "sports/mlb", element: <MLB />},
           { path: "login", element: <Login /> },
           { path: "register", element: <Register /> },

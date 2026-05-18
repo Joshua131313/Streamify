@@ -10,6 +10,7 @@ import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { useEdgeSwipe } from "../../../hooks/utilHooks/useEdgeSwipe";
 import { GameGroupCard } from "../GameCard/GameGroupCard";
 import { useFavoriteTeamsContext } from "../../../context/FavoriteTeamsContext";
+import { wnbaTeamsMap } from "../../../data/sports/wnba";
 
 export const SportsSidebar = () => {
     const [show, setShow] = useState(false);
@@ -94,6 +95,24 @@ export const SportsSidebar = () => {
             <SearchableContainer
                 title="NBA Teams"
                 data={Object.values(nbaTeamsMap)}
+                searchFn={(team, search) =>
+                    team.teamName.toLowerCase().includes(search) ||
+                    team.abbreviation.toLowerCase().includes(search)
+                }
+                renderItem={(team) => (
+                    <SidebarCard
+                        key={team.abbreviation}
+                        team={{
+                            abbrev: team.abbreviation,
+                            name: team.teamName,
+                            league: team.league
+                        }}
+                    />
+                )}
+            />
+            <SearchableContainer
+                title="WNBA Teams"
+                data={Object.values(wnbaTeamsMap)}
                 searchFn={(team, search) =>
                     team.teamName.toLowerCase().includes(search) ||
                     team.abbreviation.toLowerCase().includes(search)
