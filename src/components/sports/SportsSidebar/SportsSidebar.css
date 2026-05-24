@@ -20,6 +20,7 @@
 }
 .sports-sidebar .title {
     margin: 20px 0;
+    align-items: center;
 }
 .sports-sidebar h1 {
     font-size: var(--font-lg);

@@ -11,6 +11,7 @@ const WatchHistory = () => {
             title="Continue Watching"
             subTitle=""
             media={historyMedia}
+            continueWatchingCard
         />
     )
 }

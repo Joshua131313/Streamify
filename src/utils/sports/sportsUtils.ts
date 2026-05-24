@@ -5,7 +5,7 @@ import { nhlStreams, nhlTeamsMap } from "../../data/sports/nhlData";
 import { channelStreams } from "../../data/sports/sportsData";
 import type { GameProps, GameStatus, Leagues, TeamAbbrevs, TeamInfo, TStreamProvider } from "../../types/sports/sportsTypes"
 import type { SportFilter } from "../../context/SportsContext";
-import { wnbaStreams } from "../../data/sports/wnba";
+import { wnbaStreams } from "../../data/sports/wnbaData";
 
 
 const sportsStreamsMap = Object.fromEntries(
@@ -36,6 +36,7 @@ export const extractStreamInfoFromURL = (url: string) => {
 export const getTeamLogo = (league: Leagues, abbrev: TeamAbbrevs) => {
     const lowerCaseLeague = league.toLowerCase();
     const lowerCaseAbbrev = abbrev.toLowerCase();
+    return `https://a.espncdn.com/combiner/i?img=/i/teamlogos/${lowerCaseLeague}/500/${lowerCaseAbbrev}.png&h=500&w=500`
     return `https://a.espncdn.com/i/teamlogos/${lowerCaseLeague}/500/scoreboard/${lowerCaseAbbrev}.png`
 }
 

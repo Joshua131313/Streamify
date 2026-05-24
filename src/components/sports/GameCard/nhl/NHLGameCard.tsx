@@ -30,7 +30,6 @@ export const NHLGameCard: React.FC<Props> = ({
   card,
   className = "",
 }) => {
-  console.log(game)
   const [showScoreboard] =
     useState(true);
 
