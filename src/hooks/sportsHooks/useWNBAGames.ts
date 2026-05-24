@@ -1,27 +1,20 @@
-import { useState } from "react"
-import { useQuery } from "@tanstack/react-query";
 import type { INBAGame } from "../../types/sports/nbaTypes";
+import { useSportsQuery } from "./useSportsQuery";
 
-interface UseNbaGames {
-    wnbaGames: INBAGame[];
-    wnbaGamesLoading: boolean;
-    error: any;
-}
+export const useWNBAGames = () => {
 
-export const useWNBAGames = () : UseNbaGames => {
-
-    const { data = [], isPending, error } = useQuery({
+    const {
+        data,
+        isLoading,
+        error,
+    } = useSportsQuery<INBAGame>({
         queryKey: ["wnba-games"],
-        queryFn: async () => {
-            const API_URL = import.meta.env.VITE_API_URL || "";
-            const res = await fetch(`${API_URL}/api/wnba`);
-            return res.json();
-        },
-        refetchInterval: 30000
+        endpoint: "/api/wnba",
     });
+
     return {
-        wnbaGames: Array.isArray(data) ? data : [],
-        wnbaGamesLoading: isPending,
+        wnbaGames: data,
+        wnbaGamesLoading: isLoading,
         error,
     };
 };

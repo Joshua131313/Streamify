@@ -29,7 +29,7 @@ const Sports = () => {
                 <SportCardsViewFactory
                     games={favoriteGameCards}
                     gamesLoading={false}
-                    title="Followed Teams"
+                    title={`Followed Teams (${favoriteGameCards.length})`}
                     type="FOLLOW"
                 />
             }
@@ -46,25 +46,25 @@ const Sports = () => {
             <SportCardsViewFactory
                 games={nbaGameCards}
                 gamesLoading={nbaGamesLoading}
-                title="NBA"
+                title={`NBA (${nbaGameCards.length})`}
                 type="NBA"
             />
             <SportCardsViewFactory
                 games={wnbaGameCards}
                 gamesLoading={wnbaGamesLoading}
-                title="WNBA"
+                title={`WNBA (${wnbaGameCards.length})`}
                 type="WNBA"
             />
             <SportCardsViewFactory
                 games={nhlGameCards}
                 gamesLoading={nhlGamesLoading}
-                title="NHL"
+                title={`NHL (${nhlGameCards.length})`}
                 type="NHL"
             />
             <SportCardsViewFactory
                 games={mlbGameCards}
                 gamesLoading={mlbGamesLoading}
-                title="MLB"
+                title={`MLB (${mlbGameCards.length})`}
                 type="MLB"
             />
         </SportsLayout>

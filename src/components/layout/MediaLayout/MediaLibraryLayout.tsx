@@ -5,15 +5,17 @@ import { GenreFilter } from "../../ui/filters/GenreFilter";
 import { Container } from "../Container/Container";
 import { MediaCard } from "../../ui/MediaCard/MediaCard";
 import "./MediaLayout.css"
+import { ContinueWatchingCard } from "../../ui/MediaCard/ContinueWatchingCard";
 
 interface Props {
     title: string;
     subTitle: string;
     media: TMDBMedia[];
+    continueWatchingCard?: boolean;
 }
 
 const MediaLibraryLayout = (props: Props) => {
-    const { media, title, subTitle } = props;
+    const { media, title, subTitle, continueWatchingCard } = props;
     const [searchParams] = useSearchParams();
     const urlGenre = searchParams.get("genre");
 
@@ -34,9 +36,14 @@ const MediaLibraryLayout = (props: Props) => {
             />
             <Container className="media-grid">
                 {
-                    filteredMedia.map(m => (
-                        <MediaCard key={m.id} media={m} />
-                    ))
+                    filteredMedia.map(m => {
+                        if(continueWatchingCard) {
+                            return <ContinueWatchingCard media={m} key={m.id} />
+                        }
+                        else {
+                            return <MediaCard key={m.id} media={m} />
+                        }
+                    })
                 }
             </Container>
         </div>

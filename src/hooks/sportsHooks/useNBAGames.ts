@@ -1,6 +1,5 @@
-import { useState } from "react"
-import { useQuery } from "@tanstack/react-query";
 import type { INBAGame } from "../../types/sports/nbaTypes";
+import { useSportsQuery } from "./useSportsQuery";
 
 interface UseNbaGames {
     nbaGames: INBAGame[];
@@ -8,20 +7,21 @@ interface UseNbaGames {
     error: any;
 }
 
-export const useNBAGames = () : UseNbaGames => {
+export const useNBAGames =
+(): UseNbaGames => {
 
-    const { data = [], isPending, error } = useQuery({
+    const {
+        data,
+        isLoading,
+        error,
+    } = useSportsQuery<INBAGame>({
         queryKey: ["nba-games"],
-        queryFn: async () => {
-            const API_URL = import.meta.env.VITE_API_URL || "";
-            const res = await fetch(`${API_URL}/api/nba`);
-            return res.json();
-        },
-        refetchInterval: 30000
+        endpoint: "/api/nba",
     });
+
     return {
-        nbaGames: Array.isArray(data) ? data : [],
-        nbaGamesLoading: isPending,
+        nbaGames: data,
+        nbaGamesLoading: isLoading,
         error,
     };
 };

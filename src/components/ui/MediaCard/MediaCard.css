@@ -206,9 +206,9 @@
     color: var(--bg-primary);
 }
 
-.light .media-card .app-icon {
+/* .light .media-card .app-icon {
     color: var(--bg-primary);
-}
+} */
 
 .media-card:hover strong {
     color: var(--accent-primary);
@@ -495,19 +495,13 @@
 
 .continue-watching-card .history-indicator {
     position: absolute;
-
     background-color: var(--accent-primary);
-
     font-size: var(--font-xs);
-
     padding: 5px;
-
     border-radius: var(--border-radius-small);
-
     right: 5px;
-
     top: 5px;
-
+    color: var(--white);
     font-weight: bold;
 }
 

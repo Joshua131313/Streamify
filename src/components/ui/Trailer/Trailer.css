@@ -125,7 +125,7 @@
     position: absolute;
 }
 .light .trailer .app-icon {
-    color: var(--bg-primary);
+    color: var(--text-primary);
 }
 @media(max-width: 1400px) {
     
