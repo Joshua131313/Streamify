@@ -17,6 +17,7 @@ import {
     createWNBADisplayGame,
 } from "../utils/sports/sportDisplayUtils";
 import { useWNBAGames } from "../hooks/sportsHooks/useWNBAGames";
+import type { Leagues } from "../types/sports/sportsTypes";
 
 export type SportFilterType = "status" | "league" | "sport";
 
@@ -62,6 +63,8 @@ interface SportsContextType {
     filters: SportFilter[];
     setFilters: React.Dispatch<React.SetStateAction<SportFilter[]>>;
     addSportFilter: (filter: SportFilter) => void;
+    
+    getGame: (league: Leagues, gameId: string) => SportDisplayGame | undefined;
 
     nbaGameCards: SportDisplayGame[];
     wnbaGameCards: SportDisplayGame[];
@@ -167,7 +170,7 @@ export const SportsProvider = ({
                 filters
             );
         }, [mappedWNBAGames, search, filters]);
-        
+
     const nhlGameCards =
         useMemo(() => {
             return filterDisplayGames(
@@ -208,6 +211,10 @@ export const SportsProvider = ({
                 game.card.status === "HALFTIME"
             );
         }, [allOfTodaysGames]);
+
+    const getGame = (league: Leagues, gameId: string) => {
+        return allOfTodaysGames.find(x => x.league.toLowerCase() == league && x.id == gameId);
+    }
 
     const favSet =
         useMemo(() => {
@@ -291,7 +298,7 @@ export const SportsProvider = ({
                 filters,
                 setFilters,
                 addSportFilter,
-
+                getGame,
                 nbaGameCards,
                 favoriteNBAGameCards,
 
