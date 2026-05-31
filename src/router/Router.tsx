@@ -11,11 +11,12 @@ import Home from "../pages/Home/Home";
 import { ErrorPage } from "../components/ui/Error/ErrorPage";
 import { RootLayout } from "./RootLayout";
 import { Customization } from "../components/Onboarding/Customization";
-import MLB from "../pages/Sports/Pages/MLB";
-import NHL from "../pages/Sports/Pages/NHL";
-import NBA from "../pages/Sports/Pages/NBA";
+import MLB from "../pages/Sports/Leagues/MLB";
+import NHL from "../pages/Sports/Leagues/NHL";
+import NBA from "../pages/Sports/Leagues/NBA";
 import WatchHistory from "../pages/WatchHistory/WatchHistory";
-import WNBA from "../pages/Sports/Pages/WNBA";
+import WNBA from "../pages/Sports/Leagues/WNBA";
+import GameCast from "../pages/Sports/GameCast/GameCast";
 
 const Movie = lazy(() => import("../pages/Movie/Movie"));
 const Show = lazy(() => import("../pages/Show/Show"));
@@ -44,6 +45,7 @@ export const router = createBrowserRouter([
           { path: "sports/nba", element: <NBA />},
           { path: "sports/wnba", element: <WNBA />},
           { path: "sports/mlb", element: <MLB />},
+          { path: "sports/:league/:gameId/gamecast", element: <GameCast />},
           { path: "login", element: <Login /> },
           { path: "register", element: <Register /> },
         ],

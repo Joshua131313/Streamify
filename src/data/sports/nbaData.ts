@@ -43,14 +43,25 @@ export const nbaTeamsMap: Record<string, TeamInfo> = {
 };
 
 export const nbaStreams: SportStream[] = [
-  {
-    provider: "sportspass",
-    buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
-      const tn = nbaTeamsMap[awayTeamAbbrev as keyof typeof nbaTeamsMap].teamName;
-      const slug = getSlug(tn)
-      return `https://sportspass.top/nba/${slug}.html`
+    {
+        provider: "embedsports-top",
+        buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
+            const away = nbaTeamsMap[awayTeamAbbrev as keyof typeof nbaTeamsMap];
+            const home = nbaTeamsMap[homeTeamAbbrev as keyof typeof nbaTeamsMap];
+
+            if (!away || !home) return "";
+
+            return `https://embedsports.top/embed/admin/ppv-${away.id}-vs-${home.id}/1`;
+        },
     },
-  },
+  // {
+  //   provider: "sportspass",
+  //   buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
+  //     const tn = nbaTeamsMap[awayTeamAbbrev as keyof typeof nbaTeamsMap].teamName;
+  //     const slug = getSlug(tn)
+  //     return `https://sportspass.top/nba/${slug}.html`
+  //   },
+  // },
   {
     provider: "embedsports-home",
     buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
