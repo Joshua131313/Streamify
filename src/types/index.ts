@@ -6,5 +6,3 @@ export interface MenuOption {
     onClick: () => void;
     icon: IconType
 }
-
-export type MediaStreamProviders = "vidsrc" | "vidking"

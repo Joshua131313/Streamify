@@ -1,5 +1,5 @@
 import type { SportStream } from "../../../types/sports/sportsTypes";
-import { StyledSelect } from "../StyledSelect/StyledSelect";
+import { PlayerSelect } from "../PlayerSelect/PlayerSelect";
 import "./StreamSelector.css";
 
 interface Props {
@@ -13,21 +13,20 @@ export const StreamSelector = (props: Props) => {
 
   const options = streams.map((stream, index) => ({
     label: stream.label ?? `Stream ${index + 1}`,
-    value: stream,
+    value: stream.provider,
   }));
 
-  const handleChange = (option: any) => {
-    onChange(option?.value ?? null);
+  const handleChange = (provider: string) => {
+    onChange(streams.find(stream => stream.provider === provider) ?? null);
   };
 
   return (
     <div className="stream-selector">
-      <StyledSelect
+      <PlayerSelect
+        label="Stream source"
         options={options}
-        value={value ? options.find(o => o.value === value) : null}
+        value={value?.provider ?? ""}
         onChange={handleChange}
-        isMulti={false}
-        placeholder="Select stream"
       />
     </div>
   );

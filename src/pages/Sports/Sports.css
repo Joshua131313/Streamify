@@ -213,28 +213,41 @@
 .stream-controls {
     position: fixed;
     z-index: 10000;
-    top: 50%;
-    transform: translateY(-50%);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 90px);
     right: 10px;
     display: flex;
-    flex-direction: column;
+    align-items: center;
     gap: 10px;
+    padding: 10px 14px;
+    border: 1px solid #ffffff26;
+    border-radius: 14px;
+    background: #15171deb;
+    color: #fff;
+    backdrop-filter: blur(16px);
 }
 
 .stream-controls .input-container {
-    width: 50px;
-    height: 50px;
+    width: 64px;
+    height: 38px;
 }
 
 .stream-controls .input-container input {
     padding: 0;
     width: 100%;
     text-align: center;
-    border-radius: 50%;
+    border-radius: 8px;
+    height: 38px;
+    background: #ffffff0d;
+    color: #fff;
+    border: 1px solid #ffffff30;
 }
+.channel-input-label { font-size: 11px; color: #a9afbd; text-transform: uppercase; letter-spacing: .08em; }
+.stream-controls button { width: 34px; height: 34px; border-radius: 8px; border: 1px solid #ffffff26; background: #ffffff10; color: #fff; font-size: 22px; cursor: pointer; }
+.stream-controls button:disabled { opacity: .35; cursor: default; }
+.stream-controls :is(button, input):focus-visible { outline: 2px solid #f15b64; outline-offset: 2px; }
 
 .idle .alt-streams {
-    opacity: 0;
+    opacity: 1;
 }
 
 .alt-streams {

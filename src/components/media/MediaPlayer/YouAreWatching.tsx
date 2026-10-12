@@ -1,33 +1,24 @@
 import { useSearchParams } from "react-router-dom";
-import type { TMDBMedia } from "../../../types/TMDBMediaType"
-import { MediaMetaBadges } from "../../ui/MediaMetaBadges/MediaMetaBadges";
-import { TMDBImg } from "../../ui/ImgProxy/TMDBImg";
-import { Container } from "../../layout/Container/Container";
 import { useMediaLayoutContext } from "../../layout/MediaLayout/MediaLayoutContext";
 
 
 export const YouAreWatching = () => {
     const [searchParams] = useSearchParams();
-    const { media } = useMediaLayoutContext();
+    const { media, mediaType } = useMediaLayoutContext();
     const season = searchParams.get("season");
     const episode = searchParams.get("episode");
 
     return (
-        <>
-        <Container className="you-are-watching">
-            <TMDBImg path={media.logo_path} type="logo" size="w500"/>
-            <MediaMetaBadges date={media.date} vote_average={media.vote_average} genre_ids={media.genres?.map(g => g.id) ?? []} />
+        <aside className="you-are-watching" aria-label="Now watching">
+            <span className="watching-caption">You are watching</span>
+            <strong>{media.title}</strong>
             {
-                media.mediaType === "tv" && 
+                mediaType === "tv" &&
                 <div className="episode-info">
-                    <span>Season: {season}</span>
-                    <span>Episode: {episode}</span>
+                    <span>Season {season || "1"}</span>
+                    <span>Episode {episode || "1"}</span>
                 </div>
             }
-            <div className="description">
-                {media.overview}
-            </div>
-        </Container>
-        </>
+        </aside>
     )
 }
