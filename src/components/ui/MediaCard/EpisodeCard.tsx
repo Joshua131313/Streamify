@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import type { TEpisode } from "../../../types/TMDBShowType"
 import { TMDBImg } from "../ImgProxy/TMDBImg";
 import "./MediaCard.css"
@@ -13,9 +13,14 @@ interface Props {
 
 export const EpisodeCard = (props: Props) => {
     const { episode, isSelected } = props;
+    const [searchParams] = useSearchParams();
+    const episodeParams = new URLSearchParams(searchParams);
+    episodeParams.set("play", "");
+    episodeParams.set("season", String(episode.season_number));
+    episodeParams.set("episode", String(episode.episode_number));
     return (
         <Link
-            to={`?play&season=${episode.season_number}&episode=${episode.episode_number}`}
+            to={`?${episodeParams.toString()}`}
             className={`episode-card ${isSelected ? "episode-card-selected" : ""}`}
         >
             <div className="still-container">

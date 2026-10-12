@@ -4,6 +4,7 @@ import type { nbaTeamsMap } from "../../data/sports/nbaData";
 import type { nhlTeamsMap } from "../../data/sports/nhlData";
 
 export type TStreamProvider = 
+    `streamed-${string}` |
     "trendy47" | "topstreams" | "streamspass" | "sportspass"  // nba providers
     //wnba
          // nhl providers

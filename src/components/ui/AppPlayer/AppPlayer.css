@@ -35,6 +35,7 @@ body.player-open.modal-player {
     background-color: #000;;
 }
 .iframe-intercept {
+    pointer-events: none;
     position: absolute;
     top: 0;
     width: 100%;
@@ -89,8 +90,4 @@ body.player-open.modal-player {
 .player .episode-selector-icon {
     right: 16px;
     left: initial;
-}
-
-.paused.idle .player iframe {
-    filter: brightness(50%);
 }

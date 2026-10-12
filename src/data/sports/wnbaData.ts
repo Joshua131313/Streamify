@@ -21,16 +21,27 @@ export const wnbaTeamsMap: Record<string, TeamInfo> = {
 
 export const wnbaStreams: SportStream[] = [
     {
-        provider: "sportspass",
-        buildStreamUrl: ({ awayTeamAbbrev }) => {
-            const team = wnbaTeamsMap[awayTeamAbbrev as keyof typeof wnbaTeamsMap];
+        provider: "embedsports-top",
+        buildStreamUrl: ({ awayTeamAbbrev, homeTeamAbbrev }) => {
+            const away = wnbaTeamsMap[awayTeamAbbrev as keyof typeof wnbaTeamsMap];
+            const home = wnbaTeamsMap[homeTeamAbbrev as keyof typeof wnbaTeamsMap];
 
-            if (!team) return "";
+            if (!away || !home) return "";
 
-            const slug = getSlug(team.teamName);
-            return `https://sportspass.top/wnba/${slug}.html`;
+            return `https://embedsports.top/embed/admin/ppv-${away.id}-vs-${home.id}/1`;
         },
     },
+    // {
+    //     provider: "sportspass",
+    //     buildStreamUrl: ({ awayTeamAbbrev }) => {
+    //         const team = wnbaTeamsMap[awayTeamAbbrev as keyof typeof wnbaTeamsMap];
+
+    //         if (!team) return "";
+
+    //         const slug = getSlug(team.teamName);
+    //         return `https://sportspass.top/wnba/${slug}.html`;
+    //     },
+    // },
     {
         provider: "embedsports-home",
         buildStreamUrl: ({ homeTeamAbbrev }) => {

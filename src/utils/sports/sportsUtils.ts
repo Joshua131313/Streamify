@@ -5,7 +5,7 @@ import { nhlStreams, nhlTeamsMap } from "../../data/sports/nhlData";
 import { channelStreams } from "../../data/sports/sportsData";
 import type { GameProps, GameStatus, Leagues, TeamAbbrevs, TeamInfo, TStreamProvider } from "../../types/sports/sportsTypes"
 import type { SportFilter } from "../../context/SportsContext";
-import { wnbaStreams } from "../../data/sports/wnbaData";
+import { wnbaStreams, wnbaTeamsMap } from "../../data/sports/wnbaData";
 
 
 const sportsStreamsMap = Object.fromEntries(
@@ -14,8 +14,7 @@ const sportsStreamsMap = Object.fromEntries(
 
 
 export const getDefaultStreamProvider = (league: Leagues) => {
-    const defaultSportStream = getSportStream(league)[0];
-    return defaultSportStream.provider;
+    return `streamed-${league.toLowerCase()}` as TStreamProvider;
 }
 
 
@@ -54,6 +53,8 @@ export const getTeamsMapFromLeague = (league: Leagues): Record<string, TeamInfo>
             return mlbTeamsMap;
         case "NBA":
             return nbaTeamsMap;
+        case "WNBA":
+            return wnbaTeamsMap;
         case "NHL":
             return nhlTeamsMap;
         default:

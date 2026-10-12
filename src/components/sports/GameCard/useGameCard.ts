@@ -152,7 +152,7 @@ export const useGameCard = (game: GameProps): UseGameCardReturn => {
             key: "gamecast",
             value: "View Gamecast",
             icon: FaChartBar,
-            onClick: () => navigate(`/sports/${leagueLowerCase}/${game.id}/boxscore`),
+            onClick: () => navigate(`/sports/${leagueLowerCase}/${game.id}/gamecast`),
         },
         ...((game.status === "PRE" || game.status === "FUT")
             ? [

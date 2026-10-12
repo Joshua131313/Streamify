@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { getSportStream } from "../../../utils/sports/sportsUtils";
-import type { SportStream, Leagues, TeamAbbrevs } from "../../../types/sports/sportsTypes";
+import { useGameStreams } from "../../../hooks/sportsHooks/useGameStreams";
+import type { Leagues, TeamAbbrevs } from "../../../types/sports/sportsTypes";
 import { StreamSelector } from "../../ui/StreamSelector/StreamSelector";
 import "./StreamPlayerPanel.css"
 
@@ -14,14 +14,13 @@ interface Props {
 export const StreamPlayerPanel = (props: Props) => {
     const { leagueName, homeAbbrev, awayAbbrev, provider } = props;
 
-    const streams = getSportStream(leagueName);
+    const { streams, isLoading, error } = useGameStreams(leagueName, homeAbbrev, awayAbbrev);
 
     const defaultStream =
         streams.find((s) => s.provider === provider) ?? streams[0];
 
-    const [activeStream, setActiveStream] = useState<SportStream | null>(
-        defaultStream
-    );
+    const [selectedProvider, setSelectedProvider] = useState<string | undefined>(provider);
+    const activeStream = streams.find(s => s.provider === selectedProvider) ?? defaultStream ?? null;
 
     const streamUrl = activeStream?.buildStreamUrl({
         awayTeamAbbrev: awayAbbrev,
@@ -30,12 +29,16 @@ export const StreamPlayerPanel = (props: Props) => {
 
     return (
         <div className="stream-player-panel">
-            <iframe allowFullScreen src={streamUrl} />
+            {streamUrl ? <iframe title={`${leagueName} live stream`} allow="autoplay; fullscreen; picture-in-picture" allowFullScreen src={streamUrl} /> : (
+                <div role="status">
+                    <p>{isLoading ? "Finding live streams…" : error ? "Unable to load streams." : "No stream is available for this game yet."}</p>
+                </div>
+            )}
 
             <StreamSelector
                 streams={streams}
                 value={activeStream}
-                onChange={(stream) => setActiveStream(stream)}
+                onChange={(stream) => setSelectedProvider(stream?.provider)}
             />
         </div>
     );

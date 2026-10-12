@@ -1,5 +1,5 @@
 import { useSearchParams } from "react-router-dom";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import "./MediaPlayer.css";
 
 import { YouAreWatching } from "./YouAreWatching";
@@ -7,21 +7,25 @@ import { useMediaLayoutContext } from "../../layout/MediaLayout/MediaLayoutConte
 import { AppPlayer } from "../../ui/AppPlayer/AppPlayer";
 import { EpisodeSelector } from "./EpisodeSelector";
 import { useWatchHistoryContext } from "../../../context/WatchHistoryContext";
-import { Button } from "../../ui/Button/Button";
-import type { MediaStreamProviders } from "../../../types";
+import { buildMediaEmbedUrl, getMediaServer, mediaServers } from "../../../data/mediaServers";
+import { PlayerSelect } from "../../ui/PlayerSelect/PlayerSelect";
 
 export const MediaPlayer = ({ modal = true }: { modal?: boolean }) => {
     const [searchParams, setSearchParams] = useSearchParams();
 
     const { media, mediaType } = useMediaLayoutContext();
+    const server = getMediaServer(searchParams.get("server"));
+
+    const switchServer = (id: string) => {
+        const params = new URLSearchParams(searchParams);
+        params.set("server", getMediaServer(id).id);
+        setSearchParams(params, { replace: true });
+    };
 
     const {
         saveHistory,
         removeHistory
     } = useWatchHistoryContext();
-
-    const [streamProvider, setStreamProvider] =
-        useState<MediaStreamProviders>("vidking");
 
     const hasInitializedRef =
         useRef(false);
@@ -48,6 +52,7 @@ export const MediaPlayer = ({ modal = true }: { modal?: boolean }) => {
         newParams.delete("play");
         newParams.delete("season");
         newParams.delete("episode");
+        newParams.delete("server");
 
         setSearchParams(newParams, {
             replace: true
@@ -62,30 +67,7 @@ export const MediaPlayer = ({ modal = true }: { modal?: boolean }) => {
         const episode =
             Number(episodeParam) || 1;
 
-        const providers = {
-            vidking: {
-                movie:
-                    `https://www.vidking.net/embed/movie/${media.id}?color=e50914&autoPlay=true`,
-
-                tv:
-                    `https://www.vidking.net/embed/tv/${media.id}/${season}/${episode}?color=e50914&autoPlay=true&nextEpisode=true`,
-            },
-
-            vidsrc: {
-                movie:
-                    `https://vidsrcme.ru/embed/movie/${media.id}`,
-
-                tv:
-                    `https://vidsrcme.ru/embed/tv/${media.id}/${season}/${episode}`,
-            },
-        };
-
-        const provider =
-            providers[streamProvider];
-
-        return mediaType === "tv"
-            ? provider.tv
-            : provider.movie;
+        return buildMediaEmbedUrl(server.id, mediaType === "tv" ? "tv" : "movie", media.id, season, episode);
     };
 
     const updateHistory = useCallback(async () => {
@@ -269,7 +251,13 @@ export const MediaPlayer = ({ modal = true }: { modal?: boolean }) => {
             cancelPlay={cancelPlay}
             modal={modal}
             src={getMediaSrc()}
-            className={streamProvider}
+            className="media-player"
+            controls={
+                <div className="media-server-selector">
+                    <PlayerSelect label="Streaming server" value={server.id} onChange={switchServer}
+                        options={mediaServers.map(option => ({ value: option.id, label: option.label }))} />
+                </div>
+            }
         >
             <YouAreWatching />
 
@@ -277,27 +265,6 @@ export const MediaPlayer = ({ modal = true }: { modal?: boolean }) => {
                 <EpisodeSelector />
             )}
 
-            <div
-                className={`stream-provider-buttons ${streamProvider}`}
-            >
-                <Button
-                    className="secondary"
-                    onClick={() =>
-                        setStreamProvider("vidking")
-                    }
-                >
-                    Server 1
-                </Button>
-
-                <Button
-                    className="secondary"
-                    onClick={() =>
-                        setStreamProvider("vidsrc")
-                    }
-                >
-                    Server 2
-                </Button>
-            </div>
         </AppPlayer>
     );
 };

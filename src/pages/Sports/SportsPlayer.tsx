@@ -1,16 +1,14 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
     formatChannel,
-    getSportStream,
     getStreamURL
 } from "../../utils/sports/sportsUtils";
 import { AppPlayer } from "../../components/ui/AppPlayer/AppPlayer";
 import type { Leagues, TeamAbbrevs, TStreamProvider } from "../../types/sports/sportsTypes";
-import { Icon } from "../../components/ui/Icon/Icon";
-import { FaChevronDown, FaChevronUp } from "react-icons/fa";
 import { Input } from "../../components/ui/Input/Input";
-import { useState, useEffect, useRef } from "react";
-import { Button } from "../../components/ui/Button/Button";
+import { useState, useEffect } from "react";
+import { useGameStreams } from "../../hooks/sportsHooks/useGameStreams";
+import { StreamSelector } from "../../components/ui/StreamSelector/StreamSelector";
 import { SEO } from "../../components/SEO";
 import { useApp } from "../../context/AppContext";
 import { LiveChat } from "../../components/sports/LiveChat/LiveChat";
@@ -26,7 +24,7 @@ export const SportsPlayer = () => {
     const { lastMainRoute } = useApp();
     const isTV = searchParams.get("tv") === "1";
 
-    const allStreams = league ? getSportStream(league) : [];
+    const { streams: allStreams, isLoading, error } = useGameStreams(isTV ? null : league, homeTeamAbbrev, awayTeamAbbrev);
 
     const [inputValue, setInputValue] = useState(channel || "");
     const channelAsNumber = Number(channel);
@@ -39,7 +37,10 @@ export const SportsPlayer = () => {
     }, [channel]);
 
     const updateChannel = (newChannel: string) => {
-        if (!newChannel || isNaN(Number(newChannel))) return;
+        if (!newChannel || !Number.isSafeInteger(Number(newChannel)) || Number(newChannel) < 1) {
+            setInputValue(channel || "");
+            return;
+        }
 
         const formatted = formatChannel(newChannel, provider!);
 
@@ -77,8 +78,8 @@ export const SportsPlayer = () => {
             src = getStreamURL(provider as TStreamProvider, channel);
         }
     } else {
-        if (provider && league) {
-            const stream = allStreams.find(s => s.provider === provider);
+        if (league) {
+            const stream = allStreams.find(s => s.provider === provider) ?? allStreams[0];
 
             if (stream) {
                 src = stream.buildStreamUrl({ awayTeamAbbrev, homeTeamAbbrev });
@@ -86,7 +87,13 @@ export const SportsPlayer = () => {
         }
     }
 
-    if (!src) return null;
+    if (!league && !isTV) return null;
+
+    if (!src) return (
+        <div className="stream-player-panel" role="status">
+            <p>{isLoading ? "Finding live streams…" : error ? "Unable to load streams." : "No stream is available for this game yet."}</p>
+        </div>
+    );
 
     return (
         <>
@@ -102,15 +109,9 @@ export const SportsPlayer = () => {
                     <>
                         {allStreams.length > 0 && (
                             <div className="alt-streams">
-                                {allStreams.map((stream, i) => (
-                                    <Button
-                                        className={provider === stream.provider ? "active-provider" : ""}
-                                        key={stream.provider}
-                                        onClick={() => switchProvider(stream.provider)}
-                                    >
-                                        {stream.label ?? `Stream ${i + 1}`}
-                                    </Button>
-                                ))}
+                                <StreamSelector streams={allStreams}
+                                    value={allStreams.find(stream => stream.provider === provider) ?? allStreams[0]}
+                                    onChange={stream => { if (stream) switchProvider(stream.provider); }} />
                             </div>
                         )}</>
                 }
@@ -119,9 +120,12 @@ export const SportsPlayer = () => {
             </AppPlayer>
             {isTV && (
                 <div className="stream-controls">
-                    <Icon Icon={FaChevronUp} onClick={incrementChannel} />
+                    <span className="channel-input-label">Channel</span>
+                    <button type="button" aria-label="Previous channel" disabled={!decrementChannelButtonEnabled} onClick={decrementChannel}>−</button>
 
                     <Input
+                        aria-label="Channel number"
+                        inputMode="numeric"
                         value={inputValue}
                         onChange={(e) => {
                             const val = e.target.value;
@@ -137,7 +141,7 @@ export const SportsPlayer = () => {
                         }}
                     />
 
-                    <Icon Icon={FaChevronDown} onClick={decrementChannel} />
+                    <button type="button" aria-label="Next channel" onClick={incrementChannel}>+</button>
                 </div>
             )}
         </>
