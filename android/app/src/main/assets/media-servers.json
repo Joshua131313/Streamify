@@ -1,0 +1,92 @@
+[
+  {
+    "movie": "https://play.xpass.top/e/movie/{id}",
+    "label": "StreamEx",
+    "id": "streamex",
+    "tv": "https://play.xpass.top/e/tv/{id}/{season}/{episode}"
+  },
+  {
+    "movie": "https://vidy.st/movie/{id}?color=FFFF",
+    "label": "Vidy",
+    "id": "vidy",
+    "tv": "https://vidy.st/tv/{id}/{season}/{episode}?color=FFFF"
+  },
+  {
+    "movie": "https://bingr.one/watch/movie/{id}",
+    "label": "Bingr",
+    "id": "bingr",
+    "tv": "https://bingr.one/watch/tv/{id}/{season}/{episode}"
+  },
+  {
+    "movie": "https://vidcore.net/movie/{id}",
+    "label": "Core",
+    "id": "core",
+    "tv": "https://vidcore.net/tv/{id}/{season}/{episode}"
+  },
+  {
+    "movie": "https://zoryva.me/embed/movie/{id}?color=%235865f2&exit=hide&cast=hide",
+    "label": "Zoryva",
+    "id": "zoryva",
+    "tv": "https://zoryva.me/embed/tv/{id}/{season}/{episode}?color=%235865f2&exit=hide&cast=hide"
+  },
+  {
+    "movie": "https://cinemaos.tech/player/{id}",
+    "label": "CinemaOS",
+    "id": "cinemaos",
+    "tv": "https://cinemaos.tech/player/{id}/{season}/{episode}"
+  },
+  {
+    "movie": "https://peachify.top/embed/movie/{id}",
+    "label": "Peach",
+    "id": "peach",
+    "tv": "https://peachify.top/embed/tv/{id}/{season}/{episode}"
+  },
+  {
+    "movie": "https://vidzen.fun/movie/{id}",
+    "label": "Mapi",
+    "id": "mapi",
+    "tv": "https://vidzen.fun/tv/{id}/{season}/{episode}"
+  },
+  {
+    "movie": "https://vsembed.ru/embed/movie/{id}",
+    "label": "VidSrc",
+    "id": "vidsrc",
+    "tv": "https://vsembed.ru/embed/tv/{id}/{season}/{episode}"
+  },
+  {
+    "movie": "https://stellar.rip/en/watch/embed/movie/{id}",
+    "label": "Stellar",
+    "id": "stellar",
+    "tv": "https://stellar.rip/en/watch/embed/tv/{id}-{season}-{episode}"
+  },
+  {
+    "movie": "https://framextv.tech/embed/movie/{id}?autoplay=1",
+    "label": "FrameX",
+    "id": "framex",
+    "tv": "https://framextv.tech/embed/tv/{id}/{season}/{episode}?autoplay=1"
+  },
+  {
+    "movie": "https://www.zxcstream.xyz/player/movie/{id}",
+    "label": "ZXCStream",
+    "id": "zxcstream",
+    "tv": "https://www.zxcstream.xyz/player/tv/{id}/{season}/{episode}"
+  },
+  {
+    "movie": "https://frembed.buzz/api/film.php?id={id}",
+    "label": "French",
+    "id": "french",
+    "tv": "https://frembed.buzz/api/serie.php?id={id}&sa={season}&epi={episode}"
+  },
+  {
+    "movie": "https://play.modocine.com/play.php/embed/movie/{id}",
+    "label": "Spanish",
+    "id": "spanish",
+    "tv": "https://play.modocine.com/play.php/embed/tv/{id}/{season}/{episode}"
+  },
+  {
+    "movie": "https://vixsrc.to/movie/{id}?lang=it",
+    "label": "Italian",
+    "id": "italian",
+    "tv": "https://vixsrc.to/tv/{id}/{season}/{episode}?lang=it"
+  }
+]

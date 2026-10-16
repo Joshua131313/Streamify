@@ -1,0 +1,4 @@
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/streamify_logo"
+    android:insetLeft="30.56%" android:insetRight="30.56%"
+    android:insetTop="30.56%" android:insetBottom="30.56%" />

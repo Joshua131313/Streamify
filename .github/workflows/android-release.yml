@@ -1,0 +1,55 @@
+name: Android release
+on:
+  push:
+    branches: [test]
+    paths: ['android/**', '.github/workflows/android-release.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: android-release
+  cancel-in-progress: false
+jobs:
+  release:
+    if: vars.ANDROID_RELEASES_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Prepare build configuration
+        env:
+          SIGNING_KEY: ${{ secrets.ANDROID_SIGNING_KEY_BASE64 }}
+          GOOGLE_CONFIG: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON }}
+        run: |
+          test -n "$SIGNING_KEY" && test -n "$GOOGLE_CONFIG"
+          mkdir -p "$HOME/.android"
+          printf '%s' "$SIGNING_KEY" | base64 --decode > "$HOME/.android/debug.keystore"
+          printf '%s' "$GOOGLE_CONFIG" > android/app/google-services.json
+          chmod 600 "$HOME/.android/debug.keystore"
+          chmod +x android/gradlew
+          rm -f android/gradle/gradle-daemon-jvm.properties
+          sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+          echo "VERSION_CODE=$((GITHUB_RUN_NUMBER + 100))" >> "$GITHUB_ENV"
+          echo "VERSION_NAME=1.0.$((GITHUB_RUN_NUMBER + 1))" >> "$GITHUB_ENV"
+      - name: Build and validate
+        env:
+          TMDB_API_KEY: ${{ secrets.ANDROID_TMDB_API_KEY }}
+          API_BASE_URL: ${{ secrets.ANDROID_API_BASE_URL }}
+        run: ./android/gradlew -p android :app:assembleDebug :app:testDebugUnitTest :app:lintDebug -PappVersionCode="$VERSION_CODE" -PappVersionName="$VERSION_NAME" --console=plain
+      - name: Publish APK and update manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p release
+          cp android/app/build/outputs/apk/debug/app-debug.apk release/Streamify.apk
+          python3 android/scripts/release_metadata.py release/Streamify.apk "$VERSION_CODE" "$VERSION_NAME" "$GITHUB_REPOSITORY"
+          gh release create "android-v$VERSION_CODE" release/Streamify.apk release/update.json --target "$GITHUB_SHA" --title "Streamify Android $VERSION_NAME" --notes "Android update built from $GITHUB_SHA. Install through Settings → App updates in Streamify."
+      - name: Remove signing material
+        if: always()
+        run: rm -f "$HOME/.android/debug.keystore" android/app/google-services.json

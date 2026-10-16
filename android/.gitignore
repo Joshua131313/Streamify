@@ -1,0 +1,14 @@
+.gradle/
+.kotlin/
+**/build/
+local.properties
+.idea/
+*.iml
+captures/
+*.jks
+*.keystore
+
+*.apk
+*.log
+app/google-services.json
+Streamify-Android-*/

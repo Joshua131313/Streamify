@@ -1,0 +1,6 @@
+# Copy to local.properties; Android Studio can fill sdk.dir automatically.
+# Windows example: sdk.dir=C\:/Users/YOUR_NAME/AppData/Local/Android/Sdk
+# macOS example: sdk.dir=/Users/YOUR_NAME/Library/Android/sdk
+TMDB_API_KEY=
+# Optional deployed Streamify backend origin. Leave blank for direct ESPN scores.
+API_BASE_URL=

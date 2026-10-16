@@ -1,0 +1,19 @@
+Streamify playback progress v1 — Android / future web integration
+
+Storage
+Signed-in: users/{uid}/watchHistory/{mediaType}-{mediaId}, merged with the existing web history document. Existing mediaId, mediaType, genreIds, season, episode and updatedAt fields stay compatible. New fields: progressVersion=1, positionSeconds, durationSeconds. All times are seconds except updatedAt, a Firestore Timestamp. Fields for the current episode and position are written atomically. One latest episode per series is retained, matching existing watch history; this does not create a per-episode viewing archive.
+Guests: Android app-private SharedPreferences, separate from every account. Web can use the existing watch-history localStorage collection with the same optional fields. Never upload guest data on sign-in without a deliberate merge flow.
+
+Checkpoints
+Accept finite VOD duration 60 seconds through 12 hours and position inside duration (allow 5 seconds rounding tolerance). Ignore an initial zero/loading position. Checkpoint locally every 5 seconds while moving, and on pause/exit. Cloud checkpoints occur about every 60 seconds plus changed pause/exit samples. Duplicate positions do not write. Lifecycle writes coalesce to at most one per 10 seconds; a pending latest checkpoint survives closing the player while the app process is alive. Firestore queues writes offline once submitted. Process death may lose the last local interval or a not-yet-submitted cloud debounce; local progress is retained. Account changes cancel pending writes and invalidate player ownership.
+
+Resume and UI
+Resume only the matching media + season + episode, starting from the saved time. >=95% means watched: do not auto-resume, hide from Continue Watching, retain in History. Unknown duration/progress stays labeled Recently watched with no invented progress bar. Show fraction positionSeconds/durationSeconds and rounded-up minutes remaining. A different episode starts at zero.
+
+Provider boundaries
+Android installs a bounded progress-only WebView message listener and video observer in the selected provider's exact HTTPS origin. It observes HTMLMediaElement timing and seeks after metadata is ready. Cross-origin nested players without that origin's video access are unsupported, and encrypted/provider-specific behavior may prevent seeking. No timestamps are fabricated and no unrestricted JavaScript interface is exposed. Actual provider playback still needs device validation. Test coverage includes a real WebView with deterministic media metadata, not all external providers.
+
+Web integration
+Use playback-progress.ts for contract validation, resume checks, and progress fractions. Extend WatchHistoryContext's read, guest-local, hydration and save types to preserve the optional progress fields. Existing web readers may ignore them; existing web saveHistory calls must not replace a document without merge, and switching episodes must clear old progress atomically. This turn prepares the contract; it does not wire the current web player.
+For a directly controlled video, listen to timeupdate, pause, ended and pagehide, using the same checkpoint cadence. For a third-party iframe, use only a documented provider progress/seek postMessage API; verify event.origin AND event.source, media ID and episode. A normal browser cannot inspect a cross-origin iframe's video element. Unsupported providers should retain history without a fake resume point.
+Use one active session owner, debounce pause/seek bursts, flush the latest changed sample on visibilitychange/pagehide, and persist locally before asynchronous backend writes. Do not make a Firestore write on every timeupdate. Cross-device conflicts currently use last accepted writes with client updatedAt timestamps (existing history convention); strict concurrent-session ordering would require server arbitration.

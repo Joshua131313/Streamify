@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /gameNotifications/{gameId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /live-chats/{gameId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+
+      match /messages/{messageId} {
+        allow read: if true;
+        function validMessage() {
+          let d = request.resource.data;
+          return d.keys().hasOnly(['message', 'sentAt', 'senderId', 'senderName', 'reactions', 'reactionVotes', 'replyTo'])
+            && d.senderId == request.auth.uid && d.senderName is string && d.senderName.size() > 0 && d.senderName.size() <= 160
+            && d.message is string && d.message.size() > 0 && d.message.size() <= 1000
+            && d.sentAt == request.time && d.reactions is list && d.reactions.size() == 0
+            && (!('reactionVotes' in d) || (d.reactionVotes is map && d.reactionVotes.size() == 0));
+        }
+        function validReply() {
+          let d = request.resource.data;
+          return !('replyTo' in d) || (d.replyTo is map && d.replyTo.keys().hasOnly(['id', 'sender', 'message'])
+            && d.replyTo.id is string && d.replyTo.id.matches('^[^/]{1,150}$')
+            && get(/databases/$(database)/documents/live-chats/$(gameId)/messages/$(d.replyTo.id)).data.senderName == d.replyTo.sender
+            && get(/databases/$(database)/documents/live-chats/$(gameId)/messages/$(d.replyTo.id)).data.message == d.replyTo.message);
+        }
+        allow create: if request.auth != null && validMessage() && validReply();
+        allow update: if request.auth != null
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactionVotes'])
+          && request.resource.data.reactionVotes is map && request.resource.data.reactionVotes.size() <= 500
+          && request.resource.data.reactionVotes.diff(resource.data.get('reactionVotes', {})).affectedKeys().hasOnly([request.auth.uid])
+          && (!(request.auth.uid in request.resource.data.reactionVotes)
+            || request.resource.data.reactionVotes[request.auth.uid] in ['👍', '❤️', '😂', '🔥', '👏']);
+        allow delete: if false;
+      }
+    }
+  }
+}
