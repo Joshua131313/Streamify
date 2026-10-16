@@ -8,7 +8,7 @@ data class AppUpdate(val versionCode: Long, val versionName: String, val url: St
         fun trustedAsset(url: String): Boolean = runCatching {
             val uri = java.net.URI(url)
             uri.scheme == "https" && uri.host == "github.com" && uri.userInfo == null && uri.port == -1 &&
-                uri.path.startsWith("/$REPO/releases/download/android-v") && !uri.path.contains("..")
+                uri.path.startsWith("/$REPO/releases/download/android-v", ignoreCase = true) && !uri.path.contains("..")
         }.getOrDefault(false)
         fun parse(raw: String): AppUpdate {
             val json = JSONObject(raw)
