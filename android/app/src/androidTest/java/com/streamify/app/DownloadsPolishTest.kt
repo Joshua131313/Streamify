@@ -50,6 +50,13 @@ class DownloadsPolishTest {
                     assertTrue(exit.isShown)
                 }
                 Thread.sleep(1000)
+                scenario.onActivity { a ->
+                    val root=a.findViewById<android.view.ViewGroup>(android.R.id.content).getChildAt(0) as android.view.ViewGroup
+                    val play=(root.getChildAt(2) as android.view.ViewGroup).getChildAt(1)
+                    play.performClick();assertFalse(video.isPlaying)
+                    play.performClick();assertTrue(video.isPlaying)
+                }
+                device.takeScreenshot(File(context.getExternalFilesDir(null),"offline-controls.png"))
                 device.pressHome();Thread.sleep(1500)
                 scenario.onActivity { assertTrue(it.isInPictureInPictureMode) }
                 context.sendBroadcast(Intent("com.streamify.app.OFFLINE_TOGGLE").setPackage(context.packageName))

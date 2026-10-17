@@ -503,18 +503,16 @@ class PlayerActivity : ComponentActivity() {
                 if (!immersive && !pip && slow && loading) Text(if (slow) "Still blank? Choose another source or open in browser. The back arrow above always closes the player."
                     else "Tap the video to play. Availability depends on the selected source.", Modifier.padding(horizontal = 20.dp, vertical = 16.dp), style = MaterialTheme.typography.labelSmall, color = Muted)
             }
-            AnimatedVisibility(visible = immersive && !pip && controlsVisible, modifier = Modifier.align(Alignment.TopEnd).zIndex(10f).displayCutoutPadding().padding(8.dp), enter = fadeIn(), exit = fadeOut()) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            AnimatedVisibility(visible = immersive && !pip && controlsVisible, modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().zIndex(10f).displayCutoutPadding().padding(horizontal = 16.dp, vertical = 8.dp), enter = fadeIn(), exit = fadeOut()) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = ::leaveFullscreen) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Exit fullscreen", tint = androidx.compose.ui.graphics.Color.White) }
+                    Text(title, modifier = Modifier.weight(1f), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, color = androidx.compose.ui.graphics.Color.White, style = MaterialTheme.typography.titleMedium)
                     FilledTonalButton(onClick = ::snapToFill,
-                        colors = ButtonDefaults.filledTonalButtonColors(containerColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = .65f), contentColor = androidx.compose.ui.graphics.Color.White)) {
+                        colors = ButtonDefaults.filledTonalButtonColors(containerColor = androidx.compose.ui.graphics.Color.White.copy(alpha = .10f), contentColor = androidx.compose.ui.graphics.Color.White)) {
                         Icon(Icons.Rounded.ZoomIn, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
                         Text(if (fill != null || zoom > 1.01f) "Fit screen" else "Fill screen")
                     }
-                    IconButton(onClick = ::enterPip, colors = IconButtonDefaults.iconButtonColors(containerColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = .65f), contentColor = androidx.compose.ui.graphics.Color.White)) { Icon(Icons.Rounded.PictureInPictureAlt, "Picture-in-picture") }
-                    IconButton(onClick = ::leaveFullscreen,
-                        colors = IconButtonDefaults.iconButtonColors(containerColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = .65f), contentColor = androidx.compose.ui.graphics.Color.White)) {
-                        Icon(Icons.Rounded.FullscreenExit, "Exit fullscreen")
-                    }
+                    IconButton(onClick = ::enterPip, colors = IconButtonDefaults.iconButtonColors(containerColor = androidx.compose.ui.graphics.Color.White.copy(alpha = .10f), contentColor = androidx.compose.ui.graphics.Color.White)) { Icon(Icons.Rounded.PictureInPictureAlt, "Picture-in-picture") }
                 }
             }
             }

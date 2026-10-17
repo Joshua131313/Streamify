@@ -104,7 +104,7 @@ fun DownloadsPage(back: (() -> Unit)? = null) {
     }
     LazyColumn(Modifier.fillMaxSize().safeDrawingPadding(),contentPadding=PaddingValues(bottom=24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
         item { Row(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=12.dp),verticalAlignment=Alignment.CenterVertically) {
-            if(back!=null || selectedShow!=null) FilledTonalIconButton(onClick={if(selectedShow!=null) {selectedShow=null;editing=false} else back?.invoke()}) { Icon(Icons.Rounded.ArrowBack,"Back") }
+            if(back!=null || selectedShow!=null) IconButton(onClick={if(selectedShow!=null) {selectedShow=null;editing=false} else back?.invoke()}, colors=IconButtonDefaults.iconButtonColors(containerColor=Color.White.copy(alpha=.08f),contentColor=Color.White)) { Icon(Icons.Rounded.ArrowBack,"Back") }
             Text(showTitle ?: "Downloads",Modifier.weight(1f).padding(horizontal=12.dp),style=MaterialTheme.typography.titleLarge,maxLines=1,overflow=TextOverflow.Ellipsis)
             IconButton(onClick={editing=!editing}) { Icon(if(editing) Icons.Rounded.Check else Icons.Rounded.Edit,if(editing) "Done editing" else "Edit downloads") }
         } }
