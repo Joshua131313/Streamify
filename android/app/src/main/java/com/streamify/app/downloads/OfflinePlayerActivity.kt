@@ -227,10 +227,15 @@ class OfflinePlayerActivity : ComponentActivity() {
     private fun showTracks()=panel(false) {body,dialog ->
         val mediaPlayer=player
         val tracks=runCatching {mediaPlayer?.trackInfo?.toList().orEmpty()}.getOrDefault(emptyList())
-        val columns=LinearLayout(this)
+        val columns=LinearLayout(this).apply {orientation=LinearLayout.HORIZONTAL}
         fun column(title:String,types:Set<Int>) {
             val list=LinearLayout(this).apply {orientation=LinearLayout.VERTICAL}
-            list.addView(actionLabel(title) {}.apply {textSize=20f;setTypeface(typeface,android.graphics.Typeface.BOLD);gravity=Gravity.START})
+            val section=LinearLayout(this).apply {orientation=LinearLayout.VERTICAL;setPadding(dp(12),0,dp(12),0)}
+            section.addView(TextView(this).apply {
+                text=title;setTextColor(-1);textSize=20f;setTypeface(typeface,android.graphics.Typeface.BOLD)
+                gravity=Gravity.START;setPadding(dp(20),0,dp(20),dp(16))
+                androidx.core.view.ViewCompat.setAccessibilityHeading(this,true)
+            },LinearLayout.LayoutParams(-1,-2))
             val matches=tracks.withIndex().filter {it.value.trackType in types}
             if(title=="Subtitles") list.addView(actionLabel("Off") {
                 importedEnabled=false;subtitleText.text="";prefs.edit().putBoolean("subtitles_$key",false).apply()
@@ -249,7 +254,12 @@ class OfflinePlayerActivity : ComponentActivity() {
                 })
             }
             if(matches.isEmpty()) list.addView(actionLabel(if(title=="Audio") "No alternate audio tracks" else "No embedded subtitles") {})
-            columns.addView(ScrollView(this).apply {addView(list)},LinearLayout.LayoutParams(0,-1,1f))
+            for(index in 0 until list.childCount) {
+                (list.getChildAt(index) as? TextView)?.gravity=Gravity.START or Gravity.CENTER_VERTICAL
+                list.getChildAt(index).layoutParams=LinearLayout.LayoutParams(-1,-2)
+            }
+            section.addView(ScrollView(this).apply {addView(list)},LinearLayout.LayoutParams(-1,0,1f))
+            columns.addView(section,LinearLayout.LayoutParams(0,-1,1f))
         }
         column("Audio",setOf(android.media.MediaPlayer.TrackInfo.MEDIA_TRACK_TYPE_AUDIO))
         column("Subtitles",setOf(android.media.MediaPlayer.TrackInfo.MEDIA_TRACK_TYPE_SUBTITLE,android.media.MediaPlayer.TrackInfo.MEDIA_TRACK_TYPE_TIMEDTEXT))

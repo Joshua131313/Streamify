@@ -16,6 +16,21 @@ import java.io.File
 class DownloadsPolishTest {
     private val context=InstrumentationRegistry.getInstrumentation().targetContext
     private val device=UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+    @Test fun deletesWholeShowAcrossSeasons() {
+        val store=DownloadStore.get(context)
+        val episodes=(1..3).map {DownloadItem("delete_show_$it",990001,"Delete entire show",season=if(it==3) 2 else 1,episode=it,state="paused")}
+        val other=DownloadItem("delete_other",990002,"Keep this movie",state="paused")
+        (episodes+other).forEach {store.update(it);store.file(it.key).writeText("fixture");store.subtitleFile(it.key).writeText("subtitle")}
+        try {ActivityScenario.launch(DownloadsActivity::class.java).use {
+            val title=device.wait(Until.findObject(By.text("Delete entire show")),10000)!!
+            device.swipe(device.displayWidth*3/4,title.visibleCenter.y,device.displayWidth/4,title.visibleCenter.y,25)
+            device.wait(Until.findObject(By.desc("Delete Delete entire show")),5000)!!.click()
+            assertTrue(device.wait(Until.gone(By.text("Delete entire show")),5000))
+            repeat(50) {if(episodes.any {store.get(it.key)!=null}) Thread.sleep(100)}
+            episodes.forEach {assertNull(store.get(it.key));assertFalse(store.file(it.key).exists());assertFalse(store.subtitleFile(it.key).exists())}
+            assertNotNull(store.get(other.key));assertTrue(store.file(other.key).exists())
+        }} finally {(episodes+other).forEach {store.remove(it.key)}}
+    }
     @Test fun automaticSubtitlesDownloadAndPreserveManualFile() {
         val item=DownloadItem("auto_subtitle_test",597,"Subtitle test",state="downloading")
         val store=DownloadStore.get(context);store.update(item)

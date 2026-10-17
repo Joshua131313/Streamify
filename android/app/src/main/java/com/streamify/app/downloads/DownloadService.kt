@@ -31,11 +31,11 @@ class DownloadService : Service() {
         when(intent?.action) {
             "pause" -> { store.change(key) { it.copy(state="paused") }; if(current==key) connection?.disconnect() }
             "resume" -> store.change(key) { it.copy(state="queued",error="") }
-            "delete" -> { store.change(key) { it.copy(state="deleting") }; if(current==key) connection?.disconnect() }
+            "delete" -> {val keys=intent?.getStringArrayListExtra("keys")?.toSet() ?: setOf(key);store.markDeleting(keys);if(current in keys) connection?.disconnect()}
         }
         if(worker?.isActive != true) worker = scope.launch {
             while(isActive) {
-                store.items.value.filter { it.state=="deleting" }.forEach { store.remove(it.key) }
+                store.removeAll(store.items.value.filter {it.state=="deleting"}.map {it.key}.toSet())
                 val next = store.items.value.firstOrNull { it.state=="queued" } ?: break
                 current=next.key
                 withContext(Dispatchers.IO) {

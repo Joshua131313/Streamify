@@ -114,7 +114,8 @@ fun DownloadsPage(back: (() -> Unit)? = null) {
     val context=LocalContext.current
     val online by remember { com.streamify.app.data.NetworkStatus.get(context).online }.collectAsState()
     val store=remember { DownloadStore.get(context) }
-    val downloads by store.items.collectAsState()
+    val allDownloads by store.items.collectAsState()
+    val downloads=allDownloads.filter {it.state!="deleting"}
     LaunchedEffect(online,downloads.map {it.key}) {
         if(online) {
             val repository=com.streamify.app.data.StreamifyRepository(com.streamify.app.data.LocalStore(context))
@@ -189,7 +190,7 @@ fun DownloadsPage(back: (() -> Unit)? = null) {
             item(key=if(series) "tv_${entry.id}" else entry.key) {
                 CompactDownloadRow(group,series,selectedShow!=null,editing,online,
                     open={if(series) {selectedShow=entry.id;editing=false} else context.startActivity(Intent(context,OfflinePlayerActivity::class.java).putExtra("key",entry.key))},
-                    delete={group.forEach { DownloadStore.command(context,"delete",it.key) }})
+                    delete={DownloadStore.delete(context,group.map {it.key})})
             }
         }
         if(selectedShow!=null) item(key="more_episodes") {
@@ -208,7 +209,7 @@ private fun CompactDownloadRow(group: List<DownloadItem>, series: Boolean, episo
     val item=group.first()
     val context=LocalContext.current
     val width=with(LocalDensity.current) { 76.dp.toPx() }
-    var offset by remember(item.key) { mutableFloatStateOf(0f) }
+    var offset by remember(if(series) "show_${item.id}" else item.key) { mutableFloatStateOf(0f) }
     var dragging by remember { mutableStateOf(false) }
     val shift by animateFloatAsState(if(editing) -width else offset,if(dragging) snap() else tween(180),label="Reveal delete")
     val ready=group.all { it.state=="complete" }

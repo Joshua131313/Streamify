@@ -35,14 +35,20 @@ class DownloadStore private constructor(private val context: Context) {
     fun subtitleFile(key:String)=File(directory,file(key).nameWithoutExtension+".vtt")
     @Synchronized fun get(key: String) = mutable.value.firstOrNull { it.key == key }
     @Synchronized fun update(item: DownloadItem) {
-        mutable.value = mutable.value.filterNot { it.key == item.key } + item
+        mutable.value = if(mutable.value.any {it.key==item.key}) mutable.value.map {if(it.key==item.key) item else it} else mutable.value+item
         prefs.edit().putString("items",JSONArray(mutable.value.map { it.json() }).toString()).apply()
     }
     @Synchronized fun change(key: String, action: (DownloadItem) -> DownloadItem) { get(key)?.let { update(action(it)) } }
-    @Synchronized fun remove(key: String) {
-        mutable.value = mutable.value.filterNot { it.key == key }
+    @Synchronized fun markDeleting(keys:Set<String>) {
+        mutable.value=mutable.value.map {if(it.key in keys) it.copy(state="deleting") else it}
+        prefs.edit().putString("items",JSONArray(mutable.value.map {it.json()}).toString()).apply()
+    }
+    @Synchronized fun remove(key: String) = removeAll(setOf(key))
+    @Synchronized fun removeAll(keys:Set<String>) {
+        if(keys.isEmpty()) return
+        mutable.value = mutable.value.filterNot { it.key in keys }
         prefs.edit().putString("items",JSONArray(mutable.value.map { it.json() }).toString()).apply()
-        file(key).delete();subtitleFile(key).delete()
+        keys.forEach {key->file(key).delete();subtitleFile(key).delete()}
     }
     fun enqueue(media: Media, season: Int = 0, episode: Int = 0, episodeTitle: String = "", thumbnail: String? = null): String {
         val key = "${media.type.path}_${media.id}_${season}_$episode"
@@ -55,6 +61,11 @@ class DownloadStore private constructor(private val context: Context) {
     companion object {
         @Volatile private var instance: DownloadStore? = null
         fun get(context: Context): DownloadStore = instance ?: synchronized(this) { instance ?: DownloadStore(context.applicationContext).also { instance=it } }
+        fun delete(context:Context,keys:List<String>) {
+            if(keys.isEmpty()) return
+            try {context.startForegroundService(Intent(context,DownloadService::class.java).setAction("delete").putStringArrayListExtra("keys",ArrayList(keys)))}
+            catch(e:Exception) {android.widget.Toast.makeText(context,"Could not delete downloads. Please try again.",android.widget.Toast.LENGTH_LONG).show()}
+        }
         fun command(context: Context, action: String, key: String) {
             val store = get(context)
             try { context.startForegroundService(Intent(context, DownloadService::class.java).setAction(action).putExtra("key",key)) }
