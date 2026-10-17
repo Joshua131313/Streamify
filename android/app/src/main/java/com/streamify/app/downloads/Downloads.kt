@@ -12,12 +12,12 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 data class DownloadItem(val key: String, val id: Int, val title: String, val poster: String = "", val season: Int = 0, val episode: Int = 0,
-    val state: String = "queued", val bytes: Long = 0, val total: Long = 0, val url: String = "", val validator: String = "", val error: String = "", val episodeTitle: String = "") {
+    val state: String = "queued", val bytes: Long = 0, val total: Long = 0, val url: String = "", val validator: String = "", val error: String = "", val episodeTitle: String = "", val landscape: String = "") {
     val subtitle get() = if (season > 0) "Season $season · Episode $episode" else "Movie"
     fun json() = JSONObject().put("key",key).put("id",id).put("title",title).put("poster",poster).put("season",season).put("episode",episode)
-        .put("state",state).put("bytes",bytes).put("total",total).put("url",url).put("validator",validator).put("error",error).put("episodeTitle",episodeTitle)
+        .put("state",state).put("bytes",bytes).put("total",total).put("url",url).put("validator",validator).put("error",error).put("episodeTitle",episodeTitle).put("landscape",landscape)
     companion object {
-        fun parse(j: JSONObject) = DownloadItem(j.getString("key"),j.getInt("id"),j.getString("title"),j.optString("poster"),j.optInt("season"),j.optInt("episode"),j.optString("state"),j.optLong("bytes"),j.optLong("total"),j.optString("url"),j.optString("validator"),j.optString("error"),j.optString("episodeTitle"))
+        fun parse(j: JSONObject) = DownloadItem(j.getString("key"),j.getInt("id"),j.getString("title"),j.optString("poster"),j.optInt("season"),j.optInt("episode"),j.optString("state"),j.optLong("bytes"),j.optLong("total"),j.optString("url"),j.optString("validator"),j.optString("error"),j.optString("episodeTitle"),j.optString("landscape"))
     }
 }
 
@@ -32,6 +32,7 @@ class DownloadStore private constructor(private val context: Context) {
     val items = mutable.asStateFlow()
     val directory = File(context.filesDir,"downloads").apply { mkdirs() }
     fun file(key: String) = File(directory, "${key.replace(Regex("[^a-zA-Z0-9_-]"),"_")}.mp4")
+    fun subtitleFile(key:String)=File(directory,file(key).nameWithoutExtension+".vtt")
     @Synchronized fun get(key: String) = mutable.value.firstOrNull { it.key == key }
     @Synchronized fun update(item: DownloadItem) {
         mutable.value = mutable.value.filterNot { it.key == item.key } + item
@@ -41,12 +42,12 @@ class DownloadStore private constructor(private val context: Context) {
     @Synchronized fun remove(key: String) {
         mutable.value = mutable.value.filterNot { it.key == key }
         prefs.edit().putString("items",JSONArray(mutable.value.map { it.json() }).toString()).apply()
-        file(key).delete()
+        file(key).delete();subtitleFile(key).delete()
     }
     fun enqueue(media: Media, season: Int = 0, episode: Int = 0, episodeTitle: String = "", thumbnail: String? = null): String {
         val key = "${media.type.path}_${media.id}_${season}_$episode"
         val old = get(key)
-        if (old == null) update(DownloadItem(key,media.id,media.title,thumbnail ?: media.image(true).orEmpty(),season,episode,episodeTitle=episodeTitle))
+        if (old == null) update(DownloadItem(key,media.id,media.title,thumbnail ?: media.image(true).orEmpty(),season,episode,episodeTitle=episodeTitle,landscape=media.backdrop.takeIf {it.isNotBlank()}?.let {media.image(true)}.orEmpty()))
         else if (old.state !in listOf("complete","resolving","downloading")) update(old.copy(state="queued",error=""))
         command(context,"start",key)
         return key

@@ -16,6 +16,14 @@ import java.io.File
 class DownloadsPolishTest {
     private val context=InstrumentationRegistry.getInstrumentation().targetContext
     private val device=UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+    @Test fun subtitleFormatsAndSeekTiming() {
+        val srt=OfflineSubtitles.parse("1\n00:00:01,000 --> 00:00:02,000\nHello\nworld\n\n2\n00:00:03,000 --> 00:00:04,000\nNext")
+        assertEquals("",OfflineSubtitles.at(srt,999));assertEquals("Hello\nworld",OfflineSubtitles.at(srt,1500))
+        assertEquals("",OfflineSubtitles.at(srt,2000));assertEquals("Next",OfflineSubtitles.at(srt,3500))
+        val vtt=OfflineSubtitles.parse("WEBVTT\n\n00:01.000 --> 00:02.000 align:center\nCaption")
+        assertEquals("Caption",OfflineSubtitles.at(vtt,1500))
+        assertTrue(runCatching {OfflineSubtitles.parse("not subtitles")}.isFailure)
+    }
     @Test fun downloadedShowLinksToMoreEpisodes() {
         val store=DownloadStore.get(context)
         val item=DownloadItem("more_episodes_test",1396,"Breaking Bad",season=1,episode=1,state="paused")
@@ -46,7 +54,7 @@ class DownloadsPolishTest {
             scenario.onActivity {assertTrue("Fill should enlarge the video",video.width>fitWidth)}
             assertTrue(surface.pinchIn(90,25));Thread.sleep(500)
             scenario.onActivity {assertEquals("Fit should restore video bounds",fitWidth,video.width)}
-        }} finally {store.file(key).delete()}
+        }} finally {store.file(key).delete();store.subtitleFile(key).delete()}
     }
     @Test fun downloadPrefersFullHdThenFallsBack() {
         val qualities=org.json.JSONObject("""{"360":{"url":"low"},"720":{"url":"hd"},"1080":{"url":"fullhd"}}""")
@@ -73,6 +81,7 @@ class DownloadsPolishTest {
     @Test fun offlinePlayerExitAndPipControls() {
         Configurator.getInstance().waitForIdleTimeout=300
         val store=DownloadStore.get(context);val key="pip_control"
+        store.subtitleFile(key).writeText("1\n00:00:00,000 --> 00:01:00,000\nOffline subtitle test")
         context.getSharedPreferences("offline-positions",0).edit().remove(key).commit()
         File(context.getExternalFilesDir(null),"download-prototype/control.mp4").copyTo(store.file(key),overwrite=true)
         try {
@@ -88,6 +97,7 @@ class DownloadsPolishTest {
                     assertTrue(exit.isShown)
                 }
                 Thread.sleep(1000)
+                assertNotNull(device.wait(Until.findObject(By.text("Offline subtitle test")),3000))
                 scenario.onActivity { a ->
                     val root=a.findViewById<android.view.ViewGroup>(android.R.id.content).getChildAt(0) as android.view.ViewGroup
                     val play=(root.getChildAt(2) as android.view.ViewGroup).getChildAt(1)
@@ -169,6 +179,6 @@ class DownloadsPolishTest {
                 repeat(50) { if(scenario.state != androidx.lifecycle.Lifecycle.State.DESTROYED) Thread.sleep(100) }
                 assertEquals(androidx.lifecycle.Lifecycle.State.DESTROYED,scenario.state)
             }
-        } finally {store.file(key).delete()}
+        } finally {store.file(key).delete();store.subtitleFile(key).delete()}
     }
 }

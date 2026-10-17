@@ -115,6 +115,16 @@ fun DownloadsPage(back: (() -> Unit)? = null) {
     val online by remember { com.streamify.app.data.NetworkStatus.get(context).online }.collectAsState()
     val store=remember { DownloadStore.get(context) }
     val downloads by store.items.collectAsState()
+    LaunchedEffect(online,downloads.map {it.key}) {
+        if(online) {
+            val repository=com.streamify.app.data.StreamifyRepository(com.streamify.app.data.LocalStore(context))
+            downloads.filter {it.landscape.isBlank()}.groupBy {Pair(it.id,it.season>0)}.forEach { (identity,items) ->
+                runCatching {repository.media(identity.first,if(identity.second) com.streamify.app.data.MediaType.TV else com.streamify.app.data.MediaType.MOVIE)}.getOrNull()?.let {media ->
+                    if(media.backdrop.isNotBlank()) items.forEach {item->store.change(item.key) {it.copy(landscape=media.image(true).orEmpty())}}
+                }
+            }
+        }
+    }
     var selectedShow by rememberSaveable { mutableStateOf<Int?>(null) }
     var editing by rememberSaveable { mutableStateOf(false) }
     var browseEpisodes by rememberSaveable { mutableStateOf(false) }
@@ -216,7 +226,7 @@ private fun CompactDownloadRow(group: List<DownloadItem>, series: Boolean, episo
                 .clickable(enabled=series || ready) { if(offset<0) offset=0f else open() }
                 .padding(vertical=6.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
                 Box(Modifier.width(112.dp).height(70.dp).clip(RoundedCornerShape(4.dp)),contentAlignment=Alignment.Center) {
-                    RemoteImage(item.poster,null,Modifier.fillMaxSize())
+                    RemoteImage(item.landscape.ifBlank {item.poster},null,Modifier.fillMaxSize(),scale=androidx.compose.ui.layout.ContentScale.Fit)
                     if(ready && !series) Surface(shape=CircleShape,color=Color.Black.copy(alpha=.65f),border=androidx.compose.foundation.BorderStroke(1.dp,Color.White)) { Icon(Icons.Rounded.PlayArrow,"Watch offline",Modifier.padding(7.dp).size(22.dp),tint=Color.White) }
                 }
                 Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)) {

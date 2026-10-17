@@ -96,13 +96,13 @@ fun RemoteImage(url: String?, description: String?, modifier: Modifier = Modifie
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun MediaPoster(media: Media, onClick: () -> Unit, modifier: Modifier = Modifier, roomy: Boolean = false) {
+fun MediaPoster(media: Media, onClick: () -> Unit, modifier: Modifier = Modifier, roomy: Boolean = false, landscape: Boolean = false) {
     var actions by remember(media.key) {mutableStateOf(false)}
     val haptics=androidx.compose.ui.platform.LocalHapticFeedback.current
     if(actions) MediaActionsSheet(media,{actions=false},onClick)
     Column(modifier.combinedClickable(onClick=onClick,onLongClick={haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress);actions=true},onLongClickLabel="Show title actions")) {
         Box {
-            RemoteImage(media.image(), media.title, Modifier.fillMaxWidth().aspectRatio(2f / 3).clip(RoundedCornerShape(if (roomy) 12.dp else 8.dp)))
+            RemoteImage(media.image(landscape), media.title, Modifier.fillMaxWidth().aspectRatio(if(landscape) 16f/9 else 2f / 3).clip(RoundedCornerShape(if (roomy) 12.dp else 8.dp)))
             if (media.rating > 0) Surface(Modifier.align(Alignment.TopEnd).padding(6.dp), color = Canvas.copy(alpha = .9f), shape = RoundedCornerShape(5.dp)) {
                 Text("★ %.1f".format(media.rating), Modifier.padding(horizontal = 6.dp, vertical = 3.dp), style = MaterialTheme.typography.labelSmall)
             }
@@ -115,10 +115,11 @@ fun MediaPoster(media: Media, onClick: () -> Unit, modifier: Modifier = Modifier
 @Composable
 fun MediaShelf(title: String, media: List<Media>, onSelect: (Media) -> Unit) {
     if (media.isEmpty()) return
+    val tablet=androidx.compose.ui.platform.LocalConfiguration.current.smallestScreenWidthDp>=600
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (title.isNotBlank()) Text(title, Modifier.padding(horizontal = 16.dp), fontSize = 18.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold)
         LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(media, key = { it.key }) { item -> MediaPoster(item, { onSelect(item) }, Modifier.width(112.dp)) }
+            items(media, key = { it.key }) { item -> MediaPoster(item, { onSelect(item) }, Modifier.width(if(tablet) 208.dp else 112.dp),landscape=tablet) }
         }
     }
 }

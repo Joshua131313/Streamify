@@ -20,11 +20,45 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.streamify.app.R
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 
 class OfflinePlayerActivity : ComponentActivity() {
     private lateinit var video: VideoView
     private val key get() = intent.getStringExtra("key").orEmpty()
     private val prefs by lazy { getSharedPreferences("offline-positions",MODE_PRIVATE) }
+    private var subtitlePickerOpen=false
+    private var importedCues=emptyList<OfflineSubtitles.Cue>()
+    private var importedEnabled=false
+    private lateinit var subtitleText:TextView
+    private val subtitleTick=object:Runnable {override fun run() {
+        if(::subtitleText.isInitialized && ::video.isInitialized) subtitleText.text=if(importedEnabled) OfflineSubtitles.at(importedCues,video.currentPosition.toLong()) else ""
+        handler.postDelayed(this,200)
+    }}
+    // This activity directly extends ComponentActivity; legacy FragmentActivity dispatch is not involved.
+    @android.annotation.SuppressLint("InvalidFragmentVersionForActivityResult")
+    private val subtitlePicker=registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) {uri->
+        subtitlePickerOpen=false;updatePip()
+        if(uri!=null) lifecycleScope.launch {
+            runCatching {withContext(Dispatchers.IO) {
+                val bytes=contentResolver.openInputStream(uri)?.use {input->
+                    val out=java.io.ByteArrayOutputStream();val buffer=ByteArray(8192);var count=input.read(buffer)
+                    while(count>=0) {require(out.size()+count<=2_000_000) {"Subtitle file must be smaller than 2 MB."};out.write(buffer,0,count);count=input.read(buffer)};out.toByteArray()
+                } ?: error("Could not open subtitle file.")
+                val cues=OfflineSubtitles.parse(bytes.toString(Charsets.UTF_8))
+                val atomic=android.util.AtomicFile(DownloadStore.get(this@OfflinePlayerActivity).subtitleFile(key));var output:java.io.FileOutputStream?=null
+                try {output=atomic.startWrite();output.write(bytes);atomic.finishWrite(output)} catch(e:Exception) {atomic.failWrite(output);throw e}
+                cues
+            }}.onSuccess {importedCues=it;enableImported();Toast.makeText(this@OfflinePlayerActivity,"Subtitles imported",Toast.LENGTH_SHORT).show()}
+                .onFailure {Toast.makeText(this@OfflinePlayerActivity,it.message ?: "Could not import subtitles",Toast.LENGTH_LONG).show()}
+        }
+    }
+    private fun enableImported() {
+        player?.let {p->listOf(android.media.MediaPlayer.TrackInfo.MEDIA_TRACK_TYPE_SUBTITLE,android.media.MediaPlayer.TrackInfo.MEDIA_TRACK_TYPE_TIMEDTEXT).forEach {type->runCatching {p.getSelectedTrack(type).takeIf {it>=0}?.let {p.deselectTrack(it)}}}}
+        importedEnabled=true;prefs.edit().putBoolean("subtitles_$key",true).apply()
+    }
     private var resume = true
     private lateinit var toolbar: LinearLayout
     private lateinit var transport: LinearLayout
@@ -114,7 +148,7 @@ class OfflinePlayerActivity : ComponentActivity() {
         val toggle=PendingIntent.getBroadcast(this,401,Intent(toggleAction).setPackage(packageName),PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val action=RemoteAction(Icon.createWithResource(this,if(playing) R.drawable.pip_pause else R.drawable.pip_play),if(playing) "Pause" else "Play","Play or pause offline video",toggle)
         return PictureInPictureParams.Builder().setAspectRatio(Rational(16,9)).setActions(listOf(action)).apply {
-            if(Build.VERSION.SDK_INT>=31) setAutoEnterEnabled(playing && !closing).setSeamlessResizeEnabled(true)
+            if(Build.VERSION.SDK_INT>=31) setAutoEnterEnabled(playing && !closing && !subtitlePickerOpen).setSeamlessResizeEnabled(true)
         }.build()
     }
     private fun updatePip() { if(packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)) runCatching { setPictureInPictureParams(pipParams()) } }
@@ -162,7 +196,9 @@ class OfflinePlayerActivity : ComponentActivity() {
         body.addView(icon(R.drawable.player_close,"Close playback settings") {dialog.dismiss()},LinearLayout.LayoutParams(dp(48),dp(48)).apply {gravity=Gravity.END})
         content(body,dialog);dialog.setContentView(body)
         dialog.setOnDismissListener {settingsOpen=false;settingsDialog=null;if(!isFinishing && !isDestroyed) showControls()}
-        dialog.show();dialog.window?.apply {setBackgroundDrawableResource(android.R.color.transparent);setLayout(-1,if(bottom) -2 else -1);setGravity(if(bottom) Gravity.BOTTOM else Gravity.CENTER)
+        dialog.show();dialog.window?.apply {
+            if(Build.VERSION.SDK_INT>=28) attributes=attributes.apply {layoutInDisplayCutoutMode=if(Build.VERSION.SDK_INT>=30) WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS else WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES}
+            decorView.setPadding(0,0,0,0);setBackgroundDrawableResource(android.R.color.transparent);setLayout(-1,if(bottom) -2 else -1);setGravity(if(bottom) Gravity.BOTTOM else Gravity.CENTER)
             WindowCompat.setDecorFitsSystemWindows(this,false)
             WindowInsetsControllerCompat(this,decorView).apply {hide(WindowInsetsCompat.Type.systemBars());systemBarsBehavior=WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE}
         }
@@ -197,12 +233,18 @@ class OfflinePlayerActivity : ComponentActivity() {
             list.addView(actionLabel(title) {}.apply {textSize=20f;setTypeface(typeface,android.graphics.Typeface.BOLD);gravity=Gravity.START})
             val matches=tracks.withIndex().filter {it.value.trackType in types}
             if(title=="Subtitles") list.addView(actionLabel("Off") {
+                importedEnabled=false;subtitleText.text="";prefs.edit().putBoolean("subtitles_$key",false).apply()
                 types.forEach {type -> runCatching {mediaPlayer?.getSelectedTrack(type)?.takeIf {it>=0}?.let {mediaPlayer.deselectTrack(it)}}};dialog.dismiss()
             })
+            if(title=="Subtitles") {
+                if(importedCues.isNotEmpty()) list.addView(actionLabel(if(importedEnabled) "Imported subtitles (selected)" else "Imported subtitles") {enableImported();dialog.dismiss()})
+                list.addView(actionLabel("Import subtitle file") {dialog.dismiss();subtitlePickerOpen=true;updatePip();subtitlePicker.launch(arrayOf("*/*"))})
+            }
             matches.forEach { (index,track) ->
                 val language=track.language.takeUnless {it.isNullOrBlank() || it=="und"}?.let {java.util.Locale.forLanguageTag(it).displayLanguage} ?: "Track ${index+1}"
                 val selected=runCatching {mediaPlayer?.getSelectedTrack(track.trackType)==index}.getOrDefault(false)
                 list.addView(actionLabel("${if(selected) "✓  " else ""}$language") {
+                    if(title=="Subtitles") {importedEnabled=false;subtitleText.text="";prefs.edit().putBoolean("subtitles_$key",false).apply()}
                     runCatching {mediaPlayer?.selectTrack(index)}.onFailure {Toast.makeText(this,"This track could not be selected.",Toast.LENGTH_SHORT).show()};dialog.dismiss()
                 })
             }
@@ -311,7 +353,14 @@ class OfflinePlayerActivity : ComponentActivity() {
             onCancel={handler.postDelayed(hideUnlock,3000)},
             onUnlock={locked=false;handler.removeCallbacks(hideUnlock);unlockOverlay.visibility=View.GONE;showControls()})
         unlockOverlay.addView(unlockButton,FrameLayout.LayoutParams(dp(140),dp(100),Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {bottomMargin=dp(20)})
+        subtitleText=TextView(this).apply {setTextColor(-1);textSize=20f;gravity=Gravity.CENTER;setShadowLayer(4f,1f,1f,android.graphics.Color.BLACK);setPadding(dp(32),0,dp(32),0)}
+        root.addView(subtitleText,FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM).apply {bottomMargin=dp(100)})
         root.addView(unlockOverlay,FrameLayout.LayoutParams(-1,-1))
+        lifecycleScope.launch {
+            val cues=withContext(Dispatchers.IO) {runCatching {val saved=DownloadStore.get(this@OfflinePlayerActivity).subtitleFile(key);if(saved.exists()) OfflineSubtitles.parse(saved.readText()) else emptyList()}.getOrDefault(emptyList())}
+            importedCues=cues;importedEnabled=cues.isNotEmpty() && prefs.getBoolean("subtitles_$key",true)
+        }
+        handler.post(subtitleTick)
         gestureDetector=android.view.GestureDetector(this,object:android.view.GestureDetector.SimpleOnGestureListener() {
             override fun onDown(e:android.view.MotionEvent):Boolean {
                 gestureBrightness=window.attributes.screenBrightness.takeIf {it>=0} ?: .5f
@@ -357,7 +406,7 @@ class OfflinePlayerActivity : ComponentActivity() {
         video.setVideoPath(file.absolutePath)
         showControls();handler.post(update)
     }
-    override fun onUserLeaveHint() { super.onUserLeaveHint();if(::video.isInitialized && video.isPlaying && !closing) enterPip() }
+    override fun onUserLeaveHint() { super.onUserLeaveHint();if(::video.isInitialized && video.isPlaying && !closing && !subtitlePickerOpen) enterPip() }
     override fun onPictureInPictureModeChanged(inPip: Boolean, configuration: Configuration) {
         super.onPictureInPictureModeChanged(inPip,configuration)
         video.requestLayout()
