@@ -54,6 +54,21 @@ class MainActivity : ComponentActivity() {
 private fun StreamifyApp(vm: StreamifyViewModel = viewModel(), openAccount: Boolean = false) {
     var settings by rememberSaveable { mutableStateOf(false) }
     val pageState = rememberSaveableStateHolder()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val online by remember { NetworkStatus.get(context).online }.collectAsState()
+    var wasOffline by remember { mutableStateOf(!online) }
+    LaunchedEffect(online) {
+        if (online && wasOffline) {
+            vm.loadHome()
+            if (vm.tab == "Browse") vm.loadCatalog()
+            if (vm.tab == "Sports") vm.loadSports(refresh = true)
+        }
+        wasOffline = !online
+    }
+    if (!online) {
+        Surface(Modifier.fillMaxSize()) { com.streamify.app.downloads.DownloadsPage() }
+        return
+    }
     LaunchedEffect(Unit) { if (openAccount && vm.destination != Destination.Account) vm.navigate(Destination.Account) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle) {

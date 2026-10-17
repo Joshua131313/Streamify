@@ -52,8 +52,9 @@ class DownloadsActivity : ComponentActivity() {
 }
 
 @Composable
-private fun DownloadsPage(back: () -> Unit) {
+fun DownloadsPage(back: (() -> Unit)? = null) {
     val context=LocalContext.current
+    val online by remember { com.streamify.app.data.NetworkStatus.get(context).online }.collectAsState()
     val store=remember { DownloadStore.get(context) }
     val downloads by store.items.collectAsState()
     var remove by remember { mutableStateOf<DownloadItem?>(null) }
@@ -84,10 +85,17 @@ private fun DownloadsPage(back: () -> Unit) {
         }
     }
     LazyColumn(Modifier.fillMaxSize().safeDrawingPadding(),contentPadding=PaddingValues(bottom=24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
-        item { ScreenHeading("Downloads",back) }
+        item { if(back != null) ScreenHeading("Downloads",back) else Text("Downloads",Modifier.padding(horizontal=20.dp,vertical=20.dp),style=MaterialTheme.typography.headlineLarge) }
+        if(!online) item { PagePanel(Modifier.padding(horizontal=20.dp)) {
+            Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                Icon(Icons.Rounded.CloudOff,null)
+                Text("You’re offline",style=MaterialTheme.typography.titleMedium)
+            }
+            Text("Your downloaded movies and episodes are ready to watch. Browsing returns automatically when you reconnect.",color=Muted)
+        } }
         item { Text("On this device · ${downloads.count { it.state=="complete" }} ready to watch",Modifier.padding(horizontal=20.dp),color=Muted) }
         if(legacyMessage.isNotBlank()) item { Column(Modifier.padding(horizontal=20.dp)) { Text(legacyMessage,color=Muted); SecondaryButton(onClick={context.startActivity(Intent(context,com.streamify.app.DownloadTestActivity::class.java))}) { Text("View earlier test download") } } }
-        if(downloads.isEmpty()) item { Message("Your offline library", "Download a movie or an episode from its details page. Your saved videos will appear here, even without internet.") }
+        if(downloads.isEmpty()) item { Message("Your offline library", if(online) "Download a movie or an episode from its details page. Your saved videos will appear here, even without internet." else "No downloads saved yet. Connect to the internet to download movies and episodes for your next offline session.") }
         items(downloads.sortedBy { it.title },key={it.key}) { item ->
             PagePanel(Modifier.padding(horizontal=20.dp)) {
                 Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(14.dp)) {
@@ -100,11 +108,12 @@ private fun DownloadsPage(back: () -> Unit) {
                     IconButton(onClick={remove=item}) {Icon(Icons.Rounded.DeleteOutline,"Delete download")}
                 }
                 if(item.state!="complete") LinearProgressIndicator(progress={if(item.total>0) (item.bytes.toFloat()/item.total).coerceIn(0f,1f) else 0f},modifier=Modifier.fillMaxWidth())
-                if(item.error.isNotBlank()) Text(item.error,style=MaterialTheme.typography.bodySmall,color=Muted)
+                if(item.error.isNotBlank() && online) Text(item.error,style=MaterialTheme.typography.bodySmall,color=Muted)
+                if(!online && item.state!="complete") Text("Connect to the internet to resume this download.",style=MaterialTheme.typography.bodySmall,color=Muted)
                 Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
                     if(item.state=="complete") SecondaryButton(onClick={context.startActivity(Intent(context,OfflinePlayerActivity::class.java).putExtra("key",item.key))}) {Icon(Icons.Rounded.PlayArrow,null);Spacer(Modifier.width(6.dp));Text("Watch offline")}
                     else if(item.state in listOf("queued","resolving","downloading")) SecondaryButton(onClick={DownloadStore.command(context,"pause",item.key)}) {Icon(Icons.Rounded.Pause,null);Spacer(Modifier.width(6.dp));Text("Pause")}
-                    else if(item.state!="deleting") SecondaryButton(onClick={DownloadStore.command(context,"resume",item.key)}) {Icon(Icons.Rounded.Download,null);Spacer(Modifier.width(6.dp));Text(if(item.state=="error") "Retry" else "Resume")}
+                    else if(item.state!="deleting") SecondaryButton(enabled=online,onClick={DownloadStore.command(context,"resume",item.key)}) {Icon(Icons.Rounded.Download,null);Spacer(Modifier.width(6.dp));Text(if(item.state=="error") "Retry" else "Resume")}
                 }
             }
         }

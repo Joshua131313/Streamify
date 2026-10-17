@@ -43,7 +43,8 @@ class DownloadService : Service() {
                     lock.acquire(60 * 60 * 1000L)
                     try { transfer(next) }
                     catch (e: Exception) {
-                        store.change(next.key) { if(it.state in listOf("resolving","downloading")) it.copy(state="error",error=e.localizedMessage ?: "Download interrupted. Tap retry.",bytes=store.file(it.key).length()) else it }
+                        val online = com.streamify.app.data.NetworkStatus.get(this@DownloadService).online.value
+                        store.change(next.key) { if(it.state in listOf("resolving","downloading")) it.copy(state=if(online) "error" else "paused",error=if(online) e.localizedMessage ?: "Download interrupted. Tap retry." else "",bytes=store.file(it.key).length()) else it }
                     } finally { connection?.disconnect();connection=null;if(lock.isHeld) lock.release() }
                 }
                 current=null
