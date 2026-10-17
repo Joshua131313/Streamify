@@ -16,6 +16,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".DownloadTestActivity" android:exported="false" />
         <activity android:name=".PlayerActivity" android:exported="false"
             android:supportsPictureInPicture="true" android:resizeableActivity="true"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden" />

@@ -86,6 +86,7 @@ fun BrowseScreen(vm: StreamifyViewModel) {
 
 @Composable
 fun LibraryScreen(vm: StreamifyViewModel) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var history by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
     var type by rememberSaveable { mutableIntStateOf(-1) }
@@ -98,6 +99,11 @@ fun LibraryScreen(vm: StreamifyViewModel) {
         item(span = { GridItemSpan(maxLineSpan) }) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 SectionLabel("Made for your downtime", "Your saved favorites and everything you’ve started.")
+                SecondaryButton(onClick = { context.startActivity(android.content.Intent(context, DownloadTestActivity::class.java)) }) {
+                    Icon(Icons.Rounded.Download, null, Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Test movie download")
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(if (vm.account.uid == null) Icons.Rounded.PhoneAndroid else Icons.Rounded.CloudDone, null, Modifier.size(16.dp), tint = Muted)
                     Text(if (vm.account.uid == null) "Guest library · on this device" else if (vm.account.pendingWrites) "Waiting to sync" else if (vm.account.offline) "Offline · cached library" else "Synced with your web account", color = Muted, style = MaterialTheme.typography.bodySmall)
