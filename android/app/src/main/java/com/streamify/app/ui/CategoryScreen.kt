@@ -2,6 +2,7 @@ package com.streamify.app.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -37,7 +38,27 @@ fun CategoryScreen(vm: StreamifyViewModel, type: MediaType) {
         value = if (type == MediaType.ANIME) listOf("Action", "Adventure", "Comedy", "Drama", "Fantasy", "Romance", "Sci-Fi", "Sports", "Thriller").map { it to it }
         else try { vm.repository.genres(type).map { it.id.toString() to it.name } } catch (e: CancellationException) { throw e } catch (_: Exception) { emptyList() }
     }
-    Column(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF23352D), Canvas), endY = 1200f))) {
+    val tint = when (type) { MediaType.MOVIE -> Color(0xFF23352D); MediaType.TV -> Color(0xFF24344E); MediaType.ANIME -> Color(0xFF452C4E) }
+    val gridKey = "category-grid:${type.name}:$category"
+    var grid by remember(gridKey) { mutableStateOf(vm.discoveryCache[gridKey]?.data) }
+    var loading by remember(gridKey) { mutableStateOf(false) }
+    var error by remember(gridKey) { mutableStateOf<String?>(null) }
+    var retry by remember(gridKey) { mutableIntStateOf(0) }
+    val nearEnd by remember { derivedStateOf {
+        (list.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) >= list.layoutInfo.totalItemsCount - 4
+    } }
+    LaunchedEffect(gridKey, nearEnd, retry, grid?.page) {
+        if (!nearEnd || loading || error != null || (grid != null && grid!!.page >= grid!!.pages)) return@LaunchedEffect
+        loading = true
+        try {
+            val next = categoryPage(vm, type, category, false, (grid?.page ?: 0) + 1)
+            grid = next.copy(items = (grid?.items.orEmpty() + next.items).distinctBy { it.key })
+            vm.discoveryCache[gridKey] = LoadState(grid)
+        } catch (e: CancellationException) { throw e }
+        catch (e: Exception) { error = e.message ?: "Unable to load more titles" }
+        finally { loading = false }
+    }
+    Column(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(tint, Canvas), endY = 1200f))) {
         Box(Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 16.dp)) {
             FilledTonalIconButton(onClick = { vm.tab = "Home" }, modifier = Modifier.align(Alignment.CenterStart)) {
                 Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back to home")
@@ -79,6 +100,18 @@ fun CategoryScreen(vm: StreamifyViewModel, type: MediaType) {
             item(key = "rated:$category") {
                 CategoryFeed(vm, type, category, true) { media -> MediaShelf("Top rated $title", media) { vm.selected = it } }
             }
+            item(key = "explore-heading") { Text("Explore $title", Modifier.padding(horizontal = 20.dp), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
+            items(grid?.items.orEmpty().chunked(3), key = { "grid:${it.first().key}" }) { row ->
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    row.forEach { media -> MediaPoster(media, { vm.selected = media }, Modifier.weight(1f), roomy = true) }
+                    repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
+            item(key = "grid-status") {
+                if (loading) Loading()
+                error?.let { ErrorBanner(it) { error = null; retry++ } }
+                if (grid?.items?.isEmpty() == true && !loading) Text("No titles found in this category.", Modifier.padding(20.dp), color = Muted)
+            }
             item { Text(if (type == MediaType.ANIME) "Anime catalog by AniList" else "Film and series data by TMDB", Modifier.padding(horizontal = 20.dp), color = Muted, style = MaterialTheme.typography.labelSmall) }
         }
     }
@@ -92,9 +125,7 @@ private fun CategoryFeed(vm: StreamifyViewModel, type: MediaType, genre: String,
         value = vm.discoveryCache[key] ?: LoadState(loading = true)
         if (value.data != null) return@produceState
         try {
-            val page = if (type == MediaType.ANIME) AnimeCatalog.catalog(1, "", rated, genre.ifBlank { null })
-            else if (genre.isBlank()) vm.repository.catalog("${type.path}/${if (rated) "top_rated" else "popular"}", type)
-            else vm.repository.catalog("discover/${type.path}", type, params = mapOf("with_genres" to genre, "sort_by" to if (rated) "vote_average.desc" else "popularity.desc", "vote_count.gte" to "200"))
+            val page = categoryPage(vm, type, genre, rated, 1)
             value = LoadState(page); vm.discoveryCache[key] = value
         } catch (e: CancellationException) { throw e }
         catch (e: Exception) { value = LoadState(error = e.message ?: "Unable to load titles") }
@@ -104,4 +135,14 @@ private fun CategoryFeed(vm: StreamifyViewModel, type: MediaType, genre: String,
         state.error?.let { ErrorBanner(it) { retry++ } }
         state.data?.items?.let { if (it.isEmpty()) Text("No titles in this category yet.", Modifier.padding(20.dp), color = Muted) else content(it) }
     }
+}
+
+private suspend fun categoryPage(vm: StreamifyViewModel, type: MediaType, genre: String, rated: Boolean, page: Int): MediaPage {
+    val key = "category-page:${type.name}:$genre:$rated:$page"
+    vm.discoveryCache[key]?.data?.let { return it }
+    val result = if (type == MediaType.ANIME) AnimeCatalog.catalog(page, "", rated, genre.ifBlank { null })
+    else if (genre.isBlank()) vm.repository.catalog("${type.path}/${if (rated) "top_rated" else "popular"}", type, page = page)
+    else vm.repository.catalog("discover/${type.path}", type, page = page, params = mapOf("with_genres" to genre, "sort_by" to if (rated) "vote_average.desc" else "popularity.desc", "vote_count.gte" to "200"))
+    vm.discoveryCache[key] = LoadState(result)
+    return result
 }

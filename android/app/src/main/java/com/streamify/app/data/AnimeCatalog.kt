@@ -1,6 +1,9 @@
 package com.streamify.app.data
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -15,15 +18,40 @@ val animeServers = listOf("sub", "dub").flatMap { language ->
 
 object AnimeCatalog {
     private const val fields = "id idMal title { english romaji } description(asHtml: false) coverImage { large } bannerImage averageScore startDate { year month day } episodes status nextAiringEpisode { episode } duration genres trailer { id site }"
-    private suspend fun query(query: String, variables: JSONObject): JSONObject = withContext(Dispatchers.IO) {
+    private val requestLock = Mutex()
+    private val responses = linkedMapOf<String, Pair<Long, String>>()
+    private var nextRequestAt = 0L
+    private suspend fun query(query: String, variables: JSONObject): JSONObject = requestLock.withLock {
+        val key = query + variables.toString()
+        responses[key]?.takeIf { System.currentTimeMillis() - it.first < 300_000 }?.let { return@withLock JSONObject(it.second) }
+        delay((nextRequestAt - System.currentTimeMillis()).coerceAtLeast(0))
+        try {
+            val result = request(query, variables)
+            responses[key] = System.currentTimeMillis() to result.toString()
+            if (responses.size > 80) responses.remove(responses.keys.first())
+            result
+        } finally { nextRequestAt = maxOf(nextRequestAt, System.currentTimeMillis() + 2100) }
+    }
+    private suspend fun request(query: String, variables: JSONObject): JSONObject = withContext(Dispatchers.IO) {
         val connection = URL("https://graphql.anilist.co").openConnection() as HttpURLConnection
         try {
             connection.requestMethod = "POST"
             connection.connectTimeout = 12000; connection.readTimeout = 20000
             connection.setRequestProperty("Content-Type", "application/json")
+            connection.setRequestProperty("Accept", "application/json")
             connection.doOutput = true
             connection.outputStream.use { it.write(JSONObject().put("query", query).put("variables", variables).toString().toByteArray(Charsets.UTF_8)) }
-            check(connection.responseCode in 200..299) { "Anime catalog unavailable (${connection.responseCode}). Please try again shortly." }
+            val status = connection.responseCode
+            if (status == 429) {
+                val seconds = connection.getHeaderField("Retry-After")?.toLongOrNull()?.coerceIn(1, 300) ?: 60L
+                nextRequestAt = System.currentTimeMillis() + seconds * 1000
+                error("Anime catalog is busy. Please retry in $seconds seconds.")
+            }
+            check(status in 200..299) { when (status) {
+                403 -> "AniList declined this network connection. Try another network, then retry."
+                in 500..599 -> "AniList is temporarily unavailable. Please retry shortly."
+                else -> "Anime catalog request failed ($status). Please retry."
+            } }
             val result = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
             check(!result.has("errors")) { "Anime catalog could not complete this request." }
             result.getJSONObject("data")

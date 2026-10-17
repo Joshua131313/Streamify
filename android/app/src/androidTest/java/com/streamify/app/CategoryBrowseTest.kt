@@ -34,6 +34,14 @@ class CategoryBrowseTest {
                 scenario.onActivity { a -> ViewModelProvider(a)[StreamifyViewModel::class.java].selected = Media(if(type==MediaType.ANIME)1 else 1396, type, "Test details") }
                 device.wait(Until.findObject(By.desc("Back")), 10000)!!.click()
                 assertEquals(top, device.wait(Until.findObject(By.text("Popular $label")), 5000)!!.visibleBounds.top)
+                var loadedPage = 0
+                var attempts = 0
+                while (loadedPage < 2 && attempts++ < 30) {
+                    device.swipe(500,1700,500,600,20)
+                    Thread.sleep(600)
+                    scenario.onActivity { a -> loadedPage = ViewModelProvider(a)[StreamifyViewModel::class.java].discoveryCache["category-grid:${type.name}:"]?.data?.page ?: 0 }
+                }
+                assertTrue("$label grid should load another page", loadedPage >= 2)
                 device.findObject(By.desc("Back to home")).click()
             }
         }
