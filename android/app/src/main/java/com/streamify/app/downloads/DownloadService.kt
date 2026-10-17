@@ -60,7 +60,12 @@ class DownloadService : Service() {
         var item = store.get(key) ?: return
         val file = store.file(key)
         if(item.total>0 && file.length()==item.total) { store.change(key) { it.copy(state="complete",bytes=item.total) };return }
-        var link = item.url.ifBlank { DownloadResolver.resolve(item) }
+        fun saveCaption(url:String?) {
+            if(url==null || !active(key) || store.subtitleFile(key).exists()) return
+            runCatching {SubtitleDownload.save(store,key,SubtitleDownload.fetch(url)) {active(key)}}
+        }
+        var link = item.url.ifBlank { DownloadResolver.resolve(item,::saveCaption) }
+        if(item.url.isNotBlank() && !store.subtitleFile(key).exists() && active(key)) runCatching {saveCaption(DownloadResolver.subtitle(item))}
         if(!active(key)) return
         fun connect(url: String): HttpURLConnection {
             val c = URL(url).openConnection() as HttpURLConnection
@@ -71,7 +76,7 @@ class DownloadService : Service() {
         }
         var c = connect(link)
         if(c.responseCode in listOf(401,403,404)) {
-            c.disconnect();link=DownloadResolver.resolve(item)
+            c.disconnect();link=DownloadResolver.resolve(item,::saveCaption)
             check(file.length()==0L || link==item.url || item.validator.isNotBlank()) { "Source changed. Delete this partial download and download again." }
             c=connect(link)
         }

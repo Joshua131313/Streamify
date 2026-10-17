@@ -237,7 +237,7 @@ class OfflinePlayerActivity : ComponentActivity() {
                 types.forEach {type -> runCatching {mediaPlayer?.getSelectedTrack(type)?.takeIf {it>=0}?.let {mediaPlayer.deselectTrack(it)}}};dialog.dismiss()
             })
             if(title=="Subtitles") {
-                if(importedCues.isNotEmpty()) list.addView(actionLabel(if(importedEnabled) "Imported subtitles (selected)" else "Imported subtitles") {enableImported();dialog.dismiss()})
+                if(importedCues.isNotEmpty()) list.addView(actionLabel(if(importedEnabled) "Saved subtitles (selected)" else "Saved subtitles") {enableImported();dialog.dismiss()})
                 list.addView(actionLabel("Import subtitle file") {dialog.dismiss();subtitlePickerOpen=true;updatePip();subtitlePicker.launch(arrayOf("*/*"))})
             }
             matches.forEach { (index,track) ->

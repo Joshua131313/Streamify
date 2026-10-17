@@ -16,6 +16,23 @@ import java.io.File
 class DownloadsPolishTest {
     private val context=InstrumentationRegistry.getInstrumentation().targetContext
     private val device=UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+    @Test fun automaticSubtitlesDownloadAndPreserveManualFile() {
+        val item=DownloadItem("auto_subtitle_test",597,"Subtitle test",state="downloading")
+        val store=DownloadStore.get(context);store.update(item)
+        try {
+            val url=DownloadResolver.subtitle(item)
+            assertNotNull("Provider should offer English subtitles for the fixture",url)
+            val bytes=SubtitleDownload.fetch(url!!)
+            assertTrue(OfflineSubtitles.parse(bytes.toString(Charsets.UTF_8)).isNotEmpty())
+            SubtitleDownload.save(store,item.key,bytes) {false}
+            assertFalse(store.subtitleFile(item.key).exists())
+            SubtitleDownload.save(store,item.key,bytes) {true}
+            assertTrue(store.subtitleFile(item.key).exists())
+            store.subtitleFile(item.key).writeText("manual subtitle")
+            SubtitleDownload.save(store,item.key,bytes) {true}
+            assertEquals("manual subtitle",store.subtitleFile(item.key).readText())
+        } finally {store.remove(item.key)}
+    }
     @Test fun subtitleFormatsAndSeekTiming() {
         val srt=OfflineSubtitles.parse("1\n00:00:01,000 --> 00:00:02,000\nHello\nworld\n\n2\n00:00:03,000 --> 00:00:04,000\nNext")
         assertEquals("",OfflineSubtitles.at(srt,999));assertEquals("Hello\nworld",OfflineSubtitles.at(srt,1500))

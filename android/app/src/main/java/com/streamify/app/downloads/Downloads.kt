@@ -85,15 +85,27 @@ object DownloadResolver {
     internal fun preferredQualityUrl(qualities: JSONObject):String =
         listOf("1080","720","480","360").firstNotNullOfOrNull { qualities.optJSONObject(it)?.optString("url")?.takeIf(String::isNotBlank) }
             ?: error("No downloadable video found.")
-    fun resolve(item: DownloadItem): String {
+    private fun stream(item: DownloadItem): JSONObject {
         val token = json("https://enc-dec.app/api/enc-vidlink?text=${item.id}").optString("result")
         check(token.isNotBlank()) { "Could not find a download for this title." }
         val path = if(item.season > 0) "tv/$token/${item.season}/${item.episode}" else "movie/$token"
-        val stream = json("https://vidlink.pro/api/b/$path",true).optJSONObject("stream")
+        return json("https://vidlink.pro/api/b/$path",true).optJSONObject("stream") ?: error("No stream available.")
+    }
+    internal fun englishCaption(captions:JSONArray?):String? {
+        if(captions==null) return null
+        return (0 until captions.length()).mapNotNull {captions.optJSONObject(it)}.firstOrNull {
+            val language=it.optString("language").lowercase(java.util.Locale.ROOT)
+            (language=="en" || language=="eng" || language.startsWith("english")) && it.optString("type").lowercase() in listOf("srt","vtt") && it.optString("url").startsWith("https://")
+        }?.optString("url")
+    }
+    fun subtitle(item:DownloadItem):String? = englishCaption(stream(item).optJSONArray("captions"))
+    fun resolve(item: DownloadItem, captions:(String?)->Unit = {}): String {
+        val stream=stream(item)
         check(stream?.optString("type") == "file") { "This title is available for streaming only; no MP4 download is available." }
         val qualities = stream!!.optJSONObject("qualities") ?: error("No downloadable video found.")
         val link = preferredQualityUrl(qualities)
         check(URL(link).protocol == "https") { "Unsupported download source." }
+        captions(englishCaption(stream.optJSONArray("captions")))
         return link
     }
 }
