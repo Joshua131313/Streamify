@@ -230,7 +230,7 @@ fun DiscoveryShelf(title: String, category: String, vm: StreamifyViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(heading, Modifier.weight(1f), fontSize = 18.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            CompactChoice("media type", MediaType.entries.map { it.ordinal to if (it == MediaType.MOVIE) "Movies" else "Series" }, type.ordinal) {
+            CompactChoice("media type", listOf(MediaType.MOVIE, MediaType.TV).map { it.ordinal to if (it == MediaType.MOVIE) "Movies" else "Series" }, type.ordinal) {
                 type = MediaType.entries[it]; if (category == "genre") selection = 16
             }
             if (category == "provider") CompactChoice("provider", catalogProviders.map { it.id to it.name }, selection) { selection = it }

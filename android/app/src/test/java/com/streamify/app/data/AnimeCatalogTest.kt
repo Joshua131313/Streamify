@@ -11,13 +11,19 @@ class AnimeCatalogTest {
         assertEquals(anime, Media.parse(anime.json()))
         assertEquals("https://s4.anilist.co/cover.jpg", anime.image())
     }
-    @Test fun providersKeepEpisodeAndLanguageExplicit() {
-        val anime = Media(21, MediaType.ANIME, "One Piece")
-        animeServers.forEach {
-            val language = it.id.substringAfterLast('-')
-            assertTrue(it.url(anime, 1, 108).endsWith("/21/108/$language"))
-            assertTrue(httpsUrl(it.url(anime)))
-        }
+    @Test fun sourceSelectionNeverFallsBackToTheOtherLanguage() {
+        val html = """<div class="type" data-type="sub"><li data-sv-id="323" data-link-id="sub-token">HD-1</li></div>
+            <div class="type" data-type="dub"><li data-sv-id="323" data-link-id="dub-token">HD-1</li></div>"""
+        assertEquals("sub-token", Anikoto.sourceToken(html, "sub", "323"))
+        assertEquals("dub-token", Anikoto.sourceToken(html, "dub", "323"))
+        assertNull(Anikoto.sourceToken(html, "dub", "missing"))
+        assertFalse(Anikoto.watchUrl("https://evil.test/watch/cowboy"))
+        assertFalse(Anikoto.watchUrl("https://anikoto.cz@evil.test/watch/cowboy"))
+        assertTrue(Anikoto.watchUrl("https://anikoto.cz/watch/cowboy-bebop-kb7hu"))
+    }
+    @Test fun episodeParsingPreservesIdentityAndServerToken() {
+        val episodes = Anikoto.episodes("""<a data-num="2" data-mal="1" data-ids="opaque-token"></a><a data-num="special" data-ids="other"></a>""")
+        assertEquals(listOf(AnikotoEpisode(2, 1, "opaque-token")), episodes)
     }
     @Test fun scheduledEpisodesAreNotOfferedBeforeAiring() {
         assertEquals(0, AnimeCatalog.episodeCount(JSONObject("""{"status":"NOT_YET_RELEASED","episodes":12}""")))

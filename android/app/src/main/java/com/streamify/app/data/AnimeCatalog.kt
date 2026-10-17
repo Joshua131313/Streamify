@@ -8,14 +8,13 @@ import java.net.URL
 
 /** AniList IDs occupy their own namespace; never pass these to TMDB providers. */
 val animeServers = listOf("sub", "dub").flatMap { language ->
-    listOf(
-        MediaServer("anime-hawk-$language", "VidHawk · ${language.uppercase()}", "", "https://vidhawk.buzz/embed/ani/{id}/{episode}/$language"),
-        MediaServer("anime-nest-$language", "VidNest · ${language.uppercase()}", "", "https://vidnest.streamy.org.uk/anime/{id}/{episode}/$language")
-    )
+    listOf("323" to "HD-1", "e54" to "Vidstream-2", "1a7" to "Vidstream-1").map { (id, name) ->
+        MediaServer("anime-anikoto-$id-$language", "$name · ${language.uppercase()}", "", "")
+    }
 }
 
 object AnimeCatalog {
-    private const val fields = "id title { english romaji } description(asHtml: false) coverImage { large } bannerImage averageScore startDate { year month day } episodes status nextAiringEpisode { episode } duration genres trailer { id site }"
+    private const val fields = "id idMal title { english romaji } description(asHtml: false) coverImage { large } bannerImage averageScore startDate { year month day } episodes status nextAiringEpisode { episode } duration genres trailer { id site }"
     private suspend fun query(query: String, variables: JSONObject): JSONObject = withContext(Dispatchers.IO) {
         val connection = URL("https://graphql.anilist.co").openConnection() as HttpURLConnection
         try {
@@ -47,6 +46,11 @@ object AnimeCatalog {
         return MediaPage(data.optJSONArray("media").objects().map(::media), page, if (data.getJSONObject("pageInfo").optBoolean("hasNextPage")) page + 1 else page)
     }
     private suspend fun title(id: Int) = query("query(\$id:Int){Media(id:\$id,type:ANIME,isAdult:false){$fields}}", JSONObject().put("id", id)).getJSONObject("Media")
+    suspend fun identity(id: Int): AnimeIdentity {
+        val json = title(id)
+        val names = json.getJSONObject("title")
+        return AnimeIdentity(json.optInt("idMal"), listOf(names.text("english"), names.text("romaji")))
+    }
     suspend fun details(id: Int): Details {
         val json = title(id)
         val genres = json.optJSONArray("genres")

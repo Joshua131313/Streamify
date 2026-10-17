@@ -182,14 +182,44 @@ class PlayerActivity : ComponentActivity() {
         var season by rememberSaveable { mutableIntStateOf(intent.getIntExtra("season", 1)) }
         var episode by rememberSaveable { mutableIntStateOf(intent.getIntExtra("episode", 1)) }
         var generation by remember { mutableIntStateOf(0) }
+        var animeSource by remember(media?.key, episode, provider.id, generation) { mutableStateOf(LoadState<AnimeSource>(loading = true)) }
+        LaunchedEffect(media?.key, episode, provider.id, generation) {
+            if (media?.type == MediaType.ANIME) {
+                try { animeSource = LoadState(kotlinx.coroutines.withTimeout(45_000) { Anikoto.resolve(media, episode, provider.id) }) }
+                catch (error: Exception) {
+                    coroutineContext.ensureActive()
+                    animeSource = LoadState(error = if (error is kotlinx.coroutines.TimeoutCancellationException) "Anikoto took too long to respond. Retry or choose another source." else error.localizedMessage ?: "Anikoto is unavailable.")
+                }
+            }
+        }
+        if (media?.type == MediaType.ANIME && animeSource.data == null) {
+            Column(Modifier.fillMaxSize().systemBarsPadding().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { finish() }) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Close player") }
+                    Text(media.title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                }
+                if (animeSource.loading) { Loading(); Text("Finding episode $episode on Anikoto…", color = Muted) }
+                animeSource.error?.let { message ->
+                    ErrorBanner(message) { generation++ }
+                    Text("Choose a source", style = MaterialTheme.typography.titleMedium)
+                    androidx.compose.foundation.lazy.LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        items(providers, key = { it.id }) { choice ->
+                            SecondaryButton(onClick = { providerId = choice.id; store.animeServerId = choice.id; generation++ }, modifier = Modifier.fillMaxWidth()) { Text(choice.label) }
+                        }
+                    }
+                }
+            }
+            return
+        }
         var preferEmbed by rememberSaveable { mutableStateOf(true) }
         // Stream providers reject being nested. Restored movie/embed state must never wrap sports.
         val embedded = media != null && media.type != MediaType.ANIME && preferEmbed
-        val url = media?.let { provider.url(it, season, episode) } ?: streams.getOrNull(sourceIndex)?.url ?: streams.firstOrNull()?.url ?: intent.getStringExtra("url").orEmpty()
+        val url = (if (media?.type == MediaType.ANIME) animeSource.data?.url else media?.let { provider.url(it, season, episode) }) ?: streams.getOrNull(sourceIndex)?.url ?: streams.firstOrNull()?.url ?: intent.getStringExtra("url").orEmpty()
         val title = media?.title ?: game?.let { "${it.away.abbreviation} vs ${it.home.abbreviation}" } ?: intent.getStringExtra("title").orEmpty()
         var error by remember(url, generation, embedded) { mutableStateOf<String?>(null) }
         var loading by remember(url, generation, embedded) { mutableStateOf(true) }
         var slow by remember(url, generation, embedded) { mutableStateOf(false) }
+        var hasPlayed by remember(url, generation, embedded) { mutableStateOf(false) }
         var fullscreen by remember { mutableStateOf<View?>(null) }
         var expanded by remember { mutableStateOf(false) }
         val immersive = expanded || fullscreen != null
@@ -307,7 +337,7 @@ class PlayerActivity : ComponentActivity() {
                     WebViewCompat.addWebMessageListener(this, "StreamifyPlaybackState", setOf(origin)) { _, message, sourceOrigin, _, reply ->
                         if (!dead && sourceOrigin.toString().trimEnd('/') == origin) {
                             playbackCommand = { play -> runCatching { reply.postMessage(if (play) "play" else "pause") } }
-                            when (message.data) { "playing" -> configurePip(true); "paused" -> configurePip(false) }
+                            when (message.data) { "playing" -> { hasPlayed = true; configurePip(true) }; "paused" -> configurePip(false) }
                         }
                     }
                     WebViewCompat.addDocumentStartJavaScript(this, """
@@ -374,7 +404,7 @@ class PlayerActivity : ComponentActivity() {
                         loaded = true
                         if (!httpsUrl(url)) { loading = false; error = "Invalid player address." }
                         else if (embedded) loadDataWithBaseURL("https://appassets.androidplatform.net/player/", playerDocument(url), "text/html", "UTF-8", null)
-                        else loadUrl(url)
+                        else loadUrl(url, animeSource.data?.let { mapOf("Referer" to it.referer) } ?: emptyMap())
                     }
                 }
             }
@@ -458,6 +488,9 @@ class PlayerActivity : ComponentActivity() {
                     IconButton(onClick = ::enterPip) { Icon(Icons.Rounded.PictureInPictureAlt, "Picture-in-picture", tint = Muted) }
                 }
                 error?.let { ErrorBanner(it, ::retry) }
+                if (media?.type == MediaType.ANIME && slow && !hasPlayed && error == null) {
+                    ErrorBanner("Playback has not started. Tap the video to play, or choose another Anikoto source.", ::retry)
+                }
                 }
                 Box(Modifier.fillMaxWidth().weight(1f).clipToBounds().onSizeChanged { videoSize = it }) {
                   Box(Modifier.fillMaxSize().graphicsLayer { scaleX = zoom; scaleY = zoom; translationX = fill?.offsetX ?: 0f; translationY = fill?.offsetY ?: 0f }) {
@@ -494,7 +527,7 @@ class PlayerActivity : ComponentActivity() {
             }
         }
         if (!pip && sourcePicker) ModalBottomSheet(onDismissRequest = { sourcePicker = false }) {
-            Text(if (media != null) "Playback source" else "Choose a stream", Modifier.padding(20.dp), style = MaterialTheme.typography.titleLarge)
+            Text(if (media?.type == MediaType.ANIME) "Anikoto sources" else if (media != null) "Playback source" else "Choose a stream", Modifier.padding(20.dp), style = MaterialTheme.typography.titleLarge)
             androidx.compose.foundation.lazy.LazyColumn(contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (media != null) items(providers, key = { it.id }) { item ->
                     Surface(onClick = { leaveFullscreen(); providerId = item.id; if (media.type == MediaType.ANIME) store.animeServerId = item.id else store.serverId = item.id; sourcePicker = false }, modifier = Modifier.fillMaxWidth(), shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp), color = Panel) {

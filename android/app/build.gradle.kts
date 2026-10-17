@@ -26,6 +26,7 @@ android {
     }
     buildFeatures { compose = true; buildConfig = true }
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -40,6 +41,8 @@ android {
 kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
 
 dependencies {
+    implementation("org.jsoup:jsoup:1.23.2")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     implementation(platform("com.google.firebase:firebase-bom:35.0.0"))
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")

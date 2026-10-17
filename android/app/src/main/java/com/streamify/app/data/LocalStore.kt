@@ -23,7 +23,10 @@ class LocalStore(private val context: Context, private val accountId: () -> Stri
         get() = prefs.getString("server", "streamex").orEmpty()
         set(value) { prefs.edit().putString("server", value).apply() }
     var animeServerId: String
-        get() = dataPrefs.getString("animeServer", "anime-nest-sub").orEmpty().takeIf { id -> animeServers.any { it.id == id } } ?: "anime-nest-sub"
+        get() {
+            val saved = dataPrefs.getString("animeServer", "anime-anikoto-323-sub").orEmpty()
+            return saved.takeIf { id -> animeServers.any { it.id == id } } ?: "anime-anikoto-323-${if (saved.endsWith("-dub")) "dub" else "sub"}"
+        }
         set(value) { if (animeServers.any { it.id == value }) dataPrefs.edit().putString("animeServer", value).apply() }
     var searches: List<String>
         get() = array("searches").let { items -> (0 until items.length()).map { items.optString(it) }.filter { it.isNotBlank() } }
