@@ -39,10 +39,10 @@ object AnimeCatalog {
         val next = json.optJSONObject("nextAiringEpisode")?.optInt("episode") ?: 0
         return (if (next > 0) next - 1 else json.optInt("episodes")).coerceIn(0, 3000)
     }
-    suspend fun catalog(page: Int, search: String, topRated: Boolean): MediaPage {
+    suspend fun catalog(page: Int, search: String, topRated: Boolean, genre: String? = null): MediaPage {
         val sort = if (topRated) "SCORE_DESC" else "POPULARITY_DESC"
-        val data = query("query(\$page:Int,\$search:String){Page(page:\$page,perPage:24){pageInfo{hasNextPage} media(type:ANIME,isAdult:false,search:\$search,sort:$sort){$fields}}}",
-            JSONObject().put("page", page).put("search", search.takeIf { it.isNotBlank() } ?: JSONObject.NULL)).getJSONObject("Page")
+        val data = query("query(\$page:Int,\$search:String,\$genre:String){Page(page:\$page,perPage:24){pageInfo{hasNextPage} media(type:ANIME,isAdult:false,search:\$search,genre:\$genre,sort:$sort){$fields}}}",
+            JSONObject().put("genre", genre ?: JSONObject.NULL).put("page", page).put("search", search.takeIf { it.isNotBlank() } ?: JSONObject.NULL)).getJSONObject("Page")
         return MediaPage(data.optJSONArray("media").objects().map(::media), page, if (data.getJSONObject("pageInfo").optBoolean("hasNextPage")) page + 1 else page)
     }
     private suspend fun title(id: Int) = query("query(\$id:Int){Media(id:\$id,type:ANIME,isAdult:false){$fields}}", JSONObject().put("id", id)).getJSONObject("Media")

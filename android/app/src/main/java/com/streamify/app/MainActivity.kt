@@ -73,12 +73,15 @@ private fun StreamifyApp(vm: StreamifyViewModel = viewModel(), openAccount: Bool
         Box(Modifier.fillMaxSize().padding(padding)) {
             Box(Modifier.fillMaxSize()) {
                 Column(Modifier.fillMaxSize().alpha(if (root) 1f else 0f).then(if (root) Modifier else Modifier.clearAndSetSemantics { })) {
-                    AppHeader(title = when (vm.tab) { "Browse" -> "Search"; "Library" -> "My list"; else -> vm.tab },
+                    if (vm.tab !in listOf("Movies", "Shows", "Anime")) AppHeader(title = when (vm.tab) { "Browse" -> "Search"; "Library" -> "My list"; else -> vm.tab },
                         search = { if (vm.tab == "Sports") vm.sportsSearchRequested = true else { vm.mediaSearchRequest++; vm.tab = "Browse" } }, library = { vm.tab = "Library" },
                         account = { vm.navigate(Destination.Account) }, settings = { settings = true })
                     if (vm.account.error != null) ErrorBanner(vm.account.error!!) { vm.accounts.retrySync() }
                     pageState.SaveableStateProvider(vm.tab) { when (vm.tab) {
                         "Home" -> HomeScreen(vm, active = root) { settings = true }
+                        "Movies" -> CategoryScreen(vm, MediaType.MOVIE)
+                        "Shows" -> CategoryScreen(vm, MediaType.TV)
+                        "Anime" -> CategoryScreen(vm, MediaType.ANIME)
                         "Browse" -> BrowseScreen(vm)
                         "Sports" -> SportsScreen(vm)
                         "Library" -> LibraryScreen(vm)
@@ -100,7 +103,7 @@ private fun StreamifyApp(vm: StreamifyViewModel = viewModel(), openAccount: Bool
             }
             }
             }
-            if (root) StreamifyBottomBar(vm.tab, Modifier.align(Alignment.BottomCenter)) { if (it == "Browse") vm.mediaSearchRequest++; vm.tab = it }
+            if (root) StreamifyBottomBar(if (vm.tab in listOf("Movies", "Shows", "Anime")) "Home" else vm.tab, Modifier.align(Alignment.BottomCenter)) { if (it == "Browse") vm.mediaSearchRequest++; vm.tab = it }
         }
     }
 }

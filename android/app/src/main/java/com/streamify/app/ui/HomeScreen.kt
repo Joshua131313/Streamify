@@ -65,9 +65,9 @@ fun HomeScreen(vm: StreamifyViewModel, active: Boolean = true, settings: () -> U
     LazyColumn(state = list, verticalArrangement = Arrangement.spacedBy(20.dp), contentPadding = PaddingValues(bottom = 108.dp + bottomInset)) {
         item(key = "shortcuts") {
             LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                item { HomeShortcut("Shows") { vm.browse(MediaType.TV); vm.tab = "Browse" } }
-                item { HomeShortcut("Movies") { vm.browse(MediaType.MOVIE); vm.tab = "Browse" } }
-                item { HomeShortcut("Anime") { vm.browse(MediaType.ANIME); vm.tab = "Browse" } }
+                item { HomeShortcut("Shows") { vm.tab = "Shows" } }
+                item { HomeShortcut("Movies") { vm.tab = "Movies" } }
+                item { HomeShortcut("Anime") { vm.tab = "Anime" } }
                 item { HomeShortcut("Live sports") { vm.tab = "Sports" } }
             }
         }
@@ -170,7 +170,7 @@ private fun FeaturedCarousel(featured: List<Media>, vm: StreamifyViewModel, visi
 }
 
 @Composable
-private fun FeaturedHero(media: Media, details: () -> Unit, play: () -> Unit, save: () -> Unit, saved: Boolean) {
+internal fun FeaturedHero(media: Media, details: () -> Unit, play: () -> Unit, save: () -> Unit, saved: Boolean) {
     Card(onClick = details, modifier = Modifier.padding(horizontal = 16.dp), shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, Color.White.copy(alpha = .16f))) {
         Box(Modifier.fillMaxWidth().aspectRatio(.82f)) {
             RemoteImage(media.image() ?: media.image(true), null, Modifier.fillMaxSize())
