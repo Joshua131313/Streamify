@@ -16,6 +16,25 @@ import java.io.File
 class DownloadsPolishTest {
     private val context=InstrumentationRegistry.getInstrumentation().targetContext
     private val device=UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+    @Test fun pinchSwitchesBetweenFitAndFill() {
+        val store=DownloadStore.get(context);val key="pinch_control"
+        File(context.getExternalFilesDir(null),"download-prototype/control.mp4").copyTo(store.file(key),overwrite=true)
+        try {ActivityScenario.launch<OfflinePlayerActivity>(Intent(context,OfflinePlayerActivity::class.java).putExtra("key",key)).use {scenario ->
+            lateinit var video:VideoView
+            scenario.onActivity {a->
+                video=(a.findViewById<android.view.ViewGroup>(android.R.id.content).getChildAt(0) as android.view.ViewGroup).getChildAt(0) as VideoView
+                video.setOnCompletionListener {video.seekTo(0);video.start()}
+            }
+            Thread.sleep(1000)
+            var fitWidth=0
+            scenario.onActivity {fitWidth=video.width}
+            val surface=device.findObject(UiSelector().description("Offline player canvas"))
+            assertTrue(surface.pinchOut(90,25));Thread.sleep(500)
+            scenario.onActivity {assertTrue("Fill should enlarge the video",video.width>fitWidth)}
+            assertTrue(surface.pinchIn(90,25));Thread.sleep(500)
+            scenario.onActivity {assertEquals("Fit should restore video bounds",fitWidth,video.width)}
+        }} finally {store.file(key).delete()}
+    }
     @Test fun downloadPrefersFullHdThenFallsBack() {
         val qualities=org.json.JSONObject("""{"360":{"url":"low"},"720":{"url":"hd"},"1080":{"url":"fullhd"}}""")
         assertEquals("fullhd",DownloadResolver.preferredQualityUrl(qualities))
@@ -88,7 +107,7 @@ class DownloadsPolishTest {
                 device.wait(Until.findObject(By.desc("Lock screen")),3000)!!.click()
                 assertNull(device.findObject(By.desc("Exit offline player")))
                 device.click(device.displayWidth/2,device.displayHeight/2)
-                device.wait(Until.findObject(By.res("android:id/button1")),3000)!!.click()
+                device.wait(Until.findObject(By.desc("Unlock screen")),3000)!!.click()
                 assertNotNull(device.wait(Until.findObject(By.desc("Exit offline player")),3000))
                 device.click(device.displayWidth/2,device.displayHeight/3)
                 Thread.sleep(500)

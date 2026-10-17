@@ -45,8 +45,26 @@ class OfflinePlayerActivity : ComponentActivity() {
     private var settingsDialog: android.app.Dialog?=null
     private val handler=Handler(Looper.getMainLooper())
     private val hideControls=Runnable { if(::toolbar.isInitialized) toolbar.visibility=View.GONE; if(::transport.isInitialized) transport.visibility=View.GONE; if(::timeline.isInitialized) timeline.visibility=View.GONE;brightnessControl?.visibility=View.GONE;volumeControl?.visibility=View.GONE;seekPreview?.hidePreview() }
+    private var fillScreen=false
+    private var sourceWidth=0
+    private var sourceHeight=0
+    private lateinit var scaleDetector:android.view.ScaleGestureDetector
+    private var pinchActive=false
+    private var pinchScale=1f
+    private var pinchChanged=false
+    private fun setVideoFill(fill:Boolean) {
+        if(fillScreen==fill) return
+        fillScreen=fill;video.requestLayout()
+        gestureFeedback.animate().cancel();gestureFeedback.translationX=0f
+        gestureFeedback.text=if(fill) "Fill screen" else "Fit screen"
+        gestureFeedback.visibility=View.VISIBLE;gestureFeedback.alpha=1f
+        gestureFeedback.scaleX=1f;gestureFeedback.scaleY=1f
+        gestureFeedback.animate().alpha(0f).setStartDelay(650).setDuration(250).withEndAction {gestureFeedback.visibility=View.GONE}.start()
+        video.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+    }
     private var locked=false
-    private var unlockPrompt:android.app.AlertDialog?=null
+    private lateinit var unlockOverlay:FrameLayout
+    private val hideUnlock=Runnable {if(::unlockOverlay.isInitialized) unlockOverlay.visibility=View.GONE}
     private lateinit var gestureDetector:android.view.GestureDetector
     private lateinit var gestureFeedback:TextView
     private var gestureBrightness=.5f
@@ -55,17 +73,34 @@ class OfflinePlayerActivity : ComponentActivity() {
     private var gestureLast=0L
     private var suppressControls=false
     private fun askUnlock() {
-        if(unlockPrompt?.isShowing==true) return
-        unlockPrompt=android.app.AlertDialog.Builder(this).setTitle("Screen locked").setMessage("Unlock playback controls?")
-            .setNegativeButton("Keep locked",null).setPositiveButton("Unlock") {_,_->locked=false;showControls()}.show()
+        unlockOverlay.visibility=View.VISIBLE;unlockOverlay.alpha=0f
+        unlockOverlay.animate().alpha(1f).setDuration(160).start()
+        handler.removeCallbacks(hideUnlock);handler.postDelayed(hideUnlock,3000)
     }
     override fun dispatchTouchEvent(event:android.view.MotionEvent):Boolean {
-        if(locked && !isInPictureInPictureMode) {if(event.actionMasked==android.view.MotionEvent.ACTION_UP) askUnlock();return true}
+        if(locked && !isInPictureInPictureMode) {
+            if(::unlockOverlay.isInitialized && unlockOverlay.visibility==View.VISIBLE) return super.dispatchTouchEvent(event)
+            if(event.actionMasked==android.view.MotionEvent.ACTION_UP) askUnlock()
+            return true
+        }
+        if(::scaleDetector.isInitialized && !isInPictureInPictureMode) {
+            if(event.pointerCount>1 || pinchActive) {
+                if(!pinchActive) {
+                    pinchActive=true
+                    val cancel=android.view.MotionEvent.obtain(event);cancel.action=android.view.MotionEvent.ACTION_CANCEL
+                    super.dispatchTouchEvent(cancel);gestureDetector.onTouchEvent(cancel);cancel.recycle()
+                }
+                scaleDetector.onTouchEvent(event)
+                if(event.actionMasked==android.view.MotionEvent.ACTION_UP || event.actionMasked==android.view.MotionEvent.ACTION_CANCEL) pinchActive=false
+                return true
+            }
+            scaleDetector.onTouchEvent(event)
+        }
         return super.dispatchTouchEvent(event)
     }
     private fun styleSideSlider(slider:SeekBar) {
         fun track(color:Int)=android.graphics.drawable.GradientDrawable().apply {setColor(color);cornerRadius=dp(3).toFloat();setSize(dp(150),dp(5))}
-        slider.thumb=null;slider.splitTrack=false
+        slider.thumb=null;slider.background=null;slider.splitTrack=false
         slider.progressDrawable=android.graphics.drawable.LayerDrawable(arrayOf(track(0x55FFFFFF),android.graphics.drawable.ClipDrawable(track(-1),Gravity.LEFT,android.graphics.drawable.ClipDrawable.HORIZONTAL))).apply {
             setId(0,android.R.id.background);setId(1,android.R.id.progress)
             setLayerHeight(0,dp(5));setLayerHeight(1,dp(5));setLayerGravity(0,Gravity.CENTER_VERTICAL);setLayerGravity(1,Gravity.CENTER_VERTICAL)
@@ -191,11 +226,20 @@ class OfflinePlayerActivity : ComponentActivity() {
         WindowInsetsControllerCompat(window,window.decorView).apply { hide(WindowInsetsCompat.Type.systemBars());systemBarsBehavior=WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE }
         val file=DownloadStore.get(this).file(key)
         if(!file.isFile) { Toast.makeText(this,"Downloaded video is missing. Download it again.",Toast.LENGTH_LONG).show();finish();return }
-        val root=FrameLayout(this).apply { setBackgroundColor(android.graphics.Color.BLACK) }
-        video=VideoView(this)
+        val root=FrameLayout(this).apply { contentDescription="Offline player canvas";setBackgroundColor(android.graphics.Color.BLACK) }
+        video=object:VideoView(this) {
+            override fun onMeasure(widthMeasureSpec:Int,heightMeasureSpec:Int) {
+                if(fillScreen && !isInPictureInPictureMode && sourceWidth>0 && sourceHeight>0) {
+                    val w=View.MeasureSpec.getSize(widthMeasureSpec);val h=View.MeasureSpec.getSize(heightMeasureSpec)
+                    val scale=maxOf(w.toFloat()/sourceWidth,h.toFloat()/sourceHeight)
+                    setMeasuredDimension(kotlin.math.ceil(sourceWidth*scale).toInt(),kotlin.math.ceil(sourceHeight*scale).toInt())
+                } else super.onMeasure(widthMeasureSpec,heightMeasureSpec)
+            }
+        }
+        video.contentDescription="Offline video surface"
         root.addView(video,FrameLayout.LayoutParams(-1,-1,Gravity.CENTER))
 
-        video.setOnPreparedListener { prepared -> player=prepared;video.seekTo(prefs.getInt(key,0));if(resume) video.start();updatePip() }
+        video.setOnPreparedListener { prepared -> player=prepared;sourceWidth=prepared.videoWidth;sourceHeight=prepared.videoHeight;prepared.setOnVideoSizeChangedListener {_,w,h->sourceWidth=w;sourceHeight=h;video.requestLayout()};video.requestLayout();video.seekTo(prefs.getInt(key,0));if(resume) video.start();updatePip() }
         video.setOnCompletionListener { prefs.edit().remove(key).apply();finish() }
         video.setOnErrorListener { _,_,_ -> Toast.makeText(this,"This downloaded file could not play.",Toast.LENGTH_LONG).show();finish();true }
         toolbar=LinearLayout(this).apply { orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER_VERTICAL;setPadding(dp(16),dp(8),dp(16),dp(8));background=android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,intArrayOf(0xB3000000.toInt(),0x00000000)) }
@@ -260,6 +304,19 @@ class OfflinePlayerActivity : ComponentActivity() {
         volumeControlStream=android.media.AudioManager.STREAM_MUSIC
         gestureFeedback=TextView(this).apply {setTextColor(-1);textSize=26f;gravity=Gravity.CENTER;visibility=View.GONE;setShadowLayer(4f,0f,0f,android.graphics.Color.BLACK)}
         root.addView(gestureFeedback,FrameLayout.LayoutParams(dp(120),dp(80),Gravity.CENTER))
+        unlockOverlay=FrameLayout(this).apply {
+            setBackgroundColor(0x55000000);visibility=View.GONE;isClickable=true
+            setOnClickListener {handler.removeCallbacks(hideUnlock);visibility=View.GONE}
+        }
+        val unlockButton=LinearLayout(this).apply {
+            orientation=LinearLayout.VERTICAL;gravity=Gravity.CENTER;setPadding(dp(16),dp(8),dp(16),dp(8))
+            contentDescription="Unlock screen";isClickable=true;isFocusable=true
+            addView(ImageView(this@OfflinePlayerActivity).apply {setImageResource(R.drawable.player_lock)},LinearLayout.LayoutParams(dp(28),dp(28)))
+            addView(TextView(this@OfflinePlayerActivity).apply {text="Tap to unlock";setTextColor(-1);textSize=13f;gravity=Gravity.CENTER;setPadding(0,dp(6),0,0)})
+            setOnClickListener {locked=false;handler.removeCallbacks(hideUnlock);unlockOverlay.visibility=View.GONE;performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK);showControls()}
+        }
+        unlockOverlay.addView(unlockButton,FrameLayout.LayoutParams(-2,-2,Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {bottomMargin=dp(24)})
+        root.addView(unlockOverlay,FrameLayout.LayoutParams(-1,-1))
         gestureDetector=android.view.GestureDetector(this,object:android.view.GestureDetector.SimpleOnGestureListener() {
             override fun onDown(e:android.view.MotionEvent):Boolean {
                 gestureBrightness=window.attributes.screenBrightness.takeIf {it>=0} ?: .5f
@@ -274,7 +331,7 @@ class OfflinePlayerActivity : ComponentActivity() {
                 gestureFeedback.animate().cancel();gestureFeedback.text="${if(gestureTotal>0) "+" else ""}$gestureTotal"
                 gestureFeedback.translationX=if(delta<0) -root.width*.22f else root.width*.22f
                 gestureFeedback.visibility=View.VISIBLE;gestureFeedback.alpha=1f;gestureFeedback.scaleX=.85f;gestureFeedback.scaleY=.85f
-                gestureFeedback.animate().scaleX(1f).scaleY(1f).alpha(0f).setDuration(800).withEndAction {gestureFeedback.visibility=View.GONE}.start();return true
+                gestureFeedback.animate().scaleX(1f).scaleY(1f).alpha(0f).setStartDelay(0).setDuration(800).withEndAction {gestureFeedback.visibility=View.GONE}.start();return true
             }
             override fun onScroll(start:android.view.MotionEvent?,current:android.view.MotionEvent,dx:Float,dy:Float):Boolean {
                 if(start==null || kotlin.math.abs(current.rawY-start.rawY)<kotlin.math.abs(current.rawX-start.rawX)) return false
@@ -291,6 +348,14 @@ class OfflinePlayerActivity : ComponentActivity() {
                 return false
             }
         })
+        scaleDetector=android.view.ScaleGestureDetector(this,object:android.view.ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            override fun onScaleBegin(detector:android.view.ScaleGestureDetector):Boolean {pinchScale=1f;pinchChanged=false;return true}
+            override fun onScale(detector:android.view.ScaleGestureDetector):Boolean {
+                pinchScale*=detector.scaleFactor
+                if(!pinchChanged && (pinchScale>1.12f || pinchScale<.88f)) {setVideoFill(pinchScale>1f);pinchChanged=true}
+                return true
+            }
+        }).apply {isQuickScaleEnabled=false}
         val touch=View.OnTouchListener {_,event->gestureDetector.onTouchEvent(event);true}
         video.setOnTouchListener(touch);root.setOnTouchListener(touch)
         setContentView(root)
@@ -300,10 +365,11 @@ class OfflinePlayerActivity : ComponentActivity() {
     override fun onUserLeaveHint() { super.onUserLeaveHint();if(::video.isInitialized && video.isPlaying && !closing) enterPip() }
     override fun onPictureInPictureModeChanged(inPip: Boolean, configuration: Configuration) {
         super.onPictureInPictureModeChanged(inPip,configuration)
-        if(inPip) { settingsDialog?.dismiss();hideControls.run() } else showControls()
+        video.requestLayout()
+        if(inPip) {unlockOverlay.visibility=View.GONE;handler.removeCallbacks(hideUnlock); settingsDialog?.dismiss();hideControls.run() } else showControls()
     }
     override fun onPause() { if(::video.isInitialized) { resume=video.isPlaying;prefs.edit().putInt(key,video.currentPosition).apply() };super.onPause() }
     override fun onStop() { if(::video.isInitialized) video.pause();super.onStop() }
     override fun onResume() { super.onResume();if(::video.isInitialized && resume) video.start() }
-    override fun onDestroy() { unlockPrompt?.dismiss();seekPreview?.close();settingsDialog?.dismiss();player=null;handler.removeCallbacksAndMessages(null);unregisterReceiver(receiver);if(::video.isInitialized) video.stopPlayback();super.onDestroy() }
+    override fun onDestroy() { seekPreview?.close();settingsDialog?.dismiss();player=null;handler.removeCallbacksAndMessages(null);unregisterReceiver(receiver);if(::video.isInitialized) video.stopPlayback();super.onDestroy() }
 }
