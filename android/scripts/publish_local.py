@@ -14,7 +14,7 @@ sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
 def request(url, data, method="POST", content_type="application/json"):
     req = urllib.request.Request(url, data=data, method=method, headers=dict(headers, **{"Content-Type": content_type}))
     with urllib.request.urlopen(req, timeout=180) as response: return json.load(response)
-release = request(base + "/releases", json.dumps(dict(tag_name=f"android-v{code}", target_commitish=sha, name=f"Streamify Android {name}", draft=True, body="Adds Settings → App updates with verified APK downloads and Android installation prompts. Install this build once to receive future releases in the app.")).encode())
+release = request(base + "/releases", json.dumps(dict(tag_name=f"android-v{code}", target_commitish=sha, name=f"Streamify Android {name}", draft=True, body="Latest Android fixes and UI improvements. Update from Settings → App updates in Streamify.")).encode())
 for path, content_type in [(apk, "application/vnd.android.package-archive"), (apk.with_name("update.json"), "application/json")]:
     upload = release["upload_url"].split("{")[0] + "?name=" + path.name
     request(upload, path.read_bytes(), content_type=content_type)

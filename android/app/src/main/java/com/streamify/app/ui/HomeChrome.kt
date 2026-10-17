@@ -57,23 +57,21 @@ fun StreamifyBottomBar(selected: String, modifier: Modifier = Modifier, select: 
     )
     val dark = Canvas.luminance() < .5f
     val foreground = MaterialTheme.colorScheme.onSurface
-    Box(modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)).padding(horizontal = 24.dp, vertical = 10.dp), contentAlignment = Alignment.Center) {
-        Surface(Modifier.widthIn(max = 460.dp).fillMaxWidth(), shape = RoundedCornerShape(28.dp),
-            color = if (dark) Color(0xFF242328).copy(alpha = .9f) else Color(0xFFF3F0F6).copy(alpha = .94f),
-            border = BorderStroke(.7.dp, foreground.copy(alpha = .16f)), shadowElevation = 16.dp, tonalElevation = 0.dp) {
-            Row(Modifier.background(Brush.verticalGradient(listOf(Color.White.copy(alpha = .08f), Color.Transparent)))
-                .selectableGroup().padding(5.dp)) {
+    Box(modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)).padding(horizontal = 32.dp, vertical = 6.dp), contentAlignment = Alignment.Center) {
+        Surface(Modifier.widthIn(max = 420.dp).fillMaxWidth(), shape = RoundedCornerShape(26.dp),
+            color = if (dark) Color(0xFF1C1B20).copy(alpha = .86f) else Color(0xFFF3F0F6).copy(alpha = .94f),
+            border = BorderStroke(.5.dp, foreground.copy(alpha = .10f)), shadowElevation = 4.dp, tonalElevation = 0.dp) {
+            Row(Modifier.selectableGroup().padding(horizontal = 4.dp, vertical = 2.dp)) {
                 tabs.forEach { (name, label, icon) ->
                     val active = selected == name
                     val tint by animateColorAsState(if (active) foreground else foreground.copy(alpha = .5f), label = "Navigation color")
-                    Column(Modifier.weight(1f).height(56.dp).clip(RoundedCornerShape(22.dp))
-                        .background(if (active) foreground.copy(alpha = .06f) else Color.Transparent)
+                    Column(Modifier.weight(1f).height(48.dp).clip(RoundedCornerShape(22.dp))
                         .selectable(active, role = Role.Tab, onClick = { if (!active) haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove); select(name) }),
                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                         if (name == "Library") Box(Modifier.size(24.dp).clip(RoundedCornerShape(7.dp)).background(StreamRed), contentAlignment = Alignment.Center) {
                             Icon(Icons.Rounded.Person, null, Modifier.size(18.dp), tint = Color.White)
                         } else Icon(icon, null, Modifier.size(24.dp), tint = tint)
-                        Spacer(Modifier.height(4.dp))
+                        Spacer(Modifier.height(2.dp))
                         Text(label, color = tint, fontSize = 10.sp, lineHeight = 12.sp,
                             fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
