@@ -46,9 +46,9 @@ fun DetailScreen(media: Media, vm: StreamifyViewModel, back: () -> Unit) {
     var season by rememberSaveable(media.key) { mutableIntStateOf(previous?.season ?: 1) }
     var episodeRetry by remember { mutableIntStateOf(0) }
     val episodes by produceState(LoadState<List<Episode>>(), media.key, season, episodeRetry) {
-        if (media.type == MediaType.TV) {
+        if (media.type != MediaType.MOVIE) {
             value = LoadState(loading = true)
-            try { value = LoadState(vm.repository.episodes(media.id, season)) }
+            try { value = LoadState(vm.repository.episodes(media.id, season, media.type)) }
             catch (error: Exception) { coroutineContext.ensureActive(); value = LoadState(error = error.localizedMessage) }
         }
     }
@@ -83,8 +83,9 @@ fun DetailScreen(media: Media, vm: StreamifyViewModel, back: () -> Unit) {
                         colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black)) {
                         Icon(Icons.Rounded.PlayArrow, null)
                         Spacer(Modifier.width(8.dp))
-                        Text(if (media.type == MediaType.TV && previous != null) "Watch S${previous.season} E${previous.episode}" else "Watch")
+                        Text(if (media.type == MediaType.ANIME && previous != null) "Watch episode ${previous.episode}" else if (media.type == MediaType.TV && previous != null) "Watch S${previous.season} E${previous.episode}" else "Watch")
                     }
+                    if (media.type == MediaType.ANIME) AnimeWatchChoices(vm.store) { play(previous?.episode ?: 1) }
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     SecondaryButton(onClick = { vm.toggleSaved(title) }, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                         Icon(if (saved) Icons.Rounded.Check else Icons.Rounded.Add, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(if (saved) "Saved" else "My list", maxLines = 1)
@@ -99,13 +100,13 @@ fun DetailScreen(media: Media, vm: StreamifyViewModel, back: () -> Unit) {
         }
         if (state.loading) item { Loading() }
         state.error?.let { item { ErrorBanner(it) { retry++ } } }
-        if (media.type == MediaType.TV) {
+        if (media.type != MediaType.MOVIE) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 SectionLabel("Episodes", modifier = Modifier.padding(horizontal = 20.dp))
                 Box(Modifier.padding(horizontal = 20.dp)) {
                     var choosing by remember { mutableStateOf(false) }
-                    SecondaryButton(onClick = { choosing = true }) { Text("Season $season");Spacer(Modifier.width(12.dp));Icon(Icons.Rounded.ExpandMore,null) }
+                    SecondaryButton(onClick = { choosing = true }) { Text(if (media.type == MediaType.ANIME) "Episodes" else "Season $season");Spacer(Modifier.width(12.dp));Icon(Icons.Rounded.ExpandMore,null) }
                     DropdownMenu(choosing, { choosing = false }) {
                         details?.seasons.orEmpty().forEach { choice -> DropdownMenuItem(text = { Text(choice.name) }, onClick = { season=choice.number;choosing=false }) }
                     }
@@ -119,7 +120,7 @@ fun DetailScreen(media: Media, vm: StreamifyViewModel, back: () -> Unit) {
                 Column(Modifier.padding(horizontal = 20.dp).fillMaxWidth().clickable { play(episode.number) }, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                         Box(Modifier.width(128.dp).height(76.dp).clip(RoundedCornerShape(8.dp))) {
-                            RemoteImage(episode.still.takeIf { it.startsWith("/") }?.let { "https://image.tmdb.org/t/p/w342$it" }, null, Modifier.fillMaxSize())
+                            RemoteImage(if (media.type == MediaType.ANIME) title.image(true) else episode.still.takeIf { it.startsWith("/") }?.let { "https://image.tmdb.org/t/p/w342$it" }, null, Modifier.fillMaxSize())
                             Surface(Modifier.align(Alignment.Center).size(34.dp), shape = androidx.compose.foundation.shape.CircleShape, color = Color.Black.copy(alpha=.6f), border = androidx.compose.foundation.BorderStroke(1.dp, Color.White)) {
                                 Box(contentAlignment=Alignment.Center) { Icon(Icons.Rounded.PlayArrow,"Watch episode ${episode.number}",tint=Color.White) }
                             }
@@ -132,7 +133,7 @@ fun DetailScreen(media: Media, vm: StreamifyViewModel, back: () -> Unit) {
                             Text(if(episode.runtime>0) "${episode.runtime} min" else episode.date,color=Muted,style=MaterialTheme.typography.labelMedium)
                         }
                     }
-                    Text(episode.overview.ifBlank { "Episode synopsis unavailable." }, maxLines=4,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodyMedium,color=Muted)
+                    if (media.type != MediaType.ANIME || episode.overview.isNotBlank()) Text(episode.overview.ifBlank { "Episode synopsis unavailable." }, maxLines=4,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodyMedium,color=Muted)
                 }
             }
         }

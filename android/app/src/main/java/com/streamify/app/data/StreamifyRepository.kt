@@ -15,7 +15,7 @@ import java.time.format.DateTimeFormatter
 import kotlin.coroutines.coroutineContext
 
 class StreamifyRepository(private val store: LocalStore) {
-    suspend fun media(id: Int, type: MediaType): Media = Media.parse(tmdb("${type.path}/$id"), type)
+    suspend fun media(id: Int, type: MediaType): Media = if (type == MediaType.ANIME) AnimeCatalog.details(id).media else Media.parse(tmdb("${type.path}/$id"), type)
         ?: error("Title details unavailable.")
     suspend fun catalog(path: String, type: MediaType? = null, page: Int = 1, query: String = "", params: Map<String, String> = emptyMap()): MediaPage {
         val json = tmdb(path, params + mapOf("page" to page.toString(), "query" to query))
@@ -24,6 +24,7 @@ class StreamifyRepository(private val store: LocalStore) {
     }
 
     suspend fun details(media: Media): Details {
+        if (media.type == MediaType.ANIME) return AnimeCatalog.details(media.id)
         val json = tmdb("${media.type.path}/${media.id}", mapOf("append_to_response" to "credits,recommendations,videos"))
         val runtime = json.optInt("runtime").takeIf { it > 0 }?.let { "$it min" } ?: ""
         return Details(Media.parse(json, media.type) ?: media,
@@ -38,12 +39,12 @@ class StreamifyRepository(private val store: LocalStore) {
                 ?.text("key")?.takeIf { Regex("[A-Za-z0-9_-]+").matches(it) }?.let { "https://www.youtube.com/watch?v=$it" })
     }
 
-    suspend fun episodes(id: Int, season: Int): List<Episode> = tmdb("tv/$id/season/$season")
+    suspend fun episodes(id: Int, season: Int, type: MediaType = MediaType.TV): List<Episode> = if (type == MediaType.ANIME) AnimeCatalog.episodes(id) else tmdb("tv/$id/season/$season")
         .optJSONArray("episodes").objects().map {
             Episode(it.optInt("episode_number"), it.text("name"), it.text("overview"), it.text("still_path"), it.text("air_date"), it.optInt("runtime", 0))
         }
 
-    suspend fun genres(type: MediaType): List<Genre> = tmdb("genre/${type.path}/list").optJSONArray("genres").objects().map { Genre(it.optInt("id"), it.text("name")) }
+    suspend fun genres(type: MediaType): List<Genre> = if (type == MediaType.ANIME) emptyList() else tmdb("genre/${type.path}/list").optJSONArray("genres").objects().map { Genre(it.optInt("id"), it.text("name")) }
 
     suspend fun collection(id: Int): CollectionDetails {
         val json = tmdb("collection/$id")

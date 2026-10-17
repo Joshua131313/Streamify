@@ -96,16 +96,16 @@ class AccountRepository(
                     when (name) {
                         "savedMedia" -> {
                             val items = hydrate(snapshot.documents)
-                            if (current(uid, version)) store.saved = items.map { it.second }.distinctBy { it.key }
+                            if (current(uid, version)) store.saved = (store.saved.filter { it.type == MediaType.ANIME } + items.map { it.second }).distinctBy { it.key }
                         }
                         "watchHistory" -> {
                             val items = hydrate(snapshot.documents)
-                            if (current(uid, version)) store.history = items.map { (doc, media) -> History(media,
+                            if (current(uid, version)) store.history = (store.history.filter { it.media.type == MediaType.ANIME } + items.map { (doc, media) -> History(media,
                                 cloudPositiveInt(doc.get("season")), cloudPositiveInt(doc.get("episode")),
                                 (doc.get("updatedAt", DocumentSnapshot.ServerTimestampBehavior.ESTIMATE) as? com.google.firebase.Timestamp)?.toDate()?.time ?: 0L,
                                 (doc.get("positionSeconds") as? Number)?.toDouble()?.takeIf { it.isFinite() && it >= 0 } ?: 0.0,
                                 (doc.get("durationSeconds") as? Number)?.toDouble()?.takeIf { it.isFinite() && it > 0 } ?: 0.0)
-                            }.map { remote -> store.history.firstOrNull { it.media.key == remote.media.key && it.watchedAt > remote.watchedAt } ?: remote }.sortedByDescending { it.watchedAt }.distinctBy { it.media.key }
+                            }.map { remote -> store.history.firstOrNull { it.media.key == remote.media.key && it.watchedAt > remote.watchedAt } ?: remote }).sortedByDescending { it.watchedAt }.distinctBy { it.media.key }
                         }
                         "favoriteTeams" -> if (current(uid, version)) store.favorites = snapshot.documents.mapNotNull { doc ->
                             val league = League.entries.firstOrNull { it.name.equals((doc.get("league") as? String), true) } ?: return@mapNotNull null
@@ -156,7 +156,7 @@ class AccountRepository(
     }
 
     fun toggleSaved(media: Media) {
-        if (account.value.uid == null) {
+        if (account.value.uid == null || media.type == MediaType.ANIME) {
             store.saved = if (store.saved.any { it.key == media.key }) store.saved.filterNot { it.key == media.key } else listOf(media) + store.saved
             publishLocal(); return
         }
@@ -175,7 +175,7 @@ class AccountRepository(
             CloudMediaRef.parse(doc.data.orEmpty())?.key == media.key && cloudPositiveInt(doc.get("season")) == season && cloudPositiveInt(doc.get("episode")) == episode
         }) return
         val entry = History(media, season, episode)
-        if (account.value.uid == null) { store.history = listOf(entry) + store.history.filterNot { it.media.key == media.key }; publishLocal(); return }
+        if (account.value.uid == null || media.type == MediaType.ANIME) { store.history = listOf(entry) + store.history.filterNot { it.media.key == media.key }; publishLocal(); return }
         mediaCache[media.key] = media
         // Preserve existing progress even while media metadata is still being hydrated.
         val uid = account.value.uid ?: return
@@ -189,7 +189,7 @@ class AccountRepository(
         if (auth.currentUser?.takeUnless { it.isAnonymous }?.uid != owner) return
         store.history = listOf(entry) + store.history.filterNot { it.media.key == entry.media.key }
         publishLocal()
-        if (!cloud || owner == null) return
+        if (!cloud || owner == null || entry.media.type == MediaType.ANIME) return
         mediaCache[entry.media.key] = entry.media
         val payload = mapOf("mediaId" to entry.media.id, "mediaType" to entry.media.type.path, "genreIds" to entry.media.genreIds,
             "season" to entry.season, "episode" to entry.episode, "positionSeconds" to entry.positionSeconds,
@@ -206,7 +206,7 @@ class AccountRepository(
     }
     fun removeHistory(media: Media) {
         account.value.uid?.let { playbackWrites.remove("$it:${media.key}")?.cancel() }
-        if (account.value.uid == null) { store.history = store.history.filterNot { it.media.key == media.key }; publishLocal(); return }
+        if (account.value.uid == null || media.type == MediaType.ANIME) { store.history = store.history.filterNot { it.media.key == media.key }; publishLocal(); return }
         mutate("watchHistory") { ref, _ -> db.batch().also { batch ->
             batch.delete(ref.document("${media.type.path}-${media.id}"))
             snapshots["watchHistory"].orEmpty().filter { CloudMediaRef.parse(it.data.orEmpty())?.key == media.key }.forEach { batch.delete(it.reference) }

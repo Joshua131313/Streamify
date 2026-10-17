@@ -10,7 +10,7 @@ import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.util.Locale
 
-enum class MediaType(val path: String, val label: String) { MOVIE("movie", "Movie"), TV("tv", "Series") }
+enum class MediaType(val path: String, val label: String) { MOVIE("movie", "Movie"), TV("tv", "Series"), ANIME("anime", "Anime") }
 
 data class Media(
     val id: Int, val type: MediaType, val title: String, val overview: String = "",
@@ -19,7 +19,7 @@ data class Media(
     val key get() = "${type.path}:$id"
     val year get() = date.take(4)
     fun image(wide: Boolean = false) = (if (wide) backdrop.ifBlank { poster } else poster)
-        .takeIf { it.startsWith("/") }?.let { "https://image.tmdb.org/t/p/${if (wide) "w780" else "w342"}$it" }
+        .let { if (it.startsWith("/")) "https://image.tmdb.org/t/p/${if (wide) "w780" else "w342"}$it" else it.takeIf { value -> httpsUrl(value) } }
     fun json() = JSONObject().put("id", id).put("media_type", type.path).put("title", title)
         .put("overview", overview).put("poster_path", poster).put("backdrop_path", backdrop)
         .put("vote_average", rating).put("release_date", date).put("genre_ids", JSONArray(genreIds))
@@ -29,6 +29,7 @@ data class Media(
             val kind = type ?: when (json.text("media_type")) {
                 "movie" -> MediaType.MOVIE
                 "tv" -> MediaType.TV
+                "anime" -> MediaType.ANIME
                 else -> return null
             }
             if (json.optInt("id") <= 0) return null

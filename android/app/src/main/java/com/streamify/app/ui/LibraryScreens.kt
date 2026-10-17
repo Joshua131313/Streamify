@@ -36,7 +36,7 @@ fun BrowseScreen(vm: StreamifyViewModel) {
     LazyVerticalGrid(catalogGridCells(), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = rootContentBottomPadding()),
         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
         item(span = { GridItemSpan(maxLineSpan) }) {
-            PageSearchField(vm.query, vm::search, "Search movies & series", Modifier.focusRequester(searchFocus))
+            PageSearchField(vm.query, vm::search, if (vm.browseType == MediaType.ANIME) "Search anime" else "Search movies & series", Modifier.focusRequester(searchFocus))
         }
         if (vm.query.isBlank()) {
             item(span = { GridItemSpan(maxLineSpan) }) {
@@ -45,9 +45,10 @@ fun BrowseScreen(vm: StreamifyViewModel) {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         item { FilterPill("Movies", vm.browseType == MediaType.MOVIE, { vm.browse(MediaType.MOVIE) }) }
                         item { FilterPill("Series", vm.browseType == MediaType.TV, { vm.browse(MediaType.TV) }) }
+                        item { FilterPill("Anime", vm.browseType == MediaType.ANIME, { vm.browse(MediaType.ANIME) }) }
                         item { FilterPill("Collections", false, { vm.navigate(Destination.Collections) }) }
                     }
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (vm.browseType != MediaType.ANIME) LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         item { Choice("Genre", listOf(0 to "All genres") + genres.map { it.id to it.name }, vm.browseGenre) { vm.filterCatalog(genre = it) } }
                         item { Choice("Provider", listOf(0 to "All providers") + catalogProviders.map { it.id to it.name }, vm.browseProvider) { vm.filterCatalog(provider = it) } }
                     }
@@ -69,7 +70,7 @@ fun BrowseScreen(vm: StreamifyViewModel) {
             if (vm.query.isBlank()) LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 item { FilterPill("Popular", vm.browseSort == "popular", { vm.browse(sort = "popular") }) }
                 item { FilterPill("Top rated", vm.browseSort == "top_rated", { vm.browse(sort = "top_rated") }) }
-            } else SectionLabel("Search results", "Movies and series matching “${vm.query}”")
+            } else SectionLabel("Search results", "${if (vm.browseType == MediaType.ANIME) "Anime" else "Movies and series"} matching “${vm.query}”")
         }
         state.error?.let { item(span = { GridItemSpan(maxLineSpan) }) { ErrorBanner(it) { vm.loadCatalog() } } }
         items(state.data?.items.orEmpty(), key = { it.key }) { media -> MediaPoster(media, { vm.rememberSearch(); vm.selected = media }, roomy = true) }
@@ -111,7 +112,7 @@ fun LibraryScreen(vm: StreamifyViewModel) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 PageSearchField(query, { query = it }, if (history) "Search your history" else "Search your list")
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(listOf(-1 to "All", 0 to "Movies", 1 to "Series")) { (value, name) -> FilterPill(name, type == value, { type = value }) }
+                    items(listOf(-1 to "All", 0 to "Movies", 1 to "Series", 2 to "Anime")) { (value, name) -> FilterPill(name, type == value, { type = value }) }
                 }
             }
         }

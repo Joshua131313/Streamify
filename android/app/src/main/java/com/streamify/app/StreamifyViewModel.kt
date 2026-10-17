@@ -118,7 +118,7 @@ class StreamifyViewModel(application: Application) : AndroidViewModel(applicatio
                 val params = if (filtered) mapOf("with_genres" to browseGenre.takeIf { it > 0 }?.toString().orEmpty(),
                     "with_watch_providers" to browseProvider.takeIf { it > 0 }?.toString().orEmpty(), "watch_region" to "US",
                     "sort_by" to if (browseSort == "top_rated") "vote_average.desc" else "popularity.desc", "vote_count.gte" to "100") else emptyMap()
-                val result = repository.catalog(if (text.isNotBlank()) "search/multi" else if (filtered) "discover/${browseType.path}" else "${browseType.path}/$browseSort",
+                val result = if (browseType == MediaType.ANIME) AnimeCatalog.catalog((previous?.page ?: 0) + 1, text, browseSort == "top_rated") else repository.catalog(if (text.isNotBlank()) "search/multi" else if (filtered) "discover/${browseType.path}" else "${browseType.path}/$browseSort",
                     if (text.isBlank()) browseType else null, (previous?.page ?: 0) + 1, text, params)
                 catalog = LoadState(result.copy(items = ((previous?.items ?: emptyList()) + result.items).distinctBy { it.key }))
             } catch (error: Exception) { coroutineContext.ensureActive(); catalog = LoadState(previous, error = error.localizedMessage) }

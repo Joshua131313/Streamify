@@ -51,13 +51,21 @@ class NativePolishTest {
             }
             assertNotNull(device.wait(Until.findObject(By.text("My list")),10000))
             device.wait(Until.findObject(By.desc("Unmute trailer")),20000)
-            Thread.sleep(600)
+            Thread.sleep(5000)
             val context=InstrumentationRegistry.getInstrumentation().targetContext
             device.takeScreenshot(File(context.getExternalFilesDir(null),"detail-preview.png"))
+            val frameHeight = java.util.concurrent.atomic.AtomicReference(0.0)
+            val measured = java.util.concurrent.CountDownLatch(1)
             scenario.onActivity { a ->
                 fun web(v:android.view.View):android.webkit.WebView? = if(v is android.webkit.WebView) v else (v as? android.view.ViewGroup)?.let { g -> (0 until g.childCount).firstNotNullOfOrNull { web(g.getChildAt(it)) } }
-                web(a.window.decorView)?.evaluateJavascript("window.previewState") { value -> File(context.getExternalFilesDir(null),"trailer-state.txt").writeText(value) }
+                web(a.window.decorView)?.evaluateJavascript("JSON.stringify({state:window.previewState,time:p.getCurrentTime(),frame:p.getIframe().getBoundingClientRect().toJSON()})") { value ->
+                    File(context.getExternalFilesDir(null),"trailer-state.txt").writeText(value)
+                    runCatching { val json = org.json.JSONObject(org.json.JSONTokener(value).nextValue() as String); frameHeight.set(json.getJSONObject("frame").getDouble("height")) }
+                    measured.countDown()
+                }
             }
+            assertTrue(measured.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            assertTrue("Trailer iframe must have visible height", frameHeight.get() > 100)
             device.swipe(500,1800,500,600,30)
             Thread.sleep(700)
             device.takeScreenshot(File(context.getExternalFilesDir(null),"detail-episodes.png"))
@@ -76,7 +84,7 @@ class NativePolishTest {
                 }
             } } } }
             assertNotNull(device.wait(Until.findObject(By.text("Row 0")),5000))
-            device.swipe(500,600,500,680,20);Thread.sleep(600)
+            device.swipe(500,600,500,680,20);Thread.sleep(5000)
             assertEquals(0,dismissed.get())
             device.swipe(500,1400,500,500,30);Thread.sleep(300)
             device.swipe(500,600,500,850,20);Thread.sleep(300)

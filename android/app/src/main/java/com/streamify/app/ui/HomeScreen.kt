@@ -67,6 +67,7 @@ fun HomeScreen(vm: StreamifyViewModel, active: Boolean = true, settings: () -> U
             LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 item { HomeShortcut("Shows") { vm.browse(MediaType.TV); vm.tab = "Browse" } }
                 item { HomeShortcut("Movies") { vm.browse(MediaType.MOVIE); vm.tab = "Browse" } }
+                item { HomeShortcut("Anime") { vm.browse(MediaType.ANIME); vm.tab = "Browse" } }
                 item { HomeShortcut("Live sports") { vm.tab = "Sports" } }
             }
         }

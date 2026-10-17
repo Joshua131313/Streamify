@@ -129,7 +129,7 @@ class PlayerActivity : ComponentActivity() {
 
     companion object {
         fun mediaIntent(context: Context, media: Media, season: Int, episode: Int, provider: String) = Intent(context, PlayerActivity::class.java)
-            .putExtra("media", media.json().toString()).putExtra("season", season).putExtra("episode", episode).putExtra("provider", provider)
+            .putExtra("media", media.json().toString()).putExtra("season", season).putExtra("episode", episode).putExtra("provider", if (media.type == MediaType.ANIME) LocalStore(context).animeServerId else provider)
         fun gameIntent(context: Context, game: Game) = Intent(context, PlayerActivity::class.java).putExtra("game", game)
         fun streamIntent(context: Context, title: String, url: String, chatRoom: String? = null) = Intent(context, PlayerActivity::class.java).putExtra("title", title).putExtra("url", url).putExtra("chatRoom", chatRoom)
     }
@@ -177,13 +177,14 @@ class PlayerActivity : ComponentActivity() {
         var sourcePicker by remember { mutableStateOf(false) }
         var options by remember { mutableStateOf(false) }
         var providerId by rememberSaveable { mutableStateOf(intent.getStringExtra("provider") ?: store.serverId) }
-        val provider = store.servers.firstOrNull { it.id == providerId } ?: store.servers.first()
+        val providers = if (media?.type == MediaType.ANIME) animeServers else store.servers
+        val provider = providers.firstOrNull { it.id == providerId } ?: providers.firstOrNull { it.id == store.animeServerId } ?: providers.first()
         var season by rememberSaveable { mutableIntStateOf(intent.getIntExtra("season", 1)) }
         var episode by rememberSaveable { mutableIntStateOf(intent.getIntExtra("episode", 1)) }
         var generation by remember { mutableIntStateOf(0) }
         var preferEmbed by rememberSaveable { mutableStateOf(true) }
         // Stream providers reject being nested. Restored movie/embed state must never wrap sports.
-        val embedded = media != null && preferEmbed
+        val embedded = media != null && media.type != MediaType.ANIME && preferEmbed
         val url = media?.let { provider.url(it, season, episode) } ?: streams.getOrNull(sourceIndex)?.url ?: streams.firstOrNull()?.url ?: intent.getStringExtra("url").orEmpty()
         val title = media?.title ?: game?.let { "${it.away.abbreviation} vs ${it.home.abbreviation}" } ?: intent.getStringExtra("title").orEmpty()
         var error by remember(url, generation, embedded) { mutableStateOf<String?>(null) }
@@ -215,11 +216,11 @@ class PlayerActivity : ComponentActivity() {
         var pickerSeason by remember { mutableIntStateOf(season) }
         val repo = remember { StreamifyRepository(store) }
         val details by produceState<Details?>(null, media?.key) {
-            if (media?.type == MediaType.TV) try { value = repo.details(media) } catch (_: Exception) { coroutineContext.ensureActive() }
+            if (media != null && media.type != MediaType.MOVIE) try { value = repo.details(media) } catch (_: Exception) { coroutineContext.ensureActive() }
         }
         val episodes by produceState<List<Episode>>(emptyList(), media?.key, season, pickerSeason, picker) {
             value = emptyList()
-            if (media?.type == MediaType.TV) try { value = repo.episodes(media.id, if (picker) pickerSeason else season) } catch (_: Exception) { coroutineContext.ensureActive() }
+            if (media != null && media.type != MediaType.MOVIE) try { value = repo.episodes(media.id, if (picker) pickerSeason else season, media.type) } catch (_: Exception) { coroutineContext.ensureActive() }
         }
         fun leaveFullscreen() {
             expanded = false
@@ -342,7 +343,8 @@ class PlayerActivity : ComponentActivity() {
                     override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) { loading = true }
                     override fun onPageFinished(view: WebView, url: String?) { loading = false }
                     override fun onReceivedError(view: WebView, request: WebResourceRequest, issue: WebResourceError) {
-                        if (request.isForMainFrame || request.url.toString() == url) { loading = false; error = "This source could not load. Retry, switch source, or open in browser." }
+                        if (request.isForMainFrame || request.url.toString() == url) { loading = false; error = playerLoadError(issue.errorCode)
+                            if (BuildConfig.DEBUG) android.util.Log.w("StreamifyPlayer", "Source load failed: code=${issue.errorCode}, host=${request.url.host}") }
                     }
                     override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, response: WebResourceResponse) {
                         if (request.isForMainFrame || request.url.toString() == url) { loading = false; error = "Source returned HTTP ${response.statusCode}. Try another source." }
@@ -427,7 +429,7 @@ class PlayerActivity : ComponentActivity() {
                     IconButton(onClick = ::close) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Close player") }
                     Column(Modifier.weight(1f).padding(horizontal = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(title, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall)
-                        if (media?.type == MediaType.TV) Text("Season $season · Episode $episode", color = Muted, style = MaterialTheme.typography.labelSmall)
+                        if (media != null && media.type != MediaType.MOVIE) Text(if (media.type == MediaType.ANIME) "Episode $episode" else "Season $season · Episode $episode", color = Muted, style = MaterialTheme.typography.labelSmall)
                     }
                     IconButton(onClick = { expanded = true }) { Icon(Icons.Rounded.Fullscreen, "Enter fullscreen") }
                     if (chatRoom != null) IconButton(onClick = { chatOpen = true }) { Icon(Icons.Rounded.ChatBubbleOutline, "Game chat") }
@@ -436,7 +438,7 @@ class PlayerActivity : ComponentActivity() {
                         DropdownMenu(expanded = options, onDismissRequest = { options = false }) {
                             DropdownMenuItem(text = { Text("Picture-in-picture") }, leadingIcon = { Icon(Icons.Rounded.PictureInPictureAlt, null) }, onClick = { options = false; enterPip() })
                             DropdownMenuItem(text = { Text("Reload stream") }, leadingIcon = { Icon(Icons.Rounded.Refresh, null) }, onClick = { options = false; retry() })
-                            if (media != null) DropdownMenuItem(text = { Text(if (embedded) "Use direct playback" else "Use embedded playback") }, leadingIcon = { Icon(Icons.Rounded.Tune, null) }, onClick = { options = false; leaveFullscreen(); preferEmbed = !preferEmbed })
+                            if (media != null && media.type != MediaType.ANIME) DropdownMenuItem(text = { Text(if (embedded) "Use direct playback" else "Use embedded playback") }, leadingIcon = { Icon(Icons.Rounded.Tune, null) }, onClick = { options = false; leaveFullscreen(); preferEmbed = !preferEmbed })
                             DropdownMenuItem(text = { Text("Open in browser") }, leadingIcon = { Icon(Icons.Rounded.OpenInBrowser, null) }, onClick = {
                                 options = false; suppressAutoPip = true; configurePip(playbackActive)
                                 if (httpsUrl(url)) runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
@@ -450,7 +452,7 @@ class PlayerActivity : ComponentActivity() {
                         Text(if (media != null) provider.label else "Stream ${sourceIndex + 1}")
                         Spacer(Modifier.width(6.dp)); Icon(Icons.Rounded.KeyboardArrowDown, "Choose source", Modifier.size(20.dp))
                     }
-                    if (media?.type == MediaType.TV) IconButton(onClick = { pickerSeason = season; picker = true }) { Icon(Icons.Rounded.VideoLibrary, "Episodes") }
+                    if (media != null && media.type != MediaType.MOVIE) IconButton(onClick = { pickerSeason = season; picker = true }) { Icon(Icons.Rounded.VideoLibrary, "Episodes") }
                     Spacer(Modifier.weight(1f))
                     if (loading) CircularProgressIndicator(Modifier.size(18.dp), color = Muted, strokeWidth = 2.dp)
                     IconButton(onClick = ::enterPip) { Icon(Icons.Rounded.PictureInPictureAlt, "Picture-in-picture", tint = Muted) }
@@ -494,8 +496,8 @@ class PlayerActivity : ComponentActivity() {
         if (!pip && sourcePicker) ModalBottomSheet(onDismissRequest = { sourcePicker = false }) {
             Text(if (media != null) "Playback source" else "Choose a stream", Modifier.padding(20.dp), style = MaterialTheme.typography.titleLarge)
             androidx.compose.foundation.lazy.LazyColumn(contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (media != null) items(store.servers, key = { it.id }) { item ->
-                    Surface(onClick = { leaveFullscreen(); providerId = item.id; store.serverId = item.id; sourcePicker = false }, modifier = Modifier.fillMaxWidth(), shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp), color = Panel) {
+                if (media != null) items(providers, key = { it.id }) { item ->
+                    Surface(onClick = { leaveFullscreen(); providerId = item.id; if (media.type == MediaType.ANIME) store.animeServerId = item.id else store.serverId = item.id; sourcePicker = false }, modifier = Modifier.fillMaxWidth(), shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp), color = Panel) {
                         Row(Modifier.padding(18.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Rounded.PlayCircleOutline, null, tint = Muted)
                             Text(item.label, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
