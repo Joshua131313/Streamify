@@ -86,6 +86,7 @@ fun DetailScreen(media: Media, vm: StreamifyViewModel, back: () -> Unit) {
                         Text(if (media.type == MediaType.ANIME && previous != null) "Watch episode ${previous.episode}" else if (media.type == MediaType.TV && previous != null) "Watch S${previous.season} E${previous.episode}" else "Watch")
                     }
                     if (media.type == MediaType.ANIME) AnimeWatchChoices(vm.store) { play(previous?.episode ?: 1) }
+                    if (media.type == MediaType.MOVIE) com.streamify.app.downloads.DownloadButton(title)
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     SecondaryButton(onClick = { vm.toggleSaved(title) }, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                         Icon(if (saved) Icons.Rounded.Check else Icons.Rounded.Add, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(if (saved) "Saved" else "My list", maxLines = 1)
@@ -132,6 +133,7 @@ fun DetailScreen(media: Media, vm: StreamifyViewModel, back: () -> Unit) {
                             Text("${episode.number}. ${episode.title}",style=MaterialTheme.typography.titleSmall,maxLines=3,overflow=TextOverflow.Ellipsis)
                             Text(if(episode.runtime>0) "${episode.runtime} min" else episode.date,color=Muted,style=MaterialTheme.typography.labelMedium)
                         }
+                        if(media.type == MediaType.TV) com.streamify.app.downloads.DownloadButton(title, season, episode.number, compact = true)
                     }
                     if (media.type != MediaType.ANIME || episode.overview.isNotBlank()) Text(episode.overview.ifBlank { "Episode synopsis unavailable." }, maxLines=4,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.bodyMedium,color=Muted)
                 }

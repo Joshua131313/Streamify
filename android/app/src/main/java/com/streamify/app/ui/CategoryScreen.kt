@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -64,8 +65,11 @@ fun CategoryScreen(vm: StreamifyViewModel, type: MediaType) {
                 Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back to home")
             }
             Text(title, Modifier.align(Alignment.Center), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            IconButton(onClick = { vm.browse(type); vm.mediaSearchRequest++; vm.tab = "Browse" }, modifier = Modifier.align(Alignment.CenterEnd)) {
+            Row(Modifier.align(Alignment.CenterEnd)) {
+            IconButton(onClick = { com.streamify.app.downloads.openDownloads(context) }) { Icon(androidx.compose.material.icons.Icons.Rounded.Download, "Downloads") }
+            IconButton(onClick = { vm.browse(type); vm.mediaSearchRequest++; vm.tab = "Browse" }) {
                 Icon(Icons.Rounded.Search, "Search $title")
+            }
             }
         }
         LazyColumn(state = list, contentPadding = PaddingValues(bottom = 116.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {

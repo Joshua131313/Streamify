@@ -53,6 +53,7 @@ fun AccountScreen(vm: StreamifyViewModel) {
     }
     LazyColumn(contentPadding = PaddingValues(bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
         item { ScreenHeading("Account", vm::back) }
+        item { SecondaryButton(onClick = { com.streamify.app.downloads.openDownloads(context) }, modifier = Modifier.padding(horizontal = 20.dp).fillMaxWidth()) { Icon(Icons.Rounded.Download, null); Spacer(Modifier.width(10.dp)); Text("View downloads") } }
         item { PagePanel(Modifier.padding(horizontal = 20.dp)) {
             Icon(Icons.Rounded.AccountCircle, null, Modifier.size(64.dp), tint = StreamRed)
             Text(if (account.uid == null) "Pick up where you left off." else account.name.ifBlank { "Welcome back" }, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)

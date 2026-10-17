@@ -29,12 +29,13 @@ import com.streamify.app.R
 
 @Composable
 fun AppHeader(title: String, search: () -> Unit, library: () -> Unit, account: () -> Unit, settings: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var menu by remember { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth().height(60.dp).padding(start = 16.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Image(painterResource(R.drawable.streamify_logo), "Streamify", Modifier.size(30.dp))
         Text(title, Modifier.weight(1f).padding(start = 10.dp), fontSize = 24.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         IconButton(onClick = search, modifier = Modifier.size(44.dp)) { Icon(Icons.Outlined.Search, "Search", Modifier.size(25.dp)) }
-        IconButton(onClick = library, modifier = Modifier.size(44.dp)) { Icon(Icons.Outlined.Bookmarks, "My list", Modifier.size(23.dp)) }
+        IconButton(onClick = { com.streamify.app.downloads.openDownloads(context) }, modifier = Modifier.size(44.dp)) { Icon(Icons.Outlined.FileDownload, "Downloads", Modifier.size(23.dp)) }
         Box {
             IconButton(onClick = { menu = true }, modifier = Modifier.size(44.dp)) { Icon(Icons.Rounded.MoreVert, "More options", Modifier.size(25.dp)) }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {

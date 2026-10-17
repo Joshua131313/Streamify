@@ -99,10 +99,10 @@ fun LibraryScreen(vm: StreamifyViewModel) {
         item(span = { GridItemSpan(maxLineSpan) }) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 SectionLabel("Made for your downtime", "Your saved favorites and everything you’ve started.")
-                SecondaryButton(onClick = { context.startActivity(android.content.Intent(context, DownloadTestActivity::class.java)) }) {
+                SecondaryButton(onClick = { com.streamify.app.downloads.openDownloads(context) }) {
                     Icon(Icons.Rounded.Download, null, Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Test movie download")
+                    Text("View downloads")
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(if (vm.account.uid == null) Icons.Rounded.PhoneAndroid else Icons.Rounded.CloudDone, null, Modifier.size(16.dp), tint = Muted)
