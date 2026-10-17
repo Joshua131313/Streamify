@@ -6,6 +6,7 @@ import android.util.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -93,9 +94,13 @@ fun RemoteImage(url: String?, description: String?, modifier: Modifier = Modifie
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun MediaPoster(media: Media, onClick: () -> Unit, modifier: Modifier = Modifier, roomy: Boolean = false) {
-    Column(modifier.clickable(onClick = onClick)) {
+    var actions by remember(media.key) {mutableStateOf(false)}
+    val haptics=androidx.compose.ui.platform.LocalHapticFeedback.current
+    if(actions) MediaActionsSheet(media,{actions=false},onClick)
+    Column(modifier.combinedClickable(onClick=onClick,onLongClick={haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress);actions=true},onLongClickLabel="Show title actions")) {
         Box {
             RemoteImage(media.image(), media.title, Modifier.fillMaxWidth().aspectRatio(2f / 3).clip(RoundedCornerShape(if (roomy) 12.dp else 8.dp)))
             if (media.rating > 0) Surface(Modifier.align(Alignment.TopEnd).padding(6.dp), color = Canvas.copy(alpha = .9f), shape = RoundedCornerShape(5.dp)) {

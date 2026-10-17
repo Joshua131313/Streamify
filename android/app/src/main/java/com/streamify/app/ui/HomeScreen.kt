@@ -78,7 +78,7 @@ fun HomeScreen(vm: StreamifyViewModel, active: Boolean = true, settings: () -> U
         if (featured.isNotEmpty()) item(key = "featured") {
             FeaturedCarousel(featured, vm, active && carouselVisible && !list.isScrollInProgress)
         }
-        if (vm.history.any { !it.completed }) item { ContinueWatchingShelf(vm.history.filterNot { it.completed }.take(12), vm.store.serverId) }
+        if (vm.history.any { !it.completed }) item { ContinueWatchingShelf(vm.history.filterNot { it.completed }.take(12), vm.store.serverId, {vm.selected=it}, vm::removeHistory) }
         item {
             Card(onClick = { vm.tab = "Sports" }, shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Panel), modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
                 Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {

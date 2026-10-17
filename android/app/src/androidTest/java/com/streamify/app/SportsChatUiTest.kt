@@ -85,7 +85,7 @@ class SportsChatUiTest {
                 device.takeScreenshot(File(context.getExternalFilesDir(null), "chat-sections.png"))
                 val game = Game("fixture", League.MLB, "2026-10-15T23:00:00Z", "in", "Top 7th", Team("1", "New York Yankees", "NYY", "", "3", ""), Team("2", "Toronto Blue Jays", "TOR", "", "2", ""), "", "", "",
                     BaseballLive(true, false, true, 2, 1, 2, "Aaron Judge", "", "1 for 3 · Single, RBI"))
-                scenario.onActivity { activity -> activity.setContent { StreamifyTheme { Surface { Column(Modifier.fillMaxSize().statusBarsPadding(), verticalArrangement = Arrangement.spacedBy(24.dp)) { GameCard(game) {}; ScoringTable(game, (1..7).map { StatRow("Inning $it", if (it == 3) "2" else "0", if (it == 4) "3" else "0") }); ContinueWatchingShelf(listOf(History(Media(1, MediaType.MOVIE, "Movie in progress"), positionSeconds = 1200.0, durationSeconds = 5400.0)), "streamex") } } } } }
+                scenario.onActivity { activity -> activity.setContent { StreamifyTheme { Surface { Column(Modifier.fillMaxSize().statusBarsPadding(), verticalArrangement = Arrangement.spacedBy(24.dp)) { GameCard(game) {}; ScoringTable(game, (1..7).map { StatRow("Inning $it", if (it == 3) "2" else "0", if (it == 4) "3" else "0") }); ContinueWatchingShelf(listOf(History(Media(1, MediaType.MOVIE, "Movie in progress"), positionSeconds = 1200.0, durationSeconds = 5400.0)), "streamex", {}, {}) } } } } }
                 device.wait(Until.findObject(By.text("Batter & pitcher")), 5000).click()
                 assertNotNull(device.wait(Until.findObject(By.text("Aaron Judge")), 5000))
                 assertNotNull(device.wait(Until.findObject(By.text("Team")), 5000))

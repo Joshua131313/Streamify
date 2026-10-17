@@ -66,7 +66,7 @@ fun CategoryScreen(vm: StreamifyViewModel, type: MediaType) {
             }
             Text(title, Modifier.align(Alignment.Center), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Row(Modifier.align(Alignment.CenterEnd)) {
-            IconButton(onClick = { com.streamify.app.downloads.openDownloads(context) }) { Icon(androidx.compose.material.icons.Icons.Rounded.Download, "Downloads") }
+        com.streamify.app.downloads.DownloadsToolbarButton()
             IconButton(onClick = { vm.browse(type); vm.mediaSearchRequest++; vm.tab = "Browse" }) {
                 Icon(Icons.Rounded.Search, "Search $title")
             }

@@ -53,8 +53,52 @@ fun DownloadButton(media: Media, season: Int = 0, episode: Int = 0, compact: Boo
     val key="${media.type.path}_${media.id}_${season}_$episode"
     val existing=downloads.firstOrNull { it.key==key }
     val action = { if(existing==null) { store.enqueue(media,season,episode,episodeTitle,thumbnail); android.widget.Toast.makeText(context,"Added to downloads",android.widget.Toast.LENGTH_SHORT).show() } else openDownloads(context) }
-    if(compact) IconButton(onClick=action) { Icon(if(existing?.state=="complete") Icons.Rounded.DownloadDone else Icons.Rounded.Download,"Download episode $episode") }
-    else SecondaryButton(onClick=action,modifier=Modifier.fillMaxWidth().heightIn(min=50.dp)) { Icon(if(existing?.state=="complete") Icons.Rounded.DownloadDone else Icons.Rounded.Download,null);Spacer(Modifier.width(8.dp));Text(if(existing==null) if(season>0) "Download S$season E$episode" else "Download" else "View download") }
+    val label=when(existing?.state) {
+        "queued" -> "Queued"
+        "resolving" -> "Preparing download"
+        "downloading" -> if(existing.total>0) "Downloading · ${(existing.bytes.toDouble()/existing.total*100).toInt().coerceIn(0,100)}%" else "Downloading"
+        "paused" -> "Download paused"
+        "error","failed" -> "Download failed"
+        "complete" -> "Downloaded"
+        else -> if(season>0) "Download S$season E$episode" else "Download"
+    }
+    if(compact) IconButton(onClick=action,modifier=Modifier.semantics {contentDescription="$label · Episode $episode"}) { DownloadStatusIcon(existing) }
+    else SecondaryButton(onClick=action,modifier=Modifier.fillMaxWidth().heightIn(min=50.dp)) { DownloadStatusIcon(existing);Spacer(Modifier.width(10.dp));Text(label) }
+}
+
+@Composable
+fun DownloadStatusIcon(item: DownloadItem?, modifier: Modifier=Modifier) {
+    val progress by animateFloatAsState(if(item!=null && item.total>0) (item.bytes.toDouble()/item.total).toFloat().coerceIn(0f,1f) else 0f,label="Download progress")
+    Box(modifier.size(26.dp),contentAlignment=Alignment.Center) {
+        when(item?.state) {
+            "queued","resolving" -> CircularProgressIndicator(Modifier.fillMaxSize(),color=MaterialTheme.colorScheme.onSurface,strokeWidth=2.dp)
+            "downloading","paused" -> {
+                if(item.total>0 || item.state=="paused") CircularProgressIndicator(progress={progress},modifier=Modifier.fillMaxSize(),color=MaterialTheme.colorScheme.onSurface,trackColor=Muted.copy(alpha=.3f),strokeWidth=2.dp,gapSize=0.dp)
+                else CircularProgressIndicator(Modifier.fillMaxSize(),color=MaterialTheme.colorScheme.onSurface,strokeWidth=2.dp)
+                Icon(if(item.state=="paused") Icons.Rounded.Pause else Icons.Rounded.Stop,null,Modifier.size(12.dp))
+            }
+            "complete" -> Icon(Icons.Rounded.DownloadDone,null)
+            "error","failed" -> Icon(Icons.Rounded.Refresh,null)
+            else -> Icon(Icons.Rounded.Download,null)
+        }
+    }
+}
+
+@Composable
+fun DownloadsToolbarButton() {
+    val context=LocalContext.current
+    val downloads by remember {DownloadStore.get(context)}.items.collectAsState()
+    val active=downloads.filter {it.state in listOf("queued","resolving","downloading")}
+    IconButton(onClick={openDownloads(context)}) {
+        Box(Modifier.size(30.dp)) {
+            Icon(Icons.Rounded.Download,"Downloads",Modifier.align(Alignment.Center).size(24.dp))
+            if(active.isNotEmpty()) Box(Modifier.align(Alignment.TopEnd).size(12.dp).background(MaterialTheme.colorScheme.background,CircleShape)) {
+                val known=active.all {it.total>0}
+                if(known) CircularProgressIndicator(progress={(active.sumOf {it.bytes}.toDouble()/active.sumOf {it.total}).toFloat().coerceIn(0f,1f)},modifier=Modifier.fillMaxSize(),color=StreamRed,strokeWidth=2.dp,gapSize=0.dp)
+                else CircularProgressIndicator(Modifier.fillMaxSize(),color=StreamRed,strokeWidth=2.dp)
+            }
+        }
+    }
 }
 
 class DownloadsActivity : ComponentActivity() {
@@ -166,7 +210,7 @@ private fun CompactDownloadRow(group: List<DownloadItem>, series: Boolean, episo
                 }
                 if(series) Icon(Icons.Rounded.ChevronRight,"View episodes",Modifier.padding(end=8.dp))
                 else if(ready) Icon(Icons.Rounded.DownloadDone,"Downloaded",Modifier.padding(end=8.dp).size(24.dp))
-                else IconButton(enabled=active || online,onClick={DownloadStore.command(context,if(active) "pause" else "resume",item.key)}) {Icon(if(active) Icons.Rounded.Pause else Icons.Rounded.Download,if(active) "Pause download" else "Resume download")}
+                else IconButton(enabled=active || online,onClick={DownloadStore.command(context,if(active) "pause" else "resume",item.key)}) {Box(Modifier.semantics {contentDescription=if(active) "Pause download" else "Resume download"}) {DownloadStatusIcon(item)}}
             }
         }
         if(item.error.isNotBlank() && online && !series) Text(item.error,style=MaterialTheme.typography.bodySmall,color=Muted,modifier=Modifier.padding(start=124.dp,top=4.dp))

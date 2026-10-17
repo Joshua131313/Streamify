@@ -35,7 +35,7 @@ fun AppHeader(title: String, search: () -> Unit, library: () -> Unit, account: (
         Image(painterResource(R.drawable.streamify_logo), "Streamify", Modifier.size(30.dp))
         Text(title, Modifier.weight(1f).padding(start = 10.dp), fontSize = 24.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         IconButton(onClick = search, modifier = Modifier.size(44.dp)) { Icon(Icons.Outlined.Search, "Search", Modifier.size(25.dp)) }
-        IconButton(onClick = { com.streamify.app.downloads.openDownloads(context) }, modifier = Modifier.size(44.dp)) { Icon(Icons.Outlined.FileDownload, "Downloads", Modifier.size(23.dp)) }
+        com.streamify.app.downloads.DownloadsToolbarButton()
         Box {
             IconButton(onClick = { menu = true }, modifier = Modifier.size(44.dp)) { Icon(Icons.Rounded.MoreVert, "More options", Modifier.size(25.dp)) }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {

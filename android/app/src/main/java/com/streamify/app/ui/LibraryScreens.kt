@@ -1,5 +1,7 @@
 package com.streamify.app.ui
 
+import androidx.compose.foundation.combinedClickable
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -84,8 +86,12 @@ fun BrowseScreen(vm: StreamifyViewModel) {
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun LibraryScreen(vm: StreamifyViewModel) {
+    var actionEntry by remember {mutableStateOf<com.streamify.app.data.History?>(null)}
+    val haptics=androidx.compose.ui.platform.LocalHapticFeedback.current
+    actionEntry?.let {entry -> MediaActionsSheet(entry.media,{actionEntry=null},{vm.selected=entry.media},entry.season,entry.episode,{vm.removeHistory(entry.media)})}
     val context = androidx.compose.ui.platform.LocalContext.current
     var history by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
@@ -132,7 +138,7 @@ fun LibraryScreen(vm: StreamifyViewModel) {
             Message("No titles match", "Try another name or media type.", "Clear filters", { query = ""; type = -1 })
         }
         if (history) items(watched, key = { it.media.key }, span = { GridItemSpan(maxLineSpan) }) { item ->
-            Card(onClick = { vm.selected = item.media }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Panel, contentColor = MaterialTheme.colorScheme.onSurface)) {
+            Card(modifier = Modifier.fillMaxWidth().combinedClickable(onClick={vm.selected=item.media},onLongClick={haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress);actionEntry=item},onLongClickLabel="Show title actions"), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Panel, contentColor = MaterialTheme.colorScheme.onSurface)) {
                 Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     RemoteImage(item.media.image(), null, Modifier.width(64.dp).height(94.dp).clip(RoundedCornerShape(10.dp)))
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -143,7 +149,6 @@ fun LibraryScreen(vm: StreamifyViewModel) {
                             Text(if (item.completed) "Watched" else "${kotlin.math.ceil((item.durationSeconds-item.positionSeconds).coerceAtLeast(0.0)/60).toInt()} min left", color = Muted, style = MaterialTheme.typography.labelSmall)
                         } else Text("View title", color = Muted, style = MaterialTheme.typography.labelSmall)
                     }
-                    IconButton(onClick = { vm.removeHistory(item.media) }) { Icon(Icons.Rounded.Close, "Remove ${item.media.title} from history", Modifier.size(20.dp), tint = Muted) }
                 }
             }
         } else items(saved, key = { it.key }) { media -> MediaPoster(media, { vm.selected = media }, roomy = true) }
