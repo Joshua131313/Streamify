@@ -23,24 +23,38 @@ import com.streamify.app.ui.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.semantics.*
+import kotlin.math.roundToInt
 
 fun openDownloads(context: Context) { context.startActivity(Intent(context,DownloadsActivity::class.java)) }
 
 @Composable
-fun DownloadButton(media: Media, season: Int = 0, episode: Int = 0, compact: Boolean = false) {
+fun DownloadButton(media: Media, season: Int = 0, episode: Int = 0, compact: Boolean = false, episodeTitle: String = "", thumbnail: String? = null) {
     val context=LocalContext.current
     val store=remember { DownloadStore.get(context) }
     val downloads by store.items.collectAsState()
     val key="${media.type.path}_${media.id}_${season}_$episode"
     val existing=downloads.firstOrNull { it.key==key }
-    var confirm by remember { mutableStateOf(false) }
-    val action = { if(existing==null) confirm=true else openDownloads(context) }
+    val action = { if(existing==null) { store.enqueue(media,season,episode,episodeTitle,thumbnail); android.widget.Toast.makeText(context,"Added to downloads",android.widget.Toast.LENGTH_SHORT).show() } else openDownloads(context) }
     if(compact) IconButton(onClick=action) { Icon(if(existing?.state=="complete") Icons.Rounded.DownloadDone else Icons.Rounded.Download,"Download episode $episode") }
-    else SecondaryButton(onClick=action) { Icon(if(existing?.state=="complete") Icons.Rounded.DownloadDone else Icons.Rounded.Download,null);Spacer(Modifier.width(8.dp));Text(if(existing==null) "Download" else "View download") }
-    if(confirm) AlertDialog(onDismissRequest={confirm=false}, title={Text("Download ${media.title}?")},
-        text={Text("Save ${if(season>0) "season $season, episode $episode" else "this movie"} on this device for offline watching. Files can be large and use mobile data. Availability varies by title.")},
-        confirmButton={TextButton(onClick={confirm=false;store.enqueue(media,season,episode);openDownloads(context)}) {Text("Download")}},
-        dismissButton={TextButton(onClick={confirm=false}) {Text("Cancel")}})
+    else SecondaryButton(onClick=action,modifier=Modifier.fillMaxWidth().heightIn(min=50.dp)) { Icon(if(existing?.state=="complete") Icons.Rounded.DownloadDone else Icons.Rounded.Download,null);Spacer(Modifier.width(8.dp));Text(if(existing==null) if(season>0) "Download S$season E$episode" else "Download" else "View download") }
 }
 
 class DownloadsActivity : ComponentActivity() {
@@ -57,7 +71,11 @@ fun DownloadsPage(back: (() -> Unit)? = null) {
     val online by remember { com.streamify.app.data.NetworkStatus.get(context).online }.collectAsState()
     val store=remember { DownloadStore.get(context) }
     val downloads by store.items.collectAsState()
-    var remove by remember { mutableStateOf<DownloadItem?>(null) }
+    var selectedShow by rememberSaveable { mutableStateOf<Int?>(null) }
+    var editing by rememberSaveable { mutableStateOf(false) }
+    BackHandler(selectedShow!=null) { selectedShow=null;editing=false }
+    val showTitle=downloads.firstOrNull { it.id==selectedShow && it.season>0 }?.title
+    LaunchedEffect(showTitle) { if(showTitle==null) selectedShow=null }
     var legacyMessage by remember { mutableStateOf("") }
     LaunchedEffect(Unit) {
         legacyMessage=withContext(Dispatchers.IO) {
@@ -85,7 +103,11 @@ fun DownloadsPage(back: (() -> Unit)? = null) {
         }
     }
     LazyColumn(Modifier.fillMaxSize().safeDrawingPadding(),contentPadding=PaddingValues(bottom=24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
-        item { if(back != null) ScreenHeading("Downloads",back) else Text("Downloads",Modifier.padding(horizontal=20.dp,vertical=20.dp),style=MaterialTheme.typography.headlineLarge) }
+        item { Row(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=12.dp),verticalAlignment=Alignment.CenterVertically) {
+            if(back!=null || selectedShow!=null) FilledTonalIconButton(onClick={if(selectedShow!=null) {selectedShow=null;editing=false} else back?.invoke()}) { Icon(Icons.Rounded.ArrowBack,"Back") }
+            Text(showTitle ?: "Downloads",Modifier.weight(1f).padding(horizontal=12.dp),style=MaterialTheme.typography.titleLarge,maxLines=1,overflow=TextOverflow.Ellipsis)
+            IconButton(onClick={editing=!editing}) { Icon(if(editing) Icons.Rounded.Check else Icons.Rounded.Edit,if(editing) "Done editing" else "Edit downloads") }
+        } }
         if(!online) item { PagePanel(Modifier.padding(horizontal=20.dp)) {
             Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
                 Icon(Icons.Rounded.CloudOff,null)
@@ -96,27 +118,57 @@ fun DownloadsPage(back: (() -> Unit)? = null) {
         item { Text("On this device · ${downloads.count { it.state=="complete" }} ready to watch",Modifier.padding(horizontal=20.dp),color=Muted) }
         if(legacyMessage.isNotBlank()) item { Column(Modifier.padding(horizontal=20.dp)) { Text(legacyMessage,color=Muted); SecondaryButton(onClick={context.startActivity(Intent(context,com.streamify.app.DownloadTestActivity::class.java))}) { Text("View earlier test download") } } }
         if(downloads.isEmpty()) item { Message("Your offline library", if(online) "Download a movie or an episode from its details page. Your saved videos will appear here, even without internet." else "No downloads saved yet. Connect to the internet to download movies and episodes for your next offline session.") }
-        items(downloads.sortedBy { it.title },key={it.key}) { item ->
-            PagePanel(Modifier.padding(horizontal=20.dp)) {
-                Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(14.dp)) {
-                    RemoteImage(item.poster,null,Modifier.width(64.dp).height(92.dp))
-                    Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(6.dp)) {
-                        Text(item.title,style=MaterialTheme.typography.titleMedium,maxLines=2,overflow=TextOverflow.Ellipsis)
-                        Text(item.subtitle,style=MaterialTheme.typography.bodySmall,color=Muted)
-                        Text(when(item.state) { "complete" -> "Ready · ${item.bytes/1_000_000} MB";"resolving" -> "Finding download…";"queued" -> "Queued";"paused" -> "Paused";"error" -> "Needs attention";else -> "${item.bytes/1_000_000} / ${if(item.total>0) item.total/1_000_000 else "?"} MB" },style=MaterialTheme.typography.labelMedium,color=Muted)
-                    }
-                    IconButton(onClick={remove=item}) {Icon(Icons.Rounded.DeleteOutline,"Delete download")}
-                }
-                if(item.state!="complete") LinearProgressIndicator(progress={if(item.total>0) (item.bytes.toFloat()/item.total).coerceIn(0f,1f) else 0f},modifier=Modifier.fillMaxWidth())
-                if(item.error.isNotBlank() && online) Text(item.error,style=MaterialTheme.typography.bodySmall,color=Muted)
-                if(!online && item.state!="complete") Text("Connect to the internet to resume this download.",style=MaterialTheme.typography.bodySmall,color=Muted)
-                Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-                    if(item.state=="complete") SecondaryButton(onClick={context.startActivity(Intent(context,OfflinePlayerActivity::class.java).putExtra("key",item.key))}) {Icon(Icons.Rounded.PlayArrow,null);Spacer(Modifier.width(6.dp));Text("Watch offline")}
-                    else if(item.state in listOf("queued","resolving","downloading")) SecondaryButton(onClick={DownloadStore.command(context,"pause",item.key)}) {Icon(Icons.Rounded.Pause,null);Spacer(Modifier.width(6.dp));Text("Pause")}
-                    else if(item.state!="deleting") SecondaryButton(enabled=online,onClick={DownloadStore.command(context,"resume",item.key)}) {Icon(Icons.Rounded.Download,null);Spacer(Modifier.width(6.dp));Text(if(item.state=="error") "Retry" else "Resume")}
-                }
+        val groups=if(selectedShow==null) downloads.groupBy { if(it.season>0) "tv_${it.id}" else it.key }.values.sortedBy { it.first().title }
+            else downloads.filter { it.id==selectedShow && it.season>0 }.sortedWith(compareBy({it.season},{it.episode})).map { listOf(it) }
+        groups.forEach { group ->
+            val entry=group.first()
+            val series=selectedShow==null && entry.season>0
+            if(selectedShow!=null && groups.firstOrNull { it.first().season==entry.season }?.first()?.key==entry.key) item(key="season_${entry.season}") { Text("Season ${entry.season}",Modifier.padding(horizontal=20.dp),style=MaterialTheme.typography.titleMedium) }
+            item(key=if(series) "tv_${entry.id}" else entry.key) {
+                CompactDownloadRow(group,series,selectedShow!=null,editing,online,
+                    open={if(series) {selectedShow=entry.id;editing=false} else context.startActivity(Intent(context,OfflinePlayerActivity::class.java).putExtra("key",entry.key))},
+                    delete={group.forEach { DownloadStore.command(context,"delete",it.key) }})
             }
         }
     }
-    remove?.let { item -> AlertDialog(onDismissRequest={remove=null},title={Text("Delete download?")},text={Text("Remove ${item.title} from this device to free up space.")},confirmButton={TextButton(onClick={DownloadStore.command(context,"delete",item.key);remove=null}) {Text("Delete")}},dismissButton={TextButton(onClick={remove=null}) {Text("Keep")}}) }
+}
+
+@Composable
+private fun CompactDownloadRow(group: List<DownloadItem>, series: Boolean, episode: Boolean, editing: Boolean, online: Boolean, open: ()->Unit, delete: ()->Unit) {
+    val item=group.first()
+    val context=LocalContext.current
+    val width=with(LocalDensity.current) { 76.dp.toPx() }
+    var offset by remember(item.key) { mutableFloatStateOf(0f) }
+    var dragging by remember { mutableStateOf(false) }
+    val shift by animateFloatAsState(if(editing) -width else offset,if(dragging) snap() else tween(180),label="Reveal delete")
+    val ready=group.all { it.state=="complete" }
+    val bytes=group.sumOf { it.bytes };val total=group.sumOf { it.total }
+    val active=item.state in listOf("queued","resolving","downloading")
+    val status=when { !online && !ready -> "Waiting for connection"; ready -> "${bytes/1_000_000} MB"; series -> "${group.count { it.state=="complete" }}/${group.size} ready · ${bytes/1_000_000} MB"; item.state=="paused" -> "Paused · ${bytes/1_000_000} MB";item.state=="error" -> "Tap retry";item.state=="resolving" -> "Finding download…";item.state=="queued" -> "Queued";else -> "${bytes/1_000_000} / ${if(total>0) total/1_000_000 else "?"} MB" }
+    Column(Modifier.padding(horizontal=16.dp)) {
+        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp))) {
+            if(shift < -1f) Box(Modifier.align(Alignment.CenterEnd).width(76.dp).height(86.dp).background(Color(0xFF292929)).clickable(onClick=delete).semantics { contentDescription="Delete ${item.title}" },contentAlignment=Alignment.Center) {
+                Icon(Icons.Rounded.Close,null,tint=Color.White)
+            }
+            Row(Modifier.offset { IntOffset(shift.roundToInt(),0) }.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
+                .draggable(rememberDraggableState { offset=(offset+it).coerceIn(-width,0f) },Orientation.Horizontal,enabled=!editing,onDragStarted={dragging=true},onDragStopped={dragging=false;offset=if(offset < -width/3) -width else 0f})
+                .semantics { customActions=listOf(CustomAccessibilityAction("Show delete") {offset=-width;true}) }
+                .clickable(enabled=series || ready) { if(offset<0) offset=0f else open() }
+                .padding(vertical=6.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.width(112.dp).height(70.dp).clip(RoundedCornerShape(4.dp)),contentAlignment=Alignment.Center) {
+                    RemoteImage(item.poster,null,Modifier.fillMaxSize())
+                    if(ready && !series) Surface(shape=CircleShape,color=Color.Black.copy(alpha=.65f),border=androidx.compose.foundation.BorderStroke(1.dp,Color.White)) { Icon(Icons.Rounded.PlayArrow,"Watch offline",Modifier.padding(7.dp).size(22.dp),tint=Color.White) }
+                }
+                Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)) {
+                    Text(if(episode) "${item.episode}. ${item.episodeTitle.ifBlank { "Episode ${item.episode}" }}" else item.title,style=MaterialTheme.typography.titleSmall,maxLines=2,overflow=TextOverflow.Ellipsis)
+                    Text(if(series) "${group.size} episode${if(group.size==1) "" else "s"} · $status" else status,style=MaterialTheme.typography.bodySmall,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
+                    if(!ready) LinearProgressIndicator(progress={if(total>0) (bytes.toFloat()/total).coerceIn(0f,1f) else 0f},modifier=Modifier.fillMaxWidth().height(3.dp),color=StreamRed,trackColor=Muted.copy(alpha=.25f),gapSize=0.dp,strokeCap=StrokeCap.Butt,drawStopIndicator={})
+                }
+                if(series) Icon(Icons.Rounded.ChevronRight,"View episodes",Modifier.padding(end=8.dp))
+                else if(ready) Icon(Icons.Rounded.DownloadDone,"Downloaded",Modifier.padding(end=8.dp).size(24.dp))
+                else IconButton(enabled=active || online,onClick={DownloadStore.command(context,if(active) "pause" else "resume",item.key)}) {Icon(if(active) Icons.Rounded.Pause else Icons.Rounded.Download,if(active) "Pause download" else "Resume download")}
+            }
+        }
+        if(item.error.isNotBlank() && online && !series) Text(item.error,style=MaterialTheme.typography.bodySmall,color=Muted,modifier=Modifier.padding(start=124.dp,top=4.dp))
+    }
 }

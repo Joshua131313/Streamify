@@ -22,7 +22,7 @@
         </activity>
         <activity android:name=".DownloadTestActivity" android:exported="false" />
         <activity android:name=".downloads.DownloadsActivity" android:exported="false" />
-        <activity android:name=".downloads.OfflinePlayerActivity" android:exported="false" android:screenOrientation="sensorLandscape" android:configChanges="orientation|screenSize|keyboardHidden" />
+        <activity android:name=".downloads.OfflinePlayerActivity" android:exported="false" android:supportsPictureInPicture="true" android:resizeableActivity="true" android:screenOrientation="sensorLandscape" android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden" />
         <service android:name=".downloads.DownloadService" android:exported="false" android:foregroundServiceType="dataSync" />
         <activity android:name=".PlayerActivity" android:exported="false"
             android:supportsPictureInPicture="true" android:resizeableActivity="true"

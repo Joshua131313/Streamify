@@ -12,12 +12,12 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 data class DownloadItem(val key: String, val id: Int, val title: String, val poster: String = "", val season: Int = 0, val episode: Int = 0,
-    val state: String = "queued", val bytes: Long = 0, val total: Long = 0, val url: String = "", val validator: String = "", val error: String = "") {
+    val state: String = "queued", val bytes: Long = 0, val total: Long = 0, val url: String = "", val validator: String = "", val error: String = "", val episodeTitle: String = "") {
     val subtitle get() = if (season > 0) "Season $season · Episode $episode" else "Movie"
     fun json() = JSONObject().put("key",key).put("id",id).put("title",title).put("poster",poster).put("season",season).put("episode",episode)
-        .put("state",state).put("bytes",bytes).put("total",total).put("url",url).put("validator",validator).put("error",error)
+        .put("state",state).put("bytes",bytes).put("total",total).put("url",url).put("validator",validator).put("error",error).put("episodeTitle",episodeTitle)
     companion object {
-        fun parse(j: JSONObject) = DownloadItem(j.getString("key"),j.getInt("id"),j.getString("title"),j.optString("poster"),j.optInt("season"),j.optInt("episode"),j.optString("state"),j.optLong("bytes"),j.optLong("total"),j.optString("url"),j.optString("validator"),j.optString("error"))
+        fun parse(j: JSONObject) = DownloadItem(j.getString("key"),j.getInt("id"),j.getString("title"),j.optString("poster"),j.optInt("season"),j.optInt("episode"),j.optString("state"),j.optLong("bytes"),j.optLong("total"),j.optString("url"),j.optString("validator"),j.optString("error"),j.optString("episodeTitle"))
     }
 }
 
@@ -43,10 +43,10 @@ class DownloadStore private constructor(private val context: Context) {
         prefs.edit().putString("items",JSONArray(mutable.value.map { it.json() }).toString()).apply()
         file(key).delete()
     }
-    fun enqueue(media: Media, season: Int = 0, episode: Int = 0): String {
+    fun enqueue(media: Media, season: Int = 0, episode: Int = 0, episodeTitle: String = "", thumbnail: String? = null): String {
         val key = "${media.type.path}_${media.id}_${season}_$episode"
         val old = get(key)
-        if (old == null) update(DownloadItem(key,media.id,media.title,media.image().orEmpty(),season,episode))
+        if (old == null) update(DownloadItem(key,media.id,media.title,thumbnail ?: media.image(true).orEmpty(),season,episode,episodeTitle=episodeTitle))
         else if (old.state !in listOf("complete","resolving","downloading")) update(old.copy(state="queued",error=""))
         command(context,"start",key)
         return key

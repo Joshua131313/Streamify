@@ -139,7 +139,7 @@ fun LibraryScreen(vm: StreamifyViewModel) {
                         Text(item.media.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         Text(if (item.media.type == MediaType.TV) "S${item.season} · E${item.episode}" else item.media.year, color = Muted, style = MaterialTheme.typography.bodySmall)
                         if (item.durationSeconds > 0) {
-                            LinearProgressIndicator(progress = { item.progress }, modifier = Modifier.fillMaxWidth().height(3.dp), color = StreamRed, trackColor = Muted.copy(alpha = .2f), drawStopIndicator = {})
+                            LinearProgressIndicator(progress = { item.progress }, modifier = Modifier.fillMaxWidth().height(3.dp), color = StreamRed, trackColor = Muted.copy(alpha = .2f), gapSize = 0.dp, strokeCap = androidx.compose.ui.graphics.StrokeCap.Butt, drawStopIndicator = {})
                             Text(if (item.completed) "Watched" else "${kotlin.math.ceil((item.durationSeconds-item.positionSeconds).coerceAtLeast(0.0)/60).toInt()} min left", color = Muted, style = MaterialTheme.typography.labelSmall)
                         } else Text("View title", color = Muted, style = MaterialTheme.typography.labelSmall)
                     }
