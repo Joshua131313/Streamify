@@ -45,6 +45,32 @@ class OfflinePlayerActivity : ComponentActivity() {
     private var settingsDialog: android.app.Dialog?=null
     private val handler=Handler(Looper.getMainLooper())
     private val hideControls=Runnable { if(::toolbar.isInitialized) toolbar.visibility=View.GONE; if(::transport.isInitialized) transport.visibility=View.GONE; if(::timeline.isInitialized) timeline.visibility=View.GONE;brightnessControl?.visibility=View.GONE;volumeControl?.visibility=View.GONE;seekPreview?.hidePreview() }
+    private var locked=false
+    private var unlockPrompt:android.app.AlertDialog?=null
+    private lateinit var gestureDetector:android.view.GestureDetector
+    private lateinit var gestureFeedback:TextView
+    private var gestureBrightness=.5f
+    private var gestureVolume=0
+    private var gestureTotal=0
+    private var gestureLast=0L
+    private var suppressControls=false
+    private fun askUnlock() {
+        if(unlockPrompt?.isShowing==true) return
+        unlockPrompt=android.app.AlertDialog.Builder(this).setTitle("Screen locked").setMessage("Unlock playback controls?")
+            .setNegativeButton("Keep locked",null).setPositiveButton("Unlock") {_,_->locked=false;showControls()}.show()
+    }
+    override fun dispatchTouchEvent(event:android.view.MotionEvent):Boolean {
+        if(locked && !isInPictureInPictureMode) {if(event.actionMasked==android.view.MotionEvent.ACTION_UP) askUnlock();return true}
+        return super.dispatchTouchEvent(event)
+    }
+    private fun styleSideSlider(slider:SeekBar) {
+        fun track(color:Int)=android.graphics.drawable.GradientDrawable().apply {setColor(color);cornerRadius=dp(3).toFloat();setSize(dp(150),dp(5))}
+        slider.thumb=null;slider.splitTrack=false
+        slider.progressDrawable=android.graphics.drawable.LayerDrawable(arrayOf(track(0x55FFFFFF),android.graphics.drawable.ClipDrawable(track(-1),Gravity.LEFT,android.graphics.drawable.ClipDrawable.HORIZONTAL))).apply {
+            setId(0,android.R.id.background);setId(1,android.R.id.progress)
+            setLayerHeight(0,dp(5));setLayerHeight(1,dp(5));setLayerGravity(0,Gravity.CENTER_VERTICAL);setLayerGravity(1,Gravity.CENTER_VERTICAL)
+        }
+    }
     private var closing=false
     private val toggleAction="com.streamify.app.OFFLINE_TOGGLE"
     private val receiver=object : BroadcastReceiver() {
@@ -67,7 +93,7 @@ class OfflinePlayerActivity : ComponentActivity() {
         runCatching { enterPictureInPictureMode(pipParams()) }
     }
     private fun showControls() {
-        if(isInPictureInPictureMode) return
+        if(isInPictureInPictureMode || locked || suppressControls) return
         toolbar.visibility=View.VISIBLE;transport.visibility=View.VISIBLE;timeline.visibility=View.VISIBLE;brightnessControl?.visibility=View.VISIBLE;volumeControl?.visibility=View.VISIBLE;handler.removeCallbacks(hideControls);if(!settingsOpen && video.isPlaying) handler.postDelayed(hideControls,4000)
     }
     private fun dp(value:Int)=(value*resources.displayMetrics.density).toInt()
@@ -119,7 +145,7 @@ class OfflinePlayerActivity : ComponentActivity() {
             progressTintList=android.content.res.ColorStateList.valueOf(-1);thumbTintList=android.content.res.ColorStateList.valueOf(-1)
             setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener {
                 override fun onStartTrackingTouch(bar:SeekBar) { }
-                override fun onProgressChanged(bar:SeekBar,value:Int,fromUser:Boolean) {if(fromUser && scrubbing) seekPreview?.preview(video.duration.coerceAtLeast(0).toLong()*value/1000)}
+                override fun onProgressChanged(bar:SeekBar,value:Int,fromUser:Boolean) {}
                 override fun onStopTrackingTouch(bar:SeekBar) {row.getChildAt(bar.progress).performClick()}
             })
         };body.addView(slider,LinearLayout.LayoutParams(-1,dp(40)))
@@ -178,21 +204,22 @@ class OfflinePlayerActivity : ComponentActivity() {
         toolbar.addView(ImageView(this).apply {setImageResource(R.drawable.streamify_logo);scaleType=ImageView.ScaleType.FIT_CENTER;contentDescription="Streamify"},LinearLayout.LayoutParams(dp(34),dp(34)).apply {setMargins(dp(8),0,dp(8),0)})
         toolbar.addView(TextView(this).apply { text=DownloadStore.get(this@OfflinePlayerActivity).get(key)?.title ?: "Offline video";setTextColor(android.graphics.Color.WHITE);textSize=16f;gravity=Gravity.CENTER_VERTICAL;setPadding(16,0,16,0);maxLines=1 },LinearLayout.LayoutParams(0,controlSize,1f))
         toolbar.addView(icon(R.drawable.player_cast,"Cast to TV") {com.streamify.app.ui.openCastToTv(this)},LinearLayout.LayoutParams(controlSize,controlSize))
+        toolbar.addView(icon(R.drawable.player_lock,"Lock screen") {locked=true;handler.removeCallbacks(hideControls);hideControls.run()},LinearLayout.LayoutParams(controlSize,controlSize))
         if(packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)) toolbar.addView(icon(R.drawable.player_pip,"Picture-in-picture") { enterPip() },LinearLayout.LayoutParams(controlSize,controlSize))
         root.addView(toolbar,FrameLayout.LayoutParams(-1,-2,Gravity.TOP))
         transport=LinearLayout(this).apply { gravity=Gravity.CENTER;orientation=LinearLayout.HORIZONTAL }
-        transport.addView(SkipControl(this,false,::skipBy),LinearLayout.LayoutParams(0,dp(80),1f))
+        transport.addView(SkipControl(this,false,::skipBy),LinearLayout.LayoutParams(0,dp(64),1f))
         playButton=icon(R.drawable.pip_pause,"Pause") { if(video.isPlaying) video.pause() else video.start();resume=video.isPlaying;refreshControls();showControls() }
-        transport.addView(playButton,LinearLayout.LayoutParams(0,dp(80),1f))
-        transport.addView(SkipControl(this,true,::skipBy),LinearLayout.LayoutParams(0,dp(80),1f))
-        root.addView(transport,FrameLayout.LayoutParams(-1,-2,Gravity.CENTER).apply {setMargins(dp(70),0,dp(70),0)})
+        transport.addView(playButton,LinearLayout.LayoutParams(0,dp(64),1f))
+        transport.addView(SkipControl(this,true,::skipBy),LinearLayout.LayoutParams(0,dp(64),1f))
+        root.addView(transport,FrameLayout.LayoutParams(dp(360),-2,Gravity.CENTER))
         timeline=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL;setPadding(dp(24),dp(12),dp(24),dp(16));background=android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.BOTTOM_TOP,intArrayOf(0xB3000000.toInt(),0x00000000)) }
         time=TextView(this).apply {setTextColor(-1);textSize=12f;gravity=Gravity.END}
         seek=SeekBar(this).apply { progressTintList=android.content.res.ColorStateList.valueOf(0xFFE50914.toInt());thumbTintList=android.content.res.ColorStateList.valueOf(0xFFE50914.toInt());progressBackgroundTintList=android.content.res.ColorStateList.valueOf(0x66FFFFFF);max=1000 }
         seek.setOnSeekBarChangeListener(object: SeekBar.OnSeekBarChangeListener {
-            override fun onStartTrackingTouch(bar:SeekBar) {scrubbing=true;handler.removeCallbacks(hideControls);seekPreview?.preview(video.duration.coerceAtLeast(0).toLong()*bar.progress/1000)}
+            override fun onStartTrackingTouch(bar:SeekBar) {scrubbing=true;handler.removeCallbacks(hideControls);seekPreview?.preview(video.duration.coerceAtLeast(0).toLong()*bar.progress/1000);seekPreview?.follow(bar,bar.progress/1000f)}
             override fun onStopTrackingTouch(bar:SeekBar) {video.seekTo((video.duration.toLong()*bar.progress/1000).toInt());scrubbing=false;seekPreview?.hidePreview();showControls()}
-            override fun onProgressChanged(bar:SeekBar,value:Int,fromUser:Boolean) {if(fromUser && scrubbing) seekPreview?.preview(video.duration.coerceAtLeast(0).toLong()*value/1000)}
+            override fun onProgressChanged(bar:SeekBar,value:Int,fromUser:Boolean) {if(fromUser && scrubbing) {seekPreview?.preview(video.duration.coerceAtLeast(0).toLong()*value/1000);seekPreview?.follow(bar,value/1000f)}}
         })
         val progressRow=LinearLayout(this).apply {gravity=Gravity.CENTER_VERTICAL}
         progressRow.addView(seek,LinearLayout.LayoutParams(0,dp(40),1f));progressRow.addView(time,LinearLayout.LayoutParams(dp(85),dp(40)))
@@ -203,35 +230,69 @@ class OfflinePlayerActivity : ComponentActivity() {
         timeline.addView(actions)
         root.addView(timeline,FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM))
         val brightnessBox=FrameLayout(this)
-        brightnessBox.addView(TextView(this).apply {text="☼";setTextColor(-1);textSize=26f;gravity=Gravity.CENTER},FrameLayout.LayoutParams(dp(48),dp(40),Gravity.TOP))
+        brightnessBox.addView(TextView(this).apply {text="☼";setTextColor(-1);textSize=22f;gravity=Gravity.CENTER},FrameLayout.LayoutParams(dp(48),dp(40),Gravity.TOP))
         brightnessBox.addView(SeekBar(this).apply {
-            contentDescription="Player brightness";max=100;progress=50;rotation=-90f
+            contentDescription="Player brightness";max=100;progress=50;rotation=-90f;styleSideSlider(this)
             progressTintList=android.content.res.ColorStateList.valueOf(-1);thumbTintList=android.content.res.ColorStateList.valueOf(-1)
             setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener {
                 override fun onStartTrackingTouch(bar:SeekBar) {handler.removeCallbacks(hideControls)}
                 override fun onStopTrackingTouch(bar:SeekBar) {showControls()}
                 override fun onProgressChanged(bar:SeekBar,value:Int,fromUser:Boolean) {if(fromUser) window.attributes=window.attributes.apply {screenBrightness=(value/100f).coerceAtLeast(.02f)}}
             })
-        },FrameLayout.LayoutParams(dp(150),dp(40),Gravity.CENTER).apply {topMargin=dp(30)})
+        },FrameLayout.LayoutParams(dp(150),dp(40),Gravity.CENTER).apply {topMargin=dp(8)})
         brightnessControl=brightnessBox
-        root.addView(brightnessBox,FrameLayout.LayoutParams(dp(48),dp(200),Gravity.CENTER_VERTICAL or Gravity.START).apply {leftMargin=dp(16)})
+        root.addView(brightnessBox,FrameLayout.LayoutParams(dp(48),dp(180),Gravity.CENTER_VERTICAL or Gravity.START).apply {leftMargin=dp(16)})
         val audio=getSystemService(android.media.AudioManager::class.java)
         val volumeBox=FrameLayout(this)
         volumeBox.addView(ImageView(this).apply {setImageResource(android.R.drawable.ic_lock_silent_mode_off);imageTintList=android.content.res.ColorStateList.valueOf(-1);setPadding(dp(12),dp(8),dp(12),dp(8))},FrameLayout.LayoutParams(dp(48),dp(40),Gravity.TOP))
         volumeBox.addView(SeekBar(this).apply {
-            contentDescription="Player volume";max=audio.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC);progress=audio.getStreamVolume(android.media.AudioManager.STREAM_MUSIC);rotation=-90f
+            contentDescription="Player volume";max=audio.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC);progress=audio.getStreamVolume(android.media.AudioManager.STREAM_MUSIC);rotation=-90f;styleSideSlider(this)
             progressTintList=android.content.res.ColorStateList.valueOf(-1);thumbTintList=android.content.res.ColorStateList.valueOf(-1)
             setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener {
                 override fun onStartTrackingTouch(bar:SeekBar) {handler.removeCallbacks(hideControls)}
                 override fun onStopTrackingTouch(bar:SeekBar) {showControls()}
                 override fun onProgressChanged(bar:SeekBar,value:Int,fromUser:Boolean) {if(fromUser) audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC,value,0)}
             })
-        },FrameLayout.LayoutParams(dp(150),dp(40),Gravity.CENTER).apply {topMargin=dp(30)})
+        },FrameLayout.LayoutParams(dp(150),dp(40),Gravity.CENTER).apply {topMargin=dp(8)})
         volumeControl=volumeBox
-        root.addView(volumeBox,FrameLayout.LayoutParams(dp(48),dp(200),Gravity.CENTER_VERTICAL or Gravity.END).apply {rightMargin=dp(16)})
+        root.addView(volumeBox,FrameLayout.LayoutParams(dp(48),dp(180),Gravity.CENTER_VERTICAL or Gravity.END).apply {rightMargin=dp(16)})
         seekPreview=SeekPreview(this,file).also {root.addView(it,FrameLayout.LayoutParams(-2,-2,Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {bottomMargin=dp(100)})}
         volumeControlStream=android.media.AudioManager.STREAM_MUSIC
-        video.setOnClickListener { if(toolbar.visibility==View.VISIBLE) hideControls.run() else showControls() }
+        gestureFeedback=TextView(this).apply {setTextColor(-1);textSize=26f;gravity=Gravity.CENTER;visibility=View.GONE;setShadowLayer(4f,0f,0f,android.graphics.Color.BLACK)}
+        root.addView(gestureFeedback,FrameLayout.LayoutParams(dp(120),dp(80),Gravity.CENTER))
+        gestureDetector=android.view.GestureDetector(this,object:android.view.GestureDetector.SimpleOnGestureListener() {
+            override fun onDown(e:android.view.MotionEvent):Boolean {
+                gestureBrightness=window.attributes.screenBrightness.takeIf {it>=0} ?: .5f
+                gestureVolume=audio.getStreamVolume(android.media.AudioManager.STREAM_MUSIC);return true
+            }
+            override fun onSingleTapConfirmed(e:android.view.MotionEvent):Boolean {if(toolbar.visibility==View.VISIBLE) hideControls.run() else showControls();return true}
+            override fun onDoubleTap(e:android.view.MotionEvent):Boolean {
+                val delta=if(e.rawX<root.width/2f) -10 else 10
+                suppressControls=true;skipBy(delta);suppressControls=false
+                val now=android.os.SystemClock.elapsedRealtime()
+                gestureTotal=if(now-gestureLast<900 && (gestureTotal>0)==(delta>0)) gestureTotal+delta else delta;gestureLast=now
+                gestureFeedback.animate().cancel();gestureFeedback.text="${if(gestureTotal>0) "+" else ""}$gestureTotal"
+                gestureFeedback.translationX=if(delta<0) -root.width*.22f else root.width*.22f
+                gestureFeedback.visibility=View.VISIBLE;gestureFeedback.alpha=1f;gestureFeedback.scaleX=.85f;gestureFeedback.scaleY=.85f
+                gestureFeedback.animate().scaleX(1f).scaleY(1f).alpha(0f).setDuration(800).withEndAction {gestureFeedback.visibility=View.GONE}.start();return true
+            }
+            override fun onScroll(start:android.view.MotionEvent?,current:android.view.MotionEvent,dx:Float,dy:Float):Boolean {
+                if(start==null || kotlin.math.abs(current.rawY-start.rawY)<kotlin.math.abs(current.rawX-start.rawX)) return false
+                val change=(start.rawY-current.rawY)/root.height
+                if(start.rawX<root.width*.18f) {
+                    val value=(gestureBrightness+change*1.5f).coerceIn(.02f,1f)
+                    window.attributes=window.attributes.apply {screenBrightness=value}
+                    (brightnessBox.getChildAt(1) as SeekBar).progress=(value*100).toInt();return true
+                }
+                if(start.rawX>root.width*.82f) {
+                    val maximum=audio.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
+                    audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC,(gestureVolume+change*maximum*1.5f).toInt().coerceIn(0,maximum),0);return true
+                }
+                return false
+            }
+        })
+        val touch=View.OnTouchListener {_,event->gestureDetector.onTouchEvent(event);true}
+        video.setOnTouchListener(touch);root.setOnTouchListener(touch)
         setContentView(root)
         video.setVideoPath(file.absolutePath)
         showControls();handler.post(update)
@@ -244,5 +305,5 @@ class OfflinePlayerActivity : ComponentActivity() {
     override fun onPause() { if(::video.isInitialized) { resume=video.isPlaying;prefs.edit().putInt(key,video.currentPosition).apply() };super.onPause() }
     override fun onStop() { if(::video.isInitialized) video.pause();super.onStop() }
     override fun onResume() { super.onResume();if(::video.isInitialized && resume) video.start() }
-    override fun onDestroy() { seekPreview?.close();settingsDialog?.dismiss();player=null;handler.removeCallbacksAndMessages(null);unregisterReceiver(receiver);if(::video.isInitialized) video.stopPlayback();super.onDestroy() }
+    override fun onDestroy() { unlockPrompt?.dismiss();seekPreview?.close();settingsDialog?.dismiss();player=null;handler.removeCallbacksAndMessages(null);unregisterReceiver(receiver);if(::video.isInitialized) video.stopPlayback();super.onDestroy() }
 }

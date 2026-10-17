@@ -16,6 +16,12 @@ import java.io.File
 class DownloadsPolishTest {
     private val context=InstrumentationRegistry.getInstrumentation().targetContext
     private val device=UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+    @Test fun downloadPrefersFullHdThenFallsBack() {
+        val qualities=org.json.JSONObject("""{"360":{"url":"low"},"720":{"url":"hd"},"1080":{"url":"fullhd"}}""")
+        assertEquals("fullhd",DownloadResolver.preferredQualityUrl(qualities))
+        qualities.remove("1080");assertEquals("hd",DownloadResolver.preferredQualityUrl(qualities))
+        qualities.remove("720");assertEquals("low",DownloadResolver.preferredQualityUrl(qualities))
+    }
     @Test fun swipeRevealsDeleteWithoutDeleting() {
         val store=DownloadStore.get(context)
         val item=DownloadItem("polish_test",999,"Swipe test movie",state="paused",bytes=50,total=100)
@@ -60,9 +66,10 @@ class DownloadsPolishTest {
                 lateinit var preview:SeekPreview
                 scenario.onActivity { a ->
                     val root=a.findViewById<android.view.ViewGroup>(android.R.id.content).getChildAt(0) as android.view.ViewGroup
-                    preview=root.getChildAt(root.childCount-1) as SeekPreview
+                    preview=(0 until root.childCount).map {root.getChildAt(it)}.filterIsInstance<SeekPreview>().first()
                     (root.getChildAt(2) as android.view.ViewGroup).getChildAt(1).performClick()
                     preview.preview(1000)
+                    preview.follow(root,.1f)
                 }
                 var decoded=false
                 repeat(100) { if(!decoded) { Thread.sleep(100);scenario.onActivity { decoded=(preview.getChildAt(0) as android.widget.ImageView).drawable!=null } } }
@@ -78,6 +85,29 @@ class DownloadsPolishTest {
                 assertNotNull(device.wait(Until.findObject(By.text("Subtitles")),3000))
                 device.takeScreenshot(File(context.getExternalFilesDir(null),"offline-tracks.png"))
                 device.wait(Until.findObject(By.desc("Close playback settings")),3000)!!.click()
+                device.wait(Until.findObject(By.desc("Lock screen")),3000)!!.click()
+                assertNull(device.findObject(By.desc("Exit offline player")))
+                device.click(device.displayWidth/2,device.displayHeight/2)
+                device.wait(Until.findObject(By.res("android:id/button1")),3000)!!.click()
+                assertNotNull(device.wait(Until.findObject(By.desc("Exit offline player")),3000))
+                device.click(device.displayWidth/2,device.displayHeight/3)
+                Thread.sleep(500)
+                assertNull(device.findObject(By.desc("Exit offline player")))
+                var before=0f
+                scenario.onActivity {before=it.window.attributes.screenBrightness}
+                device.swipe(device.displayWidth/12,device.displayHeight*3/4,device.displayWidth/12,device.displayHeight/3,25)
+                scenario.onActivity {assertTrue(it.window.attributes.screenBrightness>before)}
+                assertNull(device.findObject(By.desc("Exit offline player")))
+                val inst=InstrumentationRegistry.getInstrumentation()
+                repeat(2) {
+                    val down=android.os.SystemClock.uptimeMillis()
+                    inst.sendPointerSync(android.view.MotionEvent.obtain(down,down,android.view.MotionEvent.ACTION_DOWN,device.displayWidth/4f,device.displayHeight/2f,0))
+                    Thread.sleep(20)
+                    inst.sendPointerSync(android.view.MotionEvent.obtain(down,android.os.SystemClock.uptimeMillis(),android.view.MotionEvent.ACTION_UP,device.displayWidth/4f,device.displayHeight/2f,0))
+                    Thread.sleep(50)
+                }
+                Thread.sleep(400)
+                assertNull(device.findObject(By.desc("Exit offline player")))
                 device.pressHome();Thread.sleep(1500)
                 scenario.onActivity { assertTrue(it.isInPictureInPictureMode) }
                 context.sendBroadcast(Intent("com.streamify.app.OFFLINE_TOGGLE").setPackage(context.packageName))

@@ -29,9 +29,11 @@ class SeekPreview(context:Context, private val file:File): LinearLayout(context)
     private val image=ImageView(context).apply {scaleType=ImageView.ScaleType.FIT_CENTER}
     private val label=TextView(context).apply {setTextColor(-1);textSize=12f;gravity=Gravity.CENTER}
     init {
-        orientation=VERTICAL;setBackgroundColor(0xE6222222.toInt());visibility=GONE
+        orientation=VERTICAL;visibility=GONE
         val density=resources.displayMetrics.density
-        addView(image,LayoutParams((160*density).toInt(),(90*density).toInt()))
+        image.background=android.graphics.drawable.GradientDrawable().apply {setColor(android.graphics.Color.BLACK);cornerRadius=6*density;setStroke((2*density).toInt(),android.graphics.Color.BLACK)}
+        image.clipToOutline=true;image.setPadding((2*density).toInt(),(2*density).toInt(),(2*density).toInt(),(2*density).toInt())
+        addView(image,LayoutParams((208*density).toInt(),(117*density).toInt()))
         addView(label,LayoutParams(-1,(24*density).toInt()))
         contentDescription="Seek preview"
     }
@@ -41,6 +43,14 @@ class SeekPreview(context:Context, private val file:File): LinearLayout(context)
         val seconds=ms/1000
         label.text=if(seconds>=3600) "%d:%02d:%02d".format(seconds/3600,seconds/60%60,seconds%60) else "%d:%02d".format(seconds/60,seconds%60)
         latest=seconds;pending.set(seconds);drain()
+    }
+    fun follow(anchor:View, fraction:Float) {
+        post {
+            val parentView=parent as? View ?: return@post
+            val a=IntArray(2);val b=IntArray(2);anchor.getLocationOnScreen(a);parentView.getLocationOnScreen(b)
+            val center=a[0]-b[0]+anchor.paddingLeft+(anchor.width-anchor.paddingLeft-anchor.paddingRight)*fraction
+            translationX=(center-width/2f).coerceIn(0f,(parentView.width-width).coerceAtLeast(0).toFloat())-left
+        }
     }
     @Synchronized private fun drain() {
         if(closed.get() || !running.compareAndSet(false,true)) return

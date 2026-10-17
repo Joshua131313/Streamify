@@ -81,6 +81,9 @@ object DownloadResolver {
             return connection.inputStream.bufferedReader().use { JSONObject(it.readText()) }
         } finally { connection.disconnect() }
     }
+    internal fun preferredQualityUrl(qualities: JSONObject):String =
+        listOf("1080","720","480","360").firstNotNullOfOrNull { qualities.optJSONObject(it)?.optString("url")?.takeIf(String::isNotBlank) }
+            ?: error("No downloadable video found.")
     fun resolve(item: DownloadItem): String {
         val token = json("https://enc-dec.app/api/enc-vidlink?text=${item.id}").optString("result")
         check(token.isNotBlank()) { "Could not find a download for this title." }
@@ -88,9 +91,7 @@ object DownloadResolver {
         val stream = json("https://vidlink.pro/api/b/$path",true).optJSONObject("stream")
         check(stream?.optString("type") == "file") { "This title is available for streaming only; no MP4 download is available." }
         val qualities = stream!!.optJSONObject("qualities") ?: error("No downloadable video found.")
-        // Prefer 720p to keep offline storage and mobile data usage practical.
-        val link = listOf("720","480","1080","360").firstNotNullOfOrNull { qualities.optJSONObject(it)?.optString("url")?.takeIf(String::isNotBlank) }
-            ?: error("No downloadable video found.")
+        val link = preferredQualityUrl(qualities)
         check(URL(link).protocol == "https") { "Unsupported download source." }
         return link
     }
