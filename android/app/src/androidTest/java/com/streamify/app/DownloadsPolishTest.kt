@@ -55,8 +55,16 @@ class DownloadsPolishTest {
                     val play=(root.getChildAt(2) as android.view.ViewGroup).getChildAt(1)
                     play.performClick();assertFalse(video.isPlaying)
                     play.performClick();assertTrue(video.isPlaying)
+                    (root.getChildAt(2) as android.view.ViewGroup).getChildAt(0).performClick()
                 }
                 device.takeScreenshot(File(context.getExternalFilesDir(null),"offline-controls.png"))
+                device.wait(Until.findObject(By.textStartsWith("Speed (")),3000)!!.click()
+                device.wait(Until.findObject(By.text("1.5×")),3000)!!.click()
+                assertNotNull(device.wait(Until.findObject(By.text("Speed (1.5×)")),3000))
+                device.wait(Until.findObject(By.text("Audio & Subtitles")),3000)!!.click()
+                assertNotNull(device.wait(Until.findObject(By.text("Subtitles")),3000))
+                device.takeScreenshot(File(context.getExternalFilesDir(null),"offline-tracks.png"))
+                device.wait(Until.findObject(By.desc("Close playback settings")),3000)!!.click()
                 device.pressHome();Thread.sleep(1500)
                 scenario.onActivity { assertTrue(it.isInPictureInPictureMode) }
                 context.sendBroadcast(Intent("com.streamify.app.OFFLINE_TOGGLE").setPackage(context.packageName))

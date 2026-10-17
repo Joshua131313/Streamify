@@ -33,8 +33,16 @@ class OfflinePlayerActivity : ComponentActivity() {
     private lateinit var seek: SeekBar
     private lateinit var time: TextView
     private var scrubbing=false
+    private var player: android.media.MediaPlayer?=null
+    private var speed=1f
+    private var lastSeekAt=0L
+    private var seekTarget=0L
+    private var settingsOpen=false
+    private var brightnessControl: View?=null
+    private lateinit var speedButton: TextView
+    private var settingsDialog: android.app.Dialog?=null
     private val handler=Handler(Looper.getMainLooper())
-    private val hideControls=Runnable { if(::toolbar.isInitialized) toolbar.visibility=View.GONE; if(::transport.isInitialized) transport.visibility=View.GONE; if(::timeline.isInitialized) timeline.visibility=View.GONE }
+    private val hideControls=Runnable { if(::toolbar.isInitialized) toolbar.visibility=View.GONE; if(::transport.isInitialized) transport.visibility=View.GONE; if(::timeline.isInitialized) timeline.visibility=View.GONE;brightnessControl?.visibility=View.GONE }
     private var closing=false
     private val toggleAction="com.streamify.app.OFFLINE_TOGGLE"
     private val receiver=object : BroadcastReceiver() {
@@ -58,13 +66,13 @@ class OfflinePlayerActivity : ComponentActivity() {
     }
     private fun showControls() {
         if(isInPictureInPictureMode) return
-        toolbar.visibility=View.VISIBLE;transport.visibility=View.VISIBLE;timeline.visibility=View.VISIBLE;handler.removeCallbacks(hideControls);handler.postDelayed(hideControls,4000)
+        toolbar.visibility=View.VISIBLE;transport.visibility=View.VISIBLE;timeline.visibility=View.VISIBLE;brightnessControl?.visibility=View.VISIBLE;handler.removeCallbacks(hideControls);if(!settingsOpen && video.isPlaying) handler.postDelayed(hideControls,4000)
     }
     private fun dp(value:Int)=(value*resources.displayMetrics.density).toInt()
     private fun icon(resource:Int,label:String,action:()->Unit)=ImageButton(this).apply {
         setImageResource(resource);imageTintList=android.content.res.ColorStateList.valueOf(-1)
         background=null;setPadding(dp(12),dp(12),dp(12),dp(12));scaleType=ImageView.ScaleType.FIT_CENTER
-        contentDescription=label;setOnClickListener { action() }
+        contentDescription=label;setOnClickListener { performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK);animate().scaleX(.88f).scaleY(.88f).setDuration(80).withEndAction {animate().scaleX(1f).scaleY(1f).setDuration(120).start()}.start();action() }
     }
     private fun refreshControls() {
         if(!::playButton.isInitialized || !::video.isInitialized) return
@@ -73,7 +81,76 @@ class OfflinePlayerActivity : ComponentActivity() {
         val duration=video.duration.coerceAtLeast(0);val position=video.currentPosition.coerceAtLeast(0)
         if(!scrubbing) seek.progress=if(duration>0) (position.toLong()*1000/duration).toInt() else 0
         fun stamp(ms:Int):String {val seconds=ms/1000;return if(seconds>=3600) "%d:%02d:%02d".format(seconds/3600,seconds/60%60,seconds%60) else "%d:%02d".format(seconds/60,seconds%60)}
-        time.text="${stamp(position)}  /  ${stamp(duration)}"
+        time.text=stamp((duration-position).coerceAtLeast(0))
+    }
+    private fun skipBy(seconds:Int) {
+        val now=android.os.SystemClock.elapsedRealtime()
+        val origin=if(now-lastSeekAt<850) seekTarget else video.currentPosition.toLong()
+        seekTarget=(origin+seconds*1000L).coerceIn(0L,video.duration.coerceAtLeast(0).toLong());lastSeekAt=now
+        player?.seekTo(seekTarget,android.media.MediaPlayer.SEEK_CLOSEST)
+        refreshControls();showControls()
+    }
+    private fun actionLabel(label:String, action:()->Unit)=TextView(this).apply {
+        text=label;setTextColor(-1);textSize=14f;gravity=Gravity.CENTER;setPadding(dp(20),dp(10),dp(20),dp(10))
+        minHeight=dp(48);isFocusable=true;setOnClickListener {performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK);action()}
+    }
+    private fun panel(bottom:Boolean, content:(LinearLayout,android.app.Dialog)->Unit) {
+        settingsOpen=true;handler.removeCallbacks(hideControls)
+        val dialog=android.app.Dialog(this);settingsDialog=dialog
+        val body=LinearLayout(this).apply {orientation=LinearLayout.VERTICAL;setPadding(dp(28),dp(12),dp(28),dp(20));setBackgroundColor(0xFF1C1C1C.toInt())}
+        body.addView(icon(R.drawable.player_close,"Close playback settings") {dialog.dismiss()},LinearLayout.LayoutParams(dp(48),dp(48)).apply {gravity=Gravity.END})
+        content(body,dialog);dialog.setContentView(body)
+        dialog.setOnDismissListener {settingsOpen=false;settingsDialog=null;if(!isFinishing && !isDestroyed) showControls()}
+        dialog.show();dialog.window?.apply {setBackgroundDrawableResource(android.R.color.transparent);setLayout(-1,if(bottom) -2 else -1);setGravity(if(bottom) Gravity.BOTTOM else Gravity.CENTER)
+            WindowCompat.setDecorFitsSystemWindows(this,false)
+            WindowInsetsControllerCompat(this,decorView).apply {hide(WindowInsetsCompat.Type.systemBars());systemBarsBehavior=WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE}
+        }
+    }
+    private fun showSpeed()=panel(true) {body,dialog ->
+        body.addView(actionLabel("Playback speed") {})
+        val row=LinearLayout(this)
+        val slider=SeekBar(this).apply {
+            contentDescription="Playback speed";max=4;progress=listOf(.5f,.75f,1f,1.25f,1.5f).indexOf(speed).coerceAtLeast(0)
+            progressTintList=android.content.res.ColorStateList.valueOf(-1);thumbTintList=android.content.res.ColorStateList.valueOf(-1)
+            setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener {
+                override fun onStartTrackingTouch(bar:SeekBar) { }
+                override fun onProgressChanged(bar:SeekBar,value:Int,fromUser:Boolean) { }
+                override fun onStopTrackingTouch(bar:SeekBar) {row.getChildAt(bar.progress).performClick()}
+            })
+        };body.addView(slider,LinearLayout.LayoutParams(-1,dp(40)))
+        listOf(.5f,.75f,1f,1.25f,1.5f).forEach { rate ->
+            row.addView(actionLabel(if(rate==speed) "✓ ${rate}×" else "${rate}×") {
+                val active=video.isPlaying
+                runCatching {player?.let {it.playbackParams=it.playbackParams.setSpeed(rate);if(!active) it.pause();speed=rate;speedButton.text="Speed (${rate}×)"}}
+                    .onFailure {Toast.makeText(this,"This file does not support changing speed.",Toast.LENGTH_SHORT).show()}
+                dialog.dismiss()
+            },LinearLayout.LayoutParams(0,dp(56),1f))
+        };body.addView(row)
+    }
+    private fun showTracks()=panel(false) {body,dialog ->
+        val mediaPlayer=player
+        val tracks=runCatching {mediaPlayer?.trackInfo?.toList().orEmpty()}.getOrDefault(emptyList())
+        val columns=LinearLayout(this)
+        fun column(title:String,types:Set<Int>) {
+            val list=LinearLayout(this).apply {orientation=LinearLayout.VERTICAL}
+            list.addView(actionLabel(title) {}.apply {textSize=20f;setTypeface(typeface,android.graphics.Typeface.BOLD);gravity=Gravity.START})
+            val matches=tracks.withIndex().filter {it.value.trackType in types}
+            if(title=="Subtitles") list.addView(actionLabel("Off") {
+                types.forEach {type -> runCatching {mediaPlayer?.getSelectedTrack(type)?.takeIf {it>=0}?.let {mediaPlayer.deselectTrack(it)}}};dialog.dismiss()
+            })
+            matches.forEach { (index,track) ->
+                val language=track.language.takeUnless {it.isNullOrBlank() || it=="und"}?.let {java.util.Locale.forLanguageTag(it).displayLanguage} ?: "Track ${index+1}"
+                val selected=runCatching {mediaPlayer?.getSelectedTrack(track.trackType)==index}.getOrDefault(false)
+                list.addView(actionLabel("${if(selected) "✓  " else ""}$language") {
+                    runCatching {mediaPlayer?.selectTrack(index)}.onFailure {Toast.makeText(this,"This track could not be selected.",Toast.LENGTH_SHORT).show()};dialog.dismiss()
+                })
+            }
+            if(matches.isEmpty()) list.addView(actionLabel(if(title=="Audio") "No alternate audio tracks" else "No embedded subtitles") {})
+            columns.addView(ScrollView(this).apply {addView(list)},LinearLayout.LayoutParams(0,-1,1f))
+        }
+        column("Audio",setOf(android.media.MediaPlayer.TrackInfo.MEDIA_TRACK_TYPE_AUDIO))
+        column("Subtitles",setOf(android.media.MediaPlayer.TrackInfo.MEDIA_TRACK_TYPE_SUBTITLE,android.media.MediaPlayer.TrackInfo.MEDIA_TRACK_TYPE_TIMEDTEXT))
+        body.addView(columns,LinearLayout.LayoutParams(-1,0,1f))
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -87,31 +164,51 @@ class OfflinePlayerActivity : ComponentActivity() {
         video=VideoView(this)
         root.addView(video,FrameLayout.LayoutParams(-1,-1,Gravity.CENTER))
 
-        video.setOnPreparedListener { video.seekTo(prefs.getInt(key,0));if(resume) video.start();updatePip() }
+        video.setOnPreparedListener { prepared -> player=prepared;video.seekTo(prefs.getInt(key,0));if(resume) video.start();updatePip() }
         video.setOnCompletionListener { prefs.edit().remove(key).apply();finish() }
         video.setOnErrorListener { _,_,_ -> Toast.makeText(this,"This downloaded file could not play.",Toast.LENGTH_LONG).show();finish();true }
         toolbar=LinearLayout(this).apply { orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER_VERTICAL;setPadding(dp(16),dp(8),dp(16),dp(8));background=android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,intArrayOf(0xB3000000.toInt(),0x00000000)) }
         val controlSize=(48*resources.displayMetrics.density).toInt()
-        toolbar.addView(icon(R.drawable.player_back,"Exit offline player") { closing=true;updatePip();finish() },LinearLayout.LayoutParams(controlSize,controlSize))
+        toolbar.addView(icon(R.drawable.player_close,"Exit offline player") { closing=true;updatePip();finish() },LinearLayout.LayoutParams(controlSize,controlSize))
+        toolbar.addView(ImageView(this).apply {setImageResource(R.drawable.streamify_logo);scaleType=ImageView.ScaleType.FIT_CENTER;contentDescription="Streamify"},LinearLayout.LayoutParams(dp(34),dp(34)).apply {setMargins(dp(8),0,dp(8),0)})
         toolbar.addView(TextView(this).apply { text=DownloadStore.get(this@OfflinePlayerActivity).get(key)?.title ?: "Offline video";setTextColor(android.graphics.Color.WHITE);textSize=16f;gravity=Gravity.CENTER_VERTICAL;setPadding(16,0,16,0);maxLines=1 },LinearLayout.LayoutParams(0,controlSize,1f))
         if(packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)) toolbar.addView(icon(R.drawable.player_pip,"Picture-in-picture") { enterPip() },LinearLayout.LayoutParams(controlSize,controlSize))
         root.addView(toolbar,FrameLayout.LayoutParams(-1,-2,Gravity.TOP))
         transport=LinearLayout(this).apply { gravity=Gravity.CENTER;orientation=LinearLayout.HORIZONTAL }
-        transport.addView(icon(R.drawable.player_rewind,"Rewind 10 seconds") { video.seekTo((video.currentPosition-10000).coerceAtLeast(0));showControls() },LinearLayout.LayoutParams(dp(64),dp(64)))
+        transport.addView(SkipControl(this,false,::skipBy),LinearLayout.LayoutParams(0,dp(80),1f))
         playButton=icon(R.drawable.pip_pause,"Pause") { if(video.isPlaying) video.pause() else video.start();resume=video.isPlaying;refreshControls();showControls() }
-        transport.addView(playButton,LinearLayout.LayoutParams(dp(80),dp(80)).apply {setMargins(dp(40),0,dp(40),0)})
-        transport.addView(icon(R.drawable.player_forward,"Forward 10 seconds") { video.seekTo((video.currentPosition+10000).coerceAtMost(video.duration));showControls() },LinearLayout.LayoutParams(dp(64),dp(64)))
-        root.addView(transport,FrameLayout.LayoutParams(-2,-2,Gravity.CENTER))
+        transport.addView(playButton,LinearLayout.LayoutParams(0,dp(80),1f))
+        transport.addView(SkipControl(this,true,::skipBy),LinearLayout.LayoutParams(0,dp(80),1f))
+        root.addView(transport,FrameLayout.LayoutParams(-1,-2,Gravity.CENTER).apply {setMargins(dp(70),0,dp(70),0)})
         timeline=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL;setPadding(dp(24),dp(12),dp(24),dp(16));background=android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.BOTTOM_TOP,intArrayOf(0xB3000000.toInt(),0x00000000)) }
         time=TextView(this).apply {setTextColor(-1);textSize=12f;gravity=Gravity.END}
-        seek=SeekBar(this).apply { progressTintList=android.content.res.ColorStateList.valueOf(0xFFE50914.toInt());thumbTintList=android.content.res.ColorStateList.valueOf(-1);progressBackgroundTintList=android.content.res.ColorStateList.valueOf(0x66FFFFFF);max=1000 }
+        seek=SeekBar(this).apply { progressTintList=android.content.res.ColorStateList.valueOf(0xFFE50914.toInt());thumbTintList=android.content.res.ColorStateList.valueOf(0xFFE50914.toInt());progressBackgroundTintList=android.content.res.ColorStateList.valueOf(0x66FFFFFF);max=1000 }
         seek.setOnSeekBarChangeListener(object: SeekBar.OnSeekBarChangeListener {
             override fun onStartTrackingTouch(bar:SeekBar) {scrubbing=true;handler.removeCallbacks(hideControls)}
             override fun onStopTrackingTouch(bar:SeekBar) {video.seekTo((video.duration.toLong()*bar.progress/1000).toInt());scrubbing=false;showControls()}
             override fun onProgressChanged(bar:SeekBar,value:Int,fromUser:Boolean) { }
         })
-        timeline.addView(seek,LinearLayout.LayoutParams(-1,dp(40)));timeline.addView(time)
+        val progressRow=LinearLayout(this).apply {gravity=Gravity.CENTER_VERTICAL}
+        progressRow.addView(seek,LinearLayout.LayoutParams(0,dp(40),1f));progressRow.addView(time,LinearLayout.LayoutParams(dp(85),dp(40)))
+        timeline.addView(progressRow)
+        val actions=LinearLayout(this).apply {gravity=Gravity.CENTER}
+        speedButton=actionLabel("Speed (1×)") { showSpeed() }
+        actions.addView(speedButton);actions.addView(actionLabel("Audio & Subtitles") { showTracks() })
+        timeline.addView(actions)
         root.addView(timeline,FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM))
+        val brightnessBox=FrameLayout(this)
+        brightnessBox.addView(TextView(this).apply {text="☼";setTextColor(-1);textSize=26f;gravity=Gravity.CENTER},FrameLayout.LayoutParams(dp(48),dp(40),Gravity.TOP))
+        brightnessBox.addView(SeekBar(this).apply {
+            contentDescription="Player brightness";max=100;progress=50;rotation=-90f
+            progressTintList=android.content.res.ColorStateList.valueOf(-1);thumbTintList=android.content.res.ColorStateList.valueOf(-1)
+            setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener {
+                override fun onStartTrackingTouch(bar:SeekBar) {handler.removeCallbacks(hideControls)}
+                override fun onStopTrackingTouch(bar:SeekBar) {showControls()}
+                override fun onProgressChanged(bar:SeekBar,value:Int,fromUser:Boolean) {if(fromUser) window.attributes=window.attributes.apply {screenBrightness=(value/100f).coerceAtLeast(.02f)}}
+            })
+        },FrameLayout.LayoutParams(dp(110),dp(40),Gravity.CENTER).apply {topMargin=dp(30)})
+        brightnessControl=brightnessBox
+        root.addView(brightnessBox,FrameLayout.LayoutParams(dp(48),dp(160),Gravity.CENTER_VERTICAL or Gravity.START).apply {leftMargin=dp(16)})
         video.setOnClickListener { if(toolbar.visibility==View.VISIBLE) hideControls.run() else showControls() }
         setContentView(root)
         video.setVideoPath(file.absolutePath)
@@ -120,10 +217,10 @@ class OfflinePlayerActivity : ComponentActivity() {
     override fun onUserLeaveHint() { super.onUserLeaveHint();if(::video.isInitialized && video.isPlaying && !closing) enterPip() }
     override fun onPictureInPictureModeChanged(inPip: Boolean, configuration: Configuration) {
         super.onPictureInPictureModeChanged(inPip,configuration)
-        if(inPip) { hideControls.run() } else showControls()
+        if(inPip) { settingsDialog?.dismiss();hideControls.run() } else showControls()
     }
     override fun onPause() { if(::video.isInitialized) { resume=video.isPlaying;prefs.edit().putInt(key,video.currentPosition).apply() };super.onPause() }
     override fun onStop() { if(::video.isInitialized) video.pause();super.onStop() }
     override fun onResume() { super.onResume();if(::video.isInitialized && resume) video.start() }
-    override fun onDestroy() { handler.removeCallbacksAndMessages(null);unregisterReceiver(receiver);if(::video.isInitialized) video.stopPlayback();super.onDestroy() }
+    override fun onDestroy() { settingsDialog?.dismiss();player=null;handler.removeCallbacksAndMessages(null);unregisterReceiver(receiver);if(::video.isInitialized) video.stopPlayback();super.onDestroy() }
 }
