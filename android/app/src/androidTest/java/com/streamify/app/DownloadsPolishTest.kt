@@ -16,6 +16,19 @@ import java.io.File
 class DownloadsPolishTest {
     private val context=InstrumentationRegistry.getInstrumentation().targetContext
     private val device=UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+    @Test fun downloadedShowLinksToMoreEpisodes() {
+        val store=DownloadStore.get(context)
+        val item=DownloadItem("more_episodes_test",1396,"Breaking Bad",season=1,episode=1,state="paused")
+        store.update(item)
+        try {ActivityScenario.launch(DownloadsActivity::class.java).use {
+            device.wait(Until.findObject(By.text("Breaking Bad")),10000)!!.click()
+            val more=device.wait(Until.findObject(By.text("View more episodes")),5000)!!
+            more.click()
+            assertTrue(device.wait(Until.gone(By.text("View more episodes")),5000))
+            device.pressBack()
+            assertNotNull(device.wait(Until.findObject(By.text("View more episodes")),5000))
+        }} finally {store.remove(item.key)}
+    }
     @Test fun pinchSwitchesBetweenFitAndFill() {
         val store=DownloadStore.get(context);val key="pinch_control"
         File(context.getExternalFilesDir(null),"download-prototype/control.mp4").copyTo(store.file(key),overwrite=true)
@@ -107,7 +120,15 @@ class DownloadsPolishTest {
                 device.wait(Until.findObject(By.desc("Lock screen")),3000)!!.click()
                 assertNull(device.findObject(By.desc("Exit offline player")))
                 device.click(device.displayWidth/2,device.displayHeight/2)
-                device.wait(Until.findObject(By.desc("Unlock screen")),3000)!!.click()
+                val unlock=device.wait(Until.findObject(By.desc("Hold to unlock screen")),3000)!!
+                unlock.click();assertNull(device.findObject(By.desc("Exit offline player")))
+                val point=unlock.visibleCenter
+                val holdStart=android.os.SystemClock.uptimeMillis()
+                val instrumentation=InstrumentationRegistry.getInstrumentation()
+                instrumentation.sendPointerSync(android.view.MotionEvent.obtain(holdStart,holdStart,android.view.MotionEvent.ACTION_DOWN,point.x.toFloat(),point.y.toFloat(),0))
+                Thread.sleep(1400)
+                instrumentation.sendPointerSync(android.view.MotionEvent.obtain(holdStart,android.os.SystemClock.uptimeMillis(),android.view.MotionEvent.ACTION_UP,point.x.toFloat(),point.y.toFloat(),0))
+                Thread.sleep(400)
                 assertNotNull(device.wait(Until.findObject(By.desc("Exit offline player")),3000))
                 device.click(device.displayWidth/2,device.displayHeight/3)
                 Thread.sleep(500)

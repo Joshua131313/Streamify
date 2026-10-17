@@ -117,7 +117,8 @@ fun DownloadsPage(back: (() -> Unit)? = null) {
     val downloads by store.items.collectAsState()
     var selectedShow by rememberSaveable { mutableStateOf<Int?>(null) }
     var editing by rememberSaveable { mutableStateOf(false) }
-    BackHandler(selectedShow!=null) { selectedShow=null;editing=false }
+    var browseEpisodes by rememberSaveable { mutableStateOf(false) }
+    BackHandler(selectedShow!=null) { if(browseEpisodes) browseEpisodes=false else {selectedShow=null;editing=false} }
     val showTitle=downloads.firstOrNull { it.id==selectedShow && it.season>0 }?.title
     LaunchedEffect(showTitle) { if(showTitle==null) selectedShow=null }
     var legacyMessage by remember { mutableStateOf("") }
@@ -146,6 +147,13 @@ fun DownloadsPage(back: (() -> Unit)? = null) {
             }.getOrElse { "Could not import the earlier test download: ${it.localizedMessage}" }
         }
     }
+    if(browseEpisodes && selectedShow!=null && online) {
+        val vm:com.streamify.app.StreamifyViewModel=androidx.lifecycle.viewmodel.compose.viewModel()
+        Box(Modifier.fillMaxSize().safeDrawingPadding()) {
+            DetailScreen(Media(selectedShow!!,com.streamify.app.data.MediaType.TV,showTitle.orEmpty()),vm) {browseEpisodes=false}
+        }
+        return
+    }
     LazyColumn(Modifier.fillMaxSize().safeDrawingPadding(),contentPadding=PaddingValues(bottom=24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
         item { Row(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=12.dp),verticalAlignment=Alignment.CenterVertically) {
             if(back!=null || selectedShow!=null) IconButton(onClick={if(selectedShow!=null) {selectedShow=null;editing=false} else back?.invoke()}, colors=IconButtonDefaults.iconButtonColors(containerColor=Color.White.copy(alpha=.08f),contentColor=Color.White)) { Icon(Icons.Rounded.ArrowBack,"Back") }
@@ -172,6 +180,14 @@ fun DownloadsPage(back: (() -> Unit)? = null) {
                 CompactDownloadRow(group,series,selectedShow!=null,editing,online,
                     open={if(series) {selectedShow=entry.id;editing=false} else context.startActivity(Intent(context,OfflinePlayerActivity::class.java).putExtra("key",entry.key))},
                     delete={group.forEach { DownloadStore.command(context,"delete",it.key) }})
+            }
+        }
+        if(selectedShow!=null) item(key="more_episodes") {
+            Column(Modifier.fillMaxWidth().padding(horizontal=24.dp,vertical=16.dp),horizontalAlignment=Alignment.CenterHorizontally) {
+                Button(onClick={browseEpisodes=true},enabled=online,shape=CircleShape,
+                    colors=ButtonDefaults.buttonColors(containerColor=Color.White,contentColor=Color.Black),
+                    contentPadding=PaddingValues(horizontal=24.dp,vertical=12.dp)) {Text("View more episodes",style=MaterialTheme.typography.titleSmall)}
+                if(!online) Text("Connect to the internet to browse more episodes",color=Muted,style=MaterialTheme.typography.bodySmall,modifier=Modifier.padding(top=8.dp))
             }
         }
     }

@@ -171,9 +171,12 @@ private fun FeaturedCarousel(featured: List<Media>, vm: StreamifyViewModel, visi
 
 @Composable
 internal fun FeaturedHero(media: Media, details: () -> Unit, play: () -> Unit, save: () -> Unit, saved: Boolean) {
+    val configuration=androidx.compose.ui.platform.LocalConfiguration.current
+    val tablet=configuration.smallestScreenWidthDp>=600
+    val heroSize=if(tablet) Modifier.height((configuration.screenHeightDp*.43f).coerceIn(240f,320f).dp) else Modifier.aspectRatio(.82f)
     Card(onClick = details, modifier = Modifier.padding(horizontal = 16.dp), shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, Color.White.copy(alpha = .16f))) {
-        Box(Modifier.fillMaxWidth().heightIn(max = 480.dp).aspectRatio(if (androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 600) 1.9f else .82f)) {
-            RemoteImage(if (androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 600) media.image(true) ?: media.image() else media.image() ?: media.image(true), null, Modifier.fillMaxSize())
+        Box(Modifier.fillMaxWidth().then(heroSize)) {
+            RemoteImage(if (tablet) media.image(true) ?: media.image() else media.image() ?: media.image(true), null, Modifier.fillMaxSize())
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color.Transparent, .45f to Color.Transparent, .8f to Color(0xB31B1720), 1f to Color(0xFF1B1720))))
             IconButton(onClick = details, modifier = Modifier.align(Alignment.TopEnd).padding(6.dp)) {
                 Icon(Icons.Rounded.Info, "Details for ${media.title}", Modifier.size(22.dp), tint = Color.White)

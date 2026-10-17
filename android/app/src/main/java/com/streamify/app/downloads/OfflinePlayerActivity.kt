@@ -55,11 +55,6 @@ class OfflinePlayerActivity : ComponentActivity() {
     private fun setVideoFill(fill:Boolean) {
         if(fillScreen==fill) return
         fillScreen=fill;video.requestLayout()
-        gestureFeedback.animate().cancel();gestureFeedback.translationX=0f
-        gestureFeedback.text=if(fill) "Fill screen" else "Fit screen"
-        gestureFeedback.visibility=View.VISIBLE;gestureFeedback.alpha=1f
-        gestureFeedback.scaleX=1f;gestureFeedback.scaleY=1f
-        gestureFeedback.animate().alpha(0f).setStartDelay(650).setDuration(250).withEndAction {gestureFeedback.visibility=View.GONE}.start()
         video.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
     }
     private var locked=false
@@ -222,6 +217,9 @@ class OfflinePlayerActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         androidx.core.content.ContextCompat.registerReceiver(this,receiver,IntentFilter(toggleAction),androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        if(Build.VERSION.SDK_INT>=28) window.attributes=window.attributes.apply {
+            layoutInDisplayCutoutMode=if(Build.VERSION.SDK_INT>=30) WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS else WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
         WindowCompat.setDecorFitsSystemWindows(window,false)
         WindowInsetsControllerCompat(window,window.decorView).apply { hide(WindowInsetsCompat.Type.systemBars());systemBarsBehavior=WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE }
         val file=DownloadStore.get(this).file(key)
@@ -308,14 +306,11 @@ class OfflinePlayerActivity : ComponentActivity() {
             setBackgroundColor(0x55000000);visibility=View.GONE;isClickable=true
             setOnClickListener {handler.removeCallbacks(hideUnlock);visibility=View.GONE}
         }
-        val unlockButton=LinearLayout(this).apply {
-            orientation=LinearLayout.VERTICAL;gravity=Gravity.CENTER;setPadding(dp(16),dp(8),dp(16),dp(8))
-            contentDescription="Unlock screen";isClickable=true;isFocusable=true
-            addView(ImageView(this@OfflinePlayerActivity).apply {setImageResource(R.drawable.player_lock)},LinearLayout.LayoutParams(dp(28),dp(28)))
-            addView(TextView(this@OfflinePlayerActivity).apply {text="Tap to unlock";setTextColor(-1);textSize=13f;gravity=Gravity.CENTER;setPadding(0,dp(6),0,0)})
-            setOnClickListener {locked=false;handler.removeCallbacks(hideUnlock);unlockOverlay.visibility=View.GONE;performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK);showControls()}
-        }
-        unlockOverlay.addView(unlockButton,FrameLayout.LayoutParams(-2,-2,Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {bottomMargin=dp(24)})
+        val unlockButton=HoldUnlockView(this,
+            onHold={handler.removeCallbacks(hideUnlock)},
+            onCancel={handler.postDelayed(hideUnlock,3000)},
+            onUnlock={locked=false;handler.removeCallbacks(hideUnlock);unlockOverlay.visibility=View.GONE;showControls()})
+        unlockOverlay.addView(unlockButton,FrameLayout.LayoutParams(dp(140),dp(100),Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {bottomMargin=dp(20)})
         root.addView(unlockOverlay,FrameLayout.LayoutParams(-1,-1))
         gestureDetector=android.view.GestureDetector(this,object:android.view.GestureDetector.SimpleOnGestureListener() {
             override fun onDown(e:android.view.MotionEvent):Boolean {
