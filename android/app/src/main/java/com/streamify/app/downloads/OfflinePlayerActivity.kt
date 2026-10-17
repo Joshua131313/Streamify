@@ -39,10 +39,12 @@ class OfflinePlayerActivity : ComponentActivity() {
     private var seekTarget=0L
     private var settingsOpen=false
     private var brightnessControl: View?=null
+    private var volumeControl: View?=null
+    private var seekPreview: SeekPreview?=null
     private lateinit var speedButton: TextView
     private var settingsDialog: android.app.Dialog?=null
     private val handler=Handler(Looper.getMainLooper())
-    private val hideControls=Runnable { if(::toolbar.isInitialized) toolbar.visibility=View.GONE; if(::transport.isInitialized) transport.visibility=View.GONE; if(::timeline.isInitialized) timeline.visibility=View.GONE;brightnessControl?.visibility=View.GONE }
+    private val hideControls=Runnable { if(::toolbar.isInitialized) toolbar.visibility=View.GONE; if(::transport.isInitialized) transport.visibility=View.GONE; if(::timeline.isInitialized) timeline.visibility=View.GONE;brightnessControl?.visibility=View.GONE;volumeControl?.visibility=View.GONE;seekPreview?.hidePreview() }
     private var closing=false
     private val toggleAction="com.streamify.app.OFFLINE_TOGGLE"
     private val receiver=object : BroadcastReceiver() {
@@ -66,7 +68,7 @@ class OfflinePlayerActivity : ComponentActivity() {
     }
     private fun showControls() {
         if(isInPictureInPictureMode) return
-        toolbar.visibility=View.VISIBLE;transport.visibility=View.VISIBLE;timeline.visibility=View.VISIBLE;brightnessControl?.visibility=View.VISIBLE;handler.removeCallbacks(hideControls);if(!settingsOpen && video.isPlaying) handler.postDelayed(hideControls,4000)
+        toolbar.visibility=View.VISIBLE;transport.visibility=View.VISIBLE;timeline.visibility=View.VISIBLE;brightnessControl?.visibility=View.VISIBLE;volumeControl?.visibility=View.VISIBLE;handler.removeCallbacks(hideControls);if(!settingsOpen && video.isPlaying) handler.postDelayed(hideControls,4000)
     }
     private fun dp(value:Int)=(value*resources.displayMetrics.density).toInt()
     private fun icon(resource:Int,label:String,action:()->Unit)=ImageButton(this).apply {
@@ -76,6 +78,9 @@ class OfflinePlayerActivity : ComponentActivity() {
     }
     private fun refreshControls() {
         if(!::playButton.isInitialized || !::video.isInitialized) return
+        ((volumeControl as? android.view.ViewGroup)?.getChildAt(1) as? SeekBar)?.let { slider ->
+            if(!slider.isPressed) slider.progress=getSystemService(android.media.AudioManager::class.java).getStreamVolume(android.media.AudioManager.STREAM_MUSIC)
+        }
         playButton.setImageResource(if(video.isPlaying) R.drawable.pip_pause else R.drawable.pip_play)
         playButton.contentDescription=if(video.isPlaying) "Pause" else "Play"
         val duration=video.duration.coerceAtLeast(0);val position=video.currentPosition.coerceAtLeast(0)
@@ -114,7 +119,7 @@ class OfflinePlayerActivity : ComponentActivity() {
             progressTintList=android.content.res.ColorStateList.valueOf(-1);thumbTintList=android.content.res.ColorStateList.valueOf(-1)
             setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener {
                 override fun onStartTrackingTouch(bar:SeekBar) { }
-                override fun onProgressChanged(bar:SeekBar,value:Int,fromUser:Boolean) { }
+                override fun onProgressChanged(bar:SeekBar,value:Int,fromUser:Boolean) {if(fromUser && scrubbing) seekPreview?.preview(video.duration.coerceAtLeast(0).toLong()*value/1000)}
                 override fun onStopTrackingTouch(bar:SeekBar) {row.getChildAt(bar.progress).performClick()}
             })
         };body.addView(slider,LinearLayout.LayoutParams(-1,dp(40)))
@@ -172,6 +177,7 @@ class OfflinePlayerActivity : ComponentActivity() {
         toolbar.addView(icon(R.drawable.player_close,"Exit offline player") { closing=true;updatePip();finish() },LinearLayout.LayoutParams(controlSize,controlSize))
         toolbar.addView(ImageView(this).apply {setImageResource(R.drawable.streamify_logo);scaleType=ImageView.ScaleType.FIT_CENTER;contentDescription="Streamify"},LinearLayout.LayoutParams(dp(34),dp(34)).apply {setMargins(dp(8),0,dp(8),0)})
         toolbar.addView(TextView(this).apply { text=DownloadStore.get(this@OfflinePlayerActivity).get(key)?.title ?: "Offline video";setTextColor(android.graphics.Color.WHITE);textSize=16f;gravity=Gravity.CENTER_VERTICAL;setPadding(16,0,16,0);maxLines=1 },LinearLayout.LayoutParams(0,controlSize,1f))
+        toolbar.addView(icon(R.drawable.player_cast,"Cast to TV") {com.streamify.app.ui.openCastToTv(this)},LinearLayout.LayoutParams(controlSize,controlSize))
         if(packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)) toolbar.addView(icon(R.drawable.player_pip,"Picture-in-picture") { enterPip() },LinearLayout.LayoutParams(controlSize,controlSize))
         root.addView(toolbar,FrameLayout.LayoutParams(-1,-2,Gravity.TOP))
         transport=LinearLayout(this).apply { gravity=Gravity.CENTER;orientation=LinearLayout.HORIZONTAL }
@@ -184,9 +190,9 @@ class OfflinePlayerActivity : ComponentActivity() {
         time=TextView(this).apply {setTextColor(-1);textSize=12f;gravity=Gravity.END}
         seek=SeekBar(this).apply { progressTintList=android.content.res.ColorStateList.valueOf(0xFFE50914.toInt());thumbTintList=android.content.res.ColorStateList.valueOf(0xFFE50914.toInt());progressBackgroundTintList=android.content.res.ColorStateList.valueOf(0x66FFFFFF);max=1000 }
         seek.setOnSeekBarChangeListener(object: SeekBar.OnSeekBarChangeListener {
-            override fun onStartTrackingTouch(bar:SeekBar) {scrubbing=true;handler.removeCallbacks(hideControls)}
-            override fun onStopTrackingTouch(bar:SeekBar) {video.seekTo((video.duration.toLong()*bar.progress/1000).toInt());scrubbing=false;showControls()}
-            override fun onProgressChanged(bar:SeekBar,value:Int,fromUser:Boolean) { }
+            override fun onStartTrackingTouch(bar:SeekBar) {scrubbing=true;handler.removeCallbacks(hideControls);seekPreview?.preview(video.duration.coerceAtLeast(0).toLong()*bar.progress/1000)}
+            override fun onStopTrackingTouch(bar:SeekBar) {video.seekTo((video.duration.toLong()*bar.progress/1000).toInt());scrubbing=false;seekPreview?.hidePreview();showControls()}
+            override fun onProgressChanged(bar:SeekBar,value:Int,fromUser:Boolean) {if(fromUser && scrubbing) seekPreview?.preview(video.duration.coerceAtLeast(0).toLong()*value/1000)}
         })
         val progressRow=LinearLayout(this).apply {gravity=Gravity.CENTER_VERTICAL}
         progressRow.addView(seek,LinearLayout.LayoutParams(0,dp(40),1f));progressRow.addView(time,LinearLayout.LayoutParams(dp(85),dp(40)))
@@ -206,9 +212,25 @@ class OfflinePlayerActivity : ComponentActivity() {
                 override fun onStopTrackingTouch(bar:SeekBar) {showControls()}
                 override fun onProgressChanged(bar:SeekBar,value:Int,fromUser:Boolean) {if(fromUser) window.attributes=window.attributes.apply {screenBrightness=(value/100f).coerceAtLeast(.02f)}}
             })
-        },FrameLayout.LayoutParams(dp(110),dp(40),Gravity.CENTER).apply {topMargin=dp(30)})
+        },FrameLayout.LayoutParams(dp(150),dp(40),Gravity.CENTER).apply {topMargin=dp(30)})
         brightnessControl=brightnessBox
-        root.addView(brightnessBox,FrameLayout.LayoutParams(dp(48),dp(160),Gravity.CENTER_VERTICAL or Gravity.START).apply {leftMargin=dp(16)})
+        root.addView(brightnessBox,FrameLayout.LayoutParams(dp(48),dp(200),Gravity.CENTER_VERTICAL or Gravity.START).apply {leftMargin=dp(16)})
+        val audio=getSystemService(android.media.AudioManager::class.java)
+        val volumeBox=FrameLayout(this)
+        volumeBox.addView(ImageView(this).apply {setImageResource(android.R.drawable.ic_lock_silent_mode_off);imageTintList=android.content.res.ColorStateList.valueOf(-1);setPadding(dp(12),dp(8),dp(12),dp(8))},FrameLayout.LayoutParams(dp(48),dp(40),Gravity.TOP))
+        volumeBox.addView(SeekBar(this).apply {
+            contentDescription="Player volume";max=audio.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC);progress=audio.getStreamVolume(android.media.AudioManager.STREAM_MUSIC);rotation=-90f
+            progressTintList=android.content.res.ColorStateList.valueOf(-1);thumbTintList=android.content.res.ColorStateList.valueOf(-1)
+            setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener {
+                override fun onStartTrackingTouch(bar:SeekBar) {handler.removeCallbacks(hideControls)}
+                override fun onStopTrackingTouch(bar:SeekBar) {showControls()}
+                override fun onProgressChanged(bar:SeekBar,value:Int,fromUser:Boolean) {if(fromUser) audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC,value,0)}
+            })
+        },FrameLayout.LayoutParams(dp(150),dp(40),Gravity.CENTER).apply {topMargin=dp(30)})
+        volumeControl=volumeBox
+        root.addView(volumeBox,FrameLayout.LayoutParams(dp(48),dp(200),Gravity.CENTER_VERTICAL or Gravity.END).apply {rightMargin=dp(16)})
+        seekPreview=SeekPreview(this,file).also {root.addView(it,FrameLayout.LayoutParams(-2,-2,Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply {bottomMargin=dp(100)})}
+        volumeControlStream=android.media.AudioManager.STREAM_MUSIC
         video.setOnClickListener { if(toolbar.visibility==View.VISIBLE) hideControls.run() else showControls() }
         setContentView(root)
         video.setVideoPath(file.absolutePath)
@@ -222,5 +244,5 @@ class OfflinePlayerActivity : ComponentActivity() {
     override fun onPause() { if(::video.isInitialized) { resume=video.isPlaying;prefs.edit().putInt(key,video.currentPosition).apply() };super.onPause() }
     override fun onStop() { if(::video.isInitialized) video.pause();super.onStop() }
     override fun onResume() { super.onResume();if(::video.isInitialized && resume) video.start() }
-    override fun onDestroy() { settingsDialog?.dismiss();player=null;handler.removeCallbacksAndMessages(null);unregisterReceiver(receiver);if(::video.isInitialized) video.stopPlayback();super.onDestroy() }
+    override fun onDestroy() { seekPreview?.close();settingsDialog?.dismiss();player=null;handler.removeCallbacksAndMessages(null);unregisterReceiver(receiver);if(::video.isInitialized) video.stopPlayback();super.onDestroy() }
 }

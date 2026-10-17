@@ -33,8 +33,8 @@ class SkipControl(context: Context, private val forward: Boolean, private val sk
         canvas.save();canvas.translate(cx,cy);if(!forward) canvas.scale(-1f,1f)
         canvas.rotate(feedback*22)
         paint.alpha=255;paint.style=Paint.Style.STROKE;paint.strokeWidth=unit*2;paint.strokeCap=Paint.Cap.ROUND;paint.strokeJoin=Paint.Join.ROUND
-        canvas.drawArc(RectF(-23*unit,-23*unit,23*unit,23*unit),-65f,325f,false,paint)
-        val arrow=Path().apply {moveTo(9*unit,-27*unit);lineTo(15*unit,-18*unit);lineTo(23*unit,-23*unit)}
+        canvas.drawArc(RectF(-23*unit,-23*unit,23*unit,23*unit),-55f,305f,false,paint)
+        val arrow=Path().apply {moveTo(13.19f*unit,-27.84f*unit);lineTo(13.19f*unit,-18.84f*unit);lineTo(4.19f*unit,-18.84f*unit)}
         canvas.drawPath(arrow,paint);canvas.restore()
         paint.style=Paint.Style.FILL;paint.textAlign=Paint.Align.CENTER;paint.textSize=unit*18;paint.typeface=Typeface.create("sans-serif-medium",Typeface.NORMAL)
         canvas.drawText(if(feedback>0f) "${if(accumulated>0) "+" else ""}$accumulated" else "10",cx,cy+6*unit,paint)

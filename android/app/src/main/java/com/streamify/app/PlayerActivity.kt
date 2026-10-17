@@ -466,6 +466,7 @@ class PlayerActivity : ComponentActivity() {
                     Box {
                         IconButton(onClick = { options = true }) { Icon(Icons.Rounded.MoreVert, "Player options") }
                         DropdownMenu(expanded = options, onDismissRequest = { options = false }) {
+                            DropdownMenuItem(text = { Text("Cast to TV / screen mirroring") }, leadingIcon = { Icon(Icons.Rounded.Cast, null) }, onClick = {options=false;com.streamify.app.ui.openCastToTv(this@PlayerActivity)})
                             DropdownMenuItem(text = { Text("Picture-in-picture") }, leadingIcon = { Icon(Icons.Rounded.PictureInPictureAlt, null) }, onClick = { options = false; enterPip() })
                             DropdownMenuItem(text = { Text("Reload stream") }, leadingIcon = { Icon(Icons.Rounded.Refresh, null) }, onClick = { options = false; retry() })
                             if (media != null && media.type != MediaType.ANIME) DropdownMenuItem(text = { Text(if (embedded) "Use direct playback" else "Use embedded playback") }, leadingIcon = { Icon(Icons.Rounded.Tune, null) }, onClick = { options = false; leaveFullscreen(); preferEmbed = !preferEmbed })

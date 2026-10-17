@@ -57,7 +57,20 @@ class DownloadsPolishTest {
                     play.performClick();assertTrue(video.isPlaying)
                     (root.getChildAt(2) as android.view.ViewGroup).getChildAt(0).performClick()
                 }
+                lateinit var preview:SeekPreview
+                scenario.onActivity { a ->
+                    val root=a.findViewById<android.view.ViewGroup>(android.R.id.content).getChildAt(0) as android.view.ViewGroup
+                    preview=root.getChildAt(root.childCount-1) as SeekPreview
+                    (root.getChildAt(2) as android.view.ViewGroup).getChildAt(1).performClick()
+                    preview.preview(1000)
+                }
+                var decoded=false
+                repeat(100) { if(!decoded) { Thread.sleep(100);scenario.onActivity { decoded=(preview.getChildAt(0) as android.widget.ImageView).drawable!=null } } }
+                assertTrue("Seek preview should decode a frame",decoded)
                 device.takeScreenshot(File(context.getExternalFilesDir(null),"offline-controls.png"))
+                scenario.onActivity {preview.hidePreview();video.start()}
+                assertNotNull(device.wait(Until.findObject(By.desc("Player volume")),3000))
+                assertNotNull(device.findObject(By.desc("Cast to TV")))
                 device.wait(Until.findObject(By.textStartsWith("Speed (")),3000)!!.click()
                 device.wait(Until.findObject(By.text("1.5×")),3000)!!.click()
                 assertNotNull(device.wait(Until.findObject(By.text("Speed (1.5×)")),3000))
@@ -89,5 +102,3 @@ class DownloadsPolishTest {
         } finally {store.file(key).delete()}
     }
 }
-
-
