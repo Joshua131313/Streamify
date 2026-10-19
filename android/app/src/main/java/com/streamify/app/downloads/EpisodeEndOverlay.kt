@@ -36,7 +36,7 @@ class EpisodeEndOverlay(private val activity:Activity,private val play:()->Unit)
         fun style(view:TextView,label:String,primary:Boolean) {
             view.text=label;view.textSize=16f;view.gravity=Gravity.CENTER;view.setTextColor(if(primary) Color.BLACK else Color.WHITE)
             view.setPadding(dp(18),0,dp(18),0)
-            view.background=android.graphics.drawable.GradientDrawable().apply {setColor(if(primary) 0xFFDADADA.toInt() else 0xFF333333.toInt());cornerRadius=dp(5).toFloat()}
+            view.background=android.graphics.drawable.GradientDrawable().apply {setColor(if(primary) 0xFFDADADA.toInt() else 0xA6333333.toInt());cornerRadius=dp(5).toFloat()}
             view.clipToOutline=true
         }
         val credits=TextView(activity);style(credits,"Watch Credits",false)
