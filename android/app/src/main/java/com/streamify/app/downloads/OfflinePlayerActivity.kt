@@ -59,6 +59,22 @@ class OfflinePlayerActivity : ComponentActivity() {
         player?.let {p->listOf(android.media.MediaPlayer.TrackInfo.MEDIA_TRACK_TYPE_SUBTITLE,android.media.MediaPlayer.TrackInfo.MEDIA_TRACK_TYPE_TIMEDTEXT).forEach {type->runCatching {p.getSelectedTrack(type).takeIf {it>=0}?.let {p.deselectTrack(it)}}}}
         importedEnabled=true;prefs.edit().putBoolean("subtitles_$key",true).apply()
     }
+    private var episodeOverlay:EpisodeEndOverlay?=null
+    private fun nextDownload():DownloadItem? {
+        val store=DownloadStore.get(this);val item=store.get(key) ?: return null
+        return store.items.value.firstOrNull {it.id==item.id && it.season==item.season && it.episode==item.episode+1 && it.state=="complete" && store.file(it.key).isFile}
+    }
+    private fun playDownload(item:DownloadItem) {startActivity(Intent(this,OfflinePlayerActivity::class.java).putExtra("key",item.key));finish()}
+    private fun showEpisodes()=panel(true) {body,dialog ->
+        val store=DownloadStore.get(this);val current=store.get(key)
+        body.addView(actionLabel("Episodes") {})
+        val list=LinearLayout(this).apply {orientation=LinearLayout.VERTICAL}
+        store.items.value.filter {it.id==current?.id && it.season>0 && it.state=="complete" && store.file(it.key).isFile}
+            .sortedWith(compareBy<DownloadItem> {it.season}.thenBy {it.episode}).forEach {item ->
+                list.addView(actionLabel("S${item.season} E${item.episode} · ${item.episodeTitle.ifBlank {item.title}}${if(item.key==key) " · Playing" else ""}") {dialog.dismiss();if(item.key!=key) playDownload(item)})
+            }
+        body.addView(ScrollView(this).apply {addView(list)},LinearLayout.LayoutParams(-1,dp(180)))
+    }
     private var completed=false
     private var endingDialog:android.app.Dialog?=null
     private fun playbackFinished() {
@@ -67,6 +83,7 @@ class OfflinePlayerActivity : ComponentActivity() {
         prefs.edit().remove(key).apply();updatePip();showControls()
         val store=DownloadStore.get(this)
         val item=store.get(key) ?: return
+        if(item.season>0) {refreshControls();return}
         val available=store.items.value.filter {it.state=="complete" && it.key!=key && store.file(it.key).isFile}
         val next=if(item.season>0) available.firstOrNull {it.id==item.id && it.season==item.season && it.episode==item.episode+1}
             else available.firstOrNull {it.season==0}
@@ -190,7 +207,9 @@ class OfflinePlayerActivity : ComponentActivity() {
         }
         playButton.setImageResource(if(video.isPlaying) R.drawable.pip_pause else R.drawable.pip_play)
         playButton.contentDescription=if(video.isPlaying) "Pause" else "Play"
-        val duration=video.duration.coerceAtLeast(0);val position=video.currentPosition.coerceAtLeast(0)
+        if(completed && video.isPlaying) completed=false
+        val duration=video.duration.coerceAtLeast(0);val position=if(completed) duration else video.currentPosition.coerceAtLeast(0)
+        episodeOverlay?.update(position/1000.0,duration/1000.0,completed,isInPictureInPictureMode || locked || settingsOpen,timeline.visibility==View.VISIBLE)
         if(!scrubbing) seek.progress=if(duration>0) (position.toLong()*1000/duration).toInt() else 0
         fun stamp(ms:Int):String {val seconds=ms/1000;return if(seconds>=3600) "%d:%02d:%02d".format(seconds/3600,seconds/60%60,seconds%60) else "%d:%02d".format(seconds/60,seconds%60)}
         time.text=stamp((duration-position).coerceAtLeast(0))
@@ -329,7 +348,7 @@ class OfflinePlayerActivity : ComponentActivity() {
         seek=SeekBar(this).apply { progressTintList=android.content.res.ColorStateList.valueOf(0xFFE50914.toInt());thumbTintList=android.content.res.ColorStateList.valueOf(0xFFE50914.toInt());progressBackgroundTintList=android.content.res.ColorStateList.valueOf(0x66FFFFFF);max=1000 }
         seek.setOnSeekBarChangeListener(object: SeekBar.OnSeekBarChangeListener {
             override fun onStartTrackingTouch(bar:SeekBar) {scrubbing=true;handler.removeCallbacks(hideControls);seekPreview?.preview(video.duration.coerceAtLeast(0).toLong()*bar.progress/1000);seekPreview?.follow(bar,bar.progress/1000f)}
-            override fun onStopTrackingTouch(bar:SeekBar) {video.seekTo((video.duration.toLong()*bar.progress/1000).toInt());scrubbing=false;seekPreview?.hidePreview();showControls()}
+            override fun onStopTrackingTouch(bar:SeekBar) {completed=false;video.seekTo((video.duration.toLong()*bar.progress/1000).toInt());scrubbing=false;seekPreview?.hidePreview();showControls()}
             override fun onProgressChanged(bar:SeekBar,value:Int,fromUser:Boolean) {if(fromUser && scrubbing) {seekPreview?.preview(video.duration.coerceAtLeast(0).toLong()*value/1000);seekPreview?.follow(bar,value/1000f)}}
         })
         val progressRow=LinearLayout(this).apply {gravity=Gravity.CENTER_VERTICAL}
@@ -338,6 +357,10 @@ class OfflinePlayerActivity : ComponentActivity() {
         val actions=LinearLayout(this).apply {gravity=Gravity.CENTER}
         speedButton=actionLabel("Speed (1×)") { showSpeed() }
         actions.addView(speedButton);actions.addView(actionLabel("Audio & Subtitles") { showTracks() })
+        if(DownloadStore.get(this).get(key)?.season?.let {it>0}==true) {
+            actions.addView(actionLabel("Episodes") {showEpisodes()}.apply {setCompoundDrawablesWithIntrinsicBounds(R.drawable.player_episodes,0,0,0);compoundDrawablePadding=dp(6)})
+            actions.addView(actionLabel("Next Episode") {nextDownload()?.let(::playDownload) ?: Toast.makeText(this,"Download the next episode to watch it offline.",Toast.LENGTH_SHORT).show()}.apply {setCompoundDrawablesWithIntrinsicBounds(R.drawable.player_next_episode,0,0,0);compoundDrawablePadding=dp(6)})
+        }
         timeline.addView(actions)
         root.addView(timeline,FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM))
         val brightnessBox=FrameLayout(this)
@@ -430,6 +453,7 @@ class OfflinePlayerActivity : ComponentActivity() {
         val touch=View.OnTouchListener {_,event->gestureDetector.onTouchEvent(event);true}
         video.setOnTouchListener(touch);root.setOnTouchListener(touch)
         setContentView(root)
+        if(nextDownload()!=null) episodeOverlay=EpisodeEndOverlay(this) {nextDownload()?.let(::playDownload)}
         video.setVideoPath(file.absolutePath)
         showControls();handler.post(update)
     }
@@ -442,5 +466,5 @@ class OfflinePlayerActivity : ComponentActivity() {
     override fun onPause() { if(::video.isInitialized) { resume=video.isPlaying;if(!completed) prefs.edit().putInt(key,video.currentPosition).apply() };super.onPause() }
     override fun onStop() { if(::video.isInitialized) video.pause();super.onStop() }
     override fun onResume() { super.onResume();if(::video.isInitialized && resume) video.start() }
-    override fun onDestroy() { endingDialog?.dismiss();seekPreview?.close();settingsDialog?.dismiss();player=null;handler.removeCallbacksAndMessages(null);unregisterReceiver(receiver);if(::video.isInitialized) video.stopPlayback();super.onDestroy() }
+    override fun onDestroy() { episodeOverlay?.close();endingDialog?.dismiss();seekPreview?.close();settingsDialog?.dismiss();player=null;handler.removeCallbacksAndMessages(null);unregisterReceiver(receiver);if(::video.isInitialized) video.stopPlayback();super.onDestroy() }
 }

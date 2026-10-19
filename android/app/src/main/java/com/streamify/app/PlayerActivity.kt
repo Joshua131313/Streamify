@@ -1,6 +1,7 @@
 package com.streamify.app
 
 import com.streamify.app.downloads.playbackEnding
+import androidx.compose.ui.graphics.Color
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -248,8 +249,23 @@ class PlayerActivity : ComponentActivity() {
         var pickerSeason by remember { mutableIntStateOf(season) }
         val repo = remember { StreamifyRepository(store) }
         var playbackEnded by remember(media?.key,season,episode,url,generation) {mutableStateOf(false)}
+        var playbackPosition by remember(url,generation) {mutableDoubleStateOf(0.0)}
+        var playbackDuration by remember(url,generation) {mutableDoubleStateOf(0.0)}
+        val nextEpisode by produceState<NextEpisode?>(null,media?.key,season,episode) {
+            value=null
+            if(media!=null && media.type!=MediaType.MOVIE) try {value=repo.nextEpisode(media,season,episode)} catch(_:Exception) {coroutineContext.ensureActive()}
+        }
+        fun playNextEpisode() {nextEpisode?.let {next -> media?.let {startActivity(mediaIntent(this@PlayerActivity,it,next.season,next.episode,provider.id));finish()}}}
+        val endHidden by rememberUpdatedState(pip || picker || sourcePicker)
+        val endControls by rememberUpdatedState(controlsVisible)
+        LaunchedEffect(nextEpisode,media?.key,season,episode,url,generation) {
+            if(nextEpisode!=null) {
+                val overlay=com.streamify.app.downloads.EpisodeEndOverlay(this@PlayerActivity,::playNextEpisode)
+                try {while(true) {overlay.update(playbackPosition,playbackDuration,playbackEnded,endHidden,endControls);delay(250)}} finally {overlay.close()}
+            }
+        }
         LaunchedEffect(playbackEnded) {
-            if(playbackEnded && media!=null) {
+            if(playbackEnded && media?.type==MediaType.MOVIE) {
 
                 val next=if(media.type!=MediaType.MOVIE) runCatching {kotlinx.coroutines.withTimeout(8000) {repo.nextEpisode(media,season,episode)}}.getOrNull() else null
                 val movie=if(media.type==MediaType.MOVIE) runCatching {kotlinx.coroutines.withTimeout(8000) {repo.details(media).related.firstOrNull {it.id!=media.id && it.date.isNotBlank() && it.date<=java.time.LocalDate.now().toString()}}}.getOrNull() else null
@@ -346,7 +362,8 @@ class PlayerActivity : ComponentActivity() {
                             if (raw != null && raw.length <= 1024) runCatching {
                                 val sample = JSONObject(raw)
                                 progress.sample(sample.getDouble("position"), sample.getDouble("duration"), sample.optBoolean("force"))
-                                if(sample.optBoolean("ended")) playbackEnded=true
+                                playbackPosition=sample.getDouble("position");playbackDuration=sample.getDouble("duration")
+                                playbackEnded=sample.optBoolean("ended")
                             }
                         }
                     }
@@ -505,7 +522,10 @@ class PlayerActivity : ComponentActivity() {
                         Text(if (media != null) provider.label else "Stream ${sourceIndex + 1}")
                         Spacer(Modifier.width(6.dp)); Icon(Icons.Rounded.KeyboardArrowDown, "Choose source", Modifier.size(20.dp))
                     }
-                    if (media != null && media.type != MediaType.MOVIE) IconButton(onClick = { pickerSeason = season; picker = true }) { Icon(Icons.Rounded.VideoLibrary, "Episodes") }
+                    if (media != null && media.type != MediaType.MOVIE) {
+                        IconButton(onClick = { pickerSeason = season; picker = true }) { Icon(Icons.Rounded.VideoLibrary, "Episodes") }
+                        IconButton(onClick = ::playNextEpisode,enabled=nextEpisode!=null) {Icon(Icons.Rounded.SkipNext,"Next Episode")}
+                    }
                     Spacer(Modifier.weight(1f))
                     if (loading) CircularProgressIndicator(Modifier.size(18.dp), color = Muted, strokeWidth = 2.dp)
                     IconButton(onClick = ::enterPip) { Icon(Icons.Rounded.PictureInPictureAlt, "Picture-in-picture", tint = Muted) }
@@ -525,6 +545,10 @@ class PlayerActivity : ComponentActivity() {
                 }
                 if (!immersive && !pip && slow && loading) Text(if (slow) "Still blank? Choose another source or open in browser. The back arrow above always closes the player."
                     else "Tap the video to play. Availability depends on the selected source.", Modifier.padding(horizontal = 20.dp, vertical = 16.dp), style = MaterialTheme.typography.labelSmall, color = Muted)
+            }
+            if(immersive && !pip && controlsVisible && media!=null && media.type!=MediaType.MOVIE) Row(Modifier.align(Alignment.BottomCenter).padding(bottom=18.dp),horizontalArrangement=Arrangement.spacedBy(20.dp)) {
+                TextButton(onClick={pickerSeason=season;picker=true}) {Icon(Icons.Rounded.VideoLibrary,null);Spacer(Modifier.width(8.dp));Text("Episodes",color=Color.White)}
+                TextButton(onClick=::playNextEpisode,enabled=nextEpisode!=null) {Icon(Icons.Rounded.SkipNext,null);Spacer(Modifier.width(8.dp));Text("Next Episode",color=if(nextEpisode!=null) Color.White else Muted)}
             }
             AnimatedVisibility(visible = immersive && !pip && controlsVisible, modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().zIndex(10f).displayCutoutPadding().padding(horizontal = 16.dp, vertical = 8.dp), enter = fadeIn(), exit = fadeOut()) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {

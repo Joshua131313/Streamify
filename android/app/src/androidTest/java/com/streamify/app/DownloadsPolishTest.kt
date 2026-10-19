@@ -30,6 +30,28 @@ class DownloadsPolishTest {
             assertEquals(2,started.get())
         }
     }
+    @Test fun earlyEpisodeOfferDoesNotAutoplayAndCanDismiss() {
+        assertFalse(episodeEndOffer(1700.0,1800.0))
+        assertTrue(episodeEndOffer(1710.0,1800.0))
+        assertFalse(episodeEndOffer(50.0,60.0))
+        val starts=java.util.concurrent.atomic.AtomicInteger(0)
+        var overlay:EpisodeEndOverlay?=null
+        ActivityScenario.launch(DownloadsActivity::class.java).use {scenario ->
+            scenario.onActivity {overlay=EpisodeEndOverlay(it) {starts.incrementAndGet()};overlay!!.update(1750.0,1800.0,false,false)}
+            assertNotNull(device.wait(Until.findObject(By.text("Watch Credits")),5000))
+            repeat(12) {Thread.sleep(1000);scenario.onActivity {overlay!!.update(1750.0,1800.0,false,false)}}
+            assertEquals(0,starts.get())
+            device.takeScreenshot(File(context.getExternalFilesDir(null),"episode-overlay.png"))
+            device.findObject(By.text("Watch Credits")).click()
+            scenario.onActivity {overlay!!.update(1800.0,1800.0,true,false)}
+            assertNull(device.findObject(By.text("Watch Credits")))
+            assertEquals(0,starts.get())
+            scenario.onActivity {overlay!!.update(100.0,1800.0,false,false);overlay!!.update(1800.0,1800.0,true,false)}
+            repeat(12) {Thread.sleep(1000);scenario.onActivity {overlay!!.update(1800.0,1800.0,true,false)}}
+            assertEquals(1,starts.get())
+            scenario.onActivity {overlay!!.close()}
+        }
+    }
     @Test fun downloadQualityCapsAndPersistence() {
         val qualities=org.json.JSONObject("{\"1080\":{\"url\":\"hd\"},\"480\":{\"url\":\"sd\"}}")
         assertEquals("hd",DownloadResolver.preferredQualityUrl(qualities))
@@ -40,18 +62,19 @@ class DownloadsPolishTest {
         assertEquals(1080,DownloadItem.parse(item.json().apply {remove("quality")}).quality)
     }
     @Test fun episodeEndingOffersNextAndCancel() {
+        Configurator.getInstance().waitForIdleTimeout=100
         val store=DownloadStore.get(context)
         val fixture=File(context.getExternalFilesDir(null),"download-prototype/control.mp4")
         val first=DownloadItem("ending_first",991011,"Episode ending test",season=1,episode=1,state="complete")
         val second=first.copy(key="ending_second",episode=2)
         listOf(first,second).forEach {store.update(it);fixture.copyTo(store.file(it.key),true)}
         try {ActivityScenario.launch<OfflinePlayerActivity>(Intent(context,OfflinePlayerActivity::class.java).putExtra("key",first.key)).use {
-            assertNotNull(device.wait(Until.findObject(By.text("Up next")),15000))
-            device.findObject(By.text("Cancel autoplay")).click()
+            assertNotNull(device.wait(Until.findObject(By.text("Watch Credits")),15000))
+            device.takeScreenshot(File(context.getExternalFilesDir(null),"episode-player-overlay.png"))
+            device.findObject(By.text("Watch Credits")).click()
             Thread.sleep(11000)
-            assertNotNull(device.findObject(By.text("Play next episode")))
-            assertNotNull(device.findObject(By.text("Episode ending test · S1 E2")))
-            device.findObject(By.text("Back")).click()
+            assertNull(device.findObject(By.text("Watch Credits")))
+            device.pressBack()
         }} finally {listOf(first,second).forEach {store.remove(it.key)}}
     }
     @Test fun deletesWholeShowAcrossSeasons() {
