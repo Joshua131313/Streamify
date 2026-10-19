@@ -52,6 +52,16 @@ fun DownloadButton(media: Media, season: Int = 0, episode: Int = 0, compact: Boo
     val downloads by store.items.collectAsState()
     val key="${media.type.path}_${media.id}_${season}_$episode"
     val existing=downloads.firstOrNull { it.key==key }
+    var quality by remember {mutableIntStateOf(store.preferredQuality)}
+    var qualityPicker by remember {mutableStateOf(false)}
+    if(qualityPicker) AlertDialog(onDismissRequest={qualityPicker=false},title={Text("Download quality")},text={
+        Column {
+            Text("Used for new downloads. A lower resolution is used if your choice is unavailable. To change an existing download, delete it and download again.")
+            listOf(1080,720,480,360).forEach {resolution ->
+                TextButton(onClick={quality=resolution;store.preferredQuality=resolution;qualityPicker=false}) {Text("${if(quality==resolution) "✓  " else ""}${resolution}p${if(resolution==1080) " · Best quality" else " · Smaller download"}")}
+            }
+        }
+    },confirmButton={TextButton(onClick={qualityPicker=false}) {Text("Done")}})
     val action = { if(existing==null) { store.enqueue(media,season,episode,episodeTitle,thumbnail); android.widget.Toast.makeText(context,"Added to downloads",android.widget.Toast.LENGTH_SHORT).show() } else openDownloads(context) }
     val label=when(existing?.state) {
         "queued" -> "Queued"
@@ -63,7 +73,10 @@ fun DownloadButton(media: Media, season: Int = 0, episode: Int = 0, compact: Boo
         else -> if(season>0) "Download S$season E$episode" else "Download"
     }
     if(compact) IconButton(onClick=action,modifier=Modifier.semantics {contentDescription="$label · Episode $episode"}) { DownloadStatusIcon(existing) }
-    else SecondaryButton(onClick=action,modifier=Modifier.fillMaxWidth().heightIn(min=50.dp)) { DownloadStatusIcon(existing);Spacer(Modifier.width(10.dp));Text(label) }
+    else Column(Modifier.fillMaxWidth()) {
+        SecondaryButton(onClick=action,modifier=Modifier.fillMaxWidth().heightIn(min=50.dp)) { DownloadStatusIcon(existing);Spacer(Modifier.width(10.dp));Text(label) }
+        TextButton(onClick={qualityPicker=true},modifier=Modifier.align(Alignment.CenterHorizontally)) {Text("Download quality · ${quality}p")}
+    }
 }
 
 @Composable

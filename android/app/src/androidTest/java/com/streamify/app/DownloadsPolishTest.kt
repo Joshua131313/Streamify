@@ -16,6 +16,44 @@ import java.io.File
 class DownloadsPolishTest {
     private val context=InstrumentationRegistry.getInstrumentation().targetContext
     private val device=UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+    @Test fun endingAutoplayAndMovieRequiresTap() {
+        val started=java.util.concurrent.atomic.AtomicInteger(0)
+        ActivityScenario.launch(DownloadsActivity::class.java).use {scenario ->
+            scenario.onActivity {it.playbackEnding("Next episode fixture",true,{started.incrementAndGet()},{})}
+            repeat(130) {if(started.get()==0) Thread.sleep(100)}
+            assertEquals(1,started.get())
+            scenario.onActivity {it.playbackEnding("Recommended movie fixture",false,{started.incrementAndGet()},{})}
+            Thread.sleep(11000)
+            assertEquals(1,started.get())
+            device.findObject(By.text("Watch movie")).click()
+            repeat(20) {if(started.get()==1) Thread.sleep(100)}
+            assertEquals(2,started.get())
+        }
+    }
+    @Test fun downloadQualityCapsAndPersistence() {
+        val qualities=org.json.JSONObject("{\"1080\":{\"url\":\"hd\"},\"480\":{\"url\":\"sd\"}}")
+        assertEquals("hd",DownloadResolver.preferredQualityUrl(qualities))
+        assertEquals("sd",DownloadResolver.preferredQualityUrl(qualities,720))
+        assertTrue(runCatching {DownloadResolver.preferredQualityUrl(qualities,360)}.isFailure)
+        val item=DownloadItem("quality_test",1,"Quality",quality=480)
+        assertEquals(480,DownloadItem.parse(item.json()).quality)
+        assertEquals(1080,DownloadItem.parse(item.json().apply {remove("quality")}).quality)
+    }
+    @Test fun episodeEndingOffersNextAndCancel() {
+        val store=DownloadStore.get(context)
+        val fixture=File(context.getExternalFilesDir(null),"download-prototype/control.mp4")
+        val first=DownloadItem("ending_first",991011,"Episode ending test",season=1,episode=1,state="complete")
+        val second=first.copy(key="ending_second",episode=2)
+        listOf(first,second).forEach {store.update(it);fixture.copyTo(store.file(it.key),true)}
+        try {ActivityScenario.launch<OfflinePlayerActivity>(Intent(context,OfflinePlayerActivity::class.java).putExtra("key",first.key)).use {
+            assertNotNull(device.wait(Until.findObject(By.text("Up next")),15000))
+            device.findObject(By.text("Cancel autoplay")).click()
+            Thread.sleep(11000)
+            assertNotNull(device.findObject(By.text("Play next episode")))
+            assertNotNull(device.findObject(By.text("Episode ending test · S1 E2")))
+            device.findObject(By.text("Back")).click()
+        }} finally {listOf(first,second).forEach {store.remove(it.key)}}
+    }
     @Test fun deletesWholeShowAcrossSeasons() {
         val store=DownloadStore.get(context)
         val episodes=(1..3).map {DownloadItem("delete_show_$it",990001,"Delete entire show",season=if(it==3) 2 else 1,episode=it,state="paused")}

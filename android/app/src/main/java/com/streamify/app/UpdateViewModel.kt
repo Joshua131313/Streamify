@@ -46,6 +46,13 @@ class UpdateViewModel(app: Application) : AndroidViewModel(app) {
             return bytes.toString(Charsets.UTF_8)
         } finally { c.disconnect() }
     }
+    private var lastAutomaticCheck=0L
+    fun checkAutomatically() {
+        val now=android.os.SystemClock.elapsedRealtime()
+        if(busy || ready!=null || (lastAutomaticCheck!=0L && now-lastAutomaticCheck<6*60*60*1000)) return
+        lastAutomaticCheck=now
+        check()
+    }
     fun check() {
         if (busy) return
         busy = true; message = "Checking GitHub releases…"; available = null; ready = null
@@ -53,20 +60,21 @@ class UpdateViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 val update = withContext(Dispatchers.IO) {
                     val releases = JSONArray(text("https://api.github.com/repos/${AppUpdate.REPO}/releases?per_page=30"))
-                    val candidates = mutableListOf<AppUpdate>()
-                    for (i in 0 until releases.length()) {
-                        val release = releases.getJSONObject(i)
-                        if (release.optBoolean("draft") || release.optBoolean("prerelease") || !release.optString("tag_name").startsWith("android-v")) continue
-                        val assets = release.getJSONArray("assets")
-                        for (j in 0 until assets.length()) {
-                            val asset = assets.getJSONObject(j)
-                            if (asset.optString("name") != "update.json") continue
-                            val url = asset.getString("browser_download_url")
-                            require(AppUpdate.trustedAsset(url)) { "Untrusted release address." }
-                            candidates.add(AppUpdate.parse(text(url)))
-                        }
+                    val ordered=(0 until releases.length()).map {releases.getJSONObject(it)}
+                        .filterNot {it.optBoolean("draft") || it.optBoolean("prerelease")}
+                        .mapNotNull {release -> release.optString("tag_name").removePrefix("android-v").toLongOrNull()?.takeIf {release.optString("tag_name").startsWith("android-v")}?.let {it to release}}
+                        .sortedByDescending {it.first}
+                    var newest:AppUpdate?=null
+                    for((code,release) in ordered) {
+                        val assets=release.getJSONArray("assets")
+                        val asset=(0 until assets.length()).map {assets.getJSONObject(it)}.firstOrNull {it.optString("name")=="update.json"} ?: continue
+                        val url=asset.getString("browser_download_url")
+                        require(AppUpdate.trustedAsset(url)) {"Untrusted release address."}
+                        newest=AppUpdate.parse(text(url))
+                        require(newest.versionCode==code) {"Release version does not match its update information."}
+                        break
                     }
-                    candidates.maxByOrNull { it.versionCode }
+                    newest
                 }
                 available = update?.takeIf { it.versionCode > BuildConfig.VERSION_CODE }
                 message = when { update == null -> "No Android updates have been published yet."; available == null -> "You’re up to date."; else -> "Version ${update.versionName} is available." }

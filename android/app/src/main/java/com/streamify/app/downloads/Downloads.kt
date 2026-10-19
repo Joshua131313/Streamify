@@ -12,12 +12,12 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 data class DownloadItem(val key: String, val id: Int, val title: String, val poster: String = "", val season: Int = 0, val episode: Int = 0,
-    val state: String = "queued", val bytes: Long = 0, val total: Long = 0, val url: String = "", val validator: String = "", val error: String = "", val episodeTitle: String = "", val landscape: String = "") {
+    val state: String = "queued", val bytes: Long = 0, val total: Long = 0, val url: String = "", val validator: String = "", val error: String = "", val episodeTitle: String = "", val landscape: String = "", val quality: Int = 1080) {
     val subtitle get() = if (season > 0) "Season $season · Episode $episode" else "Movie"
     fun json() = JSONObject().put("key",key).put("id",id).put("title",title).put("poster",poster).put("season",season).put("episode",episode)
-        .put("state",state).put("bytes",bytes).put("total",total).put("url",url).put("validator",validator).put("error",error).put("episodeTitle",episodeTitle).put("landscape",landscape)
+        .put("state",state).put("bytes",bytes).put("total",total).put("url",url).put("validator",validator).put("error",error).put("episodeTitle",episodeTitle).put("landscape",landscape).put("quality",quality)
     companion object {
-        fun parse(j: JSONObject) = DownloadItem(j.getString("key"),j.getInt("id"),j.getString("title"),j.optString("poster"),j.optInt("season"),j.optInt("episode"),j.optString("state"),j.optLong("bytes"),j.optLong("total"),j.optString("url"),j.optString("validator"),j.optString("error"),j.optString("episodeTitle"),j.optString("landscape"))
+        fun parse(j: JSONObject) = DownloadItem(j.getString("key"),j.getInt("id"),j.getString("title"),j.optString("poster"),j.optInt("season"),j.optInt("episode"),j.optString("state"),j.optLong("bytes"),j.optLong("total"),j.optString("url"),j.optString("validator"),j.optString("error"),j.optString("episodeTitle"),j.optString("landscape"),j.optInt("quality",1080))
     }
 }
 
@@ -29,6 +29,9 @@ class DownloadStore private constructor(private val context: Context) {
             if (it.state in listOf("queued","downloading","resolving")) it.copy(state="paused") else it
         }
     }.getOrDefault(emptyList()))
+    var preferredQuality:Int
+        get()=prefs.getInt("quality",1080)
+        set(value) {prefs.edit().putInt("quality",value).apply()}
     val items = mutable.asStateFlow()
     val directory = File(context.filesDir,"downloads").apply { mkdirs() }
     fun file(key: String) = File(directory, "${key.replace(Regex("[^a-zA-Z0-9_-]"),"_")}.mp4")
@@ -53,7 +56,7 @@ class DownloadStore private constructor(private val context: Context) {
     fun enqueue(media: Media, season: Int = 0, episode: Int = 0, episodeTitle: String = "", thumbnail: String? = null): String {
         val key = "${media.type.path}_${media.id}_${season}_$episode"
         val old = get(key)
-        if (old == null) update(DownloadItem(key,media.id,media.title,thumbnail ?: media.image(true).orEmpty(),season,episode,episodeTitle=episodeTitle,landscape=media.backdrop.takeIf {it.isNotBlank()}?.let {media.image(true)}.orEmpty()))
+        if (old == null) update(DownloadItem(key,media.id,media.title,thumbnail ?: media.image(true).orEmpty(),season,episode,episodeTitle=episodeTitle,quality=preferredQuality,landscape=media.backdrop.takeIf {it.isNotBlank()}?.let {media.image(true)}.orEmpty()))
         else if (old.state !in listOf("complete","resolving","downloading")) update(old.copy(state="queued",error=""))
         command(context,"start",key)
         return key
@@ -93,9 +96,9 @@ object DownloadResolver {
             return connection.inputStream.bufferedReader().use { JSONObject(it.readText()) }
         } finally { connection.disconnect() }
     }
-    internal fun preferredQualityUrl(qualities: JSONObject):String =
-        listOf("1080","720","480","360").firstNotNullOfOrNull { qualities.optJSONObject(it)?.optString("url")?.takeIf(String::isNotBlank) }
-            ?: error("No downloadable video found.")
+    internal fun preferredQualityUrl(qualities: JSONObject, maximum:Int=1080):String =
+        listOf("1080","720","480","360").filter {it.toInt()<=maximum}.firstNotNullOfOrNull { qualities.optJSONObject(it)?.optString("url")?.takeIf(String::isNotBlank) }
+            ?: error("No download available at this quality. Select a higher resolution and try again.")
     private fun stream(item: DownloadItem): JSONObject {
         val token = json("https://enc-dec.app/api/enc-vidlink?text=${item.id}").optString("result")
         check(token.isNotBlank()) { "Could not find a download for this title." }
@@ -113,8 +116,8 @@ object DownloadResolver {
     fun resolve(item: DownloadItem, captions:(String?)->Unit = {}): String {
         val stream=stream(item)
         check(stream?.optString("type") == "file") { "This title is available for streaming only; no MP4 download is available." }
-        val qualities = stream!!.optJSONObject("qualities") ?: error("No downloadable video found.")
-        val link = preferredQualityUrl(qualities)
+        val qualities = stream!!.optJSONObject("qualities") ?: error("No download available at this quality. Select a higher resolution and try again.")
+        val link = preferredQualityUrl(qualities,item.quality)
         check(URL(link).protocol == "https") { "Unsupported download source." }
         captions(englishCaption(stream.optJSONArray("captions")))
         return link

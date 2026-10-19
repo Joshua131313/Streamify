@@ -1,5 +1,7 @@
 package com.streamify.app
 
+import com.streamify.app.downloads.playbackEnding
+
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
@@ -245,6 +247,23 @@ class PlayerActivity : ComponentActivity() {
         val chatRoom = game?.let(::chatRoomId) ?: intent.getStringExtra("chatRoom")
         var pickerSeason by remember { mutableIntStateOf(season) }
         val repo = remember { StreamifyRepository(store) }
+        var playbackEnded by remember(media?.key,season,episode,url,generation) {mutableStateOf(false)}
+        LaunchedEffect(playbackEnded) {
+            if(playbackEnded && media!=null) {
+
+                val next=if(media.type!=MediaType.MOVIE) runCatching {kotlinx.coroutines.withTimeout(8000) {repo.nextEpisode(media,season,episode)}}.getOrNull() else null
+                val movie=if(media.type==MediaType.MOVIE) runCatching {kotlinx.coroutines.withTimeout(8000) {repo.details(media).related.firstOrNull {it.id!=media.id && it.date.isNotBlank() && it.date<=java.time.LocalDate.now().toString()}}}.getOrNull() else null
+                coroutineContext.ensureActive()
+                val label=next?.let {"Season ${it.season} · Episode ${it.episode} · ${it.title}"} ?: movie?.title ?: "No next title available."
+                val launchNext:(()->Unit)?=when {
+                    next!=null -> { {startActivity(mediaIntent(this@PlayerActivity,media,next.season,next.episode,provider.id));finish()} }
+                    movie!=null -> { {startActivity(mediaIntent(this@PlayerActivity,movie,1,1,provider.id));finish()} }
+                    else -> null
+                }
+                val dialog=this@PlayerActivity.playbackEnding(label,media.type!=MediaType.MOVIE,launchNext) {generation++;playbackEnded=false}
+                try {kotlinx.coroutines.awaitCancellation()} finally {dialog.dismiss()}
+            }
+        }
         val details by produceState<Details?>(null, media?.key) {
             if (media != null && media.type != MediaType.MOVIE) try { value = repo.details(media) } catch (_: Exception) { coroutineContext.ensureActive() }
         }
@@ -327,6 +346,7 @@ class PlayerActivity : ComponentActivity() {
                             if (raw != null && raw.length <= 1024) runCatching {
                                 val sample = JSONObject(raw)
                                 progress.sample(sample.getDouble("position"), sample.getDouble("duration"), sample.optBoolean("force"))
+                                if(sample.optBoolean("ended")) playbackEnded=true
                             }
                         }
                     }
@@ -471,7 +491,9 @@ class PlayerActivity : ComponentActivity() {
                             DropdownMenuItem(text = { Text("Reload stream") }, leadingIcon = { Icon(Icons.Rounded.Refresh, null) }, onClick = { options = false; retry() })
                             if (media != null && media.type != MediaType.ANIME) DropdownMenuItem(text = { Text(if (embedded) "Use direct playback" else "Use embedded playback") }, leadingIcon = { Icon(Icons.Rounded.Tune, null) }, onClick = { options = false; leaveFullscreen(); preferEmbed = !preferEmbed })
                             DropdownMenuItem(text = { Text("Open in browser") }, leadingIcon = { Icon(Icons.Rounded.OpenInBrowser, null) }, onClick = {
-                                options = false; suppressAutoPip = true; configurePip(playbackActive)
+                                options = false
+                                suppressAutoPip = true
+                                configurePip(playbackActive)
                                 if (httpsUrl(url)) runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
                             })
                         }

@@ -59,6 +59,23 @@ class OfflinePlayerActivity : ComponentActivity() {
         player?.let {p->listOf(android.media.MediaPlayer.TrackInfo.MEDIA_TRACK_TYPE_SUBTITLE,android.media.MediaPlayer.TrackInfo.MEDIA_TRACK_TYPE_TIMEDTEXT).forEach {type->runCatching {p.getSelectedTrack(type).takeIf {it>=0}?.let {p.deselectTrack(it)}}}}
         importedEnabled=true;prefs.edit().putBoolean("subtitles_$key",true).apply()
     }
+    private var completed=false
+    private var endingDialog:android.app.Dialog?=null
+    private fun playbackFinished() {
+        if(completed) return
+        completed=true;resume=false;locked=false;unlockOverlay.visibility=View.GONE
+        prefs.edit().remove(key).apply();updatePip();showControls()
+        val store=DownloadStore.get(this)
+        val item=store.get(key) ?: return
+        val available=store.items.value.filter {it.state=="complete" && it.key!=key && store.file(it.key).isFile}
+        val next=if(item.season>0) available.firstOrNull {it.id==item.id && it.season==item.season && it.episode==item.episode+1}
+            else available.firstOrNull {it.season==0}
+        val label=next?.let {if(it.season>0) "${it.title} · S${it.season} E${it.episode}" else it.title}
+            ?: if(item.season>0) "The next episode isn't downloaded." else "No other movies downloaded."
+        endingDialog=playbackEnding(label,item.season>0,next?.let {target -> {
+            startActivity(Intent(this,OfflinePlayerActivity::class.java).putExtra("key",target.key));finish()
+        }}) {completed=false;video.seekTo(0);video.start();resume=true;showControls()}
+    }
     private var resume = true
     private lateinit var toolbar: LinearLayout
     private lateinit var transport: LinearLayout
@@ -290,7 +307,7 @@ class OfflinePlayerActivity : ComponentActivity() {
         root.addView(video,FrameLayout.LayoutParams(-1,-1,Gravity.CENTER))
 
         video.setOnPreparedListener { prepared -> player=prepared;sourceWidth=prepared.videoWidth;sourceHeight=prepared.videoHeight;prepared.setOnVideoSizeChangedListener {_,w,h->sourceWidth=w;sourceHeight=h;video.requestLayout()};video.requestLayout();video.seekTo(prefs.getInt(key,0));if(resume) video.start();updatePip() }
-        video.setOnCompletionListener { prefs.edit().remove(key).apply();finish() }
+        video.setOnCompletionListener { playbackFinished() }
         video.setOnErrorListener { _,_,_ -> Toast.makeText(this,"This downloaded file could not play.",Toast.LENGTH_LONG).show();finish();true }
         toolbar=LinearLayout(this).apply { orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER_VERTICAL;setPadding(dp(16),dp(8),dp(16),dp(8));background=android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,intArrayOf(0xB3000000.toInt(),0x00000000)) }
         val controlSize=(48*resources.displayMetrics.density).toInt()
@@ -422,8 +439,8 @@ class OfflinePlayerActivity : ComponentActivity() {
         video.requestLayout()
         if(inPip) {unlockOverlay.visibility=View.GONE;handler.removeCallbacks(hideUnlock); settingsDialog?.dismiss();hideControls.run() } else showControls()
     }
-    override fun onPause() { if(::video.isInitialized) { resume=video.isPlaying;prefs.edit().putInt(key,video.currentPosition).apply() };super.onPause() }
+    override fun onPause() { if(::video.isInitialized) { resume=video.isPlaying;if(!completed) prefs.edit().putInt(key,video.currentPosition).apply() };super.onPause() }
     override fun onStop() { if(::video.isInitialized) video.pause();super.onStop() }
     override fun onResume() { super.onResume();if(::video.isInitialized && resume) video.start() }
-    override fun onDestroy() { seekPreview?.close();settingsDialog?.dismiss();player=null;handler.removeCallbacksAndMessages(null);unregisterReceiver(receiver);if(::video.isInitialized) video.stopPlayback();super.onDestroy() }
+    override fun onDestroy() { endingDialog?.dismiss();seekPreview?.close();settingsDialog?.dismiss();player=null;handler.removeCallbacksAndMessages(null);unregisterReceiver(receiver);if(::video.isInitialized) video.stopPlayback();super.onDestroy() }
 }

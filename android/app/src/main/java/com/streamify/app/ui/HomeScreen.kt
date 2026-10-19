@@ -52,6 +52,10 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(vm: StreamifyViewModel, active: Boolean = true, settings: () -> Unit) {
+    val update:com.streamify.app.UpdateViewModel=androidx.lifecycle.viewmodel.compose.viewModel()
+    val context=LocalContext.current
+    val online by remember {com.streamify.app.data.NetworkStatus.get(context).online}.collectAsState()
+    LaunchedEffect(active,online) {if(active && online) update.checkAutomatically()}
     val state = vm.home
     val list = rememberLazyListState()
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -71,6 +75,7 @@ fun HomeScreen(vm: StreamifyViewModel, active: Boolean = true, settings: () -> U
                 item { HomeShortcut("Live sports") { vm.tab = "Sports" } }
             }
         }
+        if(update.available!=null) item(key="app_update") {HomeUpdateNotice(update)}
         if (vm.store.tmdbKey.isBlank()) item { Message("Welcome to Streamify", "Connect your TMDB key to discover movies and series. Live sports are ready to explore.", "Set up catalog", settings) }
         if (state.loading && state.data == null) item { Loading() }
         state.error?.let { item { ErrorBanner(it, vm::loadHome) } }

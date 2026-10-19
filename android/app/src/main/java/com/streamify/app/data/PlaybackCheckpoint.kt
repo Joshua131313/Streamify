@@ -47,7 +47,7 @@ fun playbackProgressScript(resumeSeconds: Double): String = """
     if(!valid(v)||!restored.has(v)||(!force&&Date.now()-last<1000))return;
     if(v.getBoundingClientRect().width<100)return;
     last=Date.now();
-    try{StreamifyProgress.postMessage(JSON.stringify({position:v.ended?v.duration:v.currentTime,duration:v.duration,force:!!force}));}catch(e){}
+    try{StreamifyProgress.postMessage(JSON.stringify({position:v.ended?v.duration:v.currentTime,duration:v.duration,force:!!force,ended:!!v.ended}));}catch(e){}
   }
   function bind(){document.querySelectorAll('video').forEach(function(v){
     if(bound.has(v))return;bound.add(v);
