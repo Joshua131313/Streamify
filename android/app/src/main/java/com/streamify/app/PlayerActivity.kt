@@ -251,11 +251,34 @@ class PlayerActivity : ComponentActivity() {
         var playbackEnded by remember(media?.key,season,episode,url,generation) {mutableStateOf(false)}
         var playbackPosition by remember(url,generation) {mutableDoubleStateOf(0.0)}
         var playbackDuration by remember(url,generation) {mutableDoubleStateOf(0.0)}
-        val nextEpisode by produceState<NextEpisode?>(null,media?.key,season,episode) {
-            value=null
-            if(media!=null && media.type!=MediaType.MOVIE) try {value=repo.nextEpisode(media,season,episode)} catch(_:Exception) {coroutineContext.ensureActive()}
+        var nextRetry by remember { mutableIntStateOf(0) }
+        val nextState by produceState<LoadState<NextEpisode>>(LoadState(loading=true),media?.key,season,episode,nextRetry,generation) {
+            value=LoadState(loading=true)
+            if(media!=null && media.type!=MediaType.MOVIE) {
+                try { value=LoadState(data=retryEpisodeLookup {repo.nextEpisode(media,season,episode)}) }
+                catch(_:Exception) {
+                    coroutineContext.ensureActive()
+                    value=LoadState(error="Couldn't load the next episode. Tap Next Episode to retry.")
+                }
+            } else value=LoadState()
         }
-        fun playNextEpisode() {nextEpisode?.let {next -> media?.let {startActivity(mediaIntent(this@PlayerActivity,it,next.season,next.episode,provider.id));finish()}}}
+        val nextEpisode=nextState.data
+        fun playNextEpisode() {
+            val next=nextEpisode
+            if(next!=null && media!=null) {
+                suppressAutoPip=true
+                configurePip(false)
+                startActivity(mediaIntent(this@PlayerActivity,media,next.season,next.episode,provider.id))
+                finish()
+            } else if(nextState.error!=null) {
+                nextRetry++
+                android.widget.Toast.makeText(this@PlayerActivity,"Retrying next episode…",android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+        LaunchedEffect(nextState.error) {
+            nextState.error?.let {android.widget.Toast.makeText(this@PlayerActivity,it,android.widget.Toast.LENGTH_LONG).show()}
+        }
+        val nextEnabled=nextEpisode!=null || nextState.error!=null
         val endHidden by rememberUpdatedState(pip || picker || sourcePicker)
         val endControls by rememberUpdatedState(controlsVisible)
         LaunchedEffect(nextEpisode,media?.key,season,episode,url,generation) {
@@ -524,7 +547,7 @@ class PlayerActivity : ComponentActivity() {
                     }
                     if (media != null && media.type != MediaType.MOVIE) {
                         IconButton(onClick = { pickerSeason = season; picker = true }) { Icon(Icons.Rounded.VideoLibrary, "Episodes") }
-                        IconButton(onClick = ::playNextEpisode,enabled=nextEpisode!=null) {Icon(Icons.Rounded.SkipNext,"Next Episode")}
+                        IconButton(onClick = ::playNextEpisode,enabled=nextEnabled) {Icon(Icons.Rounded.SkipNext,"Next Episode")}
                     }
                     Spacer(Modifier.weight(1f))
                     if (loading) CircularProgressIndicator(Modifier.size(18.dp), color = Muted, strokeWidth = 2.dp)
@@ -548,7 +571,7 @@ class PlayerActivity : ComponentActivity() {
             }
             if(immersive && !pip && controlsVisible && media!=null && media.type!=MediaType.MOVIE) Row(Modifier.align(Alignment.BottomCenter).padding(bottom=18.dp),horizontalArrangement=Arrangement.spacedBy(20.dp)) {
                 TextButton(onClick={pickerSeason=season;picker=true}) {Icon(Icons.Rounded.VideoLibrary,null);Spacer(Modifier.width(8.dp));Text("Episodes",color=Color.White)}
-                TextButton(onClick=::playNextEpisode,enabled=nextEpisode!=null) {Icon(Icons.Rounded.SkipNext,null);Spacer(Modifier.width(8.dp));Text("Next Episode",color=if(nextEpisode!=null) Color.White else Muted)}
+                TextButton(onClick=::playNextEpisode,enabled=nextEnabled) {Icon(Icons.Rounded.SkipNext,null);Spacer(Modifier.width(8.dp));Text("Next Episode",color=if(nextEnabled) Color.White else Muted)}
             }
             AnimatedVisibility(visible = immersive && !pip && controlsVisible, modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().zIndex(10f).displayCutoutPadding().padding(horizontal = 16.dp, vertical = 8.dp), enter = fadeIn(), exit = fadeOut()) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
