@@ -6,14 +6,18 @@ The Android red accent, brand artwork, portrait hero, poster shelves, compact di
 
 ## Current validation
 
-The source and build configurations were prepared on Windows. All Swift files passed tree-sitter syntax parsing; resource JSON, property lists, 17 collection images, 15 provider templates, and the opaque 1024px app icon passed portable validation. **This is not a Swift compiler or simulator result.** No IPA has been compiled or signed locally, and no TestFlight build has been uploaded. The GitHub workflow must pass its Xcode build, eleven unit tests, and navigation/screenshot UI test before producing an unsigned device package.
+On October 23, 2026, the [macOS CI build](https://github.com/Joshua131313/Streamify/actions/runs/40000855365) passed **12 unit tests and one navigation UI test**, with zero failures, on an iPhone 17 Pro simulator. This includes real Keychain read/write/update/delete, saved/history persistence, catalog and sports fixtures, stream matching, download attempt identity, root titles, a single floating navigation bar, and saving settings. The five exported screenshots were visually reviewed; the duplicate system tab bar and unsigned-simulator Keychain error found in the first pass are fixed.
+
+The ARM64 iPhone Release build also passed. The downloaded package is `build/Streamify-unsigned.ipa`: **version 1.0.0, build 3, iOS 17+**, bundle ID `com.streamify.app`. Its SHA-256 is in `build/Streamify-unsigned.ipa.sha256`. [Download the CI device package](https://github.com/Joshua131313/Streamify/actions/runs/40000855365/artifacts/12522751198) or [the simulator screenshots](https://github.com/Joshua131313/Streamify/actions/runs/40000855365/artifacts/12522142051).
+
+The package is unsigned and still needs personal signing before installation. Physical iPhone playback has not been tested, and no TestFlight upload has been performed. Portable Swift grammar, resource JSON, property lists, 17 collection images, 15 provider templates, and the opaque 1024px app icon also pass validation.
 
 ## Test on your iPhone from Windows
 
 You do not currently have an Apple Developer Program membership, so TestFlight is not available yet. A free personal-signing route is available for your own test device:
 
-1. Push the `ios` directory and `.github/workflows/ios-check.yml` to your GitHub repository. Run **iOS build and tests** in GitHub Actions. It uses a macOS runner and generates the Xcode project from `project.yml`.
-2. After the job passes, download the **Streamify-iOS-unsigned-for-local-signing** artifact and extract `Streamify-unsigned.ipa`.
+1. Use the local `build/Streamify-unsigned.ipa`, or download the **Streamify-iOS-unsigned-for-local-signing** artifact from the successful build linked above and extract it. The source and workflows are already pushed on branch `codex/native-ios`.
+2. For future changes, run **iOS build and tests** on that branch in GitHub Actions. It uses a macOS runner and generates the Xcode project from `project.yml`; only a passing run produces a device package.
 3. Use [Sideloadly for Windows](https://sideloadly.io/) or another signing tool you already trust to sign this IPA with your own Apple Account and install it on your connected iPhone. Follow the tool's current setup instructions. Enter Apple credentials directly in that tool, never in chat or this repository.
 4. Free personal signing expires after seven days and must be refreshed. [Sideloadly FAQ](https://sideloadly.io/faq).
 
