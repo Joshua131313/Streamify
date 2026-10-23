@@ -1,6 +1,7 @@
 import SwiftUI
 import WebKit
 import AVKit
+import AVFoundation
 import Combine
 
 /// Activates foreground movie audio, including playback while the iPhone's silent switch is on.
@@ -124,6 +125,7 @@ struct ProviderPlayerView: View {
     }
 }
 
+@MainActor
 struct ProviderPlaybackSurface: View {
     let url: URL
     var reload: Int = 0

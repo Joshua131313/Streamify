@@ -1,0 +1,9 @@
+*.swift text eol=lf
+*.json text eol=lf
+*.plist text eol=lf
+*.xcprivacy text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+*.py text eol=lf
+*.png binary
+*.jpg binary
