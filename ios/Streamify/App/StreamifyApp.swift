@@ -51,14 +51,16 @@ struct RootView: View {
     private func rootPage<Content: View>(_ page: AppTab, @ViewBuilder content: () -> Content) -> some View {
         content()
             .background(AppTheme.canvas)
+            .navigationTitle(page.title)
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .tabBar)
             .toolbarBackground(AppTheme.canvas.opacity(0.95), for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    HStack(spacing: 10) {
-                        Image("streamify-logo").resizable().scaledToFit().frame(width: 26, height: 30).accessibilityHidden(true)
-                        Text(page.title).font(.title2.bold())
-                    }.accessibilityAddTraits(.isHeader)
+                    Image("streamify-logo").resizable().scaledToFit().frame(width: 26, height: 30).accessibilityHidden(true)
+                }
+                ToolbarItem(placement: .principal) {
+                    Text(page.title).font(.title2.bold()).accessibilityAddTraits(.isHeader)
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     if page != .search && page != .sports {

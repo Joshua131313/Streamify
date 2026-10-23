@@ -3,6 +3,18 @@ import XCTest
 @testable import Streamify
 
 final class DataContractTests: XCTestCase {
+    func testKeychainCredentialRoundTripUsesSignedAppIdentity() throws {
+        let key = "test-credential-\(UUID().uuidString)"
+        defer { try? SecureCredentialStore.set("", for: key) }
+        XCTAssertNil(try SecureCredentialStore.get(key))
+        try SecureCredentialStore.set("fixture-token-one", for: key)
+        XCTAssertEqual(try SecureCredentialStore.get(key), "fixture-token-one")
+        try SecureCredentialStore.set("fixture-token-two", for: key)
+        XCTAssertEqual(try SecureCredentialStore.get(key), "fixture-token-two")
+        try SecureCredentialStore.set("", for: key)
+        XCTAssertNil(try SecureCredentialStore.get(key))
+    }
+
     func testMissingCredentialFailsWithActionableSetupError() async {
         do {
             _ = try await TMDBClient(token: "  \n").catalog(path: "movie/popular", kind: .movie)

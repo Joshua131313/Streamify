@@ -27,7 +27,15 @@ jobs:
           echo "IOS_SIMULATOR_ID=$DEVICE_ID" >> "$GITHUB_ENV"
       - name: Build and test native app
         run: |
-          xcodebuild test -project ios/Streamify.xcodeproj -scheme Streamify -configuration Debug -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_ID" -resultBundlePath ios/build/Streamify.xcresult CODE_SIGNING_ALLOWED=NO
+          xcodebuild test -project ios/Streamify.xcodeproj -scheme Streamify -configuration Debug -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_ID" -resultBundlePath ios/build/Streamify.xcresult CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY='-'
+      - name: Export simulator screenshots
+        if: always()
+        continue-on-error: true
+        run: |
+          if test -d ios/build/Streamify.xcresult; then
+            xcrun xcresulttool export attachments --path ios/build/Streamify.xcresult --output-path ios/build/screenshots
+            xcrun xcresulttool get test-results summary --path ios/build/Streamify.xcresult > ios/build/screenshots/test-summary.json
+          fi
       - name: Build device package for local signing
         run: |
           xcodebuild build -project ios/Streamify.xcodeproj -scheme Streamify -configuration Release -destination 'generic/platform=iOS' -derivedDataPath ios/build/Device CODE_SIGNING_ALLOWED=NO CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER"
@@ -47,4 +55,11 @@ jobs:
         with:
           name: Streamify-iOS-test-results
           path: ios/build/Streamify.xcresult
+          if-no-files-found: ignore
+      - name: Save viewable simulator screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Streamify-iOS-screenshots
+          path: ios/build/screenshots
           if-no-files-found: ignore

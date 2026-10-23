@@ -5,6 +5,8 @@ final class NavigationTests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
         XCTAssertTrue(app.buttons["tab-home"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars.staticTexts["Home"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.tabBars.firstMatch.exists, "The custom floating navigation must not have a second system tab bar beneath it.")
         capture(app, "Home")
         app.buttons["tab-library"].tap()
         XCTAssertTrue(app.staticTexts["Saved on this iPhone"].waitForExistence(timeout: 5))
@@ -19,6 +21,13 @@ final class NavigationTests: XCTestCase {
         app.buttons["Settings"].tap()
         XCTAssertTrue(app.buttons["save-settings"].waitForExistence(timeout: 5))
         capture(app, "Settings")
+        let save = app.buttons["save-settings"]
+        for _ in 0..<5 {
+            if save.isHittable { break }
+            app.swipeUp()
+        }
+        save.tap()
+        XCTAssertTrue(app.buttons["tab-sports"].waitForExistence(timeout: 5), "Saving empty settings must succeed with the simulator's signed Keychain configuration.")
     }
 
     private func capture(_ app: XCUIApplication, _ name: String) {

@@ -151,6 +151,11 @@ enum SecureCredentialStore {
     }
     private struct CredentialError: LocalizedError {
         let status: OSStatus
-        var errorDescription: String? { "The device could not save or read the catalog credential (\(status)). Please unlock your iPhone and retry." }
+        var errorDescription: String? {
+            if status == errSecMissingEntitlement {
+                return "Keychain access requires a correctly signed app. Check the app’s signing configuration and reinstall."
+            }
+            return "The device could not save or read the catalog credential (\(status)). Please retry."
+        }
     }
 }
