@@ -1,0 +1,15 @@
+.tools/
+.build/
+build/
+DerivedData/
+*.xcodeproj/
+*.xcworkspace/
+*.xcresult/
+*.xcarchive/
+*.ipa
+*.p12
+*.mobileprovision
+*.p8
+ExportOptions.local.plist
+Signing.xcconfig
+.DS_Store

@@ -1,0 +1,296 @@
+import Foundation
+import Combine
+import UIKit
+
+enum DownloadStatus: String, Codable, Sendable { case downloading, completed, cancelled, failed }
+
+struct DownloadItem: Identifiable, Codable, Sendable {
+    let id: UUID
+    var title: String
+    let source: String?
+    var fileName: String?
+    let createdAt: Date
+    var status: DownloadStatus
+    var bytesWritten: Int64 = 0
+    var expectedBytes: Int64 = 0
+    var error: String?
+    /// Persisted because URLSession task identifiers survive background relaunches.
+    var taskIdentifier: Int?
+    func acceptsCallback(taskIdentifier: Int) -> Bool {
+        status == .downloading && self.taskIdentifier == taskIdentifier
+    }
+    var progress: Double? { expectedBytes > 0 ? min(1, max(0, Double(bytesWritten) / Double(expectedBytes))) : nil }
+    var fileURL: URL? {
+        guard status == .completed, let fileName, !fileName.contains("/"), !fileName.contains("\\") else { return nil }
+        return try? DownloadFiles.directory().appendingPathComponent(fileName)
+    }
+}
+
+enum DownloadError: LocalizedError {
+    case invalidURL, unsupportedFile, alreadyDownloading, fileUnavailable, invalidResponse, rejected(Int)
+    var errorDescription: String? {
+        switch self {
+        case .invalidURL: return "Enter a valid direct HTTPS video address."
+        case .unsupportedFile: return "Choose a direct MP4, M4V, or MOV video file."
+        case .alreadyDownloading: return "This video is already downloading."
+        case .fileUnavailable: return "The video file could not be opened."
+        case .invalidResponse: return "This address returned a webpage instead of a video file."
+        case .rejected(let code): return "The server could not download this video (HTTP \(code))."
+        }
+    }
+}
+
+enum DownloadFiles {
+    static func directory() throws -> URL {
+        let root = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+        var directory = root.appendingPathComponent("StreamifyDownloads", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? directory.setResourceValues(values)
+        return directory
+    }
+    static func metadata() throws -> URL { try directory().appendingPathComponent("downloads.json") }
+    static func isSupported(_ url: URL) -> Bool { ["mp4", "m4v", "mov"].contains(url.pathExtension.lowercased()) }
+    static func importVideo(_ url: URL) throws -> DownloadItem {
+        guard isSupported(url) else { throw DownloadError.unsupportedFile }
+        let access = url.startAccessingSecurityScopedResource()
+        defer { if access { url.stopAccessingSecurityScopedResource() } }
+        let id = UUID()
+        let fileName = "\(id.uuidString).\(url.pathExtension.lowercased())"
+        let destination = try directory().appendingPathComponent(fileName)
+        do {
+            try FileManager.default.copyItem(at: url, to: destination)
+            let attributes = try FileManager.default.attributesOfItem(atPath: destination.path)
+            let size = (attributes[.size] as? NSNumber)?.int64Value ?? 0
+            return DownloadItem(id: id, title: url.deletingPathExtension().lastPathComponent, source: nil, fileName: fileName,
+                                createdAt: Date(), status: .completed, bytesWritten: size, expectedBytes: size)
+        } catch { try? FileManager.default.removeItem(at: destination); throw error }
+    }
+}
+
+/// One shared owner keeps background URLSession delegates alive across every screen.
+@MainActor
+final class DownloadStore: ObservableObject {
+    static let shared = DownloadStore()
+    static let sessionIdentifier = (Bundle.main.bundleIdentifier ?? "com.streamify.ios") + ".downloads.v1"
+    @Published private(set) var items: [DownloadItem] = []
+    @Published private(set) var storageError: String?
+    var backgroundCompletion: (() -> Void)?
+    private var tasks: [UUID: URLSessionDownloadTask] = [:]
+    private var lastSave = Date.distantPast
+    private lazy var delegate = DownloadSessionDelegate(owner: self)
+    private lazy var session: URLSession = {
+        let configuration = URLSessionConfiguration.background(withIdentifier: Self.sessionIdentifier)
+        configuration.isDiscretionary = false
+        configuration.sessionSendsLaunchEvents = true
+        configuration.waitsForConnectivity = true
+        configuration.timeoutIntervalForRequest = 60
+        return URLSession(configuration: configuration, delegate: delegate, delegateQueue: nil)
+    }()
+
+    private init() {
+        do {
+            let url = try DownloadFiles.metadata()
+            if FileManager.default.fileExists(atPath: url.path) {
+                items = try JSONDecoder().decode([DownloadItem].self, from: Data(contentsOf: url))
+                for index in items.indices where items[index].status == .completed {
+                    if let file = items[index].fileURL, !FileManager.default.fileExists(atPath: file.path) {
+                        items[index].status = .failed
+                        items[index].error = "The local file is missing. Download or import it again."
+                    }
+                }
+            }
+        } catch { storageError = "Saved downloads could not be read. \(error.localizedDescription)" }
+        reconnectTasks()
+    }
+
+    func add(url value: String, title: String = "") throws {
+        guard let url = secureURL(value.trimmingCharacters(in: .whitespacesAndNewlines)) else { throw DownloadError.invalidURL }
+        guard DownloadFiles.isSupported(url) else { throw DownloadError.unsupportedFile }
+        guard !items.contains(where: { $0.source == url.absoluteString && $0.status == .downloading }) else { throw DownloadError.alreadyDownloading }
+        let name = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let item = DownloadItem(id: UUID(), title: name.isEmpty ? url.deletingPathExtension().lastPathComponent : String(name.prefix(160)), source: url.absoluteString,
+                                createdAt: Date(), status: .downloading)
+        items.insert(item, at: 0)
+        start(item)
+        save()
+    }
+
+    func cancel(id: UUID) {
+        tasks[id]?.cancel()
+        tasks[id] = nil
+        guard let index = items.firstIndex(where: { $0.id == id }), items[index].status == .downloading else { return }
+        items[index].status = .cancelled
+        items[index].taskIdentifier = nil
+        items[index].error = nil
+        save()
+    }
+
+    func retry(id: UUID) {
+        guard let index = items.firstIndex(where: { $0.id == id }),
+              items[index].status == .failed || items[index].status == .cancelled,
+              items[index].source.flatMap(secureURL) != nil else { return }
+        items[index].status = .downloading
+        items[index].bytesWritten = 0
+        items[index].expectedBytes = 0
+        items[index].error = nil
+        start(items[index])
+        save()
+    }
+
+    func remove(id: UUID) {
+        tasks[id]?.cancel()
+        tasks[id] = nil
+        if let item = items.first(where: { $0.id == id }), let fileName = item.fileName,
+           !fileName.contains("/"), !fileName.contains("\\"), let directory = try? DownloadFiles.directory() {
+            let file = directory.appendingPathComponent(fileName)
+            do { if FileManager.default.fileExists(atPath: file.path) { try FileManager.default.removeItem(at: file) } }
+            catch { storageError = "The local file could not be removed. \(error.localizedDescription)"; return }
+        }
+        items.removeAll { $0.id == id }
+        save()
+    }
+
+    func importFile(url: URL) async throws {
+        let item = try await Task.detached(priority: .userInitiated) { try DownloadFiles.importVideo(url) }.value
+        items.insert(item, at: 0)
+        save()
+    }
+
+    func reconnectTasks() {
+        session.getAllTasks { [weak self] restored in
+            Task { @MainActor in
+                guard let self else { return }
+                var active = Set<UUID>()
+                for task in restored.sorted(by: { $0.taskIdentifier > $1.taskIdentifier }) {
+                    guard let download = task as? URLSessionDownloadTask, let description = download.taskDescription,
+                          let id = UUID(uuidString: description), let index = self.items.firstIndex(where: { $0.id == id }),
+                          self.items[index].status == .downloading,
+                          self.items[index].taskIdentifier == nil || self.items[index].taskIdentifier == download.taskIdentifier,
+                          self.tasks[id] == nil || self.tasks[id]?.taskIdentifier == download.taskIdentifier
+                    else { task.cancel(); continue }
+                    active.insert(id)
+                    self.tasks[id] = download
+                    self.items[index].taskIdentifier = download.taskIdentifier
+                    if task.state == .suspended { task.resume() }
+                }
+                for index in self.items.indices where self.items[index].status == .downloading && !active.contains(self.items[index].id) && self.tasks[self.items[index].id] == nil {
+                    self.items[index].status = .failed
+                    self.items[index].error = "The download was interrupted. Tap Retry to start again."
+                }
+                self.save()
+            }
+        }
+    }
+
+    fileprivate func update(id: UUID, taskIdentifier: Int, written: Int64, expected: Int64) {
+        guard let index = items.firstIndex(where: { $0.id == id }), items[index].acceptsCallback(taskIdentifier: taskIdentifier) else { return }
+        items[index].bytesWritten = written
+        items[index].expectedBytes = max(0, expected)
+        if Date().timeIntervalSince(lastSave) > 3 { save() }
+    }
+
+    fileprivate func completed(id: UUID, taskIdentifier: Int, fileName: String, size: Int64) {
+        guard let index = items.firstIndex(where: { $0.id == id }), items[index].acceptsCallback(taskIdentifier: taskIdentifier) else {
+            if let directory = try? DownloadFiles.directory() { try? FileManager.default.removeItem(at: directory.appendingPathComponent(fileName)) }
+            return
+        }
+        tasks[id] = nil
+        items[index].fileName = fileName
+        items[index].status = .completed
+        items[index].taskIdentifier = nil
+        items[index].bytesWritten = size
+        items[index].expectedBytes = size
+        items[index].error = nil
+        save()
+    }
+
+    fileprivate func failed(id: UUID, taskIdentifier: Int, message: String) {
+        guard let index = items.firstIndex(where: { $0.id == id }), items[index].acceptsCallback(taskIdentifier: taskIdentifier) else { return }
+        tasks[id] = nil
+        items[index].status = .failed
+        items[index].taskIdentifier = nil
+        items[index].error = message
+        save()
+    }
+
+    private func start(_ item: DownloadItem) {
+        guard let source = item.source, let url = secureURL(source) else { return }
+        var request = URLRequest(url: url)
+        request.setValue("video/*, application/octet-stream", forHTTPHeaderField: "Accept")
+        let task = session.downloadTask(with: request)
+        task.taskDescription = item.id.uuidString
+        tasks[item.id] = task
+        if let index = items.firstIndex(where: { $0.id == item.id }) { items[index].taskIdentifier = task.taskIdentifier }
+        task.resume()
+    }
+
+    private func save() {
+        do { try JSONEncoder().encode(items).write(to: DownloadFiles.metadata(), options: .atomic); lastSave = Date(); storageError = nil }
+        catch { storageError = "Download metadata could not be saved. \(error.localizedDescription)" }
+    }
+}
+
+private final class DownloadSessionDelegate: NSObject, URLSessionDownloadDelegate {
+    weak var owner: DownloadStore?
+    init(owner: DownloadStore) { self.owner = owner }
+    private func id(_ task: URLSessionTask) -> UUID? { task.taskDescription.flatMap(UUID.init(uuidString:)) }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
+        guard let id = id(downloadTask) else { return }
+        let taskIdentifier = downloadTask.taskIdentifier
+        Task { @MainActor [weak self] in self?.owner?.update(id: id, taskIdentifier: taskIdentifier, written: totalBytesWritten, expected: totalBytesExpectedToWrite) }
+    }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
+        guard let id = id(downloadTask) else { return }
+        let taskIdentifier = downloadTask.taskIdentifier
+        do {
+            guard let response = downloadTask.response as? HTTPURLResponse else { throw DownloadError.invalidResponse }
+            guard (200...299).contains(response.statusCode) else { throw DownloadError.rejected(response.statusCode) }
+            let mime = response.mimeType?.lowercased() ?? ""
+            guard !mime.hasPrefix("text/"), !mime.contains("json"), !mime.contains("html") else { throw DownloadError.invalidResponse }
+            let suffix = downloadTask.originalRequest?.url?.pathExtension.lowercased() ?? "mp4"
+            let fileName = "\(id.uuidString)-\(taskIdentifier).\(suffix)"
+            let destination = try DownloadFiles.directory().appendingPathComponent(fileName)
+            if FileManager.default.fileExists(atPath: destination.path) { try FileManager.default.removeItem(at: destination) }
+            // Temporary URLSession files must be moved before this delegate returns.
+            try FileManager.default.moveItem(at: location, to: destination)
+            let attributes = try FileManager.default.attributesOfItem(atPath: destination.path)
+            let size = (attributes[.size] as? NSNumber)?.int64Value ?? 0
+            Task { @MainActor [weak self] in self?.owner?.completed(id: id, taskIdentifier: taskIdentifier, fileName: fileName, size: size) }
+        } catch {
+            Task { @MainActor [weak self] in self?.owner?.failed(id: id, taskIdentifier: taskIdentifier, message: error.localizedDescription) }
+        }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        guard let error, (error as NSError).code != NSURLErrorCancelled, let id = id(task) else { return }
+        let taskIdentifier = task.taskIdentifier
+        Task { @MainActor [weak self] in self?.owner?.failed(id: id, taskIdentifier: taskIdentifier, message: error.localizedDescription) }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
+        guard let address = request.url?.absoluteString, secureURL(address) != nil else { completionHandler(nil); return }
+        completionHandler(request)
+    }
+
+    func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
+        Task { @MainActor [weak self] in
+            let completion = self?.owner?.backgroundCompletion
+            self?.owner?.backgroundCompletion = nil
+            completion?()
+        }
+    }
+}
+
+/// Wire with @UIApplicationDelegateAdaptor(DownloadAppDelegate.self) in StreamifyApp.
+@MainActor
+final class DownloadAppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String, completionHandler: @escaping () -> Void) {
+        guard identifier == DownloadStore.sessionIdentifier else { completionHandler(); return }
+        DownloadStore.shared.backgroundCompletion = completionHandler
+        DownloadStore.shared.reconnectTasks()
+    }
+}

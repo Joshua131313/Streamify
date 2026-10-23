@@ -1,0 +1,32 @@
+{
+  "page": 2,
+  "total_pages": 4,
+  "results": [
+    {
+      "id": 42,
+      "media_type": "movie",
+      "title": "Fixture movie",
+      "overview": "A test fixture, never shown as catalog content.",
+      "poster_path": "/movie-poster.jpg",
+      "backdrop_path": null,
+      "vote_average": 7.2,
+      "release_date": "2024-04-12",
+      "genre_ids": [12, 18]
+    },
+    {
+      "id": 42,
+      "media_type": "tv",
+      "name": "Fixture series",
+      "first_air_date": "2022-10-01",
+      "vote_average": 8.1,
+      "poster_path": null,
+      "genre_ids": [18]
+    },
+    {
+      "id": 42,
+      "media_type": "person",
+      "name": "A person must not become a playable movie"
+    },
+    { "id": 0, "media_type": "movie", "title": "Invalid identity" }
+  ]
+}

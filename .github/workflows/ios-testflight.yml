@@ -1,0 +1,116 @@
+name: iOS TestFlight
+on:
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: Upload the signed build to App Store Connect for TestFlight
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: ios-testflight
+  cancel-in-progress: false
+jobs:
+  archive:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    env:
+      IOS_TEAM_ID: ${{ vars.IOS_TEAM_ID }}
+      IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check signing configuration
+        env:
+          CERTIFICATE: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          PROFILE: ${{ secrets.IOS_PROFILE_BASE64 }}
+        run: |
+          python3 - <<'PY'
+          import os
+          required = ['IOS_TEAM_ID','IOS_BUNDLE_ID','CERTIFICATE','CERTIFICATE_PASSWORD','PROFILE']
+          missing = [key for key in required if not os.environ.get(key)]
+          if missing:
+              raise SystemExit('Missing signing configuration: ' + ', '.join(missing) + '. See ios/README.md.')
+          PY
+      - name: Install distribution signing material
+        env:
+          CERTIFICATE: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          PROFILE: ${{ secrets.IOS_PROFILE_BASE64 }}
+        run: |
+          python3 - <<'PY'
+          import base64, os, pathlib
+          folder = pathlib.Path(os.environ['RUNNER_TEMP'])
+          for key, name in [('CERTIFICATE','ios-signing.p12'),('PROFILE','ios.mobileprovision')]:
+              target = folder / name
+              target.write_bytes(base64.b64decode(os.environ[key], validate=True))
+              target.chmod(0o600)
+          PY
+          KEYCHAIN_PASSWORD=$(openssl rand -hex 24)
+          echo "::add-mask::$KEYCHAIN_PASSWORD"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$RUNNER_TEMP/ios-signing.keychain-db"
+          security set-keychain-settings -lut 21600 "$RUNNER_TEMP/ios-signing.keychain-db"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$RUNNER_TEMP/ios-signing.keychain-db"
+          security import "$RUNNER_TEMP/ios-signing.p12" -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$RUNNER_TEMP/ios-signing.keychain-db"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$RUNNER_TEMP/ios-signing.keychain-db"
+          security list-keychains -d user -s "$RUNNER_TEMP/ios-signing.keychain-db" "$HOME/Library/Keychains/login.keychain-db"
+          security cms -D -i "$RUNNER_TEMP/ios.mobileprovision" > "$RUNNER_TEMP/ios-profile.plist"
+          python3 - <<'PY'
+          import os, pathlib, plistlib, shutil, datetime
+          root = pathlib.Path(os.environ['RUNNER_TEMP'])
+          profile = plistlib.loads((root/'ios-profile.plist').read_bytes())
+          team, bundle = os.environ['IOS_TEAM_ID'], os.environ['IOS_BUNDLE_ID']
+          if profile['TeamIdentifier'][0] != team or profile['Entitlements']['application-identifier'] != team+'.'+bundle:
+              raise SystemExit('Provisioning profile must match IOS_TEAM_ID and IOS_BUNDLE_ID exactly.')
+          if profile['ExpirationDate'] < datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None):
+              raise SystemExit('Provisioning profile has expired.')
+          if profile.get('ProvisionedDevices') or profile.get('ProvisionsAllDevices') or profile['Entitlements'].get('get-task-allow'):
+              raise SystemExit('Use an App Store distribution profile for TestFlight.')
+          destination = pathlib.Path.home()/'Library/MobileDevice/Provisioning Profiles'
+          destination.mkdir(parents=True, exist_ok=True)
+          shutil.copyfile(root/'ios.mobileprovision', destination/(profile['UUID']+'.mobileprovision'))
+          with open(os.environ['GITHUB_ENV'], 'a') as env:
+              env.write('IOS_PROFILE_NAME='+profile['Name']+'\n')
+          options = dict(method='app-store-connect', destination='export', signingStyle='manual', teamID=team,
+                         signingCertificate='Apple Distribution', provisioningProfiles={bundle:profile['Name']},
+                         manageAppVersionAndBuildNumber=False, uploadSymbols=True)
+          (root/'ExportOptions.plist').write_bytes(plistlib.dumps(options))
+          PY
+      - name: Generate and archive
+        run: |
+          brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
+          xcodegen generate --spec ios/project.yml
+          xcodebuild archive -project ios/Streamify.xcodeproj -scheme Streamify -configuration Release -destination 'generic/platform=iOS' -archivePath ios/build/Streamify.xcarchive PRODUCT_BUNDLE_IDENTIFIER="$IOS_BUNDLE_ID" DEVELOPMENT_TEAM="$IOS_TEAM_ID" CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='Apple Distribution' PROVISIONING_PROFILE_SPECIFIER="$IOS_PROFILE_NAME" CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER"
+          xcodebuild -exportArchive -archivePath ios/build/Streamify.xcarchive -exportPath ios/build/export -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Streamify-signed-iOS
+          path: ios/build/export/*.ipa
+          if-no-files-found: error
+      - name: Upload to TestFlight
+        if: inputs.upload
+        env:
+          ASC_KEY: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+          ASC_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+        run: |
+          python3 - <<'PY'
+          import base64, os, pathlib, re
+          required = ['ASC_KEY','ASC_KEY_ID','ASC_ISSUER_ID']
+          missing = [x for x in required if not os.environ.get(x)]
+          if missing: raise SystemExit('Missing App Store Connect secrets: '+', '.join(missing))
+          if not re.fullmatch(r'[A-Za-z0-9]+', os.environ['ASC_KEY_ID']): raise SystemExit('Invalid API key ID')
+          folder = pathlib.Path.home()/'.appstoreconnect/private_keys'
+          folder.mkdir(parents=True, exist_ok=True)
+          target = folder/('AuthKey_'+os.environ['ASC_KEY_ID']+'.p8')
+          target.write_bytes(base64.b64decode(os.environ['ASC_KEY'], validate=True))
+          target.chmod(0o600)
+          PY
+          xcrun altool --upload-app --type ios --file ios/build/export/Streamify.ipa --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+      - name: Remove signing material
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/ios-signing.keychain-db" || true
+          rm -f "$RUNNER_TEMP/ios-signing.p12" "$RUNNER_TEMP/ios.mobileprovision" "$RUNNER_TEMP/ios-profile.plist" "$RUNNER_TEMP/ExportOptions.plist"
+          rm -f "$HOME"/.appstoreconnect/private_keys/AuthKey_*.p8
