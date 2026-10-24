@@ -36,8 +36,13 @@ jobs:
           path: ios/build/Streamify-unsigned.ipa
           if-no-files-found: error
   simulator:
+    name: iPhone UI - ${{ matrix.suite }}
     runs-on: macos-latest
-    timeout-minutes: 45
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [playback, controls, screens]
     steps:
       - uses: actions/checkout@v4
       - name: Generate Xcode project
@@ -54,7 +59,9 @@ jobs:
             xcrun simctl boot "$DEVICE_ID"
           fi
           xcrun simctl bootstatus "$DEVICE_ID" -b
-      - name: Build and test native app
+      - name: Build all test targets and verify assigned screens
+        env:
+          TEST_SUITE: ${{ matrix.suite }}
         run: |
           mkdir -p ios/build/diagnostics
           # Keep a small process sample if a UI interaction leaves the simulator
@@ -71,35 +78,21 @@ jobs:
           COMMON=(-project ios/Streamify.xcodeproj -scheme Streamify -configuration Debug -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_ID" -derivedDataPath ios/build/Simulator CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY='-')
           TEST_OPTIONS=(-parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 360)
           xcodebuild build-for-testing "${COMMON[@]}"
-          # Verify the changed playback/download flows first; each test runs once.
-          xcodebuild test-without-building "${COMMON[@]}" "${TEST_OPTIONS[@]}" -resultBundlePath ios/build/Playback.xcresult -only-testing:StreamifyTests -only-testing:StreamifyUITests/SportsPlaybackFlowTests -only-testing:StreamifyUITests/DownloadIndicatorFlowTests -only-testing:StreamifyUITests/QuickActionFlowTests -only-testing:StreamifyUITests/ControlInteractionFlowTests/testSearchFieldAndHeaderPresentFullSearchAndReturnToTheirOriginalContext
-      - name: Export focused playback screenshots
-        if: always()
-        continue-on-error: true
-        run: |
-          if test -d ios/build/Playback.xcresult; then
-            xcrun xcresulttool export attachments --path ios/build/Playback.xcresult --output-path ios/build/screenshots/Playback
-            xcrun xcresulttool get test-results summary --path ios/build/Playback.xcresult > ios/build/screenshots/Playback/test-summary.json
-          fi
-      - name: Save focused playback verification
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: Streamify-iOS-focused-playback
-          path: ios/build/screenshots/Playback
-          if-no-files-found: ignore
-      - name: Verify remaining UI screens
-        run: |
-          (
-            while sleep 60; do
-              for APP_PID in $(pgrep -x Streamify || true); do
-                sample "$APP_PID" 1 1 -file "ios/build/diagnostics/Streamify-$APP_PID-$(date +%s).txt" >/dev/null 2>&1 || true
-              done
-            done
-          ) &
-          DIAGNOSTIC_PID=$!
-          trap 'kill "$DIAGNOSTIC_PID" 2>/dev/null || true' EXIT
-          xcodebuild test-without-building -project ios/Streamify.xcodeproj -scheme Streamify -configuration Debug -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_ID" -derivedDataPath ios/build/Simulator -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 360 -resultBundlePath ios/build/Streamify.xcresult -skip-testing:StreamifyTests -skip-testing:StreamifyUITests/SportsPlaybackFlowTests -skip-testing:StreamifyUITests/DownloadIndicatorFlowTests -skip-testing:StreamifyUITests/QuickActionFlowTests -skip-testing:StreamifyUITests/ControlInteractionFlowTests/testSearchFieldAndHeaderPresentFullSearchAndReturnToTheirOriginalContext CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY='-'
+          # Keep suite assignments explicit so each screen check runs once.
+          case "$TEST_SUITE" in
+            playback)
+              SELECTORS=(-only-testing:StreamifyTests -only-testing:StreamifyUITests/SportsPlaybackFlowTests -only-testing:StreamifyUITests/DownloadIndicatorFlowTests -only-testing:StreamifyUITests/QuickActionFlowTests -only-testing:StreamifyUITests/ControlInteractionFlowTests/testSearchFieldAndHeaderPresentFullSearchAndReturnToTheirOriginalContext)
+              ;;
+            controls)
+              SELECTORS=(-only-testing:StreamifyUITests/ControlInteractionFlowTests -skip-testing:StreamifyUITests/ControlInteractionFlowTests/testSearchFieldAndHeaderPresentFullSearchAndReturnToTheirOriginalContext -only-testing:StreamifyUITests/CardInteractionFlowTests -only-testing:StreamifyUITests/OfflinePlayerFlowTests -only-testing:StreamifyUITests/OfflineRecoveryFlowTests -only-testing:StreamifyUITests/NavigationTests)
+              ;;
+            screens)
+              SELECTORS=(-only-testing:StreamifyUITests/ParityFlowTests)
+              ;;
+            *) exit 2 ;;
+          esac
+          # Disjoint suites run on separate simulators; every test runs once.
+          xcodebuild test-without-building "${COMMON[@]}" "${TEST_OPTIONS[@]}" "${SELECTORS[@]}" -resultBundlePath ios/build/Streamify.xcresult
       - name: Export simulator screenshots
         if: always()
         continue-on-error: true
@@ -115,7 +108,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Streamify-iOS-test-results
+          name: Streamify-iOS-${{ matrix.suite }}-results
           path: |
             ios/build/*.xcresult
             ios/build/diagnostics
@@ -124,6 +117,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Streamify-iOS-screenshots
+          name: Streamify-iOS-${{ matrix.suite }}-screenshots
           path: ios/build/screenshots
           if-no-files-found: ignore

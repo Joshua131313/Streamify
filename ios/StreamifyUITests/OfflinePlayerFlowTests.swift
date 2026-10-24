@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 
 /// Uses a synthetic 10-minute H264 local file: no download server or remote video.
 final class OfflinePlayerFlowTests: XCTestCase {
@@ -23,7 +24,7 @@ final class OfflinePlayerFlowTests: XCTestCase {
         app?.terminate()
     }
 
-    func testCachedPosterAndActualLocalPlaybackControls() {
+    @MainActor func testCachedPosterAndActualLocalPlaybackControls() {
         XCTAssertTrue(app.buttons["open-downloads"].waitForExistence(timeout: 15))
         app.buttons["open-downloads"].tap()
         let card = app.descendants(matching: .any).matching(identifier: "download-card-\(fixtureID)").firstMatch
@@ -44,11 +45,11 @@ final class OfflinePlayerFlowTests: XCTestCase {
         XCTAssertTrue(wait { (progress.value as? String) != beforeSeek }, "Skip must move the real local video's timestamp.")
         capture("44 Full-canvas offline controls and real seek")
         XCTAssertGreaterThanOrEqual(progress.frame.height, 44)
-        progress.adjust(toNormalizedSliderPosition: 0.3)
+        dragProgressThumb(progress, to: 0.3)
         XCTAssertTrue(wait {
             let value = progress.value as? String ?? ""
             return value.contains(" of 10:00") && (170...190).contains(self.seconds(value))
-        }, "The native adjustable slider must commit a real seek near three minutes in the ten-minute local fixture.")
+        }, "The native adjustable slider must commit a real seek near three minutes in the ten-minute local fixture; actual value: \(progress.value as? String ?? "missing").")
         XCTAssertEqual(play.label, "Play", "Seeking while paused must preserve the paused playback state.")
         XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "offline-seek-preview").firstMatch.exists,
             "A completed accessibility seek must not leave a held-thumb preview visible.")
@@ -161,6 +162,35 @@ final class OfflinePlayerFlowTests: XCTestCase {
         let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.08, dy: up ? 0.72 : 0.37))
         let finish = app.coordinate(withNormalizedOffset: CGVector(dx: 0.08, dy: up ? 0.37 : 0.72))
         start.press(forDuration: 0.05, thenDragTo: finish)
+    }
+
+    @MainActor private func dragProgressThumb(_ progress: XCUIElement, to fraction: Double) {
+        let time = (progress.value as? String ?? "").components(separatedBy: " of ")
+        guard time.count == 2, seconds(time[1]) > 0 else {
+            XCTFail("The real player must expose its current time and duration before seeking.")
+            return
+        }
+        // XCTest's normalized adjustment estimates the starting thumb from its
+        // AX value, which is a timestamp here. On iOS 26 its drag started left
+        // of the native pill thumb's center and sought to 3:47 for a 30% target.
+        // Use UIKit's own geometry at the measured control size, preserving a
+        // real touch drag without assuming a fixed thumb width for this OS.
+        let geometry = UISlider(frame: CGRect(origin: .zero, size: progress.frame.size))
+        geometry.minimumValue = 0
+        geometry.maximumValue = Float(seconds(time[1]))
+        geometry.layoutIfNeeded()
+        let track = geometry.trackRect(forBounds: geometry.bounds)
+        let origin = progress.coordinate(withNormalizedOffset: .zero)
+        func thumb(at value: Float) -> CGRect {
+            geometry.thumbRect(forBounds: geometry.bounds, trackRect: track, value: value)
+        }
+        let initial = thumb(at: Float(seconds(time[0])))
+        let target = thumb(at: geometry.maximumValue * Float(fraction))
+        let start = origin.withOffset(CGVector(dx: initial.midX, dy: initial.midY))
+        let end = origin.withOffset(CGVector(dx: target.midX, dy: target.midY))
+        XCTContext.runActivity(named: "Drag native seek thumb from \(time[0]) to \(Int(fraction * 100)) percent; thumb \(initial) -> \(target)") { _ in
+            start.press(forDuration: 0.15, thenDragTo: end)
+        }
     }
 
     private func brightnessPercent(_ slider: XCUIElement) -> Int {
