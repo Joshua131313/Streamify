@@ -119,11 +119,11 @@ struct MediaPlayerView: View {
                     HStack(spacing: 12) {
                         Button { showEpisodes = true } label: {
                             Label("Episodes", systemImage: "list.bullet").frame(maxWidth: .infinity).frame(minHeight: 44)
-                        }.background(.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
+                        }.buttonStyle(SecondaryButtonStyle())
                         if let next {
                             Button { season = next.season; episode = next.episode } label: {
                                 Label("Next episode", systemImage: "forward.end.fill").frame(maxWidth: .infinity).frame(minHeight: 44)
-                            }.background(AppTheme.accent, in: RoundedRectangle(cornerRadius: 10))
+                            }.buttonStyle(PrimaryButtonStyle())
                         }
                     }
                 }

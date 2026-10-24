@@ -130,7 +130,7 @@ struct BrowseView: View {
                 }
                 // TMDB search does not apply discover's filters. AniList search supports genre and sort.
                 if (cleanQuery.isEmpty || kind == .anime) && kind != nil { filters.padding(.horizontal, pageGutter) }
-                if cleanQuery.isEmpty || kind == .anime {
+                if kind != nil && (cleanQuery.isEmpty || kind == .anime) {
                     ScrollView(.horizontal) {
                         HStack(spacing: 10) {
                             Pill(title: "Popular", selected: !topRated) { topRated = false }

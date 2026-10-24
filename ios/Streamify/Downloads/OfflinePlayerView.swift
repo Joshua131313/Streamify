@@ -82,17 +82,25 @@ struct OfflinePlayerView: View {
                     ProgressView().tint(.white).scaleEffect(1.3).accessibilityLabel("Loading offline video")
                 }
 
-                if controlsVisible && !locked {
+                if model.error != nil {
+                    VStack {
+                        HStack {
+                            icon("xmark", label: "Exit offline player", id: "offline-close", size: 20, action: close)
+                            Spacer()
+                        }.padding(.horizontal, 12).padding(.top, 6)
+                        Spacer()
+                    }
+                } else if controlsVisible && !locked {
                     controls(size: geometry.size)
                         .transition(.opacity)
                 }
-                if let seekFeedback {
+                if let seekFeedback, model.error == nil {
                     Text("\(seekFeedback > 0 ? "+" : "")\(seekFeedback) seconds")
                         .font(.title2.weight(.semibold)).padding(18).background(.black.opacity(0.5), in: Capsule())
                         .offset(x: geometry.size.width * (seekFeedback < 0 ? -0.22 : 0.22))
                         .allowsHitTesting(false).accessibilityHidden(true)
                 }
-                if importedEnabled {
+                if importedEnabled && model.error == nil {
                     VStack {
                         Spacer()
                         Text(OfflineSubtitleTrack.text(at: model.position, cues: importedCues))
@@ -102,7 +110,7 @@ struct OfflinePlayerView: View {
                             .padding(.horizontal, 32).padding(.bottom, controlsVisible && !locked ? 118 : 28)
                     }.allowsHitTesting(false).accessibilityHidden(true)
                 }
-                if locked && unlockVisible {
+                if locked && unlockVisible && model.error == nil {
                     VStack {
                         Spacer()
                         Button {
@@ -116,7 +124,7 @@ struct OfflinePlayerView: View {
                             .accessibilityAction { unlock() }.accessibilityIdentifier("offline-unlock")
                     }.padding(.bottom, 24)
                 }
-                if model.finished && !locked {
+                if model.finished && !locked && model.error == nil {
                     finishedOverlay
                 }
             }

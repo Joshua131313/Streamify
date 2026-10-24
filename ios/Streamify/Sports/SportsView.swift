@@ -522,7 +522,9 @@ struct SportsGameCard: View {
     let game: SportsGame
     var action: () -> Void
     @EnvironmentObject private var playback: SportsPlaybackSession
+    @Environment(\.scenePhase) private var scenePhase
     @State private var watchRevision = 0
+    @State private var handledWatchRevision = 0
     @State private var watchLoading = false
     @State private var watchError: String?
     var body: some View {
@@ -567,13 +569,25 @@ struct SportsGameCard: View {
         }.padding(16).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 20))
             .overlay { RoundedRectangle(cornerRadius: 20).strokeBorder(AppTheme.border, lineWidth: 0.7) }
             .shadow(color: .black.opacity(0.08), radius: 8, y: 3)
-            .task(id: watchRevision) {
-                guard watchRevision > 0 else { return }
+            .task(id: "\(watchRevision)-\(scenePhase == .active)") {
+                let request = watchRevision
+                guard scenePhase == .active else {
+                    // Leaving this tab consumes even a request whose task had
+                    // not started yet; returning never replays a Watch tap.
+                    handledWatchRevision = max(handledWatchRevision, request)
+                    return
+                }
+                guard request > handledWatchRevision else { return }
+                // Consume before suspension. SwiftUI can restart a row task
+                // after returning to a tab or restoring a recycled lazy row.
+                handledWatchRevision = request
                 watchLoading = true
-                defer { watchLoading = false }
+                watchError = nil
+                defer { if watchRevision == request { watchLoading = false } }
                 do {
                     let streams = try await SportsService().streams(game)
                     try Task.checkCancellation()
+                    guard watchRevision == request else { return }
                     if let first = streams.first {
                         playback.play(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: first.url, sources: streams)
                     }

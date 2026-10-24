@@ -70,6 +70,34 @@ final class SportsPlaybackFlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["tab-sports"].isSelected)
     }
 
+    func testClosedSportsPlayerStaysClosedAfterSwitchingTabs() {
+        app.buttons["tab-sports"].tap()
+        selectNBA()
+        let watch = app.buttons["Watch BOS vs TOR"].firstMatch
+        reveal(watch)
+        XCTAssertTrue(watch.isHittable)
+        watch.tap()
+        let source = app.buttons["sports-player-source-picker"]
+        XCTAssertTrue(source.waitForExistence(timeout: 10))
+        app.buttons["Close player"].tap()
+        XCTAssertTrue(wait { !source.exists })
+        app.buttons["tab-home"].tap()
+        XCTAssertTrue(app.buttons["tab-home"].isSelected)
+        app.buttons["tab-sports"].tap()
+        XCTAssertTrue(app.buttons["tab-sports"].isSelected)
+        let reopened = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in source.exists }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [reopened], timeout: 3), .timedOut,
+            "Returning to Sports must not replay a consumed Watch action.")
+        XCTAssertFalse(app.buttons["sports-pip-restore"].exists)
+        capture("Closed sports player stays closed after Home round trip")
+        // A new explicit Watch press must still work after the old request is consumed.
+        reveal(watch)
+        watch.tap()
+        XCTAssertTrue(source.waitForExistence(timeout: 10))
+        app.buttons["Close player"].tap()
+        XCTAssertTrue(wait { !source.exists })
+    }
+
     func testNativeSystemPictureInPictureKeepsTheSelectedGameWhileBrowsing() throws {
         app.buttons["tab-sports"].tap()
         selectNBA()

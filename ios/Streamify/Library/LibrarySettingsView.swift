@@ -33,8 +33,11 @@ struct LibraryView: View {
                 HStack {
                     Image(systemName: "magnifyingglass").foregroundStyle(AppTheme.muted)
                     TextField(history ? "Find in history" : "Find in My list", text: $query).autocorrectionDisabled().textInputAutocapitalization(.never)
-                    if !query.isEmpty { Button { query = "" } label: { Image(systemName: "xmark.circle.fill") }.accessibilityLabel("Clear search") }
-                }.padding(14).streamifyControlSurface(cornerRadius: 14)
+                    if !query.isEmpty {
+                        Button { query = "" } label: { Image(systemName: "xmark.circle.fill").frame(width: 44, height: 44).contentShape(Rectangle()) }
+                            .buttonStyle(.plain).foregroundStyle(AppTheme.muted).accessibilityLabel("Clear search")
+                    }
+                }.padding(.leading, 14).padding(.trailing, query.isEmpty ? 14 : 0).frame(minHeight: 48).streamifyControlSurface()
                 HStack {
                     Menu {
                         Button { kind = nil } label: {
@@ -80,8 +83,9 @@ struct LibraryView: View {
     }
 
     private var emptyState: some View {
-        StateMessage(symbol: history ? "clock.arrow.circlepath" : "bookmark", title: query.isEmpty ? (history ? "Your story starts here." : "Keep the good ones.") : "No matching titles",
-                     message: query.isEmpty ? (history ? "Titles you open in the player will appear here." : "Tap My list on a title to save it for later.") : "Try a different title or media type.")
+        let unfiltered = query.isEmpty && kind == nil
+        return StateMessage(symbol: history ? "clock.arrow.circlepath" : "bookmark", title: unfiltered ? (history ? "Your story starts here." : "Keep the good ones.") : "No matching titles",
+                            message: unfiltered ? (history ? "Titles you open in the player will appear here." : "Tap My list on a title to save it for later.") : "Try a different title or media type.")
     }
 }
 

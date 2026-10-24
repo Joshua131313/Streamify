@@ -99,7 +99,7 @@ private struct SportsLiveGamePicker: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 12) {
-                Text("Live now or starting within two hours").font(.subheadline).foregroundStyle(AppTheme.muted)
+                Text("Live now or starting within an hour").font(.subheadline).foregroundStyle(AppTheme.muted)
                 if loading { ProgressView("Finding games…").frame(maxWidth: .infinity).padding(24) }
                 if let error { Text(error).font(.footnote).foregroundStyle(AppTheme.muted) }
                 if !loading && games.isEmpty {
@@ -144,7 +144,7 @@ private struct SportsLiveGamePicker: View {
         guard !Task.isCancelled else { return }
         var seen = Set<String>()
         games = loaded.filter { game in
-            seen.insert(game.id).inserted && (game.isLive || (game.state == "pre" && game.date.map { (-900...7200).contains($0.timeIntervalSinceNow) } == true))
+            seen.insert(game.id).inserted && game.canWatch
         }.sorted { lhs, rhs in lhs.isLive != rhs.isLive ? lhs.isLive : (lhs.date ?? .distantFuture) < (rhs.date ?? .distantFuture) }
         if unavailable { error = "Some schedules are unavailable. Showing the games that loaded." }
     }

@@ -46,6 +46,7 @@ final class ParityFlowTests: XCTestCase {
     }
 
     func testExploreGenresPosterOpensItsExactMovieAndReturnsToRail() {
+        pauseHomeCarousel()
         let rail = app.scrollViews["home-explore-genre"].firstMatch
         let poster = rail.buttons["explore-genre-media-movie:45"].firstMatch
         for _ in 0..<18 {
@@ -86,6 +87,7 @@ final class ParityFlowTests: XCTestCase {
         element("hero-carousel").swipeLeft()
         XCTAssertTrue(wait { self.app.buttons["hero-main-progress"].label != priorTitle })
         capture("03 Hero swipe and animated indicator")
+        pauseHomeCarousel()
         let choice = app.buttons["home-choice-media-forYou"]
         reveal(choice)
         XCTAssertTrue(choice.isHittable)
@@ -600,6 +602,12 @@ final class ParityFlowTests: XCTestCase {
     }
     private func element(_ identifier: String) -> XCUIElement {
         app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+    }
+    private func pauseHomeCarousel() {
+        let pause = app.buttons["hero-carousel-pause"]
+        XCTAssertTrue(pause.waitForExistence(timeout: 12))
+        if pause.label == "Pause carousel" { pause.tap() }
+        XCTAssertEqual(pause.label, "Resume carousel", "Pause the unrelated live timeline before querying deep lazy content.")
     }
     private func reveal(_ target: XCUIElement, attempts: Int = 12) {
         for _ in 0..<attempts {

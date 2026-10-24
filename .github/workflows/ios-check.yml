@@ -54,6 +54,18 @@ jobs:
           xcrun simctl bootstatus "$DEVICE_ID" -b
       - name: Build and test native app
         run: |
+          mkdir -p ios/build/diagnostics
+          # Keep a small process sample if a UI interaction leaves the simulator
+          # busy, so a failed screen check can be diagnosed from its actual stack.
+          (
+            while sleep 60; do
+              for APP_PID in $(pgrep -x Streamify || true); do
+                sample "$APP_PID" 1 1 -file "ios/build/diagnostics/Streamify-$APP_PID-$(date +%s).txt" >/dev/null 2>&1 || true
+              done
+            done
+          ) &
+          DIAGNOSTIC_PID=$!
+          trap 'kill "$DIAGNOSTIC_PID" 2>/dev/null || true' EXIT
           xcodebuild test -project ios/Streamify.xcodeproj -scheme Streamify -configuration Debug -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_ID" -parallel-testing-enabled NO -resultBundlePath ios/build/Streamify.xcresult CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY='-'
       - name: Export simulator screenshots
         if: always()
@@ -68,7 +80,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Streamify-iOS-test-results
-          path: ios/build/Streamify.xcresult
+          path: |
+            ios/build/Streamify.xcresult
+            ios/build/diagnostics
           if-no-files-found: ignore
       - name: Save viewable simulator screenshots
         if: always()
