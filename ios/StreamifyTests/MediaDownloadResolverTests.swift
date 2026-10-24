@@ -41,14 +41,18 @@ final class MediaDownloadResolverTests: XCTestCase {
         XCTAssertEqual(fixture.requests.last?.url?.path, "/api/b/tv/fixture-token/2/7")
     }
 
-    func testUnsafeHighQualityDoesNotOverrideSafeLowerQuality() async throws {
+    func testUnsafeSelectedQualityDoesNotSilentlyDownloadSafeLowerQuality() async throws {
         let fixture = sourceFixture(["type": "file", "qualities": [
             "1080": ["url": "http://cdn.example.test/video.mp4"],
             "720": ["url": "https://cdn.example.test/video.mp4"]
         ]])
-        let result = try await MediaDownloadResolver(session: fixture.session, sourceValidator: { _ in })
-            .resolve(media: MediaItem(id: 42, kind: .movie, title: "Fixture"))
-        XCTAssertEqual(result.quality, 720)
+        do {
+            _ = try await MediaDownloadResolver(session: fixture.session, sourceValidator: { _ in })
+                .resolve(media: MediaItem(id: 42, kind: .movie, title: "Fixture"))
+            XCTFail("An unsafe selected source must not silently change quality")
+        } catch let error as MediaDownloadResolutionError {
+            guard case .unsafeSource = error else { XCTFail("Unexpected error: \(error)"); return }
+        }
     }
 
     func testRejectsInsecureCredentialFragmentAndPageAddresses() async {
@@ -94,7 +98,7 @@ final class MediaDownloadResolverTests: XCTestCase {
                 .resolve(media: MediaItem(id: 42, kind: .movie, title: "Fixture"), maximumQuality: 480)
             XCTFail("A higher resolution must not bypass the user's quality limit.")
         } catch {
-            XCTAssertTrue(error.localizedDescription.contains("Select a higher resolution"))
+            XCTAssertTrue(error.localizedDescription.contains("Choose another resolution"))
         }
     }
 
@@ -169,7 +173,7 @@ final class MediaDownloadResolverTests: XCTestCase {
         XCTAssertEqual(fixture.requests.count, 1)
     }
 
-    func testNativeIncompatibilityFallsBackBeforeReturningTheActualLowerQuality() async throws {
+    func testNativeIncompatibilityKeepsTheExactQualityAndRequiresAnotherUserChoice() async throws {
         let fixture = sourceFixture(["type": "file", "qualities": [
             "1080": ["url": "https://cdn.example.test/1080.mp4"],
             "720": ["url": "https://cdn.example.test/1080.mp4"],
@@ -181,12 +185,16 @@ final class MediaDownloadResolverTests: XCTestCase {
             await checked.record(url)
             if url.lastPathComponent == "1080.mp4" { throw OfflineVideoError.incompatible }
         })
-        let result = try await resolver.resolve(media: MediaItem(id: 124364, kind: .tv, title: "Fixture series"),
-            season: 1, episode: 1, maximumQuality: 1080)
-        XCTAssertEqual(result.quality, 480, "Persist the verified candidate's actual quality, not the original 1080 preference")
-        XCTAssertEqual(result.url.lastPathComponent, "480.mp4")
+        do {
+            _ = try await resolver.resolve(media: MediaItem(id: 124364, kind: .tv, title: "Fixture series"),
+                season: 1, episode: 1, maximumQuality: 1080)
+            XCTFail("Selecting 1080p must never download 480p without another user choice")
+        } catch let error as MediaDownloadResolutionError {
+            guard case .incompatibleSource = error else { XCTFail("Unexpected error: \(error)"); return }
+            XCTAssertTrue(error.localizedDescription.contains("selected quality"))
+        }
         let paths = await checked.paths
-        XCTAssertEqual(paths, ["1080.mp4", "480.mp4"], "Skip duplicate rejected addresses and stop inspecting once a compatible file is found")
+        XCTAssertEqual(paths, ["1080.mp4"], "Lower resolutions must not be inspected or transferred without selection")
         XCTAssertEqual(fixture.requests.count, 2, "Only bounded API metadata is fetched by this injected contract test")
     }
 
@@ -207,7 +215,7 @@ final class MediaDownloadResolverTests: XCTestCase {
             XCTAssertTrue(error.localizedDescription.contains("cannot be played by this iPhone"))
         } catch { XCTFail("Expected a source compatibility error: \(error)") }
         let paths = await checked.paths
-        XCTAssertEqual(paths, ["1080.mp4", "480.mp4"])
+        XCTAssertEqual(paths, ["1080.mp4"])
     }
 
     func testNetworkFailureDuringPreflightDoesNotBecomeACodecErrorOrTryAnotherQuality() async {

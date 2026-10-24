@@ -4,6 +4,7 @@ import SwiftUI
 struct LibraryView: View {
     var favoritesRequest: UUID? = nil
     @EnvironmentObject private var library: LibraryStore
+    @EnvironmentObject private var profiles: ProfileStore
     @State private var history = false
     @State private var query = ""
     @State private var kind: MediaKind?
@@ -24,7 +25,7 @@ struct LibraryView: View {
                         .font(.subheadline.weight(.semibold)).padding(.horizontal, 16).frame(minHeight: 48)
                         .streamifyControlSurface()
                 }.buttonStyle(HapticPlainButtonStyle()).foregroundStyle(AppTheme.foreground)
-                Label("Guest library · on this iPhone", systemImage: "iphone").font(.caption).foregroundStyle(AppTheme.muted)
+                Label("\(profiles.activeProfile?.name ?? "My profile") · on this iPhone", systemImage: "iphone").font(.caption).foregroundStyle(AppTheme.muted)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
                         Pill(title: "Saved · \(library.saved.count)", selected: !history) { history = false }
@@ -167,13 +168,14 @@ struct SettingsView: View {
 @MainActor
 struct AccountView: View {
     @EnvironmentObject private var library: LibraryStore
+    @EnvironmentObject private var profiles: ProfileStore
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 VStack(spacing: 12) {
-                    Image(systemName: "person.crop.circle.fill").font(.system(size: 48)).foregroundStyle(AppTheme.foreground).accessibilityHidden(true)
-                    Text("Make yourself at home.").font(.title2.bold())
+                    ProfileAvatarView(avatar: profiles.activeProfile?.avatar ?? .crimson, size: 72)
+                    Text(profiles.activeProfile?.name ?? "My profile").font(.title2.bold())
                     Text("Your favorites, your teams, your next watch.").font(.subheadline).foregroundStyle(AppTheme.muted).multilineTextAlignment(.center)
                     HStack(spacing: 24) {
                         accountCount(library.saved.count, "Saved")
@@ -184,12 +186,15 @@ struct AccountView: View {
                         Image(systemName: "iphone").font(.subheadline).foregroundStyle(AppTheme.muted)
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Saved on this iPhone").font(.caption.weight(.semibold))
-                            Text("Account sign-in is not configured. Your list, history, teams, and preferences stay on this device.")
+                            Text("Your list, history, teams, and preferences belong to this profile and stay on this iPhone.")
                                 .font(.caption).foregroundStyle(AppTheme.muted)
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }.padding(.top, 4)
                 }.frame(maxWidth: .infinity).padding(20).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 20))
                     .overlay { RoundedRectangle(cornerRadius: 20).strokeBorder(AppTheme.border, lineWidth: 0.5) }
+                Button { profiles.showChooser() } label: {
+                    Label("Switch profiles", systemImage: "person.2").frame(maxWidth: .infinity)
+                }.buttonStyle(SecondaryButtonStyle()).accessibilityIdentifier("switch-profiles")
                 NavigationLink { PreferencesView() } label: {
                     HStack {
                         Label("Your favorite genres", systemImage: "slider.horizontal.3").font(.headline)

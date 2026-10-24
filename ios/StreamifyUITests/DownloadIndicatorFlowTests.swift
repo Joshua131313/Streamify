@@ -56,8 +56,14 @@ final class DownloadIndicatorFlowTests: XCTestCase {
         let known = app.buttons["download-activity-\(knownID)"]
         let unknown = app.buttons["download-activity-\(unknownID)"]
         XCTAssertTrue(known.waitForExistence(timeout: 5))
-        XCTAssertTrue(unknown.waitForExistence(timeout: 5))
         XCTAssertEqual(value(known), "25 percent")
+        let series = app.buttons["download-series-43"]
+        XCTAssertTrue(series.waitForExistence(timeout: 5))
+        XCTAssertTrue(series.label.contains("1 episode"), "A single saved episode must still use its show's drill-in.")
+        XCTAssertEqual(value(series), "Downloading. Total size unknown")
+        capture("Downloads groups its TV episode beneath the show")
+        openSeries()
+        XCTAssertTrue(unknown.waitForExistence(timeout: 5))
         XCTAssertEqual(value(unknown), "Downloading. Total size unknown")
         XCTAssertFalse(value(unknown).contains("percent"), "Unknown totals must never display invented percentages.")
         XCTAssertTrue(known.label.contains("Cancel download"))
@@ -67,6 +73,7 @@ final class DownloadIndicatorFlowTests: XCTestCase {
 
         unknown.tap()
         XCTAssertTrue(wait { !unknown.exists }, "The ring's stop control must cancel its own transfer.")
+        returnFromSeries()
         XCTAssertTrue(known.exists, "Canceling another episode must preserve the movie's active transfer.")
         XCTAssertEqual(value(known), "25 percent")
         app.navigationBars["Downloads"].buttons["Close"].tap()
@@ -95,14 +102,14 @@ final class DownloadIndicatorFlowTests: XCTestCase {
         let knownCard = element("download-card-\(knownID)")
         let known = app.buttons["download-activity-\(knownID)"]
         let unknown = app.buttons["download-activity-\(unknownID)"]
+        let series = app.buttons["download-series-43"]
         XCTAssertTrue(knownCard.waitForExistence(timeout: 5))
         XCTAssertTrue(wait { self.value(knownCard) == "Artwork saved offline" })
         XCTAssertTrue(known.waitForExistence(timeout: 5))
         XCTAssertEqual(value(known), "25 percent")
-        XCTAssertEqual(value(unknown), "Downloading. Total size unknown")
+        XCTAssertEqual(value(series), "Downloading. Total size unknown")
         XCTAssertFalse(app.staticTexts["download-progress-\(knownID)"].exists,
             "The circle carries progress without repeating visible Downloading/percentage text")
-        XCTAssertFalse(app.staticTexts["download-progress-\(unknownID)"].exists)
         knownCard.swipeLeft()
         let cancel = app.buttons["download-swipe-cancel-\(knownID)"]
         let delete = app.buttons["download-swipe-delete-\(knownID)"]
@@ -114,13 +121,59 @@ final class DownloadIndicatorFlowTests: XCTestCase {
         capture("Swipe left reveals download actions without repeating transfer text")
         cancel.tap()
         XCTAssertTrue(wait { !known.exists })
-        XCTAssertTrue(unknown.exists, "Cancel must leave the other transfer running")
+        XCTAssertEqual(value(series), "Downloading. Total size unknown", "Cancel must leave the show's other transfer running")
         let actions = app.buttons["download-actions-\(knownID)"]
         XCTAssertTrue(actions.waitForExistence(timeout: 5))
         XCTAssertEqual(value(actions), "Cancelled")
         XCTAssertEqual(value(knownCard), "Artwork saved offline", "Cancelling a transfer must keep the row's cached poster for Retry.")
         XCTAssertTrue(app.buttons["download-play-00000000-0000-0000-0000-000000000042"].exists)
         capture("Swipe cancel stops only the selected download")
+        openSeries()
+        XCTAssertTrue(unknown.waitForExistence(timeout: 5))
+        XCTAssertEqual(value(unknown), "Downloading. Total size unknown")
+        XCTAssertFalse(app.staticTexts["download-progress-\(unknownID)"].exists)
+        returnFromSeries()
+    }
+
+    func testSingleEpisodeShowPagePreservesExactSwipeActionsAndReturnsAfterLastRemoval() {
+        XCTAssertTrue(app.buttons["open-downloads"].waitForExistence(timeout: 15))
+        app.buttons["open-downloads"].tap()
+        let series = app.buttons["download-series-43"]
+        XCTAssertTrue(series.waitForExistence(timeout: 5))
+        series.swipeLeft()
+        let deleteShow = app.buttons["download-series-swipe-delete-43"]
+        XCTAssertTrue(deleteShow.waitForExistence(timeout: 5))
+        deleteShow.tap()
+        let confirmShow = app.buttons["download-series-confirm-delete-43"]
+        XCTAssertTrue(confirmShow.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Delete 1 episode download for Midnight Dispatch?"].exists)
+        capture("Show deletion confirmation names only its own episode downloads")
+        let cancel = app.buttons["Cancel"].firstMatch
+        if cancel.exists && cancel.isHittable { cancel.tap() }
+        else {
+            let dismiss = element("PopoverDismissRegion")
+            XCTAssertTrue(dismiss.waitForExistence(timeout: 5))
+            dismiss.tap()
+        }
+        XCTAssertTrue(wait { !confirmShow.exists && series.isHittable })
+        openSeries()
+        let episode = element("download-card-\(unknownID)")
+        XCTAssertTrue(episode.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["S1 E1 · A Call After Midnight"].exists)
+        XCTAssertTrue(app.buttons["download-series-more-43"].exists)
+        episode.swipeLeft()
+        let delete = app.buttons["download-swipe-delete-\(unknownID)"]
+        XCTAssertTrue(delete.waitForExistence(timeout: 5))
+        delete.tap()
+        XCTAssertTrue(app.buttons["Delete video"].waitForExistence(timeout: 5))
+        capture("Show episode keeps its exact confirmed swipe deletion")
+        app.buttons["Delete video"].tap()
+        XCTAssertTrue(app.navigationBars["Downloads"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["download-series-43"].exists)
+        XCTAssertTrue(app.buttons["download-activity-\(knownID)"].exists)
+        XCTAssertTrue(app.buttons["download-play-00000000-0000-0000-0000-000000000042"].exists,
+            "Deleting the last episode must return to Downloads and preserve the movie and its other transfer.")
+        capture("Removing the final episode returns to the unchanged movie downloads")
     }
 
     func testCompletedSwipeDeleteRequiresConfirmationAndCancelPreservesPlayableFile() {
@@ -172,6 +225,19 @@ final class DownloadIndicatorFlowTests: XCTestCase {
 
     private func element(_ identifier: String) -> XCUIElement {
         app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+    }
+
+    private func openSeries() {
+        let series = app.buttons["download-series-43"]
+        XCTAssertTrue(series.waitForExistence(timeout: 5))
+        series.tap()
+        XCTAssertTrue(element("download-series-page-43").waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Midnight Dispatch"].waitForExistence(timeout: 5))
+    }
+
+    private func returnFromSeries() {
+        app.navigationBars["Midnight Dispatch"].buttons.firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["Downloads"].waitForExistence(timeout: 5))
     }
 
     private func value(_ element: XCUIElement) -> String { element.value as? String ?? "" }

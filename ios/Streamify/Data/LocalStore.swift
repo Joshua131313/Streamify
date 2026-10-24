@@ -11,7 +11,8 @@ final class LibraryStore: ObservableObject {
     @Published private(set) var followedTeams: [String] = []
     @Published var favoriteGenres: [Int] = [] { didSet { persist() } }
     private let defaults: UserDefaults
-    private let storageKey = "streamify.ios.guestLibrary.v1"
+    private let storageKey: String
+    private var storageEnabled = true
 
     private struct Snapshot: Codable {
         var saved: [MediaItem]
@@ -21,8 +22,9 @@ final class LibraryStore: ObservableObject {
         var favoriteGenres: [Int]
     }
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, storageKey: String = "streamify.ios.guestLibrary.v1") {
         self.defaults = defaults
+        self.storageKey = storageKey
         if let data = defaults.data(forKey: storageKey), let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data) {
             var seen = Set<String>()
             saved = snapshot.saved.filter { seen.insert($0.key).inserted }
@@ -82,7 +84,11 @@ final class LibraryStore: ObservableObject {
         else if id > 0 { favoriteGenres.append(id) }
     }
 
+    /// A deleted profile's late playback callback cannot recreate its library.
+    func discardStorage() { storageEnabled = false; defaults.removeObject(forKey: storageKey) }
+
     private func persist() {
+        guard storageEnabled else { return }
         let snapshot = Snapshot(saved: saved, history: history, recentSearches: recentSearches,
             followedTeams: followedTeams, favoriteGenres: favoriteGenres)
         if let data = try? JSONEncoder().encode(snapshot) { defaults.set(data, forKey: storageKey) }

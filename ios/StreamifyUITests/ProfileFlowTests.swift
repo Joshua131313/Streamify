@@ -1,0 +1,232 @@
+import XCTest
+
+/// Profile navigation uses the real local store and catalog fixtures. No account
+/// sign-in, external media download, or real credential is involved.
+final class ProfileFlowTests: XCTestCase {
+    private var app: XCUIApplication!
+
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
+        app = XCUIApplication()
+        app.launchArguments = ["--ui-fixtures", "--ui-profile-chooser"]
+        app.launch()
+        XCTAssertTrue(element("profile-chooser").waitForExistence(timeout: 15))
+        XCTAssertTrue(app.staticTexts["Choose your profile"].exists)
+        XCTAssertFalse(app.buttons["profile-switch-cancel"].exists, "The initial launch must ask the viewer to choose a profile.")
+    }
+
+    override func tearDownWithError() throws {
+        if (testRun?.failureCount ?? 0) > 0, let app {
+            capture("FAILURE profile flow")
+            let hierarchy = XCTAttachment(string: app.debugDescription)
+            hierarchy.name = "FAILURE profile hierarchy"
+            hierarchy.lifetime = .keepAlways
+            add(hierarchy)
+        }
+        XCUIDevice.shared.orientation = .portrait
+        app?.terminate()
+    }
+
+    func testChooserSelectionAndSwitchingKeepActualSavedTitlesInTheirOwnProfile() {
+        capture("Profiles first launch cinematic chooser")
+        choose("My profile")
+        app.buttons["tab-library"].tap()
+        XCTAssertTrue(app.buttons["Saved · 3"].waitForExistence(timeout: 6), "Existing fixture favorites belong to the original profile.")
+
+        openSwitcher()
+        XCTAssertTrue(app.buttons["profile-switch-cancel"].isHittable)
+        addProfile(name: "Alex", avatar: "ocean")
+        choose("Alex")
+        app.buttons["tab-library"].tap()
+        XCTAssertTrue(app.buttons["Saved · 0"].waitForExistence(timeout: 6), "Creating a profile must not seed it with someone else's saved list.")
+        XCTAssertTrue(app.buttons["History · 0"].exists)
+        capture("Profiles new viewer has an empty personal library")
+
+        app.buttons["tab-home"].tap()
+        let pause = app.buttons["hero-carousel-pause"]
+        XCTAssertTrue(pause.waitForExistence(timeout: 12))
+        if pause.label == "Pause carousel" { pause.tap() }
+        app.buttons["Show Beyond the City"].tap()
+        let artwork = app.buttons["Details for Beyond the City"]
+        XCTAssertTrue(artwork.waitForExistence(timeout: 5))
+        artwork.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3)).tap()
+        XCTAssertTrue(app.buttons["download-movie:45"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["My list"].isHittable)
+        app.buttons["My list"].tap()
+        XCTAssertTrue(app.buttons["Saved"].waitForExistence(timeout: 4))
+        app.buttons["close-media-details"].tap()
+        XCTAssertTrue(app.buttons["tab-library"].waitForExistence(timeout: 5))
+        app.buttons["tab-library"].tap()
+        XCTAssertTrue(app.buttons["Saved · 1"].waitForExistence(timeout: 6))
+        XCTAssertTrue(element("poster-artwork-movie:45").exists)
+        capture("Profiles second viewer saves an actual catalog title")
+
+        openSwitcher()
+        choose("My profile")
+        app.buttons["tab-library"].tap()
+        XCTAssertTrue(app.buttons["Saved · 3"].waitForExistence(timeout: 6))
+        XCTAssertTrue(app.buttons["History · 2"].exists)
+        XCTAssertTrue(element("poster-artwork-movie:42").exists)
+        XCTAssertFalse(element("poster-artwork-movie:45").exists, "Alex's saved title cannot appear in the original profile.")
+        capture("Profiles original favorites and history remain intact")
+
+        openSwitcher()
+        app.buttons["profile-switch-cancel"].tap()
+        XCTAssertTrue(app.buttons["tab-home"].waitForExistence(timeout: 5))
+        app.buttons["tab-library"].tap()
+        XCTAssertTrue(app.buttons["Saved · 3"].waitForExistence(timeout: 5))
+    }
+
+    func testEditorCancelRenameAvatarsAndDeleteConfirmationPreserveTheLastProfile() {
+        app.buttons["profile-manage"].tap()
+        profileTile("Edit My profile").tap()
+        XCTAssertTrue(app.textFields["profile-name-field"].waitForExistence(timeout: 5))
+        replaceName("Unsaved name")
+        app.buttons["profile-editor-cancel"].tap()
+        XCTAssertTrue(profileTile("Edit My profile").waitForExistence(timeout: 5))
+        XCTAssertFalse(profileTile("Edit Unsaved name").exists)
+
+        profileTile("Edit My profile").tap()
+        XCTAssertFalse(app.buttons["profile-delete"].isEnabled, "The last profile cannot be deleted.")
+        app.buttons["profile-avatar-forest"].tap()
+        XCTAssertTrue(app.buttons["profile-avatar-forest"].isSelected)
+        replaceName("Jordan")
+        capture("Profiles rename and choose an original avatar")
+        saveEditor()
+        XCTAssertTrue(profileTile("Edit Jordan").waitForExistence(timeout: 5))
+
+        addProfile(name: "Guest", avatar: "gold")
+        profileTile("Edit Guest").tap()
+        let delete = app.buttons["profile-delete"]
+        XCTAssertTrue(delete.waitForExistence(timeout: 5))
+        reveal(delete)
+        XCTAssertTrue(delete.isEnabled)
+        delete.tap()
+        let confirm = app.buttons["profile-delete-confirm"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        capture("Profiles deletion requires explicit confirmation")
+        let cancel = app.buttons.matching(NSPredicate(format: "label == 'Cancel' AND identifier != 'profile-editor-cancel'"))
+            .allElementsBoundByIndex.first { $0.isHittable }
+        XCTAssertNotNil(cancel)
+        cancel?.tap()
+        XCTAssertTrue(wait { !confirm.exists })
+        app.buttons["profile-editor-cancel"].tap()
+        XCTAssertTrue(profileTile("Edit Guest").waitForExistence(timeout: 5), "Cancelling deletion must preserve Guest.")
+
+        profileTile("Edit Guest").tap()
+        reveal(app.buttons["profile-delete"])
+        app.buttons["profile-delete"].tap()
+        XCTAssertTrue(app.buttons["profile-delete-confirm"].waitForExistence(timeout: 5))
+        app.buttons["profile-delete-confirm"].tap()
+        XCTAssertTrue(wait { !self.profileTile("Edit Guest").exists && self.profileTile("Edit Jordan").exists })
+        XCTAssertEqual(profileTiles.count, 1)
+        profileTile("Edit Jordan").tap()
+        XCTAssertTrue(app.buttons["profile-delete"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["profile-delete"].isEnabled)
+        capture("Profiles last remaining viewer is protected from deletion")
+        app.buttons["profile-editor-cancel"].tap()
+        app.buttons["profile-manage"].tap()
+        choose("Jordan")
+    }
+
+    func testChooserAndEditorRemainReachableInLandscape() {
+        XCUIDevice.shared.orientation = .landscapeLeft
+        XCTAssertTrue(wait { self.app.frame.width > self.app.frame.height })
+        XCTAssertTrue(app.staticTexts["Choose your profile"].exists)
+        reveal(app.buttons["profile-manage"])
+        capture("Profiles cinematic chooser in landscape")
+        app.buttons["profile-manage"].tap()
+        let tile = profileTile("Edit My profile")
+        reveal(tile)
+        tile.tap()
+        XCTAssertTrue(app.textFields["profile-name-field"].waitForExistence(timeout: 5))
+        reveal(app.buttons["profile-avatar-violet"])
+        app.buttons["profile-avatar-violet"].tap()
+        XCTAssertTrue(app.buttons["profile-avatar-violet"].isSelected)
+        reveal(app.buttons["profile-save"])
+        XCTAssertTrue(app.buttons["profile-save"].isHittable)
+        capture("Profiles landscape editor keeps avatars and save reachable")
+        app.buttons["profile-save"].tap()
+        XCTAssertTrue(profileTile("Edit My profile").waitForExistence(timeout: 5))
+        reveal(app.buttons["profile-manage"])
+        app.buttons["profile-manage"].tap()
+        reveal(profileTile("My profile"))
+        choose("My profile")
+    }
+
+    private var profileTiles: XCUIElementQuery {
+        app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'profile-tile-'"))
+    }
+    private func profileTile(_ name: String) -> XCUIElement { profileTiles.matching(NSPredicate(format: "label == %@", name)).firstMatch }
+    private func choose(_ name: String) {
+        let tile = profileTile(name)
+        XCTAssertTrue(tile.waitForExistence(timeout: 6))
+        reveal(tile)
+        tile.tap()
+        XCTAssertTrue(app.buttons["tab-home"].waitForExistence(timeout: 12))
+        XCTAssertFalse(element("profile-chooser").exists)
+    }
+    private func openSwitcher() {
+        app.buttons["More options"].tap()
+        XCTAssertTrue(app.buttons["Switch profiles"].waitForExistence(timeout: 4))
+        app.buttons["Switch profiles"].tap()
+        XCTAssertTrue(element("profile-chooser").waitForExistence(timeout: 6))
+        XCTAssertFalse(app.buttons["tab-home"].exists)
+    }
+    private func addProfile(name: String, avatar: String) {
+        reveal(app.buttons["profile-add"])
+        app.buttons["profile-add"].tap()
+        XCTAssertTrue(app.textFields["profile-name-field"].waitForExistence(timeout: 5))
+        let choice = app.buttons["profile-avatar-\(avatar)"]
+        reveal(choice)
+        choice.tap()
+        XCTAssertTrue(choice.isSelected)
+        replaceName(name)
+        capture("Profiles add \(name) with selected avatar")
+        saveEditor()
+    }
+    private func replaceName(_ name: String) {
+        let field = app.textFields["profile-name-field"]
+        reveal(field)
+        field.tap()
+        let tutorial = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Speed up your typing'" )).firstMatch
+        if tutorial.waitForExistence(timeout: 1) { app.buttons["Continue"].firstMatch.tap() }
+        let old = field.value as? String ?? ""
+        let clear = old == "Name" ? "" : String(repeating: XCUIKeyboardKey.delete.rawValue, count: old.count)
+        field.typeText(clear + name)
+    }
+    private func saveEditor() {
+        let save = app.buttons["profile-save"]
+        reveal(save)
+        XCTAssertTrue(save.isEnabled)
+        save.tap()
+        XCTAssertTrue(wait { !self.app.textFields["profile-name-field"].exists })
+    }
+    private func reveal(_ target: XCUIElement) {
+        for _ in 0..<8 {
+            if target.exists && target.isHittable { return }
+            let keyboard = app.keyboards.firstMatch
+            let bottom = keyboard.exists ? keyboard.frame.minY : app.frame.maxY
+            let upward = !target.exists || target.frame.midY > app.frame.midY
+            let lower = max(app.frame.minY + 170, bottom - 28)
+            let upper = max(app.frame.minY + 130, lower - 230)
+            let origin = app.coordinate(withNormalizedOffset: .zero)
+            let start = origin.withOffset(CGVector(dx: app.frame.width - 8, dy: upward ? lower : upper))
+            let end = origin.withOffset(CGVector(dx: app.frame.width - 8, dy: upward ? upper : lower))
+            start.press(forDuration: 0.05, thenDragTo: end)
+        }
+        XCTAssertTrue(target.isHittable, "The profile control must remain reachable by scrolling.")
+    }
+    private func element(_ identifier: String) -> XCUIElement { app.descendants(matching: .any).matching(identifier: identifier).firstMatch }
+    private func wait(_ condition: @escaping () -> Bool) -> Bool {
+        let expectation = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in condition() }, object: nil)
+        return XCTWaiter.wait(for: [expectation], timeout: 10) == .completed
+    }
+    private func capture(_ name: String) {
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+}

@@ -83,10 +83,10 @@ jobs:
           # Keep suite assignments explicit so each screen check runs once.
           case "$TEST_SUITE" in
             playback)
-              SELECTORS=(-only-testing:StreamifyTests -only-testing:StreamifyUITests/SportsPlaybackFlowTests -only-testing:StreamifyUITests/DownloadIndicatorFlowTests -only-testing:StreamifyUITests/QuickActionFlowTests -only-testing:StreamifyUITests/ControlInteractionFlowTests/testSearchFieldAndHeaderPresentFullSearchAndReturnToTheirOriginalContext)
+              SELECTORS=(-only-testing:StreamifyTests -only-testing:StreamifyUITests/SportsPlaybackFlowTests -only-testing:StreamifyUITests/DownloadIndicatorFlowTests -only-testing:StreamifyUITests/QuickActionFlowTests -only-testing:StreamifyUITests/SportsChatFlowTests -only-testing:StreamifyUITests/ControlInteractionFlowTests/testSearchFieldAndHeaderPresentFullSearchAndReturnToTheirOriginalContext)
               ;;
             controls)
-              SELECTORS=(-only-testing:StreamifyUITests/ControlInteractionFlowTests -skip-testing:StreamifyUITests/ControlInteractionFlowTests/testSearchFieldAndHeaderPresentFullSearchAndReturnToTheirOriginalContext -only-testing:StreamifyUITests/CardInteractionFlowTests -only-testing:StreamifyUITests/OfflinePlayerFlowTests -only-testing:StreamifyUITests/OfflineRecoveryFlowTests -only-testing:StreamifyUITests/NavigationTests)
+              SELECTORS=(-only-testing:StreamifyUITests/ControlInteractionFlowTests -skip-testing:StreamifyUITests/ControlInteractionFlowTests/testSearchFieldAndHeaderPresentFullSearchAndReturnToTheirOriginalContext -only-testing:StreamifyUITests/CardInteractionFlowTests -only-testing:StreamifyUITests/OfflinePlayerFlowTests -only-testing:StreamifyUITests/OfflineRecoveryFlowTests -only-testing:StreamifyUITests/ProfileFlowTests -only-testing:StreamifyUITests/NavigationTests)
               ;;
             screens)
               SELECTORS=(-only-testing:StreamifyUITests/ParityFlowTests)

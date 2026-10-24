@@ -4,6 +4,10 @@ final class NavigationTests: XCTestCase {
     func testGuestCanSwitchTabsAndReachSettings() {
         let app = XCUIApplication()
         app.launch()
+        let profile = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "profile-tile-")).firstMatch
+        XCTAssertTrue(profile.waitForExistence(timeout: 10))
+        capture(app, "Production launch profile chooser")
+        profile.tap()
         XCTAssertTrue(app.buttons["tab-home"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["Home"].firstMatch.waitForExistence(timeout: 5))
         XCTAssertFalse(app.tabBars.firstMatch.exists, "The custom floating navigation must not have a second system tab bar beneath it.")

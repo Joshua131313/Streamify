@@ -167,23 +167,52 @@ final class OfflinePlayerFlowTests: XCTestCase {
     }
 
     private func dragProgressThumb(_ progress: XCUIElement, to fraction: Double) {
-        let label = progress.label
-        func geometry(_ prefix: String) -> [Double] {
+        func geometry(_ prefix: String, label: String) -> [Double] {
             guard let field = label.components(separatedBy: "; ").first(where: { $0.hasPrefix(prefix) }) else { return [] }
             return field.dropFirst(prefix.count).split(separator: ",").compactMap { Double($0) }
         }
-        let thumb = geometry("fixture-thumb:")
-        let range = geometry("fixture-range:")
+        let label = progress.label
+        let thumb = geometry("fixture-thumb:", label: label)
+        let range = geometry("fixture-range:", label: label)
         guard thumb.count == 2, range.count == 2, range[1] > range[0] else {
             XCTFail("The fixture must expose the presented native slider's actual thumb and track geometry: \(label)")
             return
         }
-        let origin = progress.coordinate(withNormalizedOffset: .zero)
-        let start = origin.withOffset(CGVector(dx: thumb[0], dy: thumb[1]))
-        let end = origin.withOffset(CGVector(dx: range[0] + (range[1] - range[0]) * fraction, dy: thumb[1]))
-        XCTContext.runActivity(named: "Drag presented native seek thumb to \(Int(fraction * 100)) percent; \(label)") { _ in
+        func drag(from nativeThumb: [Double], to targetX: Double) {
+            let origin = progress.coordinate(withNormalizedOffset: .zero)
+            let start = origin.withOffset(CGVector(dx: nativeThumb[0], dy: nativeThumb[1]))
+            let end = origin.withOffset(CGVector(dx: targetX, dy: nativeThumb[1]))
             start.press(forDuration: 0.15, thenDragTo: end)
         }
+        let initialValue = progress.value as? String ?? ""
+        let initialSeconds = Double(seconds(initialValue))
+        let duration = Double(seconds(initialValue.components(separatedBy: " of ").last ?? ""))
+        let targetSeconds = duration * fraction
+        let firstTargetX = range[0] + (range[1] - range[0]) * fraction
+        XCTContext.runActivity(named: "First real native seek drag; value=\(initialValue); frame=\(progress.frame); \(label)") { _ in
+            drag(from: thumb, to: firstTargetX)
+        }
+        XCTAssertTrue(wait { (progress.value as? String) != initialValue }, "The first physical drag must commit a real timestamp change.")
+        let firstValue = progress.value as? String ?? ""
+        let committedSeconds = Double(seconds(firstValue))
+        let firstDelta = committedSeconds - initialSeconds
+        let physicalDelta = firstTargetX - thumb[0]
+        // iOS26 expands its native thumb while tracking. Its collapsed public
+        // thumbRect endpoints do not predict that held movement precisely.
+        // Calibrate once from the actual committed timestamp, then regrab the
+        // real presented thumb; never assign player state or weaken the result.
+        if abs(committedSeconds - targetSeconds) > 10, abs(firstDelta) > 1, abs(physicalDelta) > 1 {
+            let currentLabel = progress.label
+            let currentThumb = geometry("fixture-thumb:", label: currentLabel)
+            guard currentThumb.count == 2 else { XCTFail("Missing presented thumb after seek: \(currentLabel)"); return }
+            let correction = (targetSeconds - committedSeconds) * physicalDelta / firstDelta
+            let correctedTargetX = min(range[1], max(range[0], currentThumb[0] + correction))
+            XCTContext.runActivity(named: "One calibrated real drag; committed=\(firstValue); physicalDelta=\(physicalDelta); secondsDelta=\(firstDelta); targetX=\(correctedTargetX); \(currentLabel)") { _ in
+                drag(from: currentThumb, to: correctedTargetX)
+            }
+            XCTAssertTrue(wait { (progress.value as? String) != firstValue }, "The one correction drag must commit another actual timestamp change.")
+        }
+        XCTContext.runActivity(named: "Real native seek result: \(progress.value as? String ?? "missing"); \(progress.label)") { _ in }
     }
 
     private func brightnessPercent(_ slider: XCUIElement) -> Int {

@@ -11,6 +11,37 @@ final class OfflineSeekPreviewTests: XCTestCase {
         XCTAssertEqual(OfflineSeekPreviewMath.center(thumbX: 172, viewportWidth: 180), 90)
     }
 
+    func testPreviewConvertsActualWindowThumbAndKeepsAndroidBottomInset() {
+        let viewport = CGRect(x: 59, y: 24, width: 844, height: 366)
+        let thumb = CGRect(x: 320, y: 292, width: 28, height: 28)
+        let position = OfflineSeekPreviewMath.position(thumbInWindow: thumb, viewportInWindow: viewport)
+        XCTAssertEqual(position.x, 275, "Use the live thumb's center relative to the viewport, not an accessibility frame or playback fraction.")
+        XCTAssertEqual(viewport.height - (position.y + OfflineSeekPreviewMath.size.height / 2), 100)
+
+        let lowerThumb = thumb.offsetBy(dx: 0, dy: 36)
+        XCTAssertEqual(OfflineSeekPreviewMath.position(thumbInWindow: lowerThumb, viewportInWindow: viewport), position,
+            "The timestamp stays below the thumbnail at a fixed canvas inset when slider layout changes.")
+        let shiftedViewport = viewport.offsetBy(dx: 43, dy: 61)
+        XCTAssertEqual(OfflineSeekPreviewMath.position(thumbInWindow: thumb.offsetBy(dx: 43, dy: 61),
+            viewportInWindow: shiftedViewport), position, "Window and safe-area origins must not offset the preview.")
+        let safePosition = OfflineSeekPreviewMath.position(thumbInWindow: thumb, viewportInWindow: viewport, bottomSafeAreaInset: 34)
+        XCTAssertEqual(viewport.height + 34 - (safePosition.y + OfflineSeekPreviewMath.size.height / 2), 100,
+            "The home-indicator safe area must not add an extra gap above the full-screen canvas bottom.")
+    }
+
+    func testPreviewStaysInsideBothHorizontalEdgesAndSafeTopInACompactViewport() {
+        let viewport = CGRect(x: 59, y: 24, width: 390, height: 200)
+        let first = OfflineSeekPreviewMath.position(thumbInWindow: CGRect(x: 49, y: 150, width: 28, height: 28),
+            viewportInWindow: viewport)
+        let last = OfflineSeekPreviewMath.position(thumbInWindow: CGRect(x: 431, y: 150, width: 28, height: 28),
+            viewportInWindow: viewport)
+        XCTAssertEqual(first.x - OfflineSeekPreviewMath.size.width / 2, 0)
+        XCTAssertEqual(last.x + OfflineSeekPreviewMath.size.width / 2, viewport.width)
+        XCTAssertEqual(first.y - OfflineSeekPreviewMath.size.height / 2, 0,
+            "When the 100pt bottom inset cannot fit, the preview must not cross the viewport's safe top.")
+        XCTAssertEqual(OfflineSeekPreviewMath.position(thumbInWindow: .zero, viewportInWindow: .zero), .zero)
+    }
+
     func testPreviewUsesValidWholeSecondsAndNeverRequestsBeyondTheLastFrame() {
         XCTAssertEqual(OfflineSeekPreviewMath.second(position: 12.95, duration: 600), 12)
         XCTAssertEqual(OfflineSeekPreviewMath.second(position: -10, duration: 600), 0)

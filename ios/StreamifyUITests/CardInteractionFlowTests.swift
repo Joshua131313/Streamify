@@ -81,6 +81,17 @@ final class CardInteractionFlowTests: XCTestCase {
         XCTAssertFalse(app.buttons["offline-play-pause"].exists)
         capture("Held completed download native context menu")
 
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.92)).tap()
+        XCTAssertTrue(wait { !playAction.exists && playFile.isHittable })
+        XCTAssertFalse(app.buttons["offline-play-pause"].exists, "Canceling the hold must preserve the file without launching its primary tap.")
+        XCTAssertTrue(card.exists)
+        playFile.coordinate(withNormalizedOffset: CGVector(dx: 0.15, dy: 0.5)).press(forDuration: 1.2)
+        XCTAssertTrue(playAction.waitForExistence(timeout: 5))
+        XCTAssertTrue(playAction.isHittable)
+        XCTAssertTrue(app.buttons["Delete"].isHittable)
+        XCTAssertFalse(app.buttons["offline-play-pause"].exists)
+        capture("Same completed download holds again after menu cancellation")
+
         playAction.tap()
         let play = app.buttons["offline-play-pause"]
         XCTAssertTrue(play.waitForExistence(timeout: 10))

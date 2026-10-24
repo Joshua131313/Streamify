@@ -28,11 +28,11 @@ enum MediaDownloadResolutionError: LocalizedError {
         case .streamingOnly:
             return "This title is available for streaming only; no video file is available to download."
         case .qualityUnavailable:
-            return "No download is available at this quality. Select a higher resolution and try again."
+            return "No download is available at the selected quality. Choose another resolution and try again."
         case .unsafeSource:
             return "The source did not provide a supported HTTPS video file. Try streaming this title instead."
         case .incompatibleSource:
-            return "The available download files cannot be played by this iPhone. Try streaming this title or choose another download source."
+            return "The selected quality cannot be played by this iPhone. Choose another quality or download source."
         }
     }
 }
@@ -58,7 +58,9 @@ struct MediaDownloadResolver {
         guard media.kind != .tv || (season > 0 && episode > 0) else {
             throw MediaDownloadResolutionError.invalidEpisode
         }
-        let qualities = [1080, 720, 480, 360].filter { $0 <= maximumQuality }
+        // The quality picker is an exact choice. Compatibility checks must not
+        // silently turn a selected 1080p download into a different resolution.
+        let qualities = [1080, 720, 480, 360].filter { $0 == maximumQuality }
         guard !qualities.isEmpty else { throw MediaDownloadResolutionError.qualityUnavailable }
 
         var tokenAddress = URLComponents()

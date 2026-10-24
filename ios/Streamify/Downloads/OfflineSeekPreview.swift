@@ -3,16 +3,36 @@ import AVFoundation
 import Combine
 
 enum OfflineSeekPreviewMath {
+    static let imageSize = CGSize(width: 208, height: 117)
+    static let timestampHeight: CGFloat = 24
+    static let bottomInset: CGFloat = 100
+    static let size = CGSize(width: imageSize.width, height: imageSize.height + timestampHeight)
+
     static func second(position: Double, duration: Double) -> Int? {
         guard position.isFinite, duration.isFinite, duration > 0 else { return nil }
         let bounded = min(max(0, position), max(0, duration - 0.05)).rounded(.down)
         return Int(exactly: bounded)
     }
-    static func center(thumbX: CGFloat, viewportWidth: CGFloat, previewWidth: CGFloat = 208) -> CGFloat {
+    static func center(thumbX: CGFloat, viewportWidth: CGFloat, previewWidth: CGFloat = size.width) -> CGFloat {
         guard thumbX.isFinite, viewportWidth.isFinite, previewWidth.isFinite,
               viewportWidth > 0, previewWidth > 0 else { return 0 }
         guard viewportWidth >= previewWidth else { return viewportWidth / 2 }
         return min(viewportWidth - previewWidth / 2, max(previewWidth / 2, thumbX))
+    }
+    /// UIKit reports the live thumb in window coordinates. Android follows that
+    /// horizontal anchor but keeps the entire preview 100dp above the canvas
+    /// bottom, independent of the slider's vertical position.
+    static func position(thumbInWindow: CGRect, viewportInWindow: CGRect, bottomSafeAreaInset: CGFloat = 0) -> CGPoint {
+        guard thumbInWindow.midX.isFinite, viewportInWindow.minX.isFinite,
+              viewportInWindow.width.isFinite, viewportInWindow.height.isFinite,
+              bottomSafeAreaInset.isFinite,
+              viewportInWindow.width > 0, viewportInWindow.height > 0 else { return .zero }
+        return CGPoint(
+            x: center(thumbX: thumbInWindow.midX - viewportInWindow.minX,
+                viewportWidth: viewportInWindow.width),
+            // A compact window can have less room than Android's bottom inset.
+            // Keep the thumbnail below the viewport's safe top in that case.
+            y: max(size.height / 2, viewportInWindow.height + max(0, bottomSafeAreaInset) - bottomInset - size.height / 2))
     }
     static func timestamp(_ seconds: Double) -> String {
         guard seconds.isFinite, let value = Int(exactly: max(0, seconds).rounded(.down)) else { return "0:00" }
@@ -123,7 +143,8 @@ final class OfflineSeekPreviewModel: ObservableObject {
     }
 }
 
-/// Android's 208x117 fit-center frame, 6pt radius, black 2pt border and 24pt clock.
+/// Android's fit-center frame and separate, unbacked timestamp. Its image alone
+/// has a 6pt radius and black 2pt padding/border; the preview has no shadow.
 struct OfflineSeekPreviewBubble: View {
     @ObservedObject var model: OfflineSeekPreviewModel
     var body: some View {
@@ -131,16 +152,15 @@ struct OfflineSeekPreviewBubble: View {
             ZStack {
                 Color.black
                 if let image = model.image { Image(uiImage: image).resizable().scaledToFit().padding(2) }
-                else if model.loading { ProgressView().tint(.white).scaleEffect(0.8) }
-                else { Text("Preview unavailable").font(.caption2).foregroundStyle(.white.opacity(0.7)) }
             }
-            .frame(width: 208, height: 117).clipShape(RoundedRectangle(cornerRadius: 6))
-            .overlay { RoundedRectangle(cornerRadius: 6).strokeBorder(.black, lineWidth: 2) }
+            .frame(width: OfflineSeekPreviewMath.imageSize.width, height: OfflineSeekPreviewMath.imageSize.height)
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .circular))
+            .overlay { RoundedRectangle(cornerRadius: 6, style: .circular).strokeBorder(.black, lineWidth: 2) }
             Text(OfflineSeekPreviewMath.timestamp(model.seconds))
-                .font(.system(size: 12).monospacedDigit()).foregroundStyle(.white).frame(width: 208, height: 24)
-                .background(.black.opacity(0.7))
+                .font(.system(size: 12)).foregroundStyle(.white)
+                .frame(width: OfflineSeekPreviewMath.size.width, height: OfflineSeekPreviewMath.timestampHeight)
         }
-        .frame(width: 208, height: 141).allowsHitTesting(false)
+        .frame(width: OfflineSeekPreviewMath.size.width, height: OfflineSeekPreviewMath.size.height).allowsHitTesting(false)
         .accessibilityElement(children: .ignore).accessibilityLabel("Seek preview")
         .accessibilityValue("\(OfflineSeekPreviewMath.timestamp(model.seconds)), \(model.image == nil ? model.loading ? "Loading frame" : "Preview unavailable" : "Video frame")")
         .accessibilityIdentifier("offline-seek-preview")

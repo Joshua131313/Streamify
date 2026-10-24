@@ -54,7 +54,7 @@ struct SportsGameView: View {
                     SportsPanel { Label("Latest play", systemImage: "waveform.path").font(.headline); Text(center.flatMap { $0.latest.isEmpty ? nil : $0.latest } ?? "Play-by-play is not available in the current feed.").foregroundStyle(AppTheme.muted) }
                 }
                 if tab == "Chat" {
-                    StateMessage(symbol: "bubble.left.and.bubble.right", title: "Matchup chat", message: "The shared Streamify chat requires a connected cloud account. iOS cloud sign-in has not been configured for this build.")
+                    SportsChatView(game: current)
                 }
             }.padding(20).padding(.bottom, 24)
         }

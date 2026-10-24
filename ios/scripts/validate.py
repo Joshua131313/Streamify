@@ -29,6 +29,14 @@ for path in [resources / "Info.plist", resources / "PrivacyInfo.xcprivacy", widg
             plistlib.load(source)
     except Exception as exc:
         errors.append(f"{path}: {exc}")
+try:
+    firebase = plistlib.loads((resources / "GoogleService-Info.plist").read_bytes())
+    if firebase.get("BUNDLE_ID") != "com.streamify.app" or firebase.get("PROJECT_ID") != "debugging-98550":
+        errors.append("Guest chat Firebase configuration must match the existing Streamify app and project.")
+    if not firebase.get("API_KEY") or not firebase.get("GOOGLE_APP_ID"):
+        errors.append("Guest chat Firebase configuration is incomplete.")
+except Exception as exc:
+    errors.append(f"Guest chat Firebase configuration: {exc}")
 collections = json.loads((resources / "collections.json").read_text())
 servers = json.loads((resources / "media-servers.json").read_text())
 if len(collections) != 17 or len(servers) != 15:

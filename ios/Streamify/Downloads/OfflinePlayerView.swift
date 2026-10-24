@@ -181,11 +181,9 @@ struct OfflinePlayerView: View {
     @ViewBuilder private func seekPreviewOverlay(in geometry: GeometryProxy) -> some View {
         if scrubbing, controlsVisible, !locked, panel == nil, model.error == nil,
            seekPreview.visible, let thumb = seekThumbInWindow {
-            let origin = geometry.frame(in: .global).origin
             OfflineSeekPreviewBubble(model: seekPreview)
-                .position(
-                    x: OfflineSeekPreviewMath.center(thumbX: thumb.midX - origin.x, viewportWidth: geometry.size.width),
-                    y: max(78.5, thumb.minY - origin.y - 78.5))
+                .position(OfflineSeekPreviewMath.position(thumbInWindow: thumb,
+                    viewportInWindow: geometry.frame(in: .global), bottomSafeAreaInset: geometry.safeAreaInsets.bottom))
         }
     }
 

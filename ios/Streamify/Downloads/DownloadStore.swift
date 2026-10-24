@@ -39,6 +39,8 @@ struct DownloadItem: Identifiable, Codable, Sendable {
     /// A moved URLSession file awaiting device compatibility checks. Persisted
     /// so a background relaunch can finish validation instead of losing it.
     var pendingFileName: String? = nil
+    /// Persist the bound across background relaunches; manual Retry resets it.
+    var automaticSourceRefreshes: Int? = nil
     var posterFileURL: URL? {
         guard let posterFileName, let directory = try? DownloadFiles.directory() else { return nil }
         return DownloadArtworkCache.fileURL(fileName: posterFileName, itemID: id, directory: directory)
@@ -267,6 +269,7 @@ final class DownloadStore: ObservableObject {
     }
 
     func cancel(id: UUID) {
+        defer { finishBackgroundEventsIfPossible() }
         guard let index = items.firstIndex(where: { $0.id == id }), items[index].status == .downloading else { return }
         cancelValidation(id: id)
         // The cancelled row remains available for Retry. Keep its saved poster
@@ -283,9 +286,19 @@ final class DownloadStore: ObservableObject {
     }
 
     func retry(id: UUID) {
+        retry(id: id, refreshingExpiredSource: false)
+    }
+
+    private func retry(id: UUID, refreshingExpiredSource: Bool) {
         guard let index = items.firstIndex(where: { $0.id == id }),
               items[index].status == .failed || items[index].status == .cancelled,
               items[index].source.flatMap(secureURL) != nil else { return }
+        let failedSource = items[index].source
+        let failureMessage = items[index].error
+        if refreshingExpiredSource {
+            guard (items[index].automaticSourceRefreshes ?? 0) < 1 else { return }
+            items[index].automaticSourceRefreshes = 1
+        } else { items[index].automaticSourceRefreshes = 0 }
         cancelValidation(id: id)
         items[index].status = .downloading
         items[index].bytesWritten = 0
@@ -304,6 +317,7 @@ final class DownloadStore: ObservableObject {
                         self?.resolutionAttempts[id] = nil
                         self?.resolutions[id] = nil
                     }
+                    self?.finishBackgroundEventsIfPossible()
                 }
                 do {
                     let resolved = try await MediaDownloadResolver().resolve(media: media, season: descriptor.season,
@@ -311,6 +325,12 @@ final class DownloadStore: ObservableObject {
                     try Task.checkCancellation()
                     guard let self, self.resolutionAttempts[id] == attempt,
                           let current = self.items.firstIndex(where: { $0.id == id }), self.items[current].status == .downloading else { return }
+                    guard !refreshingExpiredSource || resolved.url.absoluteString != failedSource else {
+                        self.items[current].status = .failed
+                        self.items[current].error = failureMessage ?? "This download source is unavailable. Try again later or choose another quality."
+                        self.save()
+                        return
+                    }
                     self.items[current].source = resolved.url.absoluteString
                     self.items[current].quality = resolved.quality
                     self.start(self.items[current]); self.save()
@@ -331,6 +351,7 @@ final class DownloadStore: ObservableObject {
     }
 
     func remove(id: UUID) {
+        defer { finishBackgroundEventsIfPossible() }
         cancelValidation(id: id)
         clearArtwork(id: id)
         resolutions[id]?.cancel()
@@ -494,7 +515,7 @@ final class DownloadStore: ObservableObject {
         validatePending(id: id, taskIdentifier: taskIdentifier, fileName: fileName)
     }
 
-    fileprivate func failed(id: UUID, taskIdentifier: Int, message: String) {
+    fileprivate func failed(id: UUID, taskIdentifier: Int, message: String, expiredSource: Bool = false) {
         guard let index = items.firstIndex(where: { $0.id == id }), items[index].acceptsCallback(taskIdentifier: taskIdentifier) else { return }
         cancelValidation(id: id)
         tasks[id] = nil
@@ -502,6 +523,10 @@ final class DownloadStore: ObservableObject {
         items[index].taskIdentifier = nil
         items[index].error = message
         save()
+        if expiredSource, items[index].catalog?.media != nil,
+           (items[index].automaticSourceRefreshes ?? 0) < 1 {
+            retry(id: id, refreshingExpiredSource: true)
+        }
     }
 
     private func validatePending(id: UUID, taskIdentifier: Int, fileName: String) {
@@ -582,7 +607,7 @@ final class DownloadStore: ObservableObject {
         finishBackgroundEventsIfPossible()
     }
     fileprivate func finishBackgroundEventsIfPossible() {
-        guard backgroundEventsFinished, validations.isEmpty, !delegate.hasPendingOwnerCallbacks,
+        guard backgroundEventsFinished, validations.isEmpty, resolutions.isEmpty, !delegate.hasPendingOwnerCallbacks,
               let completion = backgroundCompletion else { return }
         backgroundEventsFinished = false; backgroundCompletion = nil
         completion()
@@ -665,7 +690,8 @@ private final class DownloadSessionDelegate: NSObject, URLSessionDownloadDelegat
         } catch {
             if let movedFile { try? FileManager.default.removeItem(at: movedFile) }
             let message = error.localizedDescription
-            deliver { $0?.failed(id: id, taskIdentifier: taskIdentifier, message: message) }
+            let expiredSource = (downloadTask.response as? HTTPURLResponse).map { [403, 404, 410].contains($0.statusCode) } ?? false
+            deliver { $0?.failed(id: id, taskIdentifier: taskIdentifier, message: message, expiredSource: expiredSource) }
         }
     }
 

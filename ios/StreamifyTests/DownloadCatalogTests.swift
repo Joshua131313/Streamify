@@ -76,9 +76,11 @@ final class DownloadCatalogTests: XCTestCase {
         var item = DownloadItem(id: UUID(), title: "Show · S2 E3 · Episode", source: "https://example.com/signed?token=new",
                                 createdAt: Date(timeIntervalSince1970: 123), status: .downloading, catalogKey: "tv:123:2:3", quality: 1080)
         item.taskIdentifier = 42
+        item.automaticSourceRefreshes = 1
         let restored = try JSONDecoder().decode(DownloadItem.self, from: JSONEncoder().encode(item))
         XCTAssertEqual(restored.catalogKey, "tv:123:2:3")
         XCTAssertEqual(restored.quality, 1080)
+        XCTAssertEqual(restored.automaticSourceRefreshes, 1, "The automatic expired-link retry bound must survive background relaunches.")
         XCTAssertEqual(restored.createdAt, item.createdAt)
         XCTAssertTrue(restored.acceptsCallback(taskIdentifier: 42))
         XCTAssertFalse(restored.acceptsCallback(taskIdentifier: 41))

@@ -9,11 +9,12 @@ struct HapticCardButtonStyle: PrimitiveButtonStyle {
             AppHaptics.tap()
             configuration.trigger()
         } label: { configuration.label }
-            .buttonStyle(CardPressedAppearance(cornerRadius: cornerRadius))
+            .buttonStyle(CardPressedButtonStyle(cornerRadius: cornerRadius))
     }
 }
 
-private struct CardPressedAppearance: ButtonStyle {
+/// Paint-only feedback for controls that must directly own a native context menu.
+struct CardPressedButtonStyle: ButtonStyle {
     let cornerRadius: CGFloat
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.isEnabled) private var enabled

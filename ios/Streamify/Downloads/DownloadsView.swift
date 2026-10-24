@@ -9,6 +9,8 @@ struct DownloadsView: View {
     @State private var showAdd = false
     @State private var showImporter = false
     @State private var selected: DownloadItem?
+    @State private var selectedSeries: DownloadSeriesGroup?
+    @State private var showSeries = false
     @State private var error: String?
     @State private var importing = false
     private var completed: [DownloadItem] { downloads.items.filter { $0.status == .completed } }
@@ -37,8 +39,15 @@ struct DownloadsView: View {
                         .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
                         .listRowBackground(AppTheme.canvas).listRowSeparator(.hidden)
                 }
-                ForEach(downloads.items) { item in
-                    DownloadRow(item: item, play: { selected = item })
+                ForEach(DownloadLibraryGrouping.entries(in: downloads.items)) { entry in
+                    Group {
+                        switch entry {
+                        case .video(let item):
+                            DownloadRow(item: item, play: { selected = item })
+                        case .series(let series):
+                            DownloadSeriesRow(series: series) { selectedSeries = series; showSeries = true }
+                        }
+                    }
                         .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                         .listRowBackground(AppTheme.canvas).listRowSeparator(.hidden)
                 }
@@ -66,6 +75,9 @@ struct DownloadsView: View {
             .task { downloads.refreshArtwork(token: settings.tmdbToken) }
             .navigationTitle("Downloads").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
+            .navigationDestination(isPresented: $showSeries) {
+                if let selectedSeries { DownloadSeriesView(seriesID: selectedSeries.id, initialTitle: selectedSeries.title) }
+            }
             .sheet(isPresented: $showAdd) { NavigationStack { AddDownloadView() } }
             .fullScreenCover(item: $selected) { item in OfflineVideoView(item: item) }
             .fileImporter(isPresented: $showImporter, allowedContentTypes: [.mpeg4Movie, .quickTimeMovie, UTType(filenameExtension: "m4v") ?? .movie], allowsMultipleSelection: false) { result in
@@ -82,53 +94,143 @@ struct DownloadsView: View {
     }
 }
 
+private struct DownloadSeriesRow: View {
+    let series: DownloadSeriesGroup
+    let open: () -> Void
+    @EnvironmentObject private var downloads: DownloadStore
+    @State private var artwork: UIImage?
+    @State private var confirmDelete = false
+    @State private var deletionIDs: [UUID] = []
+
+    private var episodeCount: String { "\(series.episodes.count) episode\(series.episodes.count == 1 ? "" : "s")" }
+    private var summary: String {
+        let size = ByteCountFormatter.string(fromByteCount: series.bytesWritten, countStyle: .file)
+        return "\(episodeCount) · " + (series.readyCount == series.episodes.count ? size : "\(series.readyCount)/\(series.episodes.count) ready · \(size)")
+    }
+    private var artworkKey: String { series.episodes.map { "\($0.id):\($0.posterFileName ?? "")" }.joined(separator: "|") }
+
+    var body: some View {
+        Button(action: open) {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 4).fill(AppTheme.foreground.opacity(0.06))
+                    if let artwork { Image(uiImage: artwork).resizable().scaledToFit() }
+                    else { Image(systemName: "tv").font(.title3).foregroundStyle(AppTheme.muted) }
+                }.frame(width: 112, height: 70).clipShape(RoundedRectangle(cornerRadius: 4)).accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(series.title).font(.subheadline.weight(.semibold)).lineLimit(2)
+                    Text(summary).font(.caption.monospacedDigit()).foregroundStyle(AppTheme.muted).lineLimit(2)
+                }.frame(maxWidth: .infinity, alignment: .leading)
+                if !series.active.isEmpty {
+                    DownloadActivityIndicator(progress: series.progress, size: 26, animated: false)
+                        .accessibilityHidden(true)
+                }
+                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(AppTheme.muted)
+            }.frame(minHeight: 70).contentShape(Rectangle())
+        }.buttonStyle(HapticCardButtonStyle(cornerRadius: 6)).foregroundStyle(AppTheme.foreground)
+            .accessibilityLabel("\(series.title), \(summary), View episodes")
+            .accessibilityValue(series.active.isEmpty ? "" : series.progress.map { "\(Int($0 * 100)) percent" } ?? "Downloading. Total size unknown")
+            .accessibilityIdentifier("download-series-\(series.id)")
+            .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 6))
+            .contextMenu {
+                Button("View episodes", systemImage: "rectangle.stack", action: open)
+                if !series.active.isEmpty { Button("Cancel downloads", systemImage: "stop.fill") { cancelActive() } }
+                if !series.retryable.isEmpty { Button("Retry downloads", systemImage: "arrow.clockwise") { retryFailed() } }
+                Button("Delete downloads", systemImage: "trash", role: .destructive, action: requestDelete)
+            }
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                Button(action: requestDelete) { Label("Delete", systemImage: "trash") }
+                    .buttonStyle(.automatic).tint(Color(white: 0.24))
+                    .accessibilityIdentifier("download-series-swipe-delete-\(series.id)")
+                if !series.active.isEmpty {
+                    Button(action: cancelActive) { Label("Cancel downloads", systemImage: "stop.fill") }
+                        .buttonStyle(.automatic).tint(Color(white: 0.34))
+                } else if !series.retryable.isEmpty {
+                    Button(action: retryFailed) { Label("Retry", systemImage: "arrow.clockwise") }
+                        .buttonStyle(.automatic).tint(Color(white: 0.34))
+                }
+            }
+            .task(id: artworkKey) {
+                artwork = series.episodes.lazy.compactMap { $0.posterFileURL.flatMap { UIImage(contentsOfFile: $0.path) } }.first
+            }
+            .confirmationDialog("Delete \(deletionIDs.count) episode download\(deletionIDs.count == 1 ? "" : "s") for \(series.title)?", isPresented: $confirmDelete, titleVisibility: .visible) {
+                Button("Delete \(deletionIDs.count) episode\(deletionIDs.count == 1 ? "" : "s")", role: .destructive) {
+                    // These records were captured when confirmation opened;
+                    // a new episode added while it is open is not deleted.
+                    for id in deletionIDs {
+                        downloads.remove(id: id)
+                        // Preserve the store's real file-removal error instead
+                        // of clearing it with a later successful deletion.
+                        if downloads.items.contains(where: { $0.id == id }) { break }
+                    }
+                }.accessibilityIdentifier("download-series-confirm-delete-\(series.id)")
+                Button("Cancel", role: .cancel) {}
+            } message: { Text("This removes these episode downloads from this iPhone.") }
+    }
+
+    private func requestDelete() { deletionIDs = series.episodes.map(\.id); confirmDelete = true }
+    private func cancelActive() { series.active.forEach { downloads.cancel(id: $0.id) } }
+    private func retryFailed() { series.retryable.forEach { downloads.retry(id: $0.id) } }
+}
+
+private struct DownloadSeriesView: View {
+    let seriesID: Int
+    let initialTitle: String
+    @EnvironmentObject private var downloads: DownloadStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var selected: DownloadItem?
+    private var series: DownloadSeriesGroup? { DownloadLibraryGrouping.series(id: seriesID, in: downloads.items) }
+
+    var body: some View {
+        List {
+            if let series {
+                Section {
+                    Text("On this device · \(series.readyCount) of \(series.episodes.count) episodes ready to watch")
+                        .font(.subheadline).foregroundStyle(AppTheme.muted)
+                        .listRowBackground(AppTheme.canvas).listRowSeparator(.hidden)
+                    if let error = downloads.storageError {
+                        Text(error).font(.caption).foregroundStyle(AppTheme.accent)
+                            .listRowBackground(AppTheme.canvas).listRowSeparator(.hidden)
+                    }
+                }
+                ForEach(series.seasons, id: \.self) { season in
+                    Section("Season \(season)") {
+                        ForEach(series.episodes.filter { max(1, $0.catalog?.season ?? 1) == season }) { item in
+                            DownloadRow(item: item, episodePage: true, play: { selected = item })
+                                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                                .listRowBackground(AppTheme.canvas).listRowSeparator(.hidden)
+                        }
+                    }
+                }
+                Section {
+                    MediaDetailLink(media: MediaItem(id: series.id, kind: .tv, title: series.title)) {
+                        Text("View more episodes").font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 48)
+                            .foregroundStyle(AppTheme.canvas).background(AppTheme.foreground, in: Capsule())
+                    }.accessibilityIdentifier("download-series-more-\(seriesID)")
+                        .listRowInsets(EdgeInsets(top: 16, leading: 36, bottom: 20, trailing: 36))
+                        .listRowBackground(AppTheme.canvas).listRowSeparator(.hidden)
+                }
+            }
+        }.listStyle(.plain).listSectionSpacing(12)
+            .environment(\.defaultMinListRowHeight, 0)
+            .scrollContentBackground(.hidden).background(AppTheme.canvas)
+            .navigationTitle(series?.title ?? initialTitle).navigationBarTitleDisplayMode(.inline)
+            .accessibilityIdentifier("download-series-page-\(seriesID)")
+            .fullScreenCover(item: $selected) { item in OfflineVideoView(item: item) }
+            .onChange(of: series == nil) { _, empty in if empty { dismiss() } }
+    }
+}
+
 private struct DownloadRow: View {
     let item: DownloadItem
+    var episodePage = false
     let play: () -> Void
     @EnvironmentObject private var downloads: DownloadStore
     @State private var confirmDelete = false
     @State private var artwork: UIImage?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
-                Button(action: play) {
-                    HStack(spacing: 12) {
-                        thumbnail
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(item.catalog?.title ?? item.title).font(.subheadline.weight(.semibold)).lineLimit(2)
-                            if let catalog = item.catalog, catalog.kind == MediaKind.tv.rawValue {
-                                Text("S\(catalog.season) · E\(catalog.episode)" + (catalog.episodeTitle.map { " · \($0)" } ?? ""))
-                                    .font(.caption).foregroundStyle(AppTheme.muted).lineLimit(2)
-                            }
-                            if let metadata = metadataText {
-                                Text(metadata).font(.caption.monospacedDigit()).foregroundStyle(AppTheme.muted).lineLimit(1)
-                                    .accessibilityIdentifier("download-progress-\(item.id)")
-                            }
-                        }.frame(maxWidth: .infinity, alignment: .leading)
-                    }.frame(minHeight: 70).contentShape(Rectangle())
-                }.buttonStyle(HapticCardButtonStyle(cornerRadius: 6)).disabled(item.status != .completed)
-                    .foregroundStyle(AppTheme.foreground)
-                    .accessibilityLabel(item.status == .completed ? "Play offline \(item.title)" : item.title)
-                    .accessibilityIdentifier("download-play-\(item.id)")
-                    .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 6))
-                    .contextMenu {
-                        // The same native control owns its tap and its hold, so
-                        // opening the menu cancels the completed file's play tap.
-                        if item.status == .completed { downloadActions }
-                    }
-                trailingControl
-            }
-            if let error = item.error {
-                Text(error).font(.caption).foregroundStyle(AppTheme.muted)
-                    .fixedSize(horizontal: false, vertical: true).padding(.leading, 124)
-            }
-        }.contentShape(Rectangle())
-            .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 6))
-            .contextMenu {
-                // Disabled transfer buttons cannot own their own context menu.
-                if item.status != .completed { downloadActions }
-            }
+        withTransferContextMenu(row)
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 // Keep native swipe rendering even with the app's haptic button
                 // style. Deletion stays a confirmed action, not an optimistic row removal.
@@ -152,6 +254,72 @@ private struct DownloadRow: View {
                 Button("Delete video", role: .destructive) { downloads.remove(id: item.id) }
                 Button("Cancel", role: .cancel) {}
             } message: { Text("This removes the saved video from this iPhone.") }
+    }
+
+    private var row: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                if item.status == .completed {
+                    primaryButton.contextMenu { downloadActions } preview: { contextPreview }
+                } else { primaryButton }
+                trailingControl
+            }
+            if let error = item.error {
+                Text(error).font(.caption).foregroundStyle(AppTheme.muted)
+                    .fixedSize(horizontal: false, vertical: true).padding(.leading, 124)
+            }
+        }.contentShape(Rectangle())
+    }
+
+    private var primaryButton: some View {
+        // One native Button owns activation and the completed-file context menu.
+        // A primitive style would insert a second Button inside that interaction.
+        Button { AppHaptics.tap(); play() } label: { primaryLabel }
+            .buttonStyle(CardPressedButtonStyle(cornerRadius: 6)).disabled(item.status != .completed)
+            .foregroundStyle(AppTheme.foreground)
+            .accessibilityLabel(item.status == .completed ? "Play offline \(item.title)" : item.title)
+            .accessibilityIdentifier("download-play-\(item.id)")
+            .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 6))
+    }
+
+    private var primaryLabel: some View {
+        HStack(spacing: 12) {
+            thumbnail
+            VStack(alignment: .leading, spacing: 5) {
+                Text(rowTitle).font(.subheadline.weight(.semibold)).lineLimit(2)
+                if !episodePage, let catalog = item.catalog, catalog.kind == MediaKind.tv.rawValue {
+                    Text("S\(catalog.season) · E\(catalog.episode)" + (catalog.episodeTitle.map { " · \($0)" } ?? ""))
+                        .font(.caption).foregroundStyle(AppTheme.muted).lineLimit(2)
+                }
+                if let metadata = metadataText {
+                    Text(metadata).font(.caption.monospacedDigit()).foregroundStyle(AppTheme.muted).lineLimit(1)
+                        .accessibilityIdentifier("download-progress-\(item.id)")
+                }
+            }.frame(maxWidth: .infinity, alignment: .leading)
+        }.frame(minHeight: 70).contentShape(Rectangle())
+    }
+
+    private var contextPreview: some View {
+        primaryLabel.frame(width: 294).padding(12)
+            .foregroundStyle(AppTheme.foreground)
+            .background(AppTheme.canvas, in: RoundedRectangle(cornerRadius: 16))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    @ViewBuilder private func withTransferContextMenu<Content: View>(_ content: Content) -> some View {
+        // Disabled transfer buttons need a row menu. Completed rows have none on
+        // their ancestor, leaving a single native menu on the actual play Button.
+        if item.status == .completed { content }
+        else {
+            content.contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 6))
+                .contextMenu { downloadActions } preview: { contextPreview }
+        }
+    }
+
+    private var rowTitle: String {
+        guard episodePage, let catalog = item.catalog else { return item.catalog?.title ?? item.title }
+        let name = catalog.episodeTitle?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return "S\(catalog.season) E\(catalog.episode)" + (name.flatMap { $0.isEmpty ? nil : " · \($0)" } ?? "")
     }
 
     @ViewBuilder private var trailingControl: some View {

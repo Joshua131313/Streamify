@@ -5,16 +5,20 @@ import SwiftUI
 struct StreamifyApp: App {
     @UIApplicationDelegateAdaptor(DownloadAppDelegate.self) private var appDelegate
     @StateObject private var settings: SettingsStore
-    @StateObject private var library: LibraryStore
+    @StateObject private var profiles: ProfileStore
     @StateObject private var downloads = DownloadStore.shared
     @StateObject private var sportsPlayback = SportsPlaybackSession()
     @StateObject private var quickActions = AppQuickActionRouter.shared
 
     init() {
+        SportsChatBootstrap.configure()
         #if DEBUG
         if PreviewFixtures.enabled { PreviewFixtures.install() }
         _settings = StateObject(wrappedValue: SettingsStore(defaults: PreviewFixtures.enabled ? PreviewFixtures.defaults : .standard))
-        _library = StateObject(wrappedValue: LibraryStore(defaults: PreviewFixtures.enabled ? PreviewFixtures.defaults : .standard))
+        let profileStore = ProfileStore(defaults: PreviewFixtures.enabled ? PreviewFixtures.defaults : .standard,
+            chooseOnLaunch: !PreviewFixtures.enabled || ProcessInfo.processInfo.arguments.contains("--ui-profile-chooser"))
+        if PreviewFixtures.enabled { PreviewFixtures.seedLibrary(profileStore.library) }
+        _profiles = StateObject(wrappedValue: profileStore)
         if PreviewFixtures.enabled {
             let arguments = ProcessInfo.processInfo.arguments
             if let index = arguments.firstIndex(of: "--ui-quick-action"), arguments.indices.contains(index + 1),
@@ -24,30 +28,53 @@ struct StreamifyApp: App {
         }
         #else
         _settings = StateObject(wrappedValue: SettingsStore())
-        _library = StateObject(wrappedValue: LibraryStore())
+        _profiles = StateObject(wrappedValue: ProfileStore())
         #endif
     }
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            ProfileAppGate()
                 .buttonStyle(HapticAutomaticButtonStyle())
                 .environmentObject(settings)
-                .environmentObject(library)
+                .environmentObject(profiles)
+                .environmentObject(profiles.library)
                 .environmentObject(downloads)
                 .environmentObject(sportsPlayback)
                 .environmentObject(quickActions)
                 .background { SportsPlaybackHost(session: sportsPlayback).frame(width: 0, height: 0) }
                 .tint(AppTheme.foreground)
                 .preferredColorScheme(settings.appearance == "System" ? nil : settings.appearance == "Light" ? .light : .dark)
+                .onOpenURL { quickActions.enqueue(url: $0) }
                 .onAppear {
                     #if DEBUG
                     if PreviewFixtures.enabled {
-                        PreviewFixtures.seedLibrary(library)
                         PreviewFixtures.seedDownloads(downloads)
                     }
                     #endif
                 }
+        }
+    }
+}
+
+@MainActor
+private struct ProfileAppGate: View {
+    @EnvironmentObject private var profiles: ProfileStore
+    @EnvironmentObject private var sportsPlayback: SportsPlaybackSession
+    @State private var hasEnteredApp = false
+
+    var body: some View {
+        Group {
+            if profiles.requiresSelection {
+                ProfileChooserView(isSwitching: hasEnteredApp,
+                    onCancel: hasEnteredApp ? { profiles.cancelSwitch() } : nil)
+            } else {
+                RootView().id(profiles.activeProfile?.id)
+                    .onAppear { hasEnteredApp = true }
+            }
+        }
+        .onChange(of: profiles.requiresSelection) { _, choosing in
+            if choosing { sportsPlayback.close() }
         }
     }
 }
@@ -65,6 +92,7 @@ enum AppTab: String, CaseIterable {
 struct RootView: View {
     private enum LibraryDestination: Hashable { case downloads }
     @EnvironmentObject private var settings: SettingsStore
+    @EnvironmentObject private var profiles: ProfileStore
     @EnvironmentObject private var downloads: DownloadStore
     @EnvironmentObject private var sportsPlayback: SportsPlaybackSession
     @EnvironmentObject private var quickActions: AppQuickActionRouter
@@ -134,7 +162,6 @@ struct RootView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in keyboardVisible = true }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in keyboardVisible = false }
-        .onOpenURL { quickActions.enqueue(url: $0) }
         .task(id: "\(quickActions.pending?.id.uuidString ?? "none")-\(scenePhase == .active)") {
             guard scenePhase == .active, let request = quickActions.takePending() else { return }
             navigate(request)
@@ -271,6 +298,7 @@ struct RootView: View {
                     }
             }.accessibilityLabel("Downloads").accessibilityValue(downloadActivityValue).accessibilityIdentifier("open-downloads")
             Menu {
+                Button("Switch profiles", systemImage: "person.2") { profiles.showChooser() }
                 Button("Account", systemImage: "person.crop.circle") { accountOpen = true }
                 Button("Settings", systemImage: "gearshape") { settingsOpen = true }
             } label: { Image(systemName: "ellipsis").rotationEffect(.degrees(90)).frame(width: 44, height: 44) }
