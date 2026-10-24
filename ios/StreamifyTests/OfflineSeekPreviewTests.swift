@@ -13,7 +13,7 @@ final class OfflineSeekPreviewTests: XCTestCase {
 
     func testPreviewConvertsActualWindowThumbAndKeepsAndroidBottomInset() {
         let viewport = CGRect(x: 59, y: 24, width: 844, height: 366)
-        let thumb = CGRect(x: 320, y: 292, width: 28, height: 28)
+        let thumb = CGRect(x: 320, y: 320, width: 28, height: 28)
         let position = OfflineSeekPreviewMath.position(thumbInWindow: thumb, viewportInWindow: viewport)
         XCTAssertEqual(position.x, 275, "Use the live thumb's center relative to the viewport, not an accessibility frame or playback fraction.")
         XCTAssertEqual(viewport.height - (position.y + OfflineSeekPreviewMath.size.height / 2), 100)
@@ -24,9 +24,23 @@ final class OfflineSeekPreviewTests: XCTestCase {
         let shiftedViewport = viewport.offsetBy(dx: 43, dy: 61)
         XCTAssertEqual(OfflineSeekPreviewMath.position(thumbInWindow: thumb.offsetBy(dx: 43, dy: 61),
             viewportInWindow: shiftedViewport), position, "Window and safe-area origins must not offset the preview.")
-        let safePosition = OfflineSeekPreviewMath.position(thumbInWindow: thumb, viewportInWindow: viewport, bottomSafeAreaInset: 34)
+        let safePosition = OfflineSeekPreviewMath.position(thumbInWindow: lowerThumb, viewportInWindow: viewport, bottomSafeAreaInset: 34)
         XCTAssertEqual(viewport.height + 34 - (safePosition.y + OfflineSeekPreviewMath.size.height / 2), 100,
             "The home-indicator safe area must not add an extra gap above the full-screen canvas bottom.")
+    }
+
+    func testHigherNativeThumbRaisesPreviewWithoutLosingWindowOrSafeAreaOffsets() {
+        let viewport = CGRect(x: 59, y: 62, width: 750, height: 778)
+        let thumb = CGRect(x: 320, y: 740, width: 37, height: 37)
+        let position = OfflineSeekPreviewMath.position(thumbInWindow: thumb, viewportInWindow: viewport, bottomSafeAreaInset: 34)
+        let previewBottomInWindow = viewport.minY + position.y + OfflineSeekPreviewMath.size.height / 2
+        XCTAssertEqual(thumb.minY - previewBottomInWindow, 8,
+            "The timestamp row must stay above the actual native thumb rather than drawing over the track.")
+        XCTAssertGreaterThan(viewport.maxY + 34 - previewBottomInWindow, 100,
+            "A higher native control takes priority over Android's preferred bottom inset when they would collide.")
+        XCTAssertEqual(position.x, thumb.midX - viewport.minX)
+        XCTAssertEqual(OfflineSeekPreviewMath.position(thumbInWindow: thumb.offsetBy(dx: 40, dy: 25),
+            viewportInWindow: viewport.offsetBy(dx: 40, dy: 25), bottomSafeAreaInset: 34), position)
     }
 
     func testPreviewStaysInsideBothHorizontalEdgesAndSafeTopInACompactViewport() {

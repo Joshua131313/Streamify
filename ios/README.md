@@ -156,6 +156,6 @@ Sports fullscreen uses the embedded provider’s own control and real WebKit ele
 
 Downloads group every catalog show into its own episode page, with season sections, cached artwork, progress rings and native swipe/context actions. Quality is an exact selection: an unavailable or incompatible 1080p file is never silently replaced with 480p. Retry resolves a fresh source; an expired catalog URL can renew automatically once, only if a different signed address is returned at the same quality. A refresh is not a second provider. No additional direct-file provider has been verified for FROM S1 E1.
 
-The offline seek preview follows the native thumb horizontally and matches Android’s 208×117 fit-center frame, 6pt corners, black 2pt border, separate transparent 24pt timestamp row, and 100pt bottom placement.
+The offline seek preview follows the native thumb horizontally and matches Android’s 208×117 fit-center frame, 6pt corners, black 2pt border, separate transparent 24pt timestamp row, and a preferred 100pt bottom inset, raised when necessary to keep the timestamp above the actual iOS thumb.
 
 Firebase Core/Auth/Firestore 13.1.1 are linked only to the main app through the existing XcodeGen specification, with the required -ObjC linker flag. Firebase configuration is loaded before guest chat touches its SDKs; fixtures use an in-memory backend. A live-service guest-account probe requires separate approval and has not run. No production chat messages were sent during implementation.

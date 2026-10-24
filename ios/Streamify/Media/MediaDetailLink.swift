@@ -17,7 +17,7 @@ struct MediaDetailLink<Label: View>: View {
 
     var body: some View {
         if #available(iOS 18, *) {
-            withCardMenu(styled(Button { presented = true } label: {
+            withCardMenu(styled(Button(action: openDetails) {
                 label().contentShape(Rectangle()).matchedTransitionSource(id: media.key, in: transition)
             }))
             .accessibilityIdentifier("media-link-\(media.key)")
@@ -31,7 +31,7 @@ struct MediaDetailLink<Label: View>: View {
             .fullScreenCover(isPresented: $watching) { watchDestination }
             .onChange(of: presented || watching || menuVisible) { _, visible in onPresentationChanged?(visible) }
         } else {
-            withCardMenu(styled(Button { presented = true } label: { label().contentShape(Rectangle()) }))
+            withCardMenu(styled(Button(action: openDetails) { label().contentShape(Rectangle()) }))
                 .accessibilityIdentifier("media-link-\(media.key)")
                 .sheet(isPresented: $presented) {
                     destination.presentationDetents([.large])
@@ -44,9 +44,16 @@ struct MediaDetailLink<Label: View>: View {
 
     @ViewBuilder private func styled<Content: View>(_ content: Content) -> some View {
         if let cardCornerRadius {
-            content.buttonStyle(HapticCardButtonStyle(cornerRadius: cardCornerRadius))
+            content.buttonStyle(CardPressedButtonStyle(cornerRadius: cardCornerRadius))
                 .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: cardCornerRadius))
         } else { content.buttonStyle(HapticPlainButtonStyle()) }
+    }
+
+    private func openDetails() {
+        // Card menus and their primary activation must share one native Button.
+        // Non-card links retain the haptic behavior of their existing plain style.
+        if cardCornerRadius != nil { AppHaptics.tap() }
+        presented = true
     }
 
     @ViewBuilder private func withCardMenu<Content: View>(_ content: Content) -> some View {

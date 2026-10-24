@@ -74,7 +74,7 @@ final class CardInteractionFlowTests: XCTestCase {
         // Hold the thumbnail area of the completed file's existing play button.
         // The card context menu must receive this without launching playback.
         playFile.coordinate(withNormalizedOffset: CGVector(dx: 0.15, dy: 0.5)).press(forDuration: 1.2)
-        let playAction = app.buttons["Play offline"]
+        let playAction = menuButton("Play offline")
         XCTAssertTrue(playAction.waitForExistence(timeout: 5))
         XCTAssertTrue(playAction.isHittable)
         XCTAssertTrue(app.buttons["Delete"].isHittable)
@@ -82,17 +82,21 @@ final class CardInteractionFlowTests: XCTestCase {
         capture("Held completed download native context menu")
 
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.92)).tap()
-        XCTAssertTrue(wait { !playAction.exists && playFile.isHittable })
+        XCTAssertTrue(wait { !self.menuButton("Play offline").exists })
+        XCTAssertTrue(app.buttons["download-play-\(downloadID)"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["download-play-\(downloadID)"].isHittable)
         XCTAssertFalse(app.buttons["offline-play-pause"].exists, "Canceling the hold must preserve the file without launching its primary tap.")
         XCTAssertTrue(card.exists)
+        XCTAssertEqual(card.value as? String, "Artwork saved offline")
         playFile.coordinate(withNormalizedOffset: CGVector(dx: 0.15, dy: 0.5)).press(forDuration: 1.2)
-        XCTAssertTrue(playAction.waitForExistence(timeout: 5))
-        XCTAssertTrue(playAction.isHittable)
+        let reopenedPlayAction = menuButton("Play offline")
+        XCTAssertTrue(reopenedPlayAction.waitForExistence(timeout: 5))
+        XCTAssertTrue(reopenedPlayAction.isHittable)
         XCTAssertTrue(app.buttons["Delete"].isHittable)
         XCTAssertFalse(app.buttons["offline-play-pause"].exists)
         capture("Same completed download holds again after menu cancellation")
 
-        playAction.tap()
+        reopenedPlayAction.tap()
         let play = app.buttons["offline-play-pause"]
         XCTAssertTrue(play.waitForExistence(timeout: 10))
         XCTAssertTrue(wait { play.isEnabled && play.label == "Pause" }, "The menu must start the actual bundled H264 file through the existing offline player.")
@@ -111,6 +115,10 @@ final class CardInteractionFlowTests: XCTestCase {
 
     private func element(_ identifier: String) -> XCUIElement {
         app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+    }
+
+    private func menuButton(_ title: String) -> XCUIElement {
+        app.buttons.matching(NSPredicate(format: "label == %@", title)).firstMatch
     }
 
     private func reveal(_ target: XCUIElement) {

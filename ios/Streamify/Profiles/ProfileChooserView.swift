@@ -184,7 +184,10 @@ private struct ProfileChoiceTile: View {
     let selected: Bool
     let action: () -> Void
     var body: some View {
-        Button(action: action) {
+        Button {
+            AppHaptics.tap()
+            action()
+        } label: {
             VStack(spacing: 10) {
                 ProfileAvatarView(avatar: profile.avatar, size: size)
                     .overlay {
@@ -203,8 +206,9 @@ private struct ProfileChoiceTile: View {
                     .multilineTextAlignment(.center).frame(minHeight: 22, alignment: .top)
             }.frame(maxWidth: .infinity, alignment: .top)
         }
-        .buttonStyle(HapticCardButtonStyle(cornerRadius: 18))
+        .buttonStyle(CardPressedButtonStyle(cornerRadius: 18))
         .accessibilityElement(children: .ignore)
+        .accessibilityAddTraits(.isButton)
         .accessibilityLabel(editing ? "Edit \(profile.name)" : profile.name)
         .accessibilityHint(editing ? "Change this profile’s name or avatar." : "Open this profile.")
         .accessibilityAddTraits(selected ? .isSelected : [])

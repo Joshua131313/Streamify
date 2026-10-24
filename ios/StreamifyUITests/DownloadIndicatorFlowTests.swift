@@ -142,7 +142,7 @@ final class DownloadIndicatorFlowTests: XCTestCase {
         XCTAssertTrue(series.waitForExistence(timeout: 5))
         let beforeHold = value(series)
         series.coordinate(withNormalizedOffset: CGVector(dx: 0.15, dy: 0.5)).press(forDuration: 1.2)
-        let viewEpisodes = app.buttons["View episodes"]
+        let viewEpisodes = app.buttons.matching(NSPredicate(format: "label == %@", "View episodes")).firstMatch
         XCTAssertTrue(viewEpisodes.waitForExistence(timeout: 5))
         XCTAssertTrue(viewEpisodes.isHittable)
         XCTAssertTrue(app.buttons["Delete downloads"].isHittable)
@@ -150,7 +150,9 @@ final class DownloadIndicatorFlowTests: XCTestCase {
         XCTAssertFalse(app.buttons["offline-play-pause"].exists)
         capture("Grouped show native hold menu preserves its episode downloads")
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.92)).tap()
-        XCTAssertTrue(wait { !viewEpisodes.exists && series.isHittable })
+        XCTAssertTrue(wait { !self.app.buttons.matching(NSPredicate(format: "label == %@", "View episodes")).firstMatch.exists })
+        XCTAssertTrue(app.buttons["download-series-43"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["download-series-43"].isHittable)
         XCTAssertEqual(value(series), beforeHold)
         XCTAssertTrue(app.buttons["download-activity-\(knownID)"].exists)
         XCTAssertTrue(app.buttons["download-play-00000000-0000-0000-0000-000000000042"].exists)

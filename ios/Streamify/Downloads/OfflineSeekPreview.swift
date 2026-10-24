@@ -6,6 +6,7 @@ enum OfflineSeekPreviewMath {
     static let imageSize = CGSize(width: 208, height: 117)
     static let timestampHeight: CGFloat = 24
     static let bottomInset: CGFloat = 100
+    static let thumbGap: CGFloat = 8
     static let size = CGSize(width: imageSize.width, height: imageSize.height + timestampHeight)
 
     static func second(position: Double, duration: Double) -> Int? {
@@ -20,19 +21,22 @@ enum OfflineSeekPreviewMath {
         return min(viewportWidth - previewWidth / 2, max(previewWidth / 2, thumbX))
     }
     /// UIKit reports the live thumb in window coordinates. Android follows that
-    /// horizontal anchor but keeps the entire preview 100dp above the canvas
-    /// bottom, independent of the slider's vertical position.
+    /// horizontal anchor and prefers Android's 100dp canvas-bottom inset. iOS's
+    /// higher timeline needs a guard so the timestamp cannot cover its live thumb.
     static func position(thumbInWindow: CGRect, viewportInWindow: CGRect, bottomSafeAreaInset: CGFloat = 0) -> CGPoint {
-        guard thumbInWindow.midX.isFinite, viewportInWindow.minX.isFinite,
+        guard thumbInWindow.midX.isFinite, thumbInWindow.minY.isFinite,
+              viewportInWindow.minX.isFinite, viewportInWindow.minY.isFinite,
               viewportInWindow.width.isFinite, viewportInWindow.height.isFinite,
               bottomSafeAreaInset.isFinite,
               viewportInWindow.width > 0, viewportInWindow.height > 0 else { return .zero }
+        let preferredBottom = viewportInWindow.height + max(0, bottomSafeAreaInset) - bottomInset
+        let aboveThumb = thumbInWindow.minY - viewportInWindow.minY - thumbGap
         return CGPoint(
             x: center(thumbX: thumbInWindow.midX - viewportInWindow.minX,
                 viewportWidth: viewportInWindow.width),
             // A compact window can have less room than Android's bottom inset.
             // Keep the thumbnail below the viewport's safe top in that case.
-            y: max(size.height / 2, viewportInWindow.height + max(0, bottomSafeAreaInset) - bottomInset - size.height / 2))
+            y: max(size.height / 2, min(preferredBottom, aboveThumb) - size.height / 2))
     }
     static func timestamp(_ seconds: Double) -> String {
         guard seconds.isFinite, let value = Int(exactly: max(0, seconds).rounded(.down)) else { return "0:00" }

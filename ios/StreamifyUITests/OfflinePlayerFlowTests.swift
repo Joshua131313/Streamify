@@ -101,10 +101,17 @@ final class OfflinePlayerFlowTests: XCTestCase {
         XCTAssertTrue(wait { self.app.frame.width > self.app.frame.height })
 
         let brightness = app.sliders["offline-brightness"]
-        revealControls(for: brightness)
+        XCTAssertTrue(wait { !play.exists }, "Normal playback must hide controls after rotation before the fixture reads brightness.")
+        revealControls(for: play)
+        play.tap()
+        XCTAssertTrue(wait { play.label == "Play" })
+        XCTAssertTrue(brightness.waitForExistence(timeout: 3))
+        XCTAssertTrue(brightness.isHittable)
         let initialBrightness = brightnessPercent(brightness)
         XCTAssertTrue((2...100).contains(initialBrightness), "Read an actual screen brightness percentage before testing its edge gesture.")
         let increaseBrightness = initialBrightness <= 50
+        play.tap()
+        XCTAssertTrue(wait { play.label == "Pause" })
         XCTAssertTrue(wait { !play.exists }, "Playing video must hide its controls through the normal inactivity timer.")
         capture("46a Offline video with playback controls hidden")
 
@@ -188,8 +195,12 @@ final class OfflinePlayerFlowTests: XCTestCase {
         let initialSeconds = Double(seconds(initialValue))
         let duration = Double(seconds(initialValue.components(separatedBy: " of ").last ?? ""))
         let targetSeconds = duration * fraction
-        let firstTargetX = range[0] + (range[1] - range[0]) * fraction
-        XCTContext.runActivity(named: "First real native seek drag; value=\(initialValue); frame=\(progress.frame); \(label)") { _ in
+        // Calibrate well away from the target, so the second physical movement
+        // clears the native expanded thumb's drag threshold instead of being a
+        // tiny, ignored correction within its press area.
+        let calibrationFraction = fraction <= 0.5 ? 0.7 : 0.2
+        let firstTargetX = range[0] + (range[1] - range[0]) * calibrationFraction
+        XCTContext.runActivity(named: "First real native seek calibration toward \(calibrationFraction); desired=\(targetSeconds); value=\(initialValue); frame=\(progress.frame); \(label)") { _ in
             drag(from: thumb, to: firstTargetX)
         }
         XCTAssertTrue(wait { (progress.value as? String) != initialValue }, "The first physical drag must commit a real timestamp change.")
