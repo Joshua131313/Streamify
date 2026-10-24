@@ -2,32 +2,26 @@ import XCTest
 @testable import Streamify
 
 final class SportsPlaybackSessionTests: XCTestCase {
-    @MainActor func testFullscreenKeepsTheSameStreamAndNativePiPOwner() {
+    @MainActor func testPresentationKeepsTheSameStreamOriginAndNativePiPOwner() {
         let source = SportsStream(title: "Bravo", url: URL(string: "https://example.com/bravo.mp4")!)
         let session = SportsPlaybackSession()
         let origin = SportsPlaybackOrigin()
         session.play(title: "Game", url: source.url, sources: [source], origin: origin)
         let identity = session.item?.id, owner = UUID()
         session.pictureInPicture.attach(owner: owner, capability: .available, request: {}, stop: {})
-        session.toggleVideoFullscreen()
-        XCTAssertTrue(session.isVideoFullscreen)
+        session.expand()
         XCTAssertEqual(session.item?.id, identity)
         XCTAssertEqual(session.item?.url, source.url)
         XCTAssertTrue(session.origin === origin)
-        XCTAssertTrue(session.pictureInPicture.owns(owner: owner), "Fullscreen must not replace the actual PiP/player driver")
+        XCTAssertTrue(session.pictureInPicture.owns(owner: owner), "Presentation must not replace the actual PiP/player driver")
         XCTAssertEqual(session.reload, 0)
         session.pictureInPicture.didStart(owner: owner)
-        session.toggleVideoFullscreen()
-        XCTAssertTrue(session.isVideoFullscreen, "Hidden app chrome cannot change while system PiP is active")
+        XCTAssertTrue(session.isPiPActive)
         session.pictureInPicture.didStop(owner: owner, restoring: true)
         XCTAssertTrue(session.isExpanded)
-        XCTAssertTrue(session.isVideoFullscreen)
         XCTAssertTrue(session.pictureInPicture.owns(owner: owner))
-        session.toggleVideoFullscreen()
-        XCTAssertFalse(session.isVideoFullscreen)
         XCTAssertEqual(session.item?.id, identity)
         session.close()
-        XCTAssertFalse(session.isVideoFullscreen)
         XCTAssertNil(session.origin, "Closing must release the old return card before another game opens")
     }
 

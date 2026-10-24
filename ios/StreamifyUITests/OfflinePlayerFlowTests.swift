@@ -9,6 +9,9 @@ final class OfflinePlayerFlowTests: XCTestCase {
         continueAfterFailure = false
         app = XCUIApplication()
         app.launchArguments = ["--ui-fixtures"]
+        if name.contains("testCachedPosterAndActualLocalPlaybackControls") {
+            app.launchArguments.append("--ui-stable-offline-controls")
+        }
         XCUIDevice.shared.orientation = .portrait
         app.launch()
     }

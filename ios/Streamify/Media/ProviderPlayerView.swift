@@ -306,6 +306,8 @@ struct ProviderPlaybackSurface: View {
     /// App-owned sports playback stays mounted for native/WebKit PiP. Other
     /// presentations retain their existing background-pause behavior.
     var preservePlaybackOnBackground = false
+    /// Sports embeds retain their provider's HTML controls in element fullscreen.
+    var preferProviderControlsFullscreen = false
     var systemPiP: SportsSystemPiP? = nil
     @State private var loading = true
     @State private var error: String?
@@ -334,7 +336,8 @@ struct ProviderPlaybackSurface: View {
                 if let error = nativePlayback.error { failureMessage(error, canTryWeb: true) }
             } else {
                 PlayerWebView(url: url, reload: reload, direct: route == .webDirect, referer: referer,
-                    resumeSeconds: resumeSeconds, onProgress: onProgress, systemPiP: systemPiP, loading: $loading, error: $error)
+                    resumeSeconds: resumeSeconds, onProgress: onProgress, systemPiP: systemPiP,
+                    preferProviderControlsFullscreen: preferProviderControlsFullscreen, loading: $loading, error: $error)
                 if loading {
                     loadingIndicator("Connecting to source…")
                 }
@@ -410,6 +413,7 @@ private struct PlayerWebView: UIViewRepresentable {
     let resumeSeconds: Double
     let onProgress: ((Double, Double) -> Void)?
     let systemPiP: SportsSystemPiP?
+    let preferProviderControlsFullscreen: Bool
     @Binding var loading: Bool
     @Binding var error: String?
 
@@ -505,6 +509,10 @@ private struct PlayerWebView: UIViewRepresentable {
             let controller = webView.configuration.userContentController
             controller.removeAllUserScripts()
             pipBridge?.begin()
+            if parent.preferProviderControlsFullscreen {
+                controller.addUserScript(WKUserScript(source: SportsProviderFullscreenScript.source,
+                    injectionTime: .atDocumentStart, forMainFrameOnly: false))
+            }
             if parent.onProgress != nil {
                 controller.addUserScript(WKUserScript(source: PlaybackProgressScript.document(token: token, resumeSeconds: parent.resumeSeconds),
                     injectionTime: .atDocumentEnd, forMainFrameOnly: false))
@@ -570,4 +578,75 @@ private struct PlayerWebView: UIViewRepresentable {
             parent.loading = false; parent.error = error.localizedDescription
         }
     }
+}
+
+/// Some embedded JW versions choose video.webkitEnterFullscreen on iPhone,
+/// which replaces their HTML controls with AVKit. Adapt only their existing
+/// fullscreen button, inside its real user gesture, to WebKit's element API.
+/// Other provider controls, video presentation APIs and PiP stay untouched.
+enum SportsProviderFullscreenScript {
+    static let source = #"""
+    (function(){
+      if(window.__streamifyProviderFullscreenInstalled)return;
+      window.__streamifyProviderFullscreenInstalled=true;
+      const declined=new WeakSet();let active=null,previous=null,pending=null;
+      function current(){return document.fullscreenElement||document.webkitFullscreenElement||document.webkitCurrentFullScreenElement||null;}
+      function sync(){
+        const root=current();
+        if(active&&root!==active){
+          if(previous&&!previous.hadClass)active.classList.remove('jw-flag-fullscreen');
+          if(previous&&previous.button.isConnected){
+            for(const name of ['aria-label','title']){
+              const value=previous[name];if(value===null)previous.button.removeAttribute(name);else previous.button.setAttribute(name,value);
+            }
+          }
+          active=null;previous=null;
+        }
+        if(root&&root===pending){
+          const button=root.querySelector('.jw-icon-fullscreen');
+          if(!button){pending=null;return;}
+          active=root;pending=null;
+          previous={button:button,hadClass:root.classList.contains('jw-flag-fullscreen'),
+            'aria-label':button.getAttribute('aria-label'),title:button.getAttribute('title')};
+          root.classList.add('jw-flag-fullscreen');
+          button.setAttribute('aria-label','Exit Fullscreen');button.setAttribute('title','Exit Fullscreen');
+        }
+      }
+      function style(){
+        if(document.getElementById('streamify-provider-fullscreen-style'))return;
+        const node=document.createElement('style');node.id='streamify-provider-fullscreen-style';
+        node.textContent='.jwplayer:fullscreen{width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;margin:0!important}'+
+          '.jwplayer:fullscreen .jw-wrapper{width:100%!important;height:100%!important}'+
+          '.jwplayer:fullscreen .jw-icon-fullscreen .jw-svg-icon-fullscreen-on{display:none!important}'+
+          '.jwplayer:fullscreen .jw-icon-fullscreen .jw-svg-icon-fullscreen-off{display:block!important}';
+        node.textContent+=node.textContent.replace(/:fullscreen/g,':-webkit-full-screen');
+        (document.head||document.documentElement).appendChild(node);
+      }
+      window.addEventListener('click',function(event){
+        if(!event.isTrusted||event.button>0)return;
+        const target=event.target instanceof Element?event.target:null;
+        const button=target&&target.closest('.jw-icon-fullscreen');
+        const root=button&&button.closest('.jwplayer');
+        if(!root||!root.querySelector('video')||(declined.has(root)&&current()!==root))return;
+        const request=root.requestFullscreen||root.webkitRequestFullscreen;
+        const exit=document.exitFullscreen||document.webkitExitFullscreen;
+        const supported=document.fullscreenEnabled===true||document.webkitFullscreenEnabled===true;
+        if(!supported||typeof request!=='function'||typeof exit!=='function')return;
+        const exiting=current()===root;
+        try{
+          let result;
+          if(exiting){result=exit.call(document);}
+          else{style();pending=root;result=request.call(root);}
+          event.preventDefault();event.stopImmediatePropagation();
+          if(result&&typeof result.catch==='function')result.catch(function(){
+            // Preserve the provider's original path on a later tap if WebKit
+            // rejects this frame's real fullscreen permission or presentation.
+            if(pending===root)pending=null;if(!exiting)declined.add(root);sync();
+          });
+        }catch(error){pending=null;if(!exiting)declined.add(root);}
+      },true);
+      document.addEventListener('fullscreenchange',sync);
+      document.addEventListener('webkitfullscreenchange',sync);
+    })();
+    """#
 }

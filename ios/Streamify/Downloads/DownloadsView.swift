@@ -111,6 +111,12 @@ private struct DownloadRow: View {
                     .foregroundStyle(AppTheme.foreground)
                     .accessibilityLabel(item.status == .completed ? "Play offline \(item.title)" : item.title)
                     .accessibilityIdentifier("download-play-\(item.id)")
+                    .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 6))
+                    .contextMenu {
+                        // The same native control owns its tap and its hold, so
+                        // opening the menu cancels the completed file's play tap.
+                        if item.status == .completed { downloadActions }
+                    }
                 trailingControl
             }
             if let error = item.error {
@@ -119,7 +125,10 @@ private struct DownloadRow: View {
             }
         }.contentShape(Rectangle())
             .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 6))
-            .contextMenu { downloadActions }
+            .contextMenu {
+                // Disabled transfer buttons cannot own their own context menu.
+                if item.status != .completed { downloadActions }
+            }
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 // Keep native swipe rendering even with the app's haptic button
                 // style. Deletion stays a confirmed action, not an optimistic row removal.

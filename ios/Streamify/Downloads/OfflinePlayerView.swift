@@ -553,6 +553,11 @@ struct OfflinePlayerView: View {
     }
     private func scheduleHide() {
         hideTask?.cancel()
+        #if DEBUG
+        // Long playback/control flows keep their assertions independent of
+        // simulator accessibility latency. Gesture/timer tests omit this flag.
+        if PreviewFixtures.usesStableOfflineControls { return }
+        #endif
         guard model.isPlaying, !voiceOver, !scrubbing, edgeDrag == nil, panel == nil, !showSubtitleImporter, !locked else { return }
         hideTask = Task {
             try? await Task.sleep(nanoseconds: 4_000_000_000)

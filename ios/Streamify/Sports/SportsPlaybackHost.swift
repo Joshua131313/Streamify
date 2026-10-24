@@ -2,18 +2,6 @@ import SwiftUI
 import UIKit
 import Combine
 
-enum SportsFullscreenOrientationPolicy {
-    static func restoreMask(for orientation: UIInterfaceOrientation) -> UIInterfaceOrientationMask {
-        switch orientation {
-        case .portrait: return .portrait
-        case .portraitUpsideDown: return .portraitUpsideDown
-        case .landscapeLeft: return .landscapeLeft
-        case .landscapeRight: return .landscapeRight
-        default: return .allButUpsideDown
-        }
-    }
-}
-
 /// This window retains one full-size source while AVKit/WebKit owns system PiP.
 struct SportsPlaybackHost: UIViewRepresentable {
     let session: SportsPlaybackSession
@@ -35,8 +23,6 @@ struct SportsPlaybackHost: UIViewRepresentable {
         private weak var applicationWindow: UIWindow?
         private var showingExpandedPlayer = false
         private var observation: AnyCancellable?
-        private var requestedFullscreenGeometry = false
-        private var previousOrientation: UIInterfaceOrientationMask?
         init(session: SportsPlaybackSession) { self.session = session }
         func attach(to applicationWindow: UIWindow) {
             guard let scene = applicationWindow.windowScene else { return }
@@ -51,10 +37,9 @@ struct SportsPlaybackHost: UIViewRepresentable {
             window.backgroundColor = .clear
             window.isHidden = session.item == nil
             self.window = window
-            observation = session.$item.combineLatest(session.$presentation, session.$isVideoFullscreen).receive(on: RunLoop.main)
-                .sink { [weak self, weak window] item, mode, fullscreen in
+            observation = session.$item.combineLatest(session.$presentation).receive(on: RunLoop.main)
+                .sink { [weak self, weak window] item, mode in
                     guard let self, let window else { return }
-                    self.updateFullscreenGeometry(active: item != nil && mode == .expanded && fullscreen, window: window)
                     guard item != nil else {
                         self.updateWindowFocus(expanded: false, window: window)
                         window.isHidden = true
@@ -82,7 +67,6 @@ struct SportsPlaybackHost: UIViewRepresentable {
         func detach() {
             observation?.cancel(); observation = nil
             if let window {
-                updateFullscreenGeometry(active: false, window: window)
                 updateWindowFocus(expanded: false, window: window)
             }
             window?.isHidden = true; window?.rootViewController = nil; window = nil
@@ -98,22 +82,6 @@ struct SportsPlaybackHost: UIViewRepresentable {
                 window.makeKeyAndVisible()
             } else if let applicationWindow, !applicationWindow.isHidden {
                 applicationWindow.makeKey()
-            }
-        }
-        private func updateFullscreenGeometry(active: Bool, window: UIWindow) {
-            guard active != requestedFullscreenGeometry, let scene = window.windowScene else { return }
-            requestedFullscreenGeometry = active
-            window.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
-            if active {
-                if previousOrientation == nil { previousOrientation = SportsFullscreenOrientationPolicy.restoreMask(for: scene.interfaceOrientation) }
-                // This is a request; iOS can decline it (for example in a
-                // constrained window). Fullscreen still fills the current scene.
-                scene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscape))
-            } else if let previousOrientation {
-                // Keep the original orientation while PiP temporarily exposes
-                // the app, including when iOS defers a background geometry request.
-                if !session.isVideoFullscreen || session.item == nil { self.previousOrientation = nil }
-                scene.requestGeometryUpdate(.iOS(interfaceOrientations: previousOrientation))
             }
         }
     }
@@ -171,16 +139,12 @@ private struct SportsPlaybackOverlay: View {
                 .frame(width: geometry.size.width, height: geometry.size.height)
                 .accessibilityElement(children: .contain).accessibilityIdentifier("sports-player")
                 .accessibilityValue("\(item.title), \(session.sourceTitle)")
-                .playerSwipeToDismiss { session.close() }
                 .onChange(of: geometry.size) { _, _ in resetDismissal() }
             }
         }.ignoresSafeArea().preferredColorScheme(.dark).foregroundStyle(.white).tint(.white)
-        .statusBarHidden(session.isVideoFullscreen)
-        .persistentSystemOverlays(session.isVideoFullscreen ? .hidden : .automatic)
         .onChange(of: session.item?.id) { _, _ in resetDismissal() }
         .onChange(of: session.item?.url) { _, _ in resetDismissal() }
         .onChange(of: session.presentation) { _, _ in resetDismissal() }
-        .onChange(of: session.isVideoFullscreen) { _, _ in resetDismissal() }
         .onChange(of: scenePhase) { _, phase in if phase != .active { resetDismissal() } }
         .alert("Picture in Picture", isPresented: Binding(get: { pictureInPicture.message != nil }, set: { if !$0 { pictureInPicture.message = nil } })) {
             Button("OK") { pictureInPicture.message = nil }
@@ -223,13 +187,11 @@ private struct SportsPlaybackOverlay: View {
     private func playerCanvas(_ item: SportsPlaybackItem, size: CGSize) -> some View {
         VStack(spacing: 0) {
             header(item).padding(.top, session.safeAreaInsets.top)
-                .frame(height: session.isVideoFullscreen ? 0 : 60 + session.safeAreaInsets.top)
-                .clipped().opacity(session.isVideoFullscreen ? 0 : 1)
-                .allowsHitTesting(!session.isVideoFullscreen).accessibilityHidden(session.isVideoFullscreen)
+                .frame(height: 60 + session.safeAreaInsets.top)
             ProviderPlaybackSurface(url: item.url, reload: session.reload, direct: session.direct,
-                preservePlaybackOnBackground: true, systemPiP: pictureInPicture)
+                preservePlaybackOnBackground: true, preferProviderControlsFullscreen: true, systemPiP: pictureInPicture)
                 .id(item.id)
-                .sportsPlayerSwipeDownToDismiss(enabled: session.isExpanded && !session.isVideoFullscreen && !dismissing,
+                .sportsPlayerSwipeDownToDismiss(enabled: session.isExpanded && !dismissing,
                     onChanged: { translation in
                         if drag == .zero { returnFrame = sourceFrame() }
                         drag = translation
@@ -241,24 +203,9 @@ private struct SportsPlaybackOverlay: View {
                         }
                     })
             footer(item).padding(.bottom, session.safeAreaInsets.bottom)
-                .frame(height: session.isVideoFullscreen ? 0 : 54 + session.safeAreaInsets.bottom)
-                .clipped().opacity(session.isVideoFullscreen ? 0 : 1)
-                .allowsHitTesting(!session.isVideoFullscreen).accessibilityHidden(session.isVideoFullscreen)
+                .frame(height: 54 + session.safeAreaInsets.bottom)
         }
         .background(.black)
-        .overlay(alignment: .topTrailing) {
-            if session.isVideoFullscreen {
-                Button(action: session.toggleVideoFullscreen) {
-                    Image(systemName: "arrow.down.right.and.arrow.up.left")
-                        .font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
-                        .frame(width: 32, height: 32).background(.black.opacity(0.7), in: Circle())
-                        .frame(width: 44, height: 44).contentShape(Rectangle())
-                }.buttonStyle(HapticPlainButtonStyle())
-                    .accessibilityLabel("Exit fullscreen").accessibilityIdentifier("sports-player-exit-fullscreen")
-                    .padding(.trailing, max(12, session.safeAreaInsets.right))
-                    .padding(.top, max(8, session.safeAreaInsets.top))
-            }
-        }
     }
     private func header(_ item: SportsPlaybackItem) -> some View {
         HStack(spacing: 8) {
@@ -281,8 +228,6 @@ private struct SportsPlaybackOverlay: View {
                 }.frame(maxWidth: .infinity, minHeight: 44).contentShape(Rectangle())
             }.buttonStyle(HapticPlainButtonStyle()).accessibilityLabel("Switch stream source")
                 .accessibilityValue("\(item.title), \(session.sourceTitle)").accessibilityIdentifier("sports-player-source-picker")
-            Button(action: session.toggleVideoFullscreen) { Image(systemName: "arrow.up.left.and.arrow.down.right").frame(width: 44, height: 44) }
-                .accessibilityLabel("Fullscreen").accessibilityIdentifier("sports-player-fullscreen")
             AirPlayButton().frame(width: 44, height: 44).accessibilityLabel("AirPlay")
             Button(action: session.requestPictureInPicture) { Image(systemName: "pip.enter").frame(width: 44, height: 44) }
                 .accessibilityLabel("Picture in Picture")

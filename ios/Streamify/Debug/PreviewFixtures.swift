@@ -7,6 +7,7 @@ enum PreviewFixtures {
     static let enabled = ProcessInfo.processInfo.arguments.contains("--ui-fixtures")
     static let usesNativePiPVideo = enabled && ProcessInfo.processInfo.arguments.contains("--ui-native-pip-fixture")
     static let usesDownloadStatus = enabled && ProcessInfo.processInfo.arguments.contains("--ui-download-status-fixture")
+    static let usesStableOfflineControls = enabled && ProcessInfo.processInfo.arguments.contains("--ui-stable-offline-controls")
     static let downloadStatusIDs: Set<UUID> = [143, 144].map {
         UUID(uuidString: String(format: "00000000-0000-0000-0000-%012d", $0))!
     }.reduce(into: Set<UUID>()) { $0.insert($1) }
@@ -94,7 +95,10 @@ enum PreviewFixtures {
     static var playerHTML: String {
         let nativeFullscreen = ProcessInfo.processInfo.arguments.contains("--ui-native-video-fullscreen-fixture")
         let elementFullscreen = ProcessInfo.processInfo.arguments.contains("--ui-element-fullscreen-fixture")
-        if nativeFullscreen || elementFullscreen { return fullscreenPlayerHTML(nativeVideo: nativeFullscreen) }
+        let providerControls = ProcessInfo.processInfo.arguments.contains("--ui-provider-controls-fullscreen-fixture")
+        if nativeFullscreen || elementFullscreen || providerControls {
+            return fullscreenPlayerHTML(nativeVideo: nativeFullscreen, providerControls: providerControls)
+        }
         return """
         <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;height:100%;background:#090909;color:#fff;font:16px -apple-system;display:grid;place-items:center}main{text-align:center}b{font-size:48px;color:#e91c39}small{color:#aaa}#playback-session{font-size:10px;color:#aaa}</style></head><body><main><b>▶</b><p>Streamify preview player</p><small>Local UI fixture · no external video loaded</small><p id="playback-session"></p></main><script>document.getElementById('playback-session').textContent='Playback session '+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);</script></body></html>
         """
@@ -103,12 +107,15 @@ enum PreviewFixtures {
     /// Both fullscreen paths play the bundled H264 file in WebKit. The provider
     /// button calls the browser API inside its real user gesture; it does not
     /// drive the app's separate fullscreen state or simulate fullscreen events.
-    private static func fullscreenPlayerHTML(nativeVideo: Bool) -> String {
+    private static func fullscreenPlayerHTML(nativeVideo: Bool, providerControls: Bool = false) -> String {
         let videoData = Bundle.main.url(forResource: "offline-player", withExtension: "mp4")
             .flatMap { try? Data(contentsOf: $0) }?.base64EncodedString() ?? ""
-        let action = nativeVideo ? "enterNativeVideoFullscreen()" : "enterElementFullscreen()"
-        let title = nativeVideo ? "Enter video fullscreen" : "Enter provider fullscreen"
-        let exit = nativeVideo ? "" : "<button onclick=\"document.exitFullscreen()\">Exit provider fullscreen</button>"
+        let action = nativeVideo || providerControls ? "enterNativeVideoFullscreen()" : "enterElementFullscreen()"
+        let title = providerControls ? "Fullscreen" : nativeVideo ? "Enter video fullscreen" : "Enter provider fullscreen"
+        let exit = nativeVideo || providerControls ? "" : "<button onclick=\"document.exitFullscreen()\">Exit provider fullscreen</button>"
+        let playerClass = providerControls ? "class=\"jwplayer\"" : ""
+        let buttonClass = providerControls ? "class=\"jw-icon-fullscreen\"" : ""
+        let quality = providerControls ? "<button onclick=\"document.getElementById('quality-state').textContent='Provider quality menu visible'\">Provider quality</button><p id=\"quality-state\"></p>" : ""
         return """
         <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
         <style>
@@ -116,11 +123,12 @@ enum PreviewFixtures {
         main{box-sizing:border-box;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:#090909}
         main:fullscreen{width:100vw;height:100vh}video{display:block;flex:1;min-height:0;width:100%;max-height:62%;object-fit:contain;background:#000}
         button{min-height:44px;flex-shrink:0;margin:4px;border:0;border-radius:10px;padding:8px 16px}p{margin:3px;flex-shrink:0}#playback-session,#viewport{font-size:10px;color:#aaa}
-        </style></head><body><main>
+        </style></head><body><main \(playerClass)>
         <video id="fixture-video" controls autoplay muted loop playsinline src="data:video/mp4;base64,\(videoData)"></video>
         <p id="video-state" role="status">Video loading</p><p id="playback-session"></p>
-        <button id="enter-fullscreen" onclick="\(action)">\(title)</button>
+        <button id="enter-fullscreen" \(buttonClass) onclick="\(action)">\(title)</button>
         \(exit)
+        \(quality)
         <p id="fullscreen-state" role="status">Provider inline</p><p id="native-state" role="status">Video inline, entries 0, exits 0</p><p id="viewport"></p>
         </main><script>
         const video=document.getElementById('fixture-video');let entries=0,exits=0;

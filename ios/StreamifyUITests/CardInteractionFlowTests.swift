@@ -9,7 +9,7 @@ final class CardInteractionFlowTests: XCTestCase {
         continueAfterFailure = false
         XCUIDevice.shared.orientation = .portrait
         app = XCUIApplication()
-        app.launchArguments = ["--ui-fixtures"]
+        app.launchArguments = ["--ui-fixtures", "--ui-stable-offline-controls"]
         app.launch()
         XCTAssertTrue(app.buttons["tab-home"].waitForExistence(timeout: 15))
     }

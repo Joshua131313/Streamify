@@ -8,7 +8,8 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: ios-check-${{ github.ref }}
+  # A device repair must not cancel an older run while it exports UI evidence.
+  group: ios-check-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: true
 jobs:
   device:
@@ -97,7 +98,7 @@ jobs:
           if [[ "$FOCUSED_FIXES" == "true" ]]; then
             case "$TEST_SUITE" in
               playback)
-                SELECTORS=(-only-testing:StreamifyTests -only-testing:StreamifyUITests/DownloadIndicatorFlowTests -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testFullscreenExpandsTheSameSelectedSportsDocumentAndReturnsToControls -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testProviderElementFullscreenKeepsTheSameDocumentAndExitsNormally -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testProviderNativeVideoFullscreenPresentsAboveTheSportsWindowAndKeepsItsSource)
+                SELECTORS=(-only-testing:StreamifyTests -only-testing:StreamifyUITests/DownloadIndicatorFlowTests -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testSportsFullscreenUsesTheProvidersOwnControlAndKeepsItsDocument -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testProviderElementFullscreenKeepsTheSameDocumentAndExitsNormally -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testProviderNativeVideoFullscreenPresentsAboveTheSportsWindowAndKeepsItsSource -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testSwipeDownSportsPlayerCancelsWithoutReloadingThenReturnsToItsGameCard)
                 ;;
               controls)
                 SELECTORS=(-only-testing:StreamifyUITests/CardInteractionFlowTests/testCompletedDownloadHoldPlaysItsActualLocalFileAndReturnsToSameCard -only-testing:StreamifyUITests/OfflinePlayerFlowTests/testCachedPosterAndActualLocalPlaybackControls)
