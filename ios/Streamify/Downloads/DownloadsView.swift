@@ -228,6 +228,7 @@ private struct DownloadRow: View {
     @EnvironmentObject private var downloads: DownloadStore
     @State private var confirmDelete = false
     @State private var artwork: UIImage?
+    @State private var showQuality = false
 
     var body: some View {
         withTransferContextMenu(row)
@@ -254,6 +255,14 @@ private struct DownloadRow: View {
                 Button("Delete video", role: .destructive) { downloads.remove(id: item.id) }
                 Button("Cancel", role: .cancel) {}
             } message: { Text("This removes the saved video from this iPhone.") }
+            .sheet(isPresented: $showQuality) {
+                if let catalog = item.catalog, let media = catalog.media {
+                    NavigationStack {
+                        MediaDownloadSheet(media: media, season: catalog.season, episode: catalog.episode,
+                            episodeTitle: catalog.episodeTitle, replacingDownloadID: item.id, previousError: item.error)
+                    }
+                }
+            }
     }
 
     private var row: some View {
@@ -350,6 +359,10 @@ private struct DownloadRow: View {
         if item.status == .completed { Button("Play offline", systemImage: "play.fill", action: play) }
         if item.status == .downloading { Button("Cancel download", systemImage: "xmark") { downloads.cancel(id: item.id) } }
         if canRetry { Button("Retry download", systemImage: "arrow.clockwise") { downloads.retry(id: item.id) } }
+        if item.status != .downloading, item.catalog?.media != nil {
+            Button("Choose quality", systemImage: "slider.horizontal.3") { showQuality = true }
+                .accessibilityIdentifier("download-choose-quality-\(item.id)")
+        }
         Button("Delete", systemImage: "trash", role: .destructive) { confirmDelete = true }
     }
 

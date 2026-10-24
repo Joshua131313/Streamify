@@ -207,6 +207,16 @@ final class DownloadIndicatorFlowTests: XCTestCase {
             dismiss.tap()
         }
         XCTAssertTrue(wait { !confirmDelete.exists && playFile.isHittable })
+        app.buttons["download-actions-\(completedID)"].tap()
+        let quality = app.buttons["download-choose-quality-\(completedID)"]
+        XCTAssertTrue(quality.waitForExistence(timeout: 5))
+        quality.tap()
+        XCTAssertTrue(app.navigationBars["Download"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["1080p download quality"].exists)
+        XCTAssertTrue(app.buttons["480p download quality"].exists)
+        capture("Download quality can be chosen explicitly while the original file stays intact")
+        app.navigationBars["Download"].buttons["Close"].tap()
+        XCTAssertTrue(playFile.waitForExistence(timeout: 5))
         playFile.tap()
         let play = app.buttons["offline-play-pause"]
         XCTAssertTrue(play.waitForExistence(timeout: 10))

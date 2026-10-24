@@ -255,7 +255,7 @@ final class SportsChatSubscription {
                     self.error = nil
                 }
             }
-        } catch { loading = false; error = error.localizedDescription }
+        } catch { loading = false; self.error = error.localizedDescription }
     }
     func send() async {
         guard !sending, let room else { return }

@@ -59,11 +59,14 @@ struct SportsChatView: View {
                             }.frame(maxWidth: .infinity).padding(.vertical, 42)
                         }
                         Color.clear.frame(height: 1).id("sports-chat-bottom")
-                            .background(GeometryReader { geometry in
-                                Color.clear.preference(key: SportsChatBottom.self,
-                                    value: geometry.frame(in: .named("sports-chat-scroll")).maxY)
-                            })
                     }.padding(12)
+                        // Measure the content container, which remains mounted
+                        // while older rows are visible. A lazy bottom sentinel
+                        // can disappear offscreen and falsely report zero.
+                        .background(GeometryReader { geometry in
+                            Color.clear.preference(key: SportsChatBottom.self,
+                                value: geometry.frame(in: .named("sports-chat-scroll")).maxY)
+                        })
                 }
                 .coordinateSpace(name: "sports-chat-scroll")
                 .scrollDismissesKeyboard(.interactively)

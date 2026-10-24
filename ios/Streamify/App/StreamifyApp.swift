@@ -44,7 +44,7 @@ struct StreamifyApp: App {
                 .environmentObject(quickActions)
                 .background { SportsPlaybackHost(session: sportsPlayback).frame(width: 0, height: 0) }
                 .tint(AppTheme.foreground)
-                .preferredColorScheme(settings.appearance == "System" ? nil : settings.appearance == "Light" ? .light : .dark)
+                .preferredColorScheme(profiles.requiresSelection ? .dark : settings.appearance == "System" ? nil : settings.appearance == "Light" ? .light : .dark)
                 .onOpenURL { quickActions.enqueue(url: $0) }
                 .onAppear {
                     #if DEBUG

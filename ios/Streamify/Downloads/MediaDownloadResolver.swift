@@ -32,7 +32,7 @@ enum MediaDownloadResolutionError: LocalizedError {
         case .unsafeSource:
             return "The source did not provide a supported HTTPS video file. Try streaming this title instead."
         case .incompatibleSource:
-            return "The selected quality cannot be played by this iPhone. Choose another quality or download source."
+            return "The selected quality cannot be played by this iPhone. Choose another quality or watch online."
         }
     }
 }

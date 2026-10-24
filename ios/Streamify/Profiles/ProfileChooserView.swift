@@ -353,6 +353,6 @@ private struct ProfileEditorView: View {
     private func delete() {
         guard let profile else { return }
         do { try store.remove(profile.id); dismiss() }
-        catch { error = error.localizedDescription }
+        catch { self.error = error.localizedDescription }
     }
 }

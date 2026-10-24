@@ -176,6 +176,7 @@ struct AccountView: View {
                 VStack(spacing: 12) {
                     ProfileAvatarView(avatar: profiles.activeProfile?.avatar ?? .crimson, size: 72)
                     Text(profiles.activeProfile?.name ?? "My profile").font(.title2.bold())
+                        .accessibilityIdentifier("account-profile-name")
                     Text("Your favorites, your teams, your next watch.").font(.subheadline).foregroundStyle(AppTheme.muted).multilineTextAlignment(.center)
                     HStack(spacing: 24) {
                         accountCount(library.saved.count, "Saved")

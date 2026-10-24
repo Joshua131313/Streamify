@@ -108,8 +108,12 @@ final class ProfileFlowTests: XCTestCase {
         capture("Profiles deletion requires explicit confirmation")
         let cancel = app.buttons.matching(NSPredicate(format: "label == 'Cancel' AND identifier != 'profile-editor-cancel'"))
             .allElementsBoundByIndex.first { $0.isHittable }
-        XCTAssertNotNil(cancel)
-        cancel?.tap()
+        if let cancel { cancel.tap() }
+        else {
+            let dismiss = element("PopoverDismissRegion")
+            XCTAssertTrue(dismiss.waitForExistence(timeout: 5))
+            dismiss.tap()
+        }
         XCTAssertTrue(wait { !confirm.exists })
         app.buttons["profile-editor-cancel"].tap()
         XCTAssertTrue(profileTile("Edit Guest").waitForExistence(timeout: 5), "Cancelling deletion must preserve Guest.")
