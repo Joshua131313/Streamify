@@ -67,14 +67,16 @@ struct RootView: View {
 
     private var rootSelection: Binding<AppTab> {
         Binding(get: { tab }, set: { value in
+            visibleRootPages.insert(value)
             tab = value
         })
     }
 
     var body: some View {
-        RootTabPager(selection: rootSelection, enabled: scenePhase == .active && !keyboardVisible &&
-            visibleRootPages.contains(tab) && !settingsOpen && !accountOpen && !downloadsOpen && !catalogSearchOpen) { page in
-            rootStack(page)
+        TabView(selection: rootSelection) {
+            ForEach(AppTab.allCases, id: \.self) { page in
+                rootStack(page).tag(page)
+            }
         }
         .toolbar(.hidden, for: .tabBar)
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -82,6 +84,8 @@ struct RootView: View {
                 FloatingNavigation(selection: rootSelection)
             }
         }
+        // One backdrop also fills the status bar and home-indicator area.
+        .background { StreamifyRootBackdrop() }
         .sheet(isPresented: $settingsOpen) { NavigationStack { SettingsView() } }
         .sheet(isPresented: $accountOpen) { NavigationStack { AccountView() } }
         .sheet(isPresented: $downloadsOpen) { NavigationStack { DownloadsView() } }
@@ -167,7 +171,7 @@ private struct FloatingNavigation: View {
                 Button {
                     guard !selected else { return }
                     selectionFeedback += 1
-                    withAnimation(selectionAnimation) { selection = tab }
+                    selection = tab
                 } label: {
                     VStack(spacing: 1) {
                         ZStack {

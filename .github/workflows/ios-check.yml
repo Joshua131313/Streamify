@@ -48,6 +48,10 @@ jobs:
         run: |
           DEVICE_ID=$(xcrun simctl list devices available --json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for devices in d["devices"].values() for x in devices if x["name"].startswith("iPhone")))')
           echo "IOS_SIMULATOR_ID=$DEVICE_ID" >> "$GITHUB_ENV"
+          if ! xcrun simctl list devices booted --json | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if any(x["udid"] == sys.argv[1] for devices in d["devices"].values() for x in devices) else 1)' "$DEVICE_ID"; then
+            xcrun simctl boot "$DEVICE_ID"
+          fi
+          xcrun simctl bootstatus "$DEVICE_ID" -b
       - name: Build and test native app
         run: |
           xcodebuild test -project ios/Streamify.xcodeproj -scheme Streamify -configuration Debug -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_ID" -parallel-testing-enabled NO -resultBundlePath ios/build/Streamify.xcresult CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY='-'

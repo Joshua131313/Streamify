@@ -22,7 +22,7 @@ final class BrowseModel: ObservableObject {
         do {
             let resolved = kind ?? .movie
             var params: [String: String] = [:]
-            var path: String
+            let path: String
             if !query.isEmpty { path = "search/\(kind?.rawValue ?? "multi")" }
             else if genre > 0 || provider > 0 { path = "discover/\(resolved.rawValue)" }
             else if kind == nil { path = "trending/all/week" }

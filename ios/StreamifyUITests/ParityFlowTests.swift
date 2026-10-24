@@ -24,31 +24,25 @@ final class ParityFlowTests: XCTestCase {
         app?.terminate()
     }
 
-    func testRootPageSwipesFollowTabsWithoutStealingHeroCarousel() {
+    func testRootTabsUseTapNavigationAndLeaveCarouselsIndependent() {
         let hero = element("hero-carousel")
         XCTAssertTrue(hero.waitForExistence(timeout: 12))
         if app.buttons["hero-carousel-pause"].label == "Pause carousel" { app.buttons["hero-carousel-pause"].tap() }
+        for tab in ["sports", "search", "library", "home"] {
+            app.buttons["tab-\(tab)"].tap()
+            XCTAssertTrue(app.buttons["tab-\(tab)"].isSelected)
+            XCTAssertTrue(app.staticTexts["root-title-\(tab)"].isHittable)
+        }
+        let title = app.staticTexts["root-title-home"]
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.55, dy: 0)).withOffset(CGVector(dx: 0, dy: title.frame.midY))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.08, dy: 0)).withOffset(CGVector(dx: 0, dy: title.frame.midY))
+        start.press(forDuration: 0.05, thenDragTo: end)
+        XCTAssertTrue(app.buttons["tab-home"].isSelected, "A header drag must not switch root tabs.")
         let firstTitle = app.buttons["hero-main-progress"].label
         hero.swipeLeft()
         XCTAssertTrue(wait { self.app.buttons["hero-main-progress"].label != firstTitle })
-        XCTAssertTrue(app.buttons["tab-home"].isSelected, "A carousel swipe belongs to that carousel.")
-        for tab in ["sports", "search", "library"] {
-            let title = app.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH 'root-title-'")).firstMatch
-            XCTAssertTrue(title.isHittable)
-            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.55, dy: 0))
-                .withOffset(CGVector(dx: 0, dy: title.frame.midY))
-            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.08, dy: 0))
-                .withOffset(CGVector(dx: 0, dy: title.frame.midY))
-            start.press(forDuration: 0.05, thenDragTo: end)
-            XCTAssertTrue(wait { self.app.buttons["tab-\(tab)"].isSelected })
-            XCTAssertTrue(app.staticTexts["root-title-\(tab)"].isHittable)
-        }
-        let title = app.staticTexts["root-title-library"]
-        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.15, dy: 0)).withOffset(CGVector(dx: 0, dy: title.frame.midY))
-        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.68, dy: 0)).withOffset(CGVector(dx: 0, dy: title.frame.midY))
-        start.press(forDuration: 0.05, thenDragTo: end)
-        XCTAssertTrue(wait { self.app.buttons["tab-search"].isSelected })
-        capture("Root page swipe paging and narrower taller navigation")
+        XCTAssertTrue(app.buttons["tab-home"].isSelected, "Carousel swipes must remain local to the carousel.")
+        capture("Tap-only root navigation with continuous top and bottom backdrop")
     }
 
     func testExploreGenresPosterOpensItsExactMovieAndReturnsToRail() {
@@ -427,7 +421,7 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["tab-sports"].isSelected)
         // Search leaves the underlying league selection and scroll state alone.
         app.buttons["focus-sports-search"].tap()
-        XCTAssertTrue(app.buttons["NBA"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["sports-search-recent-NBA"].waitForExistence(timeout: 5))
         capture("30d Recent sports searches")
         app.buttons["close-sports-search"].tap()
         selectSportsLeagues(["nba"])

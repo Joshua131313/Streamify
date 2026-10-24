@@ -151,7 +151,7 @@ struct SportsSearchDialog: View {
                             Spacer()
                             Image(systemName: "arrow.up.left").foregroundStyle(AppTheme.muted)
                         }.frame(minHeight: 44).contentShape(Rectangle())
-                    }.buttonStyle(.plain)
+                    }.buttonStyle(.plain).accessibilityIdentifier("sports-search-recent-\(value)")
                 }
             }
             VStack(alignment: .leading, spacing: 8) {
