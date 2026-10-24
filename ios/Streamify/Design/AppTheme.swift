@@ -17,25 +17,21 @@ enum AppTheme {
         : UIColor(red: 87.0 / 255, green: 97.0 / 255, blue: 114.0 / 255, alpha: 1) })
     static let controlFill = foreground.opacity(0.06)
     static let border = Color.primary.opacity(0.10)
+    static let rootTopTint = Color(uiColor: UIColor { $0.userInterfaceStyle == .dark
+        ? UIColor(red: 48.0 / 255, green: 39.0 / 255, blue: 53.0 / 255, alpha: 1)
+        : UIColor(red: 231.0 / 255, green: 223.0 / 255, blue: 236.0 / 255, alpha: 1) })
 }
 
 /// The Android root backdrop fades from its plum tint to canvas over 420 dp.
 /// A single stationary surface spans the root header, scrolling content and insets.
 struct StreamifyRootBackdrop: View {
-    @Environment(\.colorScheme) private var colorScheme
-
-    private var topTint: Color {
-        colorScheme == .dark
-            ? Color(red: 48.0 / 255, green: 39.0 / 255, blue: 53.0 / 255)
-            : Color(red: 231.0 / 255, green: 223.0 / 255, blue: 236.0 / 255)
-    }
-
     var body: some View {
-        ZStack(alignment: .top) {
-            AppTheme.canvas
-            LinearGradient(colors: [topTint, AppTheme.canvas], startPoint: .top, endPoint: .bottom)
-                .frame(height: 420)
-        }
+        AppTheme.canvas
+            .overlay(alignment: .top) {
+                LinearGradient(colors: [AppTheme.rootTopTint, AppTheme.canvas], startPoint: .top, endPoint: .bottom)
+                    .frame(height: 420)
+            }
+        .clipped()
         .ignoresSafeArea()
         .allowsHitTesting(false)
         .accessibilityHidden(true)

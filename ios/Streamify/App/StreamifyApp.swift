@@ -121,8 +121,8 @@ struct RootView: View {
                 .accessibilityLabel("More options")
         }
         .font(.system(size: 23)).buttonStyle(.plain).foregroundStyle(AppTheme.foreground)
-        .padding(.leading, 16).padding(.trailing, 8).frame(minHeight: 60)
-        .background { StreamifyRootBackdrop().clipped().ignoresSafeArea(edges: .top) }
+        .padding(.leading, 16).padding(.trailing, 8).frame(height: 60)
+        .background(AppTheme.rootTopTint.ignoresSafeArea(edges: .top))
     }
 }
 
@@ -131,7 +131,7 @@ private struct FloatingNavigation: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var selectedTabAnimation
     @State private var selectionFeedback = 0
-    @ScaledMetric(relativeTo: .caption2) private var labelSize: CGFloat = 10
+    @ScaledMetric(relativeTo: .caption2) private var labelSize: CGFloat = 9.5
 
     private var selectionAnimation: Animation? {
         reduceMotion ? nil : .spring(response: 0.38, dampingFraction: 0.82)
@@ -146,19 +146,19 @@ private struct FloatingNavigation: View {
                     selectionFeedback += 1
                     withAnimation(selectionAnimation) { selection = tab }
                 } label: {
-                    VStack(spacing: 3) {
+                    VStack(spacing: 1) {
                         ZStack {
                             if tab == .library {
-                                Image(systemName: "person.fill").font(.system(size: 17, weight: .semibold))
-                                    .foregroundStyle(.white).frame(width: 25, height: 25)
+                                Image(systemName: "person.fill").font(.system(size: 16, weight: .semibold))
+                                    .foregroundStyle(.white).frame(width: 23, height: 23)
                                     .background(AppTheme.accent, in: RoundedRectangle(cornerRadius: 7))
                             } else {
                                 Image(systemName: tab == .home && selected ? "house.fill" : tab.symbol)
-                                    .font(.system(size: 23, weight: selected ? .semibold : .regular))
+                                    .font(.system(size: 21, weight: selected ? .semibold : .regular))
                                     .foregroundStyle(.white.opacity(selected ? 1 : 0.55))
                             }
                         }
-                        .frame(width: 28, height: 28)
+                        .frame(width: 24, height: 24)
                         .scaleEffect(selected && !reduceMotion ? 1.06 : 1)
                         .accessibilityHidden(true)
                         Text(tab.title).font(.system(size: labelSize, weight: selected ? .semibold : .medium))
@@ -166,7 +166,7 @@ private struct FloatingNavigation: View {
                             .lineLimit(1).minimumScaleFactor(0.8)
                             .scaleEffect(selected && !reduceMotion ? 1.02 : 1)
                     }
-                    .frame(maxWidth: .infinity).frame(minHeight: 54)
+                    .frame(maxWidth: .infinity).frame(minHeight: 44)
                     .background {
                         if selected {
                             Capsule().fill(.white.opacity(0.12))
@@ -183,7 +183,7 @@ private struct FloatingNavigation: View {
                 .accessibilityIdentifier("tab-\(tab.rawValue)")
             }
         }
-        .padding(4).frame(maxWidth: 400)
+        .padding(3).frame(maxWidth: 400)
         .background {
             Capsule().fill(.ultraThinMaterial).environment(\.colorScheme, .dark)
                 .overlay { Capsule().fill(.black.opacity(0.3)) }
