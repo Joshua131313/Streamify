@@ -75,6 +75,7 @@ struct SportsSearchDialog: View {
                         .accessibilityIdentifier("dismiss-sports-search-keyboard")
                 }
             }
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("sports-search-dialog")
             .task {
                 recents = Array((defaults.stringArray(forKey: recentsKey) ?? []).prefix(8))
@@ -130,7 +131,7 @@ struct SportsSearchDialog: View {
             }.padding(.leading, 14).padding(.trailing, 4).frame(minHeight: 48).streamifyControlSurface()
             Button("Cancel") { focused = false; dismiss() }.font(.subheadline.weight(.medium)).frame(minHeight: 44)
                 .accessibilityIdentifier("close-sports-search")
-        }.buttonStyle(.plain).padding(.horizontal, 20).padding(.vertical, 16)
+        }.buttonStyle(HapticPlainButtonStyle()).padding(.horizontal, 20).padding(.vertical, 16)
     }
 
     private var suggestions: some View {
@@ -151,7 +152,7 @@ struct SportsSearchDialog: View {
                             Spacer()
                             Image(systemName: "arrow.up.left").foregroundStyle(AppTheme.muted)
                         }.frame(minHeight: 44).contentShape(Rectangle())
-                    }.buttonStyle(.plain).accessibilityIdentifier("sports-search-recent-\(value)")
+                    }.buttonStyle(HapticPlainButtonStyle()).accessibilityIdentifier("sports-search-recent-\(value)")
                 }
             }
             VStack(alignment: .leading, spacing: 8) {
@@ -180,7 +181,7 @@ struct SportsSearchDialog: View {
                         Spacer()
                         Image(systemName: "chevron.right").font(.caption).foregroundStyle(AppTheme.muted)
                     }.padding(12).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 14)).contentShape(Rectangle())
-                }.buttonStyle(.plain).accessibilityIdentifier("sports-search-team-\(item.id)")
+                }.buttonStyle(HapticPlainButtonStyle()).accessibilityIdentifier("sports-search-team-\(item.id)")
             }
             if !teamsLoading && matchingTeams.isEmpty && teamError == nil {
                 Text("No matching teams").font(.subheadline).foregroundStyle(AppTheme.muted)

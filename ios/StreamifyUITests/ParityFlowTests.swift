@@ -339,15 +339,24 @@ final class ParityFlowTests: XCTestCase {
         capture("43b Choose NFL and NBA together with small league logos")
         apply.tap()
         XCTAssertTrue(wait { !self.app.navigationBars["Filter leagues"].exists })
-        XCTAssertEqual(picker.value as? String, "NFL + NBA")
+        XCTAssertEqual(picker.value as? String, "NFL, NBA")
         app.buttons["sports-date-picker"].tap()
         let tomorrow = app.buttons["sports-date-offset-1"]
         XCTAssertTrue(tomorrow.waitForExistence(timeout: 5))
         let initialY = tomorrow.frame.minY
         let initialX = tomorrow.frame.minX
-        XCTAssertTrue(element("sports-calendar-league-nfl").exists)
-        XCTAssertTrue(element("sports-calendar-league-nba").exists)
-        XCTAssertFalse(element("sports-calendar-league-nhl").exists)
+        XCTAssertGreaterThanOrEqual(tomorrow.frame.height, 44, "Every calendar day needs a full touch target before selection.")
+        XCTAssertTrue(app.buttons["sports-calendar-league-nfl"].isSelected)
+        XCTAssertTrue(app.buttons["sports-calendar-league-nba"].isSelected)
+        XCTAssertTrue(app.buttons["sports-calendar-league-nhl"].exists)
+        XCTAssertFalse(app.buttons["sports-calendar-league-nhl"].isSelected)
+        let wnbaLegend = app.buttons["sports-calendar-league-wnba"]
+        wnbaLegend.tap()
+        XCTAssertTrue(wait { wnbaLegend.isSelected })
+        XCTAssertTrue(app.buttons["sports-calendar-league-nba"].isSelected)
+        wnbaLegend.tap()
+        XCTAssertTrue(wait { !wnbaLegend.isSelected })
+        XCTAssertEqual(tomorrow.frame.minY, initialY, accuracy: 2, "Toggling a legend must not shift the calendar.")
         capture("44 NFL and NBA calendar sheet")
         tomorrow.tap()
         XCTAssertTrue(wait { tomorrow.isSelected })
@@ -355,7 +364,7 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertEqual(tomorrow.frame.minX, initialX, accuracy: 2)
         app.buttons["sports-calendar-done"].tap()
         XCTAssertTrue(app.staticTexts["No games to show"].waitForExistence(timeout: 12))
-        XCTAssertEqual(picker.value as? String, "NFL + NBA")
+        XCTAssertEqual(picker.value as? String, "NFL, NBA")
         capture("45 Compact empty-day result keeps selected leagues")
         app.buttons["sports-date-picker"].tap()
         let today = app.buttons["sports-date-offset-0"]
@@ -379,6 +388,18 @@ final class ParityFlowTests: XCTestCase {
         apply.tap()
         XCTAssertTrue(wait { picker.value as? String == "All leagues" })
         capture("46b Clearing league choices restores all leagues")
+        app.buttons["sports-date-picker"].tap()
+        let nflLegend = app.buttons["sports-calendar-league-nfl"]
+        XCTAssertFalse(nflLegend.isSelected)
+        XCTAssertFalse(wnbaLegend.isSelected)
+        wnbaLegend.tap()
+        XCTAssertTrue(wait { wnbaLegend.isSelected })
+        XCTAssertFalse(nflLegend.isSelected)
+        capture("Calendar legend selects WNBA without losing other choices")
+        wnbaLegend.tap()
+        XCTAssertTrue(wait { !wnbaLegend.isSelected })
+        app.buttons["sports-calendar-done"].tap()
+        XCTAssertEqual(picker.value as? String, "All leagues", "Clearing the last calendar legend restores the unfiltered view.")
     }
 
     func testQuickLiveTogglePrioritizesLiveGamesAndRetainsOtherFilters() {
@@ -393,6 +414,22 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["sports-game-nba:nba-fixture"].waitForExistence(timeout: 8))
         XCTAssertFalse(app.buttons["sports-game-nba:nba-final"].exists)
         capture("Live games one-tap quick filter")
+        app.buttons["sports-date-picker"].tap()
+        app.buttons["sports-date-offset-1"].tap()
+        app.buttons["sports-calendar-done"].tap()
+        XCTAssertTrue(wait { !live.isEnabled && !live.isSelected })
+        XCTAssertTrue((app.buttons["sports-filter-picker"].value as? String ?? "").contains("All games"))
+        XCTAssertEqual(app.buttons["sports-league-picker"].value as? String, "NBA")
+        capture("Future date clears and disables Live")
+        app.buttons["sports-filter-picker"].tap()
+        XCTAssertFalse(app.buttons["sports-filter-Live"].isEnabled)
+        app.buttons["sports-filter-done"].tap()
+        app.buttons["sports-date-picker"].tap()
+        app.navigationBars["Game calendar"].buttons["Today"].tap()
+        app.buttons["sports-calendar-done"].tap()
+        XCTAssertTrue(wait { live.isEnabled && !live.isSelected })
+        live.tap()
+        XCTAssertTrue(wait { live.isSelected })
         live.tap()
         XCTAssertTrue(wait { !live.isSelected })
         XCTAssertTrue(app.buttons["sports-game-nba:nba-final"].waitForExistence(timeout: 8))
@@ -421,6 +458,44 @@ final class ParityFlowTests: XCTestCase {
         app.buttons["Close player"].tap()
         XCTAssertTrue(wait { !self.app.buttons["Close player"].exists })
         XCTAssertEqual(app.buttons["sports-league-picker"].value as? String, "NCAAF")
+    }
+
+    func testScheduleDaySwipesKeepToolbarAndRootTabStationary() {
+        app.buttons["tab-sports"].tap()
+        selectSportsLeagues(["nba"])
+        let date = app.buttons["sports-date-picker"]
+        let originalDate = date.value as? String
+        let originalToolbarY = date.frame.minY
+        let live = app.buttons["sports-quick-live"]
+        XCTAssertTrue(app.buttons["sports-game-nba:nba-fixture"].waitForExistence(timeout: 10))
+        live.tap()
+        XCTAssertTrue(wait { live.isSelected })
+        let heading = element("sports-schedule-heading")
+        XCTAssertTrue(heading.exists)
+        let leftStart = heading.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.5))
+        let leftEnd = heading.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.5))
+        leftStart.press(forDuration: 0.05, thenDragTo: leftEnd)
+        XCTAssertTrue(wait { date.value as? String != originalDate && !live.isEnabled && !live.isSelected })
+        XCTAssertEqual(date.frame.minY, originalToolbarY, accuracy: 2)
+        XCTAssertEqual(app.buttons["sports-league-picker"].value as? String, "NBA")
+        XCTAssertTrue(app.buttons["tab-sports"].isSelected)
+        XCTAssertFalse(app.buttons["Close player"].exists)
+        capture("Swipe left advances the sports day beneath a stationary toolbar")
+        let rightStart = heading.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.5))
+        let rightEnd = heading.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.5))
+        rightStart.press(forDuration: 0.05, thenDragTo: rightEnd)
+        XCTAssertTrue(wait { date.value as? String == originalDate && live.isEnabled })
+        XCTAssertTrue(app.buttons["sports-game-nba:nba-fixture"].waitForExistence(timeout: 10))
+        XCTAssertEqual(date.frame.minY, originalToolbarY, accuracy: 2)
+        // A drag over an explicit action must neither switch days nor invoke it.
+        let gameCenter = app.buttons["Game Center"].firstMatch
+        let protectedStart = gameCenter.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.5))
+        let protectedEnd = gameCenter.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5))
+        protectedStart.press(forDuration: 0.05, thenDragTo: protectedEnd)
+        XCTAssertEqual(date.value as? String, originalDate)
+        XCTAssertFalse(app.buttons["sports-team-roster-tab"].exists)
+        XCTAssertTrue(app.buttons["tab-sports"].isSelected)
+        capture("Swipe right returns to today without changing leagues or root tabs")
     }
 
     func testSportsScheduleScoringTableRosterChannelsAndMultiWatch() {

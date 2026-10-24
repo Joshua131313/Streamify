@@ -23,7 +23,13 @@ struct MediaDownloadButton: View {
         case nil: return media.kind == .tv ? "Download S\(season) E\(episode)" : "Download"
         }
     }
-    private var symbol: String { item?.status == .completed ? "checkmark.circle" : "arrow.down.circle" }
+    private var symbol: String {
+        switch item?.status {
+        case .completed: return "checkmark.circle"
+        case .failed, .cancelled: return "arrow.clockwise"
+        default: return "arrow.down.circle"
+        }
+    }
 
     var body: some View {
         if media.kind != .anime {
@@ -33,7 +39,14 @@ struct MediaDownloadButton: View {
                 else { showOptions = true }
             } label: {
                 HStack(spacing: 10) {
-                    if item?.status == .downloading { ProgressView().tint(AppTheme.foreground) }
+                    if item?.status == .downloading {
+                        ZStack {
+                            DownloadActivityIndicator(progress: item?.progress, size: 26, animated: false)
+                            // This action opens Downloads, so retain a download
+                            // arrow instead of suggesting that tapping cancels.
+                            Image(systemName: "arrow.down").font(.system(size: 11, weight: .semibold))
+                        }.accessibilityHidden(true)
+                    }
                     else { Image(systemName: symbol).font(compact ? .title3 : .body) }
                     if !compact { Text(label).lineLimit(2).multilineTextAlignment(.center) }
                 }
@@ -44,8 +57,11 @@ struct MediaDownloadButton: View {
                 .overlay { RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius).strokeBorder(compact ? Color.clear : AppTheme.border, lineWidth: 1) }
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(HapticPlainButtonStyle())
             .accessibilityLabel(compact ? "\(label) · Episode \(episode)" : label)
+            .accessibilityValue(item?.status == .downloading
+                ? item?.progress.map { "\(Int($0 * 100)) percent" } ?? "Downloading. Total size unknown"
+                : "")
             .accessibilityIdentifier("download-\(DownloadStore.catalogKey(media: media, season: season, episode: episode))")
             .sheet(isPresented: $showOptions) {
                 NavigationStack { MediaDownloadSheet(media: media, season: season, episode: episode, episodeTitle: episodeTitle) }
@@ -61,6 +77,8 @@ struct MediaDownloadSheet: View {
     let season: Int
     let episode: Int
     let episodeTitle: String?
+    /// Explicit recovery keeps the previous file until its replacement is verified.
+    var replacingDownloadID: UUID? = nil
     @EnvironmentObject private var downloads: DownloadStore
     @Environment(\.dismiss) private var dismiss
     @AppStorage("streamify.ios.downloadQuality") private var quality = 1080
@@ -103,7 +121,7 @@ struct MediaDownloadSheet: View {
                                     Image(systemName: quality == value ? "checkmark.circle.fill" : "circle")
                                         .foregroundStyle(quality == value ? AppTheme.foreground : AppTheme.muted)
                                 }.padding(14).streamifyControlSurface()
-                            }.buttonStyle(.plain).disabled(resolving)
+                            }.buttonStyle(HapticPlainButtonStyle()).disabled(resolving)
                                 .accessibilityLabel("\(value)p download quality")
                                 .accessibilityAddTraits(quality == value ? .isSelected : [])
                         }
@@ -136,7 +154,8 @@ struct MediaDownloadSheet: View {
             do {
                 let source = try await MediaDownloadResolver().resolve(media: media, season: season, episode: episode, maximumQuality: quality)
                 try Task.checkCancellation()
-                try downloads.add(resolved: source, media: media, season: season, episode: episode, episodeTitle: episodeTitle)
+                try downloads.add(resolved: source, media: media, season: season, episode: episode,
+                    episodeTitle: episodeTitle, replacingDownloadID: replacingDownloadID)
                 added = true
             } catch is CancellationError { }
             catch { if !Task.isCancelled { self.error = error.localizedDescription } }

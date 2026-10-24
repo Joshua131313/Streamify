@@ -15,7 +15,7 @@ struct MediaDetailLink<Label: View>: View {
             Button { presented = true } label: {
                 label().contentShape(Rectangle()).matchedTransitionSource(id: media.key, in: transition)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(HapticPlainButtonStyle())
             .accessibilityIdentifier("media-link-\(media.key)")
             .fullScreenCover(isPresented: $presented) {
                 if reduceMotion {
@@ -27,7 +27,7 @@ struct MediaDetailLink<Label: View>: View {
             .onChange(of: presented) { _, visible in onPresentationChanged?(visible) }
         } else {
             Button { presented = true } label: { label().contentShape(Rectangle()) }
-                .buttonStyle(.plain)
+                .buttonStyle(HapticPlainButtonStyle())
                 .accessibilityIdentifier("media-link-\(media.key)")
                 .sheet(isPresented: $presented) {
                     destination.presentationDetents([.large])

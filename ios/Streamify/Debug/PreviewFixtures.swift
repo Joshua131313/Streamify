@@ -6,6 +6,10 @@ import UIKit
 enum PreviewFixtures {
     static let enabled = ProcessInfo.processInfo.arguments.contains("--ui-fixtures")
     static let usesNativePiPVideo = enabled && ProcessInfo.processInfo.arguments.contains("--ui-native-pip-fixture")
+    static let usesDownloadStatus = enabled && ProcessInfo.processInfo.arguments.contains("--ui-download-status-fixture")
+    static let downloadStatusIDs: Set<UUID> = [143, 144].map {
+        UUID(uuidString: String(format: "00000000-0000-0000-0000-%012d", $0))!
+    }.reduce(into: Set<UUID>()) { $0.insert($1) }
     static func nativePlayerURL(for url: URL) -> URL? {
         guard usesNativePiPVideo, url.scheme == "https", url.host == "fixture.streamify.test",
               ["/native-alpha.mp4", "/native-bravo.mp4"].contains(url.path) else { return nil }
@@ -53,6 +57,23 @@ enum PreviewFixtures {
             item.posterFileName = poster == nil ? nil : posterName
             UserDefaults.standard.removeObject(forKey: "streamify.ios.offlinePlayback.\(id.uuidString)")
             store.installCompletedFixture(item)
+            var statuses: [DownloadItem] = []
+            if usesDownloadStatus {
+                // These are deterministic UI states, not fake network transfers.
+                for (suffix, media) in [(143, movie), (144, show)] {
+                    let statusID = UUID(uuidString: String(format: "00000000-0000-0000-0000-%012d", suffix))!
+                    var status = DownloadItem(id: statusID, title: media.title, source: nil, fileName: nil,
+                        createdAt: Date(), status: .downloading, bytesWritten: suffix == 143 ? 25_000_000 : 1_000_000,
+                        expectedBytes: suffix == 143 ? 100_000_000 : 0)
+                    status.catalog = CatalogDownloadDescriptor(id: media.id, kind: media.kind.rawValue, title: media.title,
+                        season: 1, episode: 1, episodeTitle: media.kind == .tv ? "A Call After Midnight" : nil)
+                    status.catalogKey = DownloadStore.catalogKey(media: media, season: 1, episode: 1)
+                    let artworkName = "\(statusID.uuidString)-artwork-00000000-0000-0000-0000-000000000043.jpg"
+                    if let poster { try poster.write(to: directory.appendingPathComponent(artworkName), options: .atomic); status.posterFileName = artworkName }
+                    statuses.append(status)
+                }
+            }
+            store.installDownloadStatusFixtures(statuses)
             seededDownloads = true
         } catch { assertionFailure("Offline UI fixture could not be prepared: \(error)") }
     }

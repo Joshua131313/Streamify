@@ -40,6 +40,7 @@ final class OfflinePlaybackModel: ObservableObject {
     @Published private(set) var position: Double = 0
     @Published private(set) var duration: Double = 0
     @Published private(set) var error: String?
+    @Published private(set) var videoError: OfflineVideoError?
     @Published private(set) var rate: Float = 1
     @Published private(set) var finished = false
     @Published private(set) var audioGroup: AVMediaSelectionGroup?
@@ -67,20 +68,14 @@ final class OfflinePlaybackModel: ObservableObject {
     func load(item: DownloadItem) async {
         teardown()
         let request = UUID(); generation = request; itemID = item.id
-        isBuffering = true; error = nil; finished = false; wantsPlayback = true
-        guard let url = item.fileURL, url.isFileURL, FileManager.default.isReadableFile(atPath: url.path),
-              let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey]),
-              values.isRegularFile == true, (values.fileSize ?? 0) > 0 else {
-            fail("The local video is missing. Download or import it again."); return
-        }
+        isBuffering = true; error = nil; videoError = nil; finished = false; wantsPlayback = true
+        guard let url = item.fileURL else { fail(.missingFile); return }
         do {
-            let asset = AVURLAsset(url: url)
-            let (playable, assetDuration) = try await asset.load(.isPlayable, .duration)
+            let validated = try await OfflineVideoValidation.validate(url)
             try Task.checkCancellation()
             guard generation == request else { return }
-            guard playable else { fail("This video format cannot be played on this iPhone."); return }
-            let loadedDuration = assetDuration.seconds
-            guard loadedDuration.isFinite, loadedDuration > 0 else { fail("The video duration could not be read."); return }
+            let asset = validated.asset
+            let loadedDuration = validated.duration
             let audio = try? await asset.loadMediaSelectionGroup(for: .audible)
             let subtitles = try? await asset.loadMediaSelectionGroup(for: .legible)
             try Task.checkCancellation()
@@ -99,7 +94,7 @@ final class OfflinePlaybackModel: ObservableObject {
                 Task { @MainActor [weak self] in
                     guard let self, self.generation == request else { return }
                     if observed.status == .readyToPlay { self.prepareToPlay(request: request) }
-                    else if observed.status == .failed { self.fail(observed.error?.localizedDescription ?? "The local video could not be played.") }
+                    else if observed.status == .failed { self.fail(observed.error.map { OfflineVideoError.classify($0) } ?? .unplayable) }
                 }
             })
             observers.observations.append(created.observe(\.timeControlStatus, options: [.initial, .new]) { [weak self] observed, _ in
@@ -125,15 +120,15 @@ final class OfflinePlaybackModel: ObservableObject {
                 }
             })
             observers.notifications.append(NotificationCenter.default.addObserver(forName: .AVPlayerItemFailedToPlayToEndTime, object: item, queue: .main) { [weak self] notification in
-                let message = (notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error)?.localizedDescription
+                let problem = (notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error).map { OfflineVideoError.classify($0) } ?? .unplayable
                 Task { @MainActor [weak self] in
-                    guard let self, self.generation == request else { return }; self.fail(message ?? "The local video stopped unexpectedly.")
+                    guard let self, self.generation == request else { return }; self.fail(problem)
                 }
             })
         } catch is CancellationError {
             if generation == request { teardown() }
         } catch {
-            if generation == request { fail(error.localizedDescription) }
+            if generation == request { fail(OfflineVideoError.classify(error)) }
         }
     }
 
@@ -225,7 +220,8 @@ final class OfflinePlaybackModel: ObservableObject {
         }
     }
     private func storageKey(_ id: UUID) -> String { "streamify.ios.offlinePlayback.\(id.uuidString)" }
-    private func fail(_ message: String) {
-        wantsPlayback = false; player?.pause(); isPlaying = false; isBuffering = false; error = message
+    private func fail(_ problem: OfflineVideoError) {
+        wantsPlayback = false; player?.pause(); isPlaying = false; isBuffering = false
+        videoError = problem; error = problem.localizedDescription
     }
 }

@@ -23,6 +23,7 @@ struct StreamifyApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
+                .buttonStyle(HapticAutomaticButtonStyle())
                 .environmentObject(settings)
                 .environmentObject(library)
                 .environmentObject(downloads)
@@ -64,6 +65,22 @@ struct RootView: View {
     @State private var sportsSearchRequest = 0
     @State private var keyboardVisible = false
     @State private var visibleRootPages = Set(AppTab.allCases)
+
+    private var activeDownloads: [DownloadItem] { downloads.items.filter { $0.status == .downloading } }
+    private var downloadProgress: Double? {
+        let active = activeDownloads
+        guard !active.isEmpty, active.allSatisfy({ $0.expectedBytes > 0 }) else { return nil }
+        let expected = active.reduce(0.0) { $0 + Double($1.expectedBytes) }
+        let written = active.reduce(0.0) { $0 + Double(min(max(0, $1.bytesWritten), $1.expectedBytes)) }
+        guard expected.isFinite, written.isFinite, expected > 0 else { return nil }
+        return min(1, max(0, written / expected))
+    }
+    private var downloadActivityValue: String {
+        guard !activeDownloads.isEmpty else { return "No active downloads" }
+        let count = activeDownloads.count
+        return "\(count) download\(count == 1 ? "" : "s") in progress, " +
+            (downloadProgress.map { "\(Int($0 * 100)) percent" } ?? "total size unknown")
+    }
 
     private var rootSelection: Binding<AppTab> {
         Binding(get: { tab }, set: { value in
@@ -136,18 +153,19 @@ struct RootView: View {
             Button { downloadsOpen = true } label: {
                 Image(systemName: "arrow.down.to.line").frame(width: 44, height: 44)
                     .overlay(alignment: .topTrailing) {
-                        if downloads.items.contains(where: { $0.status == .downloading }) {
-                            Circle().fill(AppTheme.accent).frame(width: 7, height: 7).padding(8)
+                        if !activeDownloads.isEmpty {
+                            DownloadActivityIndicator(progress: downloadProgress, size: 12, tint: AppTheme.accent)
+                                .padding(5)
                         }
                     }
-            }.accessibilityLabel("Downloads").accessibilityIdentifier("open-downloads")
+            }.accessibilityLabel("Downloads").accessibilityValue(downloadActivityValue).accessibilityIdentifier("open-downloads")
             Menu {
                 Button("Account", systemImage: "person.crop.circle") { accountOpen = true }
                 Button("Settings", systemImage: "gearshape") { settingsOpen = true }
             } label: { Image(systemName: "ellipsis").rotationEffect(.degrees(90)).frame(width: 44, height: 44) }
                 .accessibilityLabel("More options")
         }
-        .font(.system(size: 23)).buttonStyle(.plain).foregroundStyle(AppTheme.foreground)
+        .font(.system(size: 23)).buttonStyle(HapticPlainButtonStyle()).foregroundStyle(AppTheme.foreground)
         .padding(.leading, 16).padding(.trailing, 8).frame(height: 60)
         .background(AppTheme.rootTopTint.ignoresSafeArea(edges: .top))
     }
@@ -156,6 +174,7 @@ struct RootView: View {
 private struct FloatingNavigation: View {
     @Binding var selection: AppTab
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
     @Namespace private var selectedTabAnimation
     @State private var selectionFeedback = 0
     @ScaledMetric(relativeTo: .caption2) private var labelSize: CGFloat = 9.5
@@ -182,22 +201,22 @@ private struct FloatingNavigation: View {
                             } else {
                                 Image(systemName: tab.symbol)
                                     .font(.system(size: 21, weight: .light))
-                                    .foregroundStyle(.white.opacity(selected ? 1 : 0.55))
+                                    .foregroundStyle(AppTheme.foreground.opacity(selected ? 1 : 0.55))
                             }
                         }
                         .frame(width: 24, height: 24)
                         .scaleEffect(selected && !reduceMotion ? 1.06 : 1)
                         .accessibilityHidden(true)
                         Text(tab.title).font(.system(size: labelSize, weight: selected ? .semibold : .medium))
-                            .foregroundStyle(.white.opacity(selected ? 1 : 0.55))
+                            .foregroundStyle(AppTheme.foreground.opacity(selected ? 1 : 0.55))
                             .lineLimit(1).minimumScaleFactor(0.8)
                             .scaleEffect(selected && !reduceMotion ? 1.02 : 1)
                     }
                     .frame(maxWidth: .infinity).frame(minHeight: 50)
                     .background {
                         if selected {
-                            Capsule().fill(.white.opacity(0.12))
-                                .overlay { Capsule().strokeBorder(.white.opacity(0.06), lineWidth: 0.5) }
+                            Capsule().fill(AppTheme.foreground.opacity(colorScheme == .dark ? 0.12 : 0.08))
+                                .overlay { Capsule().strokeBorder(AppTheme.foreground.opacity(0.06), lineWidth: 0.5) }
                                 .matchedGeometryEffect(id: "selected-tab", in: selectedTabAnimation)
                                 .padding(.horizontal, 2)
                         }
@@ -212,11 +231,11 @@ private struct FloatingNavigation: View {
         }
         .padding(3).frame(maxWidth: 400)
         .background {
-            Capsule().fill(.ultraThinMaterial).environment(\.colorScheme, .dark)
-                .overlay { Capsule().fill(.black.opacity(0.3)) }
+            Capsule().fill(.ultraThinMaterial)
+                .overlay { Capsule().fill(AppTheme.canvas.opacity(colorScheme == .dark ? 0.3 : 0.55)) }
         }
-        .overlay { Capsule().strokeBorder(.white.opacity(0.14), lineWidth: 0.7) }
-        .shadow(color: .black.opacity(0.3), radius: 12, y: 5)
+        .overlay { Capsule().strokeBorder(AppTheme.foreground.opacity(colorScheme == .dark ? 0.14 : 0.1), lineWidth: 0.7) }
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 12, y: 5)
         .animation(selectionAnimation, value: selection)
         .sensoryFeedback(.selection, trigger: selectionFeedback)
         .padding(.horizontal, 50).padding(.top, 4)

@@ -31,7 +31,7 @@ struct SportsMultiWatchView: View {
                     Button { showPicker = true } label: {
                         Label("Live games", systemImage: "plus").font(.subheadline.weight(.semibold))
                             .padding(.horizontal, 16).frame(minHeight: 44).streamifyControlSurface()
-                    }.buttonStyle(.plain).accessibilityIdentifier("sports-multiwatch-add")
+                    }.buttonStyle(HapticPlainButtonStyle()).accessibilityIdentifier("sports-multiwatch-add")
                 }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(20)
                     .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 12))
             }
@@ -116,7 +116,7 @@ private struct SportsLiveGamePicker: View {
                             if loadingGame == game.id { ProgressView() } else { Image(systemName: "play.fill") }
                         }.padding(14).frame(minHeight: 60).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 14))
                             .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(AppTheme.border, lineWidth: 1) }
-                    }.buttonStyle(.plain).disabled(loadingGame != nil || queue.streams.count >= 4)
+                    }.buttonStyle(HapticPlainButtonStyle()).disabled(loadingGame != nil || queue.streams.count >= 4)
                         .accessibilityIdentifier("sports-live-game-\(game.id)")
                 }
             }.padding(20)
@@ -199,7 +199,7 @@ private struct SportsWatchTile: View {
                 } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44) }
                     .accessibilityLabel("Options for \(stream.title)")
                     .accessibilityIdentifier("sports-tile-options-\(stream.id)")
-            }.buttonStyle(.plain).background(AppTheme.panel)
+            }.buttonStyle(HapticPlainButtonStyle()).background(AppTheme.panel)
             if let error { Text(error).font(.caption2).foregroundStyle(AppTheme.muted).padding(8) }
             SportsTileWebView(url: stream.url, revision: revision, audible: audible, active: active, error: $error)
                 .frame(maxWidth: .infinity, maxHeight: .infinity).background(.black)

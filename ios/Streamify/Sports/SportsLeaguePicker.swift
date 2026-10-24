@@ -34,7 +34,7 @@ struct SportsLeaguePicker: View {
                                     Image(systemName: draft.contains(league) ? "checkmark.circle.fill" : "circle")
                                         .font(.title3).foregroundStyle(draft.contains(league) ? AppTheme.foreground : AppTheme.muted)
                                 }.padding(12).frame(minHeight: 52).streamifyControlSurface()
-                            }.buttonStyle(.plain)
+                            }.buttonStyle(HapticPlainButtonStyle())
                                 .accessibilityLabel(league.title)
                                 .accessibilityValue(draft.contains(league) ? "Selected" : "Not selected")
                                 .accessibilityAddTraits(draft.contains(league) ? .isSelected : [])

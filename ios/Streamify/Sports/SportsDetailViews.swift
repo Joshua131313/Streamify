@@ -33,7 +33,7 @@ struct SportsGameView: View {
                             Button { selectedTeam = SportsTeamResult(league: game.league, team: team) } label: {
                                 SportsTeamScore(team: team, showScore: current.state != "pre", winner: current.winner?.id == team.id,
                                     subdued: current.winner != nil && current.winner?.id != team.id)
-                            }.buttonStyle(.plain).accessibilityIdentifier("sports-team-\(team.id)")
+                            }.buttonStyle(HapticPlainButtonStyle()).accessibilityIdentifier("sports-team-\(team.id)")
                             followButton(team)
                         }
                     }
@@ -93,19 +93,19 @@ struct SportsGameView: View {
                 Text("\(current.away.name) at \(current.home.name). \(current.status).").foregroundStyle(AppTheme.muted)
                 Label(current.broadcasts.isEmpty ? "Broadcast not announced" : current.broadcasts, systemImage: "tv").font(.subheadline).foregroundStyle(AppTheme.muted)
                 if current.canWatch, let first = streams.first {
-                    Button { play(first) } label: { Label("Watch game", systemImage: "play.fill").font(.headline).frame(maxWidth: .infinity).padding(14).foregroundStyle(Color.black).background(Color.white, in: RoundedRectangle(cornerRadius: 12)) }.buttonStyle(.plain)
+                    Button { play(first) } label: { Label("Watch game", systemImage: "play.fill").font(.headline).frame(maxWidth: .infinity).padding(14).foregroundStyle(Color.black).background(Color.white, in: RoundedRectangle(cornerRadius: 12)) }.buttonStyle(HapticPlainButtonStyle())
                 }
                 Button {
                     guard let first = streams.first else { return }
                     queue.add(SportsStream(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: first.url, alternatives: streams))
                     showMultiWatch = true
                 } label: { Label("Add to multi-watch", systemImage: "rectangle.split.2x2").font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 44).streamifyControlSurface() }
-                    .buttonStyle(.plain).disabled(streams.isEmpty || queue.streams.count >= 4)
+                    .buttonStyle(HapticPlainButtonStyle()).disabled(streams.isEmpty || queue.streams.count >= 4)
             }
             ForEach([current.away, current.home]) { team in
                 Button { selectedTeam = SportsTeamResult(league: game.league, team: team) } label: {
                     SportsPanel { HStack { SportsTeamScore(team: team, showScore: false); Image(systemName: "chevron.right").foregroundStyle(AppTheme.muted) } }
-                }.buttonStyle(.plain).accessibilityIdentifier("sports-team-profile-\(team.id)")
+                }.buttonStyle(HapticPlainButtonStyle()).accessibilityIdentifier("sports-team-profile-\(team.id)")
             }
             VStack(alignment: .leading, spacing: 12) {
                 HStack { Text("Watch sources").font(.title3.bold()); Spacer(); if streamsLoading { ProgressView() } }
@@ -120,11 +120,11 @@ struct SportsGameView: View {
                         Text(stream.title).font(.subheadline.weight(.semibold))
                         HStack(spacing: 12) {
                             Button { play(stream) } label: { Label("Watch", systemImage: "play.fill").frame(maxWidth: .infinity, minHeight: 30) }
-                                .buttonStyle(.borderedProminent).tint(AppTheme.foreground).foregroundStyle(AppTheme.canvas)
+                                .buttonStyle(HapticBorderedButtonStyle(prominent: true)).tint(AppTheme.foreground).foregroundStyle(AppTheme.canvas)
                             Button {
                                 queue.add(SportsStream(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: stream.url, alternatives: streams))
                                 showMultiWatch = true
-                            } label: { Image(systemName: "rectangle.split.2x2").frame(minWidth: 32, minHeight: 28) }.buttonStyle(.bordered)
+                            } label: { Image(systemName: "rectangle.split.2x2").frame(minWidth: 32, minHeight: 28) }.buttonStyle(HapticBorderedButtonStyle())
                                 .disabled(queue.streams.count >= 4 || queue.streams.contains(where: { $0.url == stream.url })).accessibilityLabel("Add source to multi-watch")
                         }
                     }
@@ -139,7 +139,7 @@ struct SportsGameView: View {
 
     private func followButton(_ team: SportsTeam) -> some View {
         let following = library.followedTeams.contains(team.key(in: game.league))
-        return Button { library.toggleTeam(team.key(in: game.league)) } label: { Image(systemName: following ? "star.fill" : "star").foregroundStyle(following ? AppTheme.foreground : AppTheme.muted).frame(width: 44, height: 44) }.buttonStyle(.plain).accessibilityLabel("\(following ? "Unfollow" : "Follow") \(team.name)")
+        return Button { library.toggleTeam(team.key(in: game.league)) } label: { Image(systemName: following ? "star.fill" : "star").foregroundStyle(following ? AppTheme.foreground : AppTheme.muted).frame(width: 44, height: 44) }.buttonStyle(HapticPlainButtonStyle()).accessibilityLabel("\(following ? "Unfollow" : "Follow") \(team.name)")
     }
 
     @ViewBuilder private func statTable(_ rows: [SportsStatRow], title: String) -> some View {
@@ -183,7 +183,7 @@ struct SportsTeamView: View {
                     Button { library.toggleTeam(result.id) } label: {
                         Label(following ? "Following" : "Follow team", systemImage: following ? "star.fill" : "star")
                             .font(.subheadline.weight(.semibold)).padding(.horizontal, 16).frame(minHeight: 44).streamifyControlSurface()
-                    }.buttonStyle(.plain).foregroundStyle(AppTheme.foreground)
+                    }.buttonStyle(HapticPlainButtonStyle()).foregroundStyle(AppTheme.foreground)
                 }
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) { ForEach(["Schedule", "Results", "Roster"], id: \.self) { value in Pill(title: value, selected: tab == value) { tab = value }.accessibilityIdentifier(value == "Roster" ? "sports-team-roster-tab" : "sports-team-tab-\(value)") } }

@@ -40,7 +40,7 @@ struct SportsPlaybackHost: UIViewRepresentable {
                         return
                     }
                     if window.rootViewController == nil {
-                        let controller = UIHostingController(rootView: SportsPlaybackOverlay(session: self.session))
+                        let controller = UIHostingController(rootView: SportsPlaybackOverlay(session: self.session).buttonStyle(HapticAutomaticButtonStyle()))
                         controller.view.backgroundColor = .clear
                         window.rootViewController = controller
                     }
@@ -127,14 +127,14 @@ private struct SportsPlaybackOverlay: View {
                     }.frame(maxWidth: .infinity, alignment: .leading)
                     Image(systemName: "chevron.down").font(.caption.weight(.semibold))
                 }.frame(maxWidth: .infinity, minHeight: 44).contentShape(Rectangle())
-            }.buttonStyle(.plain).accessibilityLabel("Switch stream source")
+            }.buttonStyle(HapticPlainButtonStyle()).accessibilityLabel("Switch stream source")
                 .accessibilityValue("\(item.title), \(session.sourceTitle)").accessibilityIdentifier("sports-player-source-picker")
             AirPlayButton().frame(width: 44, height: 44).accessibilityLabel("AirPlay")
             Button(action: session.requestPictureInPicture) { Image(systemName: "pip.enter").frame(width: 44, height: 44) }
                 .accessibilityLabel("Picture in Picture")
                 .accessibilityValue(pictureInPicture.isRequesting ? "Starting" : pictureInPicture.capability.rawValue)
                 .accessibilityIdentifier("sports-player-pip")
-        }.padding(.horizontal, max(8, session.safeAreaInsets.left)).buttonStyle(.plain)
+        }.padding(.horizontal, max(8, session.safeAreaInsets.left)).buttonStyle(HapticPlainButtonStyle())
     }
     private func footer(_ item: SportsPlaybackItem) -> some View {
         HStack(spacing: 16) {
@@ -143,6 +143,6 @@ private struct SportsPlaybackOverlay: View {
             Button(action: session.toggleDirect) { Label(session.direct ? "Embed mode" : "Direct mode", systemImage: "rectangle.on.rectangle").frame(minHeight: 44) }
             Spacer(minLength: 0)
             Button { openURL(item.url) } label: { Image(systemName: "safari").frame(width: 44, height: 44) }.accessibilityLabel("Open in browser")
-        }.font(.caption.weight(.semibold)).padding(.horizontal, max(16, session.safeAreaInsets.left)).buttonStyle(.plain)
+        }.font(.caption.weight(.semibold)).padding(.horizontal, max(16, session.safeAreaInsets.left)).buttonStyle(HapticPlainButtonStyle())
     }
 }

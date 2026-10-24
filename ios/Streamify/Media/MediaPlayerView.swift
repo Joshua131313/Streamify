@@ -106,7 +106,7 @@ struct MediaPlayerView: View {
                             Spacer(minLength: 0)
                             Image(systemName: "chevron.down").font(.caption2)
                         }.padding(.horizontal, 12).frame(maxWidth: .infinity, minHeight: 44).streamifyControlSurface()
-                    }.buttonStyle(.plain)
+                    }.buttonStyle(HapticPlainButtonStyle())
                     Button { reload += 1 } label: { Image(systemName: "arrow.clockwise").frame(width: 44, height: 44).streamifyControlSurface() }.accessibilityLabel("Reload player")
                     Button { direct.toggle() } label: { Image(systemName: direct ? "rectangle.inset.filled" : "rectangle.on.rectangle").frame(width: 44, height: 44).streamifyControlSurface() }
                         .accessibilityLabel(direct ? "Switch to embed mode" : "Switch to direct mode")

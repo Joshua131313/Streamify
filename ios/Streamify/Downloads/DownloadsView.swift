@@ -76,18 +76,27 @@ private struct DownloadRow: View {
                                     .font(.caption).foregroundStyle(AppTheme.muted).lineLimit(2)
                             }
                             Text(statusText).font(.caption.monospacedDigit()).foregroundStyle(AppTheme.muted).lineLimit(2)
-                            if item.status == .downloading {
-                                if let progress = item.progress {
-                                    ProgressView(value: progress).tint(AppTheme.accent)
-                                        .accessibilityLabel("Download progress").accessibilityValue("\(Int(progress * 100)) percent")
-                                } else { ProgressView().tint(AppTheme.foreground).accessibilityLabel("Downloading. Total size unknown") }
-                            }
+                                .accessibilityIdentifier("download-progress-\(item.id)")
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }.contentShape(Rectangle())
-                }.buttonStyle(.plain).disabled(item.status != .completed)
+                }.buttonStyle(HapticPlainButtonStyle()).disabled(item.status != .completed)
                     .foregroundStyle(AppTheme.foreground)
                     .accessibilityLabel("Play offline \(item.title)")
                     .accessibilityIdentifier("download-play-\(item.id)")
+                if item.status == .downloading {
+                    Button { downloads.cancel(id: item.id) } label: {
+                        ZStack {
+                            DownloadActivityIndicator(progress: item.progress, size: 26, animated: false)
+                            Image(systemName: "stop.fill").font(.system(size: 10))
+                        }.frame(width: 44, height: 44).contentShape(Rectangle())
+                    }.buttonStyle(HapticPlainButtonStyle()).foregroundStyle(AppTheme.foreground)
+                        .accessibilityLabel("Cancel download of \(item.title)")
+                        .accessibilityValue(item.progress.map { "\(Int($0 * 100)) percent" } ?? "Downloading. Total size unknown")
+                        .accessibilityIdentifier("download-activity-\(item.id)")
+                } else if item.status == .completed {
+                    Image(systemName: "checkmark.circle").font(.system(size: 22))
+                        .foregroundStyle(AppTheme.foreground).accessibilityHidden(true)
+                }
                 Menu {
                     if item.status == .completed { Button("Play offline", systemImage: "play.fill", action: play) }
                     if item.status == .downloading { Button("Cancel download", systemImage: "xmark") { downloads.cancel(id: item.id) } }

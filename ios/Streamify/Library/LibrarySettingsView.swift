@@ -22,7 +22,7 @@ struct LibraryView: View {
                     Label("View downloads", systemImage: "arrow.down.circle")
                         .font(.subheadline.weight(.semibold)).padding(.horizontal, 16).frame(minHeight: 48)
                         .streamifyControlSurface()
-                }.buttonStyle(.plain).foregroundStyle(AppTheme.foreground)
+                }.buttonStyle(HapticPlainButtonStyle()).foregroundStyle(AppTheme.foreground)
                 Label("Guest library · on this iPhone", systemImage: "iphone").font(.caption).foregroundStyle(AppTheme.muted)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
@@ -35,7 +35,7 @@ struct LibraryView: View {
                     TextField(history ? "Find in history" : "Find in My list", text: $query).autocorrectionDisabled().textInputAutocapitalization(.never)
                     if !query.isEmpty {
                         Button { query = "" } label: { Image(systemName: "xmark.circle.fill").frame(width: 44, height: 44).contentShape(Rectangle()) }
-                            .buttonStyle(.plain).foregroundStyle(AppTheme.muted).accessibilityLabel("Clear search")
+                            .buttonStyle(HapticPlainButtonStyle()).foregroundStyle(AppTheme.muted).accessibilityLabel("Clear search")
                     }
                 }.padding(.leading, 14).padding(.trailing, query.isEmpty ? 14 : 0).frame(minHeight: 48).streamifyControlSurface()
                 HStack {
@@ -54,7 +54,7 @@ struct LibraryView: View {
                     if history && !library.history.isEmpty {
                         Button("Clear history", role: .destructive) { clearHistory = true }
                             .font(.caption.weight(.semibold)).padding(.horizontal, 12).frame(minHeight: 44)
-                            .streamifyControlSurface().buttonStyle(.plain).foregroundStyle(AppTheme.accent)
+                            .streamifyControlSurface().buttonStyle(HapticPlainButtonStyle()).foregroundStyle(AppTheme.accent)
                     }
                 }
                 if history {
@@ -190,7 +190,7 @@ struct AccountView: View {
                         Spacer(); Image(systemName: "chevron.right")
                     }.padding(20).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 16))
                         .overlay { RoundedRectangle(cornerRadius: 16).strokeBorder(AppTheme.border, lineWidth: 1) }
-                }.buttonStyle(.plain)
+                }.buttonStyle(HapticPlainButtonStyle())
                 Text("Follow teams from Sports to find their games in the Following filter.").font(.subheadline).foregroundStyle(AppTheme.muted)
             }.padding(20)
         }

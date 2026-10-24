@@ -145,12 +145,22 @@ struct Pill: View {
                 .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(selected ? Color.clear : AppTheme.border, lineWidth: 1) }
                 .frame(minHeight: 44).contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(HapticPlainButtonStyle())
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 
-struct PrimaryButtonStyle: ButtonStyle {
+struct PrimaryButtonStyle: PrimitiveButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button(role: configuration.role) {
+            AppHaptics.tap(.primary)
+            configuration.trigger()
+        } label: { configuration.label }
+            .buttonStyle(PrimaryButtonAppearance())
+    }
+}
+
+private struct PrimaryButtonAppearance: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label.font(.subheadline.bold())
             .padding(.horizontal, 20).frame(minHeight: 48)
@@ -160,7 +170,17 @@ struct PrimaryButtonStyle: ButtonStyle {
     }
 }
 
-struct SecondaryButtonStyle: ButtonStyle {
+struct SecondaryButtonStyle: PrimitiveButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button(role: configuration.role) {
+            AppHaptics.tap()
+            configuration.trigger()
+        } label: { configuration.label }
+            .buttonStyle(SecondaryButtonAppearance())
+    }
+}
+
+private struct SecondaryButtonAppearance: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label.font(.subheadline.weight(.semibold))
             .padding(.horizontal, 16).frame(minHeight: 48)
@@ -182,7 +202,7 @@ struct PosterCard: View {
             PosterContent(media: media, rank: rank, roomy: roomy)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(HapticPlainButtonStyle())
         .contextMenu {
             Button(library.isSaved(media) ? "Remove from My list" : "Add to My list",
                    systemImage: library.isSaved(media) ? "checkmark" : "plus") { library.toggleSaved(media) }

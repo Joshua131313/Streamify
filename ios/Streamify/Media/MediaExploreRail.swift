@@ -32,7 +32,7 @@ struct MediaExploreRail: View {
                             poster(media).matchedTransitionSource(id: media.key, in: transition)
                         } else { poster(media) }
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(HapticPlainButtonStyle())
                     .accessibilityLabel("\(media.title), \(media.kind.singular). Open details")
                     .accessibilityIdentifier("explore-\(identifier)-media-\(media.key)")
                     .contextMenu {

@@ -61,7 +61,7 @@ struct SportsChannelsView: View {
                             Text(broadcaster.detail).font(.subheadline).foregroundStyle(AppTheme.muted)
                             Text(broadcaster.access).font(.caption.weight(.semibold)).foregroundStyle(AppTheme.muted)
                         }
-                    }.buttonStyle(.plain)
+                    }.buttonStyle(HapticPlainButtonStyle())
                 }
             }
         }.padding(.horizontal, 20).foregroundStyle(AppTheme.foreground)
@@ -84,7 +84,7 @@ struct SportsChannelsView: View {
             Label("Watch", systemImage: "play.fill").font(.subheadline.weight(.semibold))
                 .padding(.horizontal, 18).frame(minHeight: 48).foregroundStyle(Color.black)
                 .background(Color.white, in: RoundedRectangle(cornerRadius: 12))
-        }.buttonStyle(.plain).disabled((numbers[provider.id] ?? provider.initial).isEmpty)
+        }.buttonStyle(HapticPlainButtonStyle()).disabled((numbers[provider.id] ?? provider.initial).isEmpty)
             .opacity((numbers[provider.id] ?? provider.initial).isEmpty ? 0.45 : 1)
     }
 }

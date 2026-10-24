@@ -49,6 +49,7 @@ private final class SportsNativeLayerView: UIView {
     }
     private func togglePlayback() {
         guard let player = playerLayer.player else { return }
+        AppHaptics.tap()
         if player.timeControlStatus == .paused { player.play() } else { player.pause() }
         updateTransport()
     }

@@ -108,7 +108,7 @@ struct BrowseView: View {
                             Image(systemName: "arrow.up.left.and.arrow.down.right").font(.caption)
                         }.font(.subheadline).foregroundStyle(AppTheme.muted)
                             .padding(.horizontal, 16).frame(minHeight: 56).streamifyControlSurface()
-                    }.buttonStyle(.plain).accessibilityIdentifier("open-catalog-search-dialog").padding(.horizontal, pageGutter)
+                    }.buttonStyle(HapticPlainButtonStyle()).accessibilityIdentifier("open-catalog-search-dialog").padding(.horizontal, pageGutter)
                     VStack(alignment: .leading, spacing: 12) {
                         if cleanQuery.isEmpty { SectionHeading(title: "Find your next favorite").padding(.horizontal, pageGutter) }
                         ScrollView(.horizontal) {
@@ -123,7 +123,7 @@ struct BrowseView: View {
                                         .background(AppTheme.controlFill, in: RoundedRectangle(cornerRadius: 12))
                                         .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(AppTheme.border, lineWidth: 1) }
                                         .frame(minHeight: 44).contentShape(Rectangle())
-                                }.buttonStyle(.plain)
+                                }.buttonStyle(HapticPlainButtonStyle())
                             }.padding(.horizontal, pageGutter)
                         }.scrollIndicators(.hidden)
                     }
@@ -207,12 +207,12 @@ struct BrowseView: View {
             Menu {
                 Picker("Genre", selection: $animeGenre) { Text("All genres").tag(""); ForEach(animeGenres, id: \.self) { Text($0).tag($0) } }
             } label: { genreSelectLabel(animeGenre.isEmpty ? (category ? "Categories" : "All genres") : animeGenre) }
-                .buttonStyle(.plain).accessibilityLabel("Genre, \(animeGenre.isEmpty ? "All genres" : animeGenre)")
+                .buttonStyle(HapticPlainButtonStyle()).accessibilityLabel("Genre, \(animeGenre.isEmpty ? "All genres" : animeGenre)")
         } else {
             Menu {
                 Picker("Genre", selection: $genre) { Text("All genres").tag(0); ForEach(model.genres) { Text($0.name).tag($0.id) } }
             } label: { genreSelectLabel(model.genres.first { $0.id == genre }?.name ?? (category ? "Categories" : "All genres")) }
-                .buttonStyle(.plain).accessibilityLabel("Genre, \(model.genres.first { $0.id == genre }?.name ?? "All genres")")
+                .buttonStyle(HapticPlainButtonStyle()).accessibilityLabel("Genre, \(model.genres.first { $0.id == genre }?.name ?? "All genres")")
         }
     }
 
@@ -224,7 +224,7 @@ struct BrowseView: View {
         Menu {
             Picker("Provider", selection: $provider) { ForEach(providers, id: \.0) { Text($0.1).tag($0.0) } }
         } label: { StreamifySelectLabel(title: providers.first { $0.0 == provider }?.1 ?? "All providers") }
-            .buttonStyle(.plain).accessibilityLabel("Provider, \(providers.first { $0.0 == provider }?.1 ?? "All providers")")
+            .buttonStyle(HapticPlainButtonStyle()).accessibilityLabel("Provider, \(providers.first { $0.0 == provider }?.1 ?? "All providers")")
     }
 
     private func load(first: Bool) async {

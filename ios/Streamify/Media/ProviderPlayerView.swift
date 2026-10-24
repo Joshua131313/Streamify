@@ -4,6 +4,51 @@ import AVKit
 import AVFoundation
 import Combine
 
+/// A media suffix is a routing hint, not proof that the device can decode it.
+/// Direct mode must still offer a different renderer when native playback fails.
+enum ProviderPlaybackRoute: Equatable {
+    case nativeVideo, webDirect, webEmbed
+
+    static func resolve(url: URL, direct: Bool, webFallback: Bool = false) -> Self {
+        let mediaAddress = ["m3u8", "mp4", "mov", "m4v"].contains(url.pathExtension.lowercased())
+        if mediaAddress { return direct || webFallback ? .webDirect : .nativeVideo }
+        return direct ? .webDirect : .webEmbed
+    }
+}
+
+enum ProviderPlaybackFailure {
+    /// These public error domains distinguish access/network failures from a
+    /// missing decoder. An unclassified AVFoundation failure is not a codec diagnosis.
+    static func message(for error: Error?, fallback: String) -> String {
+        var current = error as NSError?
+        for _ in 0..<6 {
+            guard let item = current else { break }
+            if item.domain == NSURLErrorDomain {
+                if [NSURLErrorNotConnectedToInternet, NSURLErrorNetworkConnectionLost, NSURLErrorTimedOut,
+                    NSURLErrorCannotFindHost, NSURLErrorCannotConnectToHost, NSURLErrorDNSLookupFailed].contains(item.code) {
+                    return "The video source could not be reached. Check your connection or try another source."
+                }
+                if item.code == URLError.userAuthenticationRequired.rawValue {
+                    return "This source requires access that the iOS player does not have. Try the web player or another source."
+                }
+            }
+            if item.domain == AVFoundationErrorDomain {
+                switch item.code {
+                case AVError.Code.fileFormatNotRecognized.rawValue:
+                    return "The iOS player could not recognize this file or stream. Try the web player or another source."
+                case AVError.Code.decoderNotFound.rawValue:
+                    return "This source needs a decoder that the iOS player cannot use. Choose another source."
+                case AVError.Code.contentIsProtected.rawValue:
+                    return "This source is protected and the iOS player could not access it. Choose another source."
+                default: break
+                }
+            }
+            current = item.userInfo[NSUnderlyingErrorKey] as? NSError
+        }
+        return error?.localizedDescription ?? fallback
+    }
+}
+
 /// Activates foreground movie audio, including playback while the iPhone's silent switch is on.
 enum PlaybackAudioSession {
     @MainActor static func activate() throws {
@@ -59,7 +104,7 @@ private final class NativePlaybackModel: ObservableObject {
             try Task.checkCancellation()
             guard generation == request else { return }
             guard playable else {
-                throw AnimePlaybackError.unavailable("This source is not a video format that iOS can play. Try another source or open it in Safari.")
+                throw AnimePlaybackError.unavailable("The iOS player could not read this source. Try the web player or another source.")
             }
             try PlaybackAudioSession.activate()
             let item = AVPlayerItem(asset: asset)
@@ -75,7 +120,7 @@ private final class NativePlaybackModel: ObservableObject {
                         self.restoreIfPossible()
                         self.player?.play()
                     case .failed:
-                        self.fail(item.error?.localizedDescription ?? "iOS could not load this video. Try another source.")
+                        self.fail(ProviderPlaybackFailure.message(for: item.error, fallback: "iOS could not load this video. Try another source."))
                     case .unknown:
                         break
                     @unknown default:
@@ -104,8 +149,8 @@ private final class NativePlaybackModel: ObservableObject {
                 }
             }
             failureObserver = NotificationCenter.default.addObserver(forName: .AVPlayerItemFailedToPlayToEndTime, object: item, queue: .main) { [weak self] notification in
-                let message = (notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error)?.localizedDescription
-                    ?? "This video stopped unexpectedly. Reload or choose another source."
+                let message = ProviderPlaybackFailure.message(for: notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error,
+                    fallback: "This video stopped unexpectedly. Reload or choose another source.")
                 Task { @MainActor [weak self] in
                     guard let self, self.generation == request else { return }
                     self.fail(message)
@@ -114,7 +159,7 @@ private final class NativePlaybackModel: ObservableObject {
         } catch is CancellationError {
             if generation == request { stop() }
         } catch {
-            if generation == request { fail(error.localizedDescription) }
+            if generation == request { fail(ProviderPlaybackFailure.message(for: error, fallback: "The iOS player could not load this source.")) }
         }
     }
 
@@ -218,7 +263,7 @@ struct ProviderPlayerView: View {
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                         .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(HapticPlainButtonStyle())
                     .accessibilityLabel("Switch stream source")
                     .accessibilityValue("\(title), \(sourceTitle)")
                     .accessibilityIdentifier("sports-player-source-picker")
@@ -264,28 +309,31 @@ struct ProviderPlaybackSurface: View {
     var systemPiP: SportsSystemPiP? = nil
     @State private var loading = true
     @State private var error: String?
+    @State private var webFallbackURL: URL?
     @StateObject private var nativePlayback = NativePlaybackModel()
     @Environment(\.scenePhase) private var scenePhase
 
-    private var isVideoFile: Bool { ["m3u8", "mp4", "mov", "m4v"].contains(url.pathExtension.lowercased()) }
+    private var usesWebFallback: Bool { webFallbackURL == url }
+    private var route: ProviderPlaybackRoute { .resolve(url: url, direct: direct, webFallback: usesWebFallback) }
 
     var body: some View {
         ZStack {
             Color.black
             if secureURL(url.absoluteString) == nil {
                 Text("Only secure HTTPS player addresses are supported.").foregroundStyle(.white).padding()
-            } else if isVideoFile {
+            } else if route == .nativeVideo {
                 Group {
                     if let systemPiP { SportsNativePlayerSurface(player: nativePlayback.player, pictureInPicture: systemPiP) }
                     else { VideoPlayer(player: nativePlayback.player) }
                 }
-                    .task(id: "\(url.absoluteString):\(reload)") {
+                    .task(id: "\(url.absoluteString):\(reload):\(direct)") {
                         await nativePlayback.load(url, resumeSeconds: resumeSeconds, onProgress: onProgress)
                     }
+                    .onDisappear { nativePlayback.stop() }
                 if nativePlayback.loading { loadingIndicator("Loading video…") }
-                if let error = nativePlayback.error { failureMessage(error) }
+                if let error = nativePlayback.error { failureMessage(error, canTryWeb: true) }
             } else {
-                PlayerWebView(url: url, reload: reload, direct: direct, referer: referer,
+                PlayerWebView(url: url, reload: reload, direct: route == .webDirect, referer: referer,
                     resumeSeconds: resumeSeconds, onProgress: onProgress, systemPiP: systemPiP, loading: $loading, error: $error)
                 if loading {
                     loadingIndicator("Connecting to source…")
@@ -296,7 +344,17 @@ struct ProviderPlaybackSurface: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay(alignment: .topTrailing) {
+            if usesWebFallback {
+                Button { changeFallback(false) } label: {
+                    Label("Use iOS player", systemImage: "play.rectangle").font(.caption.weight(.semibold)).frame(minHeight: 44)
+                }.buttonStyle(SecondaryButtonStyle()).padding(12)
+                    .accessibilityIdentifier("player-use-native")
+            }
+        }
         .onDisappear { nativePlayback.stop() }
+        .onChange(of: url) { _, _ in webFallbackURL = nil }
+        .onChange(of: direct) { _, _ in webFallbackURL = nil }
         .onChange(of: scenePhase) { _, phase in if phase != .active && !preservePlaybackOnBackground { nativePlayback.pause() } }
     }
 
@@ -306,14 +364,30 @@ struct ProviderPlaybackSurface: View {
             .allowsHitTesting(false)
     }
 
-    private func failureMessage(_ message: String) -> some View {
+    private func failureMessage(_ message: String, canTryWeb: Bool = false) -> some View {
         VStack(spacing: 12) {
             Image(systemName: "play.slash").font(.title2)
             Text("Source couldn’t load").font(.headline)
             Text(message).font(.subheadline).multilineTextAlignment(.center)
-            Text("Reload, switch providers, or open this source in Safari.").font(.caption).foregroundStyle(.white.opacity(0.7))
+            if canTryWeb {
+                Button("Try web player") { changeFallback(true) }.buttonStyle(PrimaryButtonStyle())
+                    .accessibilityIdentifier("player-try-web")
+                Text("The web player may handle this source differently. A source with an unsupported codec can still fail.")
+                    .font(.caption).foregroundStyle(.white.opacity(0.7))
+            } else {
+                Text("Reload, switch providers, or open this source in Safari.").font(.caption).foregroundStyle(.white.opacity(0.7))
+            }
         }.foregroundStyle(.white).padding(24).frame(maxWidth: 400)
             .background(.black.opacity(0.9), in: RoundedRectangle(cornerRadius: 16)).padding()
+    }
+
+    private func changeFallback(_ enabled: Bool) {
+        // Reset the old PiP owner before its view detaches; otherwise a detach
+        // callback could be mistaken for an explicit close of the sports session.
+        systemPiP?.reset()
+        nativePlayback.stop()
+        loading = true; error = nil
+        webFallbackURL = enabled ? url : nil
     }
 }
 

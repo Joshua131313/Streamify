@@ -58,7 +58,7 @@ struct HomeView: View {
                         categoryLink("Shows", kind: .tv)
                         categoryLink("Movies", kind: .movie)
                         categoryLink("Anime", kind: .anime)
-                        Button(action: openSports) { shortcutLabel("Live sports") }.buttonStyle(.plain)
+                        Button(action: openSports) { shortcutLabel("Live sports") }.buttonStyle(HapticPlainButtonStyle())
                     }.padding(.horizontal, 16)
                 }.scrollIndicators(.hidden)
 
@@ -92,7 +92,7 @@ struct HomeView: View {
                         }.frame(maxWidth: .infinity, alignment: .leading)
                         Image(systemName: "arrow.right").font(.headline)
                     }.padding(18).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 16))
-                }.buttonStyle(.plain).padding(.horizontal, 20)
+                }.buttonStyle(HapticPlainButtonStyle()).padding(.horizontal, 20)
 
                 PosterRail(title: "TOP 10 Today", items: Array(model.trending.prefix(10)), ranked: true)
                 PosterRail(title: "Popular shows", items: model.shows)
@@ -140,7 +140,7 @@ struct HomeView: View {
     private func categoryLink(_ title: String, kind: MediaKind) -> some View {
         NavigationLink { CategoryView(kind: kind) } label: {
             shortcutLabel(title)
-        }.buttonStyle(.plain)
+        }.buttonStyle(HapticPlainButtonStyle())
     }
 
     private func shortcutLabel(_ title: String) -> some View {
@@ -162,7 +162,7 @@ struct HomeView: View {
                         Text("Explore all").font(.caption2.weight(.medium)).fixedSize()
                         Image(systemName: "arrow.right").font(.caption2)
                     }.foregroundStyle(AppTheme.muted).frame(minHeight: 44)
-                }.buttonStyle(.plain)
+                }.buttonStyle(HapticPlainButtonStyle())
             }.padding(.horizontal, 16)
             ScrollView(.horizontal) {
                 HStack(spacing: 10) {
@@ -181,7 +181,7 @@ struct HomeView: View {
                                 .contentShape(RoundedRectangle(cornerRadius: 16))
                                 .accessibilityElement(children: .ignore)
                                 .accessibilityLabel("Explore collection \(collection.name)")
-                        }.buttonStyle(.plain)
+                        }.buttonStyle(HapticPlainButtonStyle())
                     }
                 }.padding(.horizontal, 16)
             }.scrollIndicators(.hidden)
@@ -298,7 +298,7 @@ struct FeaturedCarousel: View {
                             .animation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.9), value: selected)
                             .frame(width: 48, height: 48)
                     }
-                    .buttonStyle(.plain).accessibilityLabel("Show \(items[offset].title)")
+                    .buttonStyle(HapticPlainButtonStyle()).accessibilityLabel("Show \(items[offset].title)")
                     .accessibilityValue(selected ? (running ? "\(Int(progress * 100)) percent, current slide" : "Current slide, automatic playback paused") : "Not selected")
                     .accessibilityIdentifier(selected ? "hero-main-progress" : "hero-slide-indicator-\(offset)")
                     .accessibilityAddTraits(selected ? .isSelected : [])
@@ -308,7 +308,7 @@ struct FeaturedCarousel: View {
                         Image(systemName: paused ? "play.fill" : "pause.fill")
                             .font(.body).frame(width: 48, height: 48)
                     }
-                    .buttonStyle(.plain).accessibilityLabel(paused ? "Resume carousel" : "Pause carousel")
+                    .buttonStyle(HapticPlainButtonStyle()).accessibilityLabel(paused ? "Resume carousel" : "Pause carousel")
                     .accessibilityValue(paused ? "Paused" : running ? "Playing" : "Automatic playback paused")
                     .accessibilityIdentifier("hero-carousel-pause")
                 }
@@ -363,7 +363,7 @@ struct FeaturedCarousel: View {
                             .background(.white.opacity(0.24), in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
                             .overlay { RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius).strokeBorder(.white.opacity(0.15), lineWidth: 0.7) }
                     }.accessibilityLabel(library.isSaved(media) ? "Remove \(media.title) from My list" : "Save \(media.title)")
-                }.buttonStyle(.plain).padding(.top, 6)
+                }.buttonStyle(HapticPlainButtonStyle()).padding(.top, 6)
             }.padding(14).foregroundStyle(.white)
         }
         .overlay(alignment: .topTrailing) {
@@ -409,7 +409,7 @@ private struct ContinueWatchingRail: View {
                                     }
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
                                     .contentShape(RoundedRectangle(cornerRadius: 12))
-                            }.buttonStyle(.plain).accessibilityLabel("Resume \(entry.media.title)")
+                            }.buttonStyle(HapticPlainButtonStyle()).accessibilityLabel("Resume \(entry.media.title)")
                             Text(entry.media.title).font(.subheadline.weight(.medium)).lineLimit(1)
                             Text(watchSubtitle(entry)).font(.caption2).foregroundStyle(AppTheme.muted).lineLimit(1)
                         }.frame(width: 184)
@@ -496,7 +496,7 @@ private struct DiscoveryRail: View {
                     .accessibilityLabel("Genre, \(availableGenres.first { $0.0 == genre }?.1 ?? "Choose genre")")
                     .accessibilityIdentifier("home-choice-genre")
             }
-        }.buttonStyle(.plain).foregroundStyle(AppTheme.foreground)
+        }.buttonStyle(HapticPlainButtonStyle()).foregroundStyle(AppTheme.foreground)
             .onChange(of: kind) { _, value in if mode == .genre { genre = value == .movie ? 28 : 10759 } }
     }
 

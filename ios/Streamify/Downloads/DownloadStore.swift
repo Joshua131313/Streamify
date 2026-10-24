@@ -36,12 +36,18 @@ struct DownloadItem: Identifiable, Codable, Sendable {
     /// Kept separately from expiring video links and optional for older metadata.
     var posterSource: String? = nil
     var posterFileName: String? = nil
+    /// A moved URLSession file awaiting device compatibility checks. Persisted
+    /// so a background relaunch can finish validation instead of losing it.
+    var pendingFileName: String? = nil
     var posterFileURL: URL? {
         guard let posterFileName, let directory = try? DownloadFiles.directory() else { return nil }
         return DownloadArtworkCache.fileURL(fileName: posterFileName, itemID: id, directory: directory)
     }
     func acceptsCallback(taskIdentifier: Int) -> Bool {
         status == .downloading && self.taskIdentifier == taskIdentifier
+    }
+    func acceptsValidation(taskIdentifier: Int, fileName: String) -> Bool {
+        acceptsCallback(taskIdentifier: taskIdentifier) && pendingFileName == fileName
     }
     var progress: Double? { expectedBytes > 0 ? min(1, max(0, Double(bytesWritten) / Double(expectedBytes))) : nil }
     var fileURL: URL? {
@@ -112,7 +118,7 @@ enum DownloadFiles {
             throw DownloadError.invalidResponse
         }
     }
-    static func importVideo(_ url: URL) throws -> DownloadItem {
+    static func importVideo(_ url: URL) async throws -> DownloadItem {
         guard isSupported(url) else { throw DownloadError.unsupportedFile }
         let access = url.startAccessingSecurityScopedResource()
         defer { if access { url.stopAccessingSecurityScopedResource() } }
@@ -121,11 +127,18 @@ enum DownloadFiles {
         let destination = try directory().appendingPathComponent(fileName)
         do {
             try FileManager.default.copyItem(at: url, to: destination)
+            _ = try await OfflineVideoValidation.validate(destination)
+            try Task.checkCancellation()
             let attributes = try FileManager.default.attributesOfItem(atPath: destination.path)
             let size = (attributes[.size] as? NSNumber)?.int64Value ?? 0
             return DownloadItem(id: id, title: url.deletingPathExtension().lastPathComponent, source: nil, fileName: fileName,
                                 createdAt: Date(), status: .completed, bytesWritten: size, expectedBytes: size)
         } catch { try? FileManager.default.removeItem(at: destination); throw error }
+    }
+    static func pendingURL(fileName: String, id: UUID) throws -> URL? {
+        guard fileName.hasPrefix("pending-\(id.uuidString)-"), !fileName.contains("/"), !fileName.contains("\\"),
+              ["mp4", "m4v", "mov"].contains(URL(fileURLWithPath: fileName).pathExtension.lowercased()) else { return nil }
+        return try directory().appendingPathComponent(fileName)
     }
 }
 
@@ -136,12 +149,17 @@ final class DownloadStore: ObservableObject {
     static let sessionIdentifier = (Bundle.main.bundleIdentifier ?? "com.streamify.ios") + ".downloads.v1"
     @Published private(set) var items: [DownloadItem] = []
     @Published private(set) var storageError: String?
-    var backgroundCompletion: (() -> Void)?
+    var backgroundCompletion: (() -> Void)? {
+        didSet { if backgroundCompletion != nil { backgroundEventsFinished = false } }
+    }
     private var tasks: [UUID: URLSessionDownloadTask] = [:]
     private var resolutions: [UUID: Task<Void, Never>] = [:]
     private var resolutionAttempts: [UUID: UUID] = [:]
     private var artworkTasks: [UUID: Task<Void, Never>] = [:]
     private var artworkAttempts: [UUID: UUID] = [:]
+    private var validations: [UUID: Task<Void, Never>] = [:]
+    private var validationAttempts: [UUID: UUID] = [:]
+    private var backgroundEventsFinished = false
     private var lastSave = Date.distantPast
     private lazy var delegate = DownloadSessionDelegate(owner: self)
     private lazy var session: URLSession = {
@@ -154,10 +172,12 @@ final class DownloadStore: ObservableObject {
     }()
 
     private init() {
+        var restoredMetadata = false
         do {
             let url = try DownloadFiles.metadata()
             if FileManager.default.fileExists(atPath: url.path) {
                 items = try JSONDecoder().decode([DownloadItem].self, from: Data(contentsOf: url))
+                restoredMetadata = true
                 for index in items.indices where items[index].status == .completed {
                     if let file = items[index].fileURL, !FileManager.default.fileExists(atPath: file.path) {
                         items[index].status = .failed
@@ -166,6 +186,9 @@ final class DownloadStore: ObservableObject {
                 }
             }
         } catch { storageError = "Saved downloads could not be read. \(error.localizedDescription)" }
+        // Missing/corrupt metadata must never cause existing movie files to be
+        // deleted merely because their retained filenames cannot be recovered.
+        if restoredMetadata { removeOrphanedPendingFiles() }
         reconnectTasks()
     }
 
@@ -194,11 +217,13 @@ final class DownloadStore: ObservableObject {
     }
 
     @discardableResult
-    func add(resolved: ResolvedMediaDownload, media: MediaItem, season: Int = 1, episode: Int = 1, episodeTitle: String? = nil) throws -> UUID {
+    func add(resolved: ResolvedMediaDownload, media: MediaItem, season: Int = 1, episode: Int = 1, episodeTitle: String? = nil, replacingDownloadID: UUID? = nil) throws -> UUID {
         guard media.kind != .anime, media.id > 0 else { throw DownloadError.unsupportedMedia }
         guard media.kind == .movie || season > 0 && episode > 0 else { throw DownloadError.invalidEpisode }
         let key = Self.catalogKey(media: media, season: season, episode: episode)
-        if let existing = items.first(where: { $0.catalogKey == key }), existing.status == .completed || existing.status == .downloading {
+        let existing = items.first(where: { $0.catalogKey == key })
+        if let replacingDownloadID, existing?.id != replacingDownloadID { throw DownloadError.fileUnavailable }
+        if let existing, existing.status == .downloading || existing.status == .completed && replacingDownloadID != existing.id {
             return existing.id
         }
         let url = try DownloadFiles.resolvedURL(resolved.url)
@@ -210,6 +235,7 @@ final class DownloadStore: ObservableObject {
         let id: UUID
         if let index = items.firstIndex(where: { $0.catalogKey == key }) {
             id = items[index].id
+            cancelValidation(id: id)
             tasks[id]?.cancel()
             tasks[id] = nil
             resolutions[id]?.cancel()
@@ -242,6 +268,7 @@ final class DownloadStore: ObservableObject {
 
     func cancel(id: UUID) {
         guard let index = items.firstIndex(where: { $0.id == id }), items[index].status == .downloading else { return }
+        cancelValidation(id: id)
         clearArtwork(id: id)
         resolutions[id]?.cancel()
         resolutions[id] = nil
@@ -258,6 +285,7 @@ final class DownloadStore: ObservableObject {
         guard let index = items.firstIndex(where: { $0.id == id }),
               items[index].status == .failed || items[index].status == .cancelled,
               items[index].source.flatMap(secureURL) != nil else { return }
+        cancelValidation(id: id)
         items[index].status = .downloading
         items[index].bytesWritten = 0
         items[index].expectedBytes = 0
@@ -302,6 +330,7 @@ final class DownloadStore: ObservableObject {
     }
 
     func remove(id: UUID) {
+        cancelValidation(id: id)
         clearArtwork(id: id)
         resolutions[id]?.cancel()
         resolutions[id] = nil
@@ -324,7 +353,12 @@ final class DownloadStore: ObservableObject {
     }
 
     func importFile(url: URL) async throws {
-        let item = try await Task.detached(priority: .userInitiated) { try DownloadFiles.importVideo(url) }.value
+        let copy = Task.detached(priority: .userInitiated) { try await DownloadFiles.importVideo(url) }
+        let item = try await withTaskCancellationHandler { try await copy.value } onCancel: { copy.cancel() }
+        if Task.isCancelled {
+            if let file = item.fileURL { try? FileManager.default.removeItem(at: file) }
+            throw CancellationError()
+        }
         items.insert(item, at: 0)
         save()
     }
@@ -334,6 +368,12 @@ final class DownloadStore: ObservableObject {
         guard PreviewFixtures.enabled, item.status == .completed else { return }
         items.removeAll { $0.id == item.id }
         items.insert(item, at: 0)
+        save()
+    }
+    func installDownloadStatusFixtures(_ fixtures: [DownloadItem]) {
+        guard PreviewFixtures.enabled else { return }
+        items.removeAll { PreviewFixtures.downloadStatusIDs.contains($0.id) }
+        items.insert(contentsOf: fixtures, at: 0)
         save()
     }
     #endif
@@ -394,14 +434,23 @@ final class DownloadStore: ObservableObject {
     }
 
     func reconnectTasks() {
+        for item in items where item.status == .downloading {
+            if let pending = item.pendingFileName, let taskIdentifier = item.taskIdentifier, validations[item.id] == nil {
+                validatePending(id: item.id, taskIdentifier: taskIdentifier, fileName: pending)
+            }
+        }
         session.getAllTasks { [weak self] restored in
             Task { @MainActor in
                 guard let self else { return }
                 var active = Set<UUID>()
+                #if DEBUG
+                if PreviewFixtures.usesDownloadStatus { active.formUnion(PreviewFixtures.downloadStatusIDs) }
+                #endif
                 for task in restored.sorted(by: { $0.taskIdentifier > $1.taskIdentifier }) {
                     guard let download = task as? URLSessionDownloadTask, let description = download.taskDescription,
                           let id = UUID(uuidString: description), let index = self.items.firstIndex(where: { $0.id == id }),
                           self.items[index].status == .downloading,
+                          self.items[index].pendingFileName == nil,
                           self.items[index].taskIdentifier == nil || self.items[index].taskIdentifier == download.taskIdentifier,
                           self.tasks[id] == nil || self.tasks[id]?.taskIdentifier == download.taskIdentifier
                     else { task.cancel(); continue }
@@ -410,7 +459,7 @@ final class DownloadStore: ObservableObject {
                     self.items[index].taskIdentifier = download.taskIdentifier
                     if task.state == .suspended { task.resume() }
                 }
-                for index in self.items.indices where self.items[index].status == .downloading && !active.contains(self.items[index].id) && self.tasks[self.items[index].id] == nil && self.resolutions[self.items[index].id] == nil {
+                for index in self.items.indices where self.items[index].status == .downloading && !active.contains(self.items[index].id) && self.tasks[self.items[index].id] == nil && self.resolutions[self.items[index].id] == nil && self.validations[self.items[index].id] == nil {
                     self.items[index].status = .failed
                     self.items[index].error = "The download was interrupted. Tap Retry to start again."
                 }
@@ -426,29 +475,116 @@ final class DownloadStore: ObservableObject {
         if Date().timeIntervalSince(lastSave) > 3 { save() }
     }
 
-    fileprivate func completed(id: UUID, taskIdentifier: Int, fileName: String, size: Int64) {
+    fileprivate func received(id: UUID, taskIdentifier: Int, fileName: String, size: Int64) {
         guard let index = items.firstIndex(where: { $0.id == id }), items[index].acceptsCallback(taskIdentifier: taskIdentifier) else {
-            if let directory = try? DownloadFiles.directory() { try? FileManager.default.removeItem(at: directory.appendingPathComponent(fileName)) }
+            removePendingFile(fileName, id: id)
+            return
+        }
+        if let current = items[index].pendingFileName {
+            if current != fileName { removePendingFile(fileName, id: id) }
             return
         }
         tasks[id] = nil
-        items[index].fileName = fileName
-        items[index].status = .completed
-        items[index].taskIdentifier = nil
+        items[index].pendingFileName = fileName
         items[index].bytesWritten = size
         items[index].expectedBytes = size
         items[index].error = nil
-        cacheArtwork(id: id)
         save()
+        validatePending(id: id, taskIdentifier: taskIdentifier, fileName: fileName)
     }
 
     fileprivate func failed(id: UUID, taskIdentifier: Int, message: String) {
         guard let index = items.firstIndex(where: { $0.id == id }), items[index].acceptsCallback(taskIdentifier: taskIdentifier) else { return }
+        cancelValidation(id: id)
         tasks[id] = nil
         items[index].status = .failed
         items[index].taskIdentifier = nil
         items[index].error = message
         save()
+    }
+
+    private func validatePending(id: UUID, taskIdentifier: Int, fileName: String) {
+        guard validations[id] == nil else { return }
+        let attempt = UUID()
+        validationAttempts[id] = attempt
+        validations[id] = Task { @MainActor [weak self] in
+            defer {
+                if self?.validationAttempts[id] == attempt {
+                    self?.validationAttempts[id] = nil; self?.validations[id] = nil
+                    self?.finishBackgroundEventsIfPossible()
+                }
+            }
+            do {
+                guard let url = try DownloadFiles.pendingURL(fileName: fileName, id: id) else { throw OfflineVideoError.missingFile }
+                _ = try await OfflineVideoValidation.validate(url)
+                try Task.checkCancellation()
+                guard let self, self.validationAttempts[id] == attempt,
+                      let index = self.items.firstIndex(where: { $0.id == id }),
+                      self.items[index].acceptsValidation(taskIdentifier: taskIdentifier, fileName: fileName) else { return }
+                let oldFileName = self.items[index].fileName
+                self.items[index].fileName = fileName
+                self.items[index].pendingFileName = nil
+                self.items[index].status = .completed
+                self.items[index].taskIdentifier = nil
+                self.items[index].error = nil
+                self.cacheArtwork(id: id); self.save()
+                // A failed/cancelled replacement never deletes the previous
+                // file. Only remove it after the new playable file is saved.
+                if self.storageError == nil, let oldFileName, oldFileName != fileName,
+                   !oldFileName.contains("/"), !oldFileName.contains("\\"),
+                   let directory = try? DownloadFiles.directory() {
+                    let old = directory.appendingPathComponent(oldFileName)
+                    if DownloadFiles.isSupported(old) { try? FileManager.default.removeItem(at: old) }
+                }
+            } catch {
+                guard let self, self.validationAttempts[id] == attempt,
+                      let index = self.items.firstIndex(where: { $0.id == id }),
+                      self.items[index].acceptsValidation(taskIdentifier: taskIdentifier, fileName: fileName) else { return }
+                self.removePendingFile(fileName, id: id)
+                self.items[index].pendingFileName = nil
+                self.items[index].status = .failed
+                self.items[index].taskIdentifier = nil
+                self.items[index].error = OfflineVideoError.classify(error).downloadMessage
+                self.save()
+            }
+        }
+    }
+
+    private func cancelValidation(id: UUID) {
+        validationAttempts[id] = nil
+        validations[id]?.cancel(); validations[id] = nil
+        if let index = items.firstIndex(where: { $0.id == id }), let fileName = items[index].pendingFileName {
+            removePendingFile(fileName, id: id)
+            items[index].pendingFileName = nil
+        }
+        finishBackgroundEventsIfPossible()
+    }
+
+    private func removePendingFile(_ fileName: String, id: UUID) {
+        if let url = try? DownloadFiles.pendingURL(fileName: fileName, id: id) { try? FileManager.default.removeItem(at: url) }
+    }
+
+    private func removeOrphanedPendingFiles() {
+        guard let directory = try? DownloadFiles.directory(),
+              let files = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) else { return }
+        let retained = Set(items.flatMap { [$0.fileName, $0.pendingFileName].compactMap { $0 } })
+        for url in files where url.lastPathComponent.hasPrefix("pending-") && !retained.contains(url.lastPathComponent) {
+            // Only this version's generated pending video names are eligible.
+            let parts = url.lastPathComponent.dropFirst("pending-".count)
+            guard parts.count > 36, UUID(uuidString: String(parts.prefix(36))) != nil, DownloadFiles.isSupported(url) else { continue }
+            try? FileManager.default.removeItem(at: url)
+        }
+    }
+
+    fileprivate func didFinishBackgroundEvents() {
+        backgroundEventsFinished = true
+        finishBackgroundEventsIfPossible()
+    }
+    fileprivate func finishBackgroundEventsIfPossible() {
+        guard backgroundEventsFinished, validations.isEmpty, !delegate.hasPendingOwnerCallbacks,
+              let completion = backgroundCompletion else { return }
+        backgroundEventsFinished = false; backgroundCompletion = nil
+        completion()
     }
 
     private func start(_ item: DownloadItem) {
@@ -470,8 +606,31 @@ final class DownloadStore: ObservableObject {
 
 private final class DownloadSessionDelegate: NSObject, URLSessionDownloadDelegate {
     weak var owner: DownloadStore?
+    private let callbackLock = NSLock()
+    private var pendingOwnerCallbacks = 0
     init(owner: DownloadStore) { self.owner = owner }
     private func id(_ task: URLSessionTask) -> UUID? { task.taskDescription.flatMap(UUID.init(uuidString:)) }
+    var hasPendingOwnerCallbacks: Bool {
+        callbackLock.lock(); defer { callbackLock.unlock() }
+        return pendingOwnerCallbacks > 0
+    }
+    private func beginOwnerCallback() {
+        callbackLock.lock(); defer { callbackLock.unlock() }; pendingOwnerCallbacks += 1
+    }
+    private func endOwnerCallback() {
+        callbackLock.lock(); defer { callbackLock.unlock() }; pendingOwnerCallbacks -= 1
+    }
+    /// Count before hopping actors. Task scheduling order is not a guarantee:
+    /// the background-events callback may arrive on the main actor first.
+    private func deliver(_ action: @escaping @MainActor (DownloadStore?) -> Void) {
+        beginOwnerCallback()
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            action(self.owner)
+            self.endOwnerCallback()
+            self.owner?.finishBackgroundEventsIfPossible()
+        }
+    }
 
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
         guard let id = id(downloadTask) else { return }
@@ -482,6 +641,7 @@ private final class DownloadSessionDelegate: NSObject, URLSessionDownloadDelegat
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         guard let id = id(downloadTask) else { return }
         let taskIdentifier = downloadTask.taskIdentifier
+        var movedFile: URL?
         do {
             guard let response = downloadTask.response as? HTTPURLResponse else { throw DownloadError.invalidResponse }
             let handle = try FileHandle(forReadingFrom: location)
@@ -489,23 +649,30 @@ private final class DownloadSessionDelegate: NSObject, URLSessionDownloadDelegat
             let header = try handle.read(upToCount: 1024) ?? Data()
             try DownloadFiles.validateVideo(response: response, header: header)
             let suffix = DownloadFiles.suffix(for: downloadTask.originalRequest?.url)
-            let fileName = "\(id.uuidString)-\(taskIdentifier).\(suffix)"
+            let fileName = "pending-\(id.uuidString)-\(taskIdentifier)-\(UUID().uuidString).\(suffix)"
             let destination = try DownloadFiles.directory().appendingPathComponent(fileName)
             if FileManager.default.fileExists(atPath: destination.path) { try FileManager.default.removeItem(at: destination) }
             // Temporary URLSession files must be moved before this delegate returns.
             try FileManager.default.moveItem(at: location, to: destination)
+            movedFile = destination
             let attributes = try FileManager.default.attributesOfItem(atPath: destination.path)
             let size = (attributes[.size] as? NSNumber)?.int64Value ?? 0
-            Task { @MainActor [weak self] in self?.owner?.completed(id: id, taskIdentifier: taskIdentifier, fileName: fileName, size: size) }
+            deliver { owner in
+                if let owner { owner.received(id: id, taskIdentifier: taskIdentifier, fileName: fileName, size: size) }
+                else { try? FileManager.default.removeItem(at: destination) }
+            }
         } catch {
-            Task { @MainActor [weak self] in self?.owner?.failed(id: id, taskIdentifier: taskIdentifier, message: error.localizedDescription) }
+            if let movedFile { try? FileManager.default.removeItem(at: movedFile) }
+            let message = error.localizedDescription
+            deliver { $0?.failed(id: id, taskIdentifier: taskIdentifier, message: message) }
         }
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         guard let error, (error as NSError).code != NSURLErrorCancelled, let id = id(task) else { return }
         let taskIdentifier = task.taskIdentifier
-        Task { @MainActor [weak self] in self?.owner?.failed(id: id, taskIdentifier: taskIdentifier, message: error.localizedDescription) }
+        let message = error.localizedDescription
+        deliver { $0?.failed(id: id, taskIdentifier: taskIdentifier, message: message) }
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
@@ -514,11 +681,7 @@ private final class DownloadSessionDelegate: NSObject, URLSessionDownloadDelegat
     }
 
     func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
-        Task { @MainActor [weak self] in
-            let completion = self?.owner?.backgroundCompletion
-            self?.owner?.backgroundCompletion = nil
-            completion?()
-        }
+        deliver { $0?.didFinishBackgroundEvents() }
     }
 }
 

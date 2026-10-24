@@ -1,16 +1,13 @@
-"""Copy existing Android artwork into iOS asset catalogs; requires Pillow.
+"""Copy existing Android artwork into iOS asset catalogs.
 
 All output is committed. This utility is only needed when the shared assets change.
 """
 import json
 from pathlib import Path
 import shutil
-import sys
 
 IOS = Path(__file__).resolve().parents[1]
 ROOT = IOS.parent
-sys.path.insert(0, str(IOS / ".tools"))
-from PIL import Image
 
 resources = IOS / "Streamify/Resources"
 assets = resources / "Assets.xcassets"
@@ -46,11 +43,10 @@ for filename in ["collections.json", "media-servers.json"]:
 
 icon = assets / "AppIcon.appiconset"
 icon.mkdir(exist_ok=True)
-canvas = Image.new("RGB", (1024, 1024), (11, 13, 16))
-logo = Image.open(drawables / "streamify_logo.png").convert("RGBA")
-logo.thumbnail((700, 700), Image.Resampling.LANCZOS)
-canvas.paste(logo, ((1024 - logo.width) // 2, (1024 - logo.height) // 2), logo)
-canvas.save(icon / "AppIcon.png")
+# The iOS Home Screen icon has its own enlarged composition. Keep that tracked
+# asset when refreshing shared Android artwork; do not restore the old padding.
+if not (icon / "AppIcon.png").is_file():
+    raise FileNotFoundError("Restore the tracked iOS AppIcon.png before preparing shared assets.")
 write_json(icon / "Contents.json", {"images": [{"idiom": "universal", "platform": "ios", "size": "1024x1024", "filename": "AppIcon.png"}], "info": info})
 color = assets / "LaunchBackground.colorset"
 color.mkdir(exist_ok=True)

@@ -26,7 +26,7 @@ struct CollectionsView: View {
                     ForEach(collections) { collection in
                         NavigationLink { CollectionDetailView(collection: collection) } label: {
                             CollectionArtwork(collection: collection).frame(height: 180)
-                        }.buttonStyle(.plain)
+                        }.buttonStyle(HapticPlainButtonStyle())
                     }
                 }
                 if collections.isEmpty {
@@ -121,7 +121,7 @@ struct PersonDetailView: View {
                         if !person.biography.isEmpty {
                             Button(expanded ? "Read less" : "Read more") { expanded.toggle() }
                                 .font(.subheadline.weight(.semibold)).padding(.horizontal, 16).frame(minHeight: 44)
-                                .streamifyControlSurface().buttonStyle(.plain)
+                                .streamifyControlSurface().buttonStyle(HapticPlainButtonStyle())
                         }
                     }.padding(.horizontal, 20)
                     if !person.credits.isEmpty { DetailMediaRail(title: "Known for", items: person.credits) }

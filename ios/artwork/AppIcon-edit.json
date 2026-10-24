@@ -1,0 +1,9 @@
+{
+  "tool": "image_gen built-in edit",
+  "source": "previous tracked AppIcon.png",
+  "request": "Enlarge the existing Streamify logo on the iOS Home Screen icon with less empty padding.",
+  "prompt": "Use case: precise-object-edit. Asset type: production iOS app icon, square 1024x1024 opaque image. Edit target: the supplied current Streamify AppIcon.png. Make ONLY a geometric scale and position change: enlarge the EXISTING red Streamify play-triangle and three wireless arcs together by about 1.9x, centered so the visible mark's total bounding box is approximately 690 pixels wide by 820 pixels tall, with about 100 pixels top/bottom margin. Preserve the exact existing shape, relative geometry, smooth red-orange to crimson gradients, inner triangular cutout and all three arcs. Use the same uniform nearly black background #0B0D10 filling the entire square and visible through the cutout. This is an existing brand icon; do not redesign or invent details. No text, no labels, no extra symbol, no border, no shadow, no glow, no texture. Do not round the outer square corners; iOS applies its own icon mask. Output only the actual icon artwork, no phone/mockup or framing.",
+  "output": "Streamify/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png",
+  "postprocess": "Converted to opaque RGB and resized to required1024x1024.",
+  "sha256": "646ac035c430b9758a7a7e8e6bffbbce3a314bd98b3da4a75a9ca96863aa4a17"
+}

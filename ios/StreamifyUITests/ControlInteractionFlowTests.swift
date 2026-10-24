@@ -184,6 +184,12 @@ final class ControlInteractionFlowTests: XCTestCase {
             themes.buttons[name].tap()
             XCTAssertTrue(wait { themes.buttons[name].isSelected })
             capture("Controls appearance \(name)")
+            app.buttons["Done"].tap()
+            XCTAssertTrue(app.buttons["tab-library"].isSelected)
+            XCTAssertTrue(app.buttons["tab-home"].isHittable)
+            capture("Root navigation follows \(name) appearance")
+            openSettings()
+            XCTAssertTrue(themes.buttons[name].isSelected)
         }
         app.buttons["Done"].tap()
         openSettings()

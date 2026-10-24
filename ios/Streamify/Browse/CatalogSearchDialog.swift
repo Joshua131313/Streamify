@@ -105,7 +105,7 @@ struct CatalogSearchDialog: View {
                 .onSubmit { library.rememberSearch(cleanQuery); focused = false }
             if !query.isEmpty {
                 Button { query = ""; focused = true } label: { Image(systemName: "xmark.circle.fill").frame(width: 44, height: 44) }
-                    .buttonStyle(.plain).foregroundStyle(AppTheme.muted).accessibilityLabel("Clear search").accessibilityIdentifier("clear-catalog-search")
+                    .buttonStyle(HapticPlainButtonStyle()).foregroundStyle(AppTheme.muted).accessibilityLabel("Clear search").accessibilityIdentifier("clear-catalog-search")
             }
         }.padding(.leading, 14).padding(.trailing, query.isEmpty ? 14 : 0).frame(minHeight: 52).streamifyControlSurface()
     }
@@ -129,7 +129,7 @@ struct CatalogSearchDialog: View {
                         Text(recent).font(.subheadline).frame(maxWidth: .infinity, alignment: .leading).lineLimit(2)
                         Image(systemName: "arrow.up.left").font(.caption).foregroundStyle(AppTheme.muted)
                     }.frame(minHeight: 48).contentShape(Rectangle())
-                }.buttonStyle(.plain)
+                }.buttonStyle(HapticPlainButtonStyle())
                     .contextMenu { Button("Remove search", role: .destructive) { library.removeSearch(recent) } }
                     .accessibilityAction(named: Text("Remove search")) { library.removeSearch(recent) }
             }
@@ -149,7 +149,7 @@ struct CatalogSearchDialog: View {
             library.rememberSearch(cleanQuery)
             selected = media
         } label: { PosterContent(media: media, roomy: true).contentShape(Rectangle()) }
-            .buttonStyle(.plain).accessibilityIdentifier("media-link-\(media.key)")
+            .buttonStyle(HapticPlainButtonStyle()).accessibilityIdentifier("media-link-\(media.key)")
     }
 
     private func load(first: Bool) async {

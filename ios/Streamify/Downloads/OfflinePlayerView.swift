@@ -15,6 +15,8 @@ struct OfflinePlayerView: View {
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
     @StateObject private var model = OfflinePlaybackModel()
     @StateObject private var pictureInPicture = OfflinePictureInPicture()
+    @StateObject private var volumeController = OfflineVolumeController()
+    @StateObject private var seekPreview = OfflineSeekPreviewModel()
     @State private var current: DownloadItem
     @State private var controlsVisible = true
     @State private var locked = false
@@ -22,16 +24,24 @@ struct OfflinePlayerView: View {
     @State private var fillPicture = false
     @State private var scrubbing = false
     @State private var scrubPosition = 0.0
+    @State private var seekThumbInWindow: CGRect?
     @State private var panel: OfflinePlayerPanel?
     @State private var hideTask: Task<Void, Never>?
-    @State private var feedbackTask: Task<Void, Never>?
-    @State private var seekFeedback: Int?
+    @State private var backwardFeedback = OfflineSkipFeedback()
+    @State private var forwardFeedback = OfflineSkipFeedback()
+    @State private var edgeDrag: OfflineEdgeDrag?
+    @State private var edgeRejected = false
+    @State private var edgeFeedback: OfflineEdgeFeedback?
+    @State private var edgeFeedbackTask: Task<Void, Never>?
+    @State private var pinching = false
+    @GestureState private var edgeGestureActive = false
     @State private var brightness = Double(UIScreen.main.brightness)
     @State private var originalBrightness: CGFloat?
     @State private var importedCues: [OfflineSubtitleCue] = []
     @State private var importedEnabled = false
     @State private var showSubtitleImporter = false
     @State private var subtitleError: String?
+    @State private var showRecoveryDownload = false
 
     init(item: DownloadItem) { _current = State(initialValue: item) }
 
@@ -56,6 +66,10 @@ struct OfflinePlayerView: View {
                 OfflineVideoSurface(player: model.player, fill: fillPicture, pictureInPicture: pictureInPicture)
                     .ignoresSafeArea().accessibilityHidden(true)
                 Color.clear.contentShape(Rectangle())
+                    .highPriorityGesture(DragGesture(minimumDistance: 12, coordinateSpace: .local)
+                        .updating($edgeGestureActive) { _, active, _ in active = true }
+                        .onChanged { updateEdgeDrag($0, size: geometry.size) }
+                        .onEnded { _ in finishEdgeDrag() })
                     .gesture(SpatialTapGesture(count: 2).exclusively(before: SpatialTapGesture(count: 1)).onEnded { value in
                         if locked { revealUnlock(); return }
                         switch value {
@@ -63,7 +77,10 @@ struct OfflinePlayerView: View {
                         case .second: toggleControls()
                         }
                     })
-                    .simultaneousGesture(MagnificationGesture().onEnded { scale in
+                    .simultaneousGesture(MagnificationGesture().onChanged { _ in
+                        pinching = true; cancelEdgeDrag()
+                    }.onEnded { scale in
+                        pinching = false
                         guard !locked else { return }
                         if scale > 1.12 { fillPicture = true }
                         if scale < 0.88 { fillPicture = false }
@@ -72,12 +89,32 @@ struct OfflinePlayerView: View {
                     .accessibilityAction(named: "Show playback controls") { if locked { revealUnlock() } else { showControls() } }
 
                 if let error = model.error {
-                    VStack(spacing: 16) {
+                    ScrollView {
+                      VStack(spacing: 16) {
                         Image(systemName: "exclamationmark.circle").font(.largeTitle)
                         Text("Video unavailable").font(.title3.bold())
                         Text(error).font(.subheadline).multilineTextAlignment(.center).foregroundStyle(.white.opacity(0.75))
+                        if let suggestion = model.videoError?.recoverySuggestion {
+                            Text(suggestion).font(.caption).multilineTextAlignment(.center).foregroundStyle(.white.opacity(0.65))
+                        }
+                        if current.catalog?.media != nil {
+                            Button { showRecoveryDownload = true } label: {
+                                Label("Choose another download", systemImage: "arrow.down.circle")
+                                    .frame(maxWidth: .infinity, minHeight: 48)
+                                    .background(.white, in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
+                                    .foregroundStyle(.black)
+                            }.accessibilityIdentifier("offline-recover-download")
+                        }
+                        if let file = current.fileURL, FileManager.default.isReadableFile(atPath: file.path) {
+                            ShareLink(item: file, preview: SharePreview(current.title)) {
+                                Label("Open in another app", systemImage: "square.and.arrow.up").frame(minHeight: 44)
+                            }.accessibilityIdentifier("offline-share-video")
+                        }
                         Button("Close video", action: close).frame(minWidth: 100, minHeight: 44)
-                    }.padding(28).frame(maxWidth: 440).background(.black.opacity(0.85), in: RoundedRectangle(cornerRadius: 16))
+                      }.padding(28).frame(maxWidth: .infinity)
+                    }.frame(maxWidth: 440, maxHeight: max(80, geometry.size.height - 96))
+                        .background(.black.opacity(0.85), in: RoundedRectangle(cornerRadius: 16))
+                        .padding(.horizontal, 20).accessibilityIdentifier("offline-video-error")
                 } else if !model.isReady || model.isBuffering {
                     ProgressView().tint(.white).scaleEffect(1.3).accessibilityLabel("Loading offline video")
                 }
@@ -94,11 +131,9 @@ struct OfflinePlayerView: View {
                     controls(size: geometry.size)
                         .transition(.opacity)
                 }
-                if let seekFeedback, model.error == nil {
-                    Text("\(seekFeedback > 0 ? "+" : "")\(seekFeedback) seconds")
-                        .font(.title2.weight(.semibold)).padding(18).background(.black.opacity(0.5), in: Capsule())
-                        .offset(x: geometry.size.width * (seekFeedback < 0 ? -0.22 : 0.22))
-                        .allowsHitTesting(false).accessibilityHidden(true)
+                sideControls(size: geometry.size)
+                if let edgeFeedback, model.error == nil, !locked {
+                    edgeFeedbackView(edgeFeedback)
                 }
                 if importedEnabled && model.error == nil {
                     VStack {
@@ -113,22 +148,29 @@ struct OfflinePlayerView: View {
                 if locked && unlockVisible && model.error == nil {
                     VStack {
                         Spacer()
-                        Button {
-                            if voiceOver { unlock() } else { revealUnlock() }
-                        } label: {
-                            Label("Hold to unlock", systemImage: "lock.open")
-                                .font(.subheadline.weight(.semibold)).padding(.horizontal, 22).frame(minHeight: 48)
-                                .background(.black.opacity(0.75), in: Capsule()).overlay { Capsule().strokeBorder(.white.opacity(0.4)) }
-                        }.onLongPressGesture(minimumDuration: 0.65, perform: unlock)
-                            .accessibilityLabel("Unlock screen").accessibilityHint("Touch and hold to unlock playback controls")
-                            .accessibilityAction { unlock() }.accessibilityIdentifier("offline-unlock")
-                    }.padding(.bottom, 24)
+                        OfflineHoldUnlockControl(reduceMotion: reduceMotion,
+                            onHold: { hideTask?.cancel() },
+                            onCancel: { if locked { revealUnlock() } },
+                            onUnlock: {
+                                guard locked else { return }
+                                AppHaptics.tap(.primary); unlock()
+                            })
+                            .frame(width: 140, height: 100)
+                    }.padding(.bottom, 20)
                 }
                 if model.finished && !locked && model.error == nil {
                     finishedOverlay
                 }
+                if scrubbing, controlsVisible, !locked, panel == nil, model.error == nil,
+                   seekPreview.visible, let thumb = seekThumbInWindow {
+                    let origin = geometry.frame(in: .global).origin
+                    OfflineSeekPreviewBubble(model: seekPreview)
+                        .position(
+                            x: OfflineSeekPreviewMath.center(thumbX: thumb.midX - origin.x, viewportWidth: geometry.size.width),
+                            y: max(78.5, thumb.minY - origin.y - 78.5))
+                }
             }
-            .foregroundStyle(.white).tint(.white).buttonStyle(.plain)
+            .foregroundStyle(.white).tint(.white).buttonStyle(HapticPlainButtonStyle())
             .accessibilityElement(children: .contain).accessibilityIdentifier("offline-player")
         }
         .background(.black).preferredColorScheme(.dark).statusBarHidden().persistentSystemOverlays(.hidden)
@@ -144,6 +186,7 @@ struct OfflinePlayerView: View {
                     positionSeconds: position, durationSeconds: duration)
             }
             importedCues = []; importedEnabled = false
+            seekPreview.close(); seekThumbInWindow = nil
             await restoreSubtitles(for: item)
             guard !Task.isCancelled, current.id == item.id else { return }
             await model.load(item: item)
@@ -155,14 +198,16 @@ struct OfflinePlayerView: View {
             pictureInPicture.onStopped = { if scenePhase != .active { model.pauseForBackground() } }
         }
         .onDisappear {
-            hideTask?.cancel(); feedbackTask?.cancel()
+            hideTask?.cancel(); cancelEdgeDrag()
+            seekPreview.close()
             pictureInPicture.stop(); pictureInPicture.onStopped = nil
             model.teardown()
             if let originalBrightness { UIScreen.main.brightness = originalBrightness }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active {
-                hideTask?.cancel()
+                hideTask?.cancel(); cancelEdgeDrag(); pinching = false; unlockVisible = false
+                scrubbing = false; seekPreview.hide()
                 if !pictureInPicture.active && !pictureInPicture.starting { model.pauseForBackground() }
             } else { showControls() }
         }
@@ -171,9 +216,24 @@ struct OfflinePlayerView: View {
             if ready, importedEnabled, let group = model.subtitleGroup { model.select(option: nil, group: group) }
         }
         .onChange(of: voiceOver) { _, _ in showControls() }
+        .onChange(of: edgeGestureActive) { _, active in
+            if !active, edgeDrag != nil || edgeRejected { finishEdgeDrag() }
+        }
+        .onChange(of: locked) { _, _ in cancelEdgeDrag(); seekPreview.hide() }
+        .onChange(of: panel) { _, _ in cancelEdgeDrag(); seekPreview.hide() }
+        .onChange(of: model.error) { _, error in if error != nil { scrubbing = false; seekPreview.hide() } }
+        .onChange(of: showSubtitleImporter) { _, _ in cancelEdgeDrag() }
         .onChange(of: brightness) { _, value in UIScreen.main.brightness = CGFloat(value) }
         .sheet(item: $panel, onDismiss: showControls) { selected in
             panelContent(selected).preferredColorScheme(.dark).presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $showRecoveryDownload) {
+            if let catalog = current.catalog, let media = catalog.media {
+                NavigationStack {
+                    MediaDownloadSheet(media: media, season: catalog.season, episode: catalog.episode,
+                        episodeTitle: catalog.episodeTitle, replacingDownloadID: current.id)
+                }.preferredColorScheme(.dark)
+            }
         }
         .fileImporter(isPresented: $showSubtitleImporter,
             allowedContentTypes: [UTType(filenameExtension: "srt") ?? .plainText, UTType(filenameExtension: "vtt") ?? .plainText]) { result in
@@ -215,29 +275,56 @@ struct OfflinePlayerView: View {
                     .background(LinearGradient(colors: [.clear, .black.opacity(0.78)], startPoint: .top, endPoint: .bottom))
             }
             HStack(spacing: size.width > 600 ? 64 : 36) {
-                icon("gobackward.10", label: "Back 10 seconds", id: "offline-back-10", size: 32) { skip(-10) }
+                OfflineSkipControl(forward: false, feedback: backwardFeedback, reduceMotion: reduceMotion || voiceOver) { skip(-10) }
                 icon(model.isPlaying ? "pause.fill" : "play.fill", label: model.isPlaying ? "Pause" : "Play", id: "offline-play-pause", size: 44) {
                     model.togglePlayback(); showControls()
                 }
-                icon("goforward.10", label: "Forward 10 seconds", id: "offline-forward-10", size: 32) { skip(10) }
+                OfflineSkipControl(forward: true, feedback: forwardFeedback, reduceMotion: reduceMotion || voiceOver) { skip(10) }
             }.disabled(!model.isReady).opacity(model.isReady ? 1 : 0.5)
-            if size.width > 600 && size.height > 280 {
-                HStack {
-                    VStack(spacing: 2) {
-                        Image(systemName: "sun.max").font(.title3).frame(width: 44, height: 40)
-                        Slider(value: $brightness, in: 0.02...1, onEditingChanged: { editing in if editing { hideTask?.cancel() } else { scheduleHide() } })
-                            .frame(width: 136, height: 44).rotationEffect(.degrees(-90)).frame(width: 44, height: 136)
-                            .accessibilityLabel("Player brightness")
-                    }
-                    Spacer()
-                    VStack(spacing: 2) {
-                        Image(systemName: "speaker.wave.2").font(.title3).frame(width: 44, height: 40)
-                        OfflineSystemVolume().frame(width: 136, height: 44).rotationEffect(.degrees(-90)).frame(width: 44, height: 136)
-                            .accessibilityLabel("Player volume")
-                    }
-                }.padding(.horizontal, 14)
+        }
+    }
+
+    private func sideControls(size: CGSize) -> some View {
+        let visible = size.width > 600 && size.height > 280 && controlsVisible && !locked && model.error == nil
+        return HStack {
+            VStack(spacing: 2) {
+                Image(systemName: "sun.max").font(.title3).frame(width: 44, height: 40)
+                Slider(value: $brightness, in: 0.02...1, onEditingChanged: { editing in
+                    if editing { hideTask?.cancel() } else { scheduleHide() }
+                })
+                    .frame(width: 136, height: 44).rotationEffect(.degrees(-90)).frame(width: 44, height: 136)
+                    .accessibilityLabel("Player brightness").accessibilityValue("\(Int((brightness * 100).rounded())) percent")
+                    .accessibilityIdentifier("offline-brightness")
+            }
+            Spacer()
+            VStack(spacing: 2) {
+                Image(systemName: "speaker.wave.2").font(.title3).frame(width: 44, height: 40)
+                OfflineSystemVolume(controller: volumeController)
+                    .frame(width: 136, height: 44).rotationEffect(.degrees(-90)).frame(width: 44, height: 136)
+                    .accessibilityLabel("Player volume")
             }
         }
+        // Keep the public system volume view mounted, including in portrait,
+        // so a deliberate edge drag can operate its actual hardware slider.
+        .padding(.horizontal, 14).opacity(visible ? 1 : 0.001)
+        .allowsHitTesting(visible).accessibilityHidden(!visible)
+    }
+
+    private func edgeFeedbackView(_ feedback: OfflineEdgeFeedback) -> some View {
+        HStack {
+            if feedback.side == .volume { Spacer() }
+            VStack(spacing: 7) {
+                Image(systemName: feedback.side == .brightness ? "sun.max" : "speaker.wave.2").font(.system(size: 17))
+                Text("\(Int((feedback.value * 100).rounded()))%").font(.caption.monospacedDigit())
+                ProgressView(value: feedback.value).tint(.white).frame(width: 32)
+            }
+            .frame(width: 54, height: 88).background(.black.opacity(0.65), in: RoundedRectangle(cornerRadius: 12))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(feedback.side == .brightness ? "Brightness" : "Volume")
+            .accessibilityValue("\(Int((feedback.value * 100).rounded())) percent")
+            .accessibilityIdentifier("offline-edge-feedback")
+            if feedback.side == .brightness { Spacer() }
+        }.padding(.horizontal, 24).allowsHitTesting(false)
     }
 
     private var topControls: some View {
@@ -259,16 +346,22 @@ struct OfflinePlayerView: View {
     private var timeline: some View {
         VStack(spacing: 0) {
             HStack(spacing: 14) {
-                Slider(value: Binding(get: { scrubbing ? scrubPosition : min(model.position, max(1, model.duration)) }, set: { scrubPosition = $0 }),
-                    in: 0...max(1, model.duration), onEditingChanged: { editing in
+                OfflineSeekSlider(
+                    value: Binding(get: { scrubbing ? scrubPosition : model.position }, set: { scrubPosition = $0 }),
+                    duration: model.duration, enabled: model.isReady && !locked && scenePhase == .active,
+                    onEditingChanged: { editing in
                         scrubbing = editing
-                        if editing { scrubPosition = model.position; hideTask?.cancel() }
-                        else { model.seek(to: scrubPosition); showControls() }
+                        if editing { hideTask?.cancel() }
+                        else { seekPreview.hide(); showControls() }
+                    },
+                    onCommit: { model.seek(to: $0) },
+                    onThumbMoved: { rect in
+                        seekThumbInWindow = rect
+                        guard scrubbing, !locked, scenePhase == .active, controlsVisible,
+                              panel == nil, model.error == nil, let file = current.fileURL else { return }
+                        seekPreview.show(url: file, seconds: scrubPosition, duration: model.duration)
                     })
-                    .tint(Color(red: 0.9, green: 0.04, blue: 0.08)).frame(minHeight: 44).disabled(model.duration <= 0)
-                    .accessibilityLabel("Playback progress")
-                    .accessibilityValue("\(stamp(scrubbing ? scrubPosition : model.position)) of \(stamp(model.duration))")
-                    .accessibilityIdentifier("offline-progress")
+                    .frame(minHeight: 44)
                 Text(stamp(max(0, model.duration - (scrubbing ? scrubPosition : model.position))))
                     .font(.caption.monospacedDigit()).frame(minWidth: 58, alignment: .trailing)
                     .accessibilityLabel("\(stamp(max(0, model.duration - model.position))) remaining")
@@ -430,7 +523,7 @@ struct OfflinePlayerView: View {
     }
     private func scheduleHide() {
         hideTask?.cancel()
-        guard model.isPlaying, !voiceOver, !scrubbing, panel == nil, !showSubtitleImporter, !locked else { return }
+        guard model.isPlaying, !voiceOver, !scrubbing, edgeDrag == nil, panel == nil, !showSubtitleImporter, !locked else { return }
         hideTask = Task {
             try? await Task.sleep(nanoseconds: 4_000_000_000)
             if !Task.isCancelled { withAnimation(reduceMotion ? nil : .easeOut(duration: 0.16)) { controlsVisible = false } }
@@ -438,9 +531,59 @@ struct OfflinePlayerView: View {
     }
     private func skip(_ seconds: Int) {
         guard model.isReady, !locked else { return }
-        model.skip(by: Double(seconds)); showControls(); seekFeedback = seconds
-        feedbackTask?.cancel()
-        feedbackTask = Task { try? await Task.sleep(nanoseconds: 800_000_000); if !Task.isCancelled { seekFeedback = nil } }
+        model.skip(by: Double(seconds)); showControls()
+        if seconds < 0 { backwardFeedback.record(seconds) }
+        else { forwardFeedback.record(seconds) }
+        if voiceOver {
+            let total = seconds < 0 ? backwardFeedback.total : forwardFeedback.total
+            UIAccessibility.post(notification: .announcement, argument: "\(total > 0 ? "+" : "")\(total) seconds")
+        }
+    }
+    private func updateEdgeDrag(_ value: DragGesture.Value, size: CGSize) {
+        guard !locked, !voiceOver, !pinching, scenePhase == .active, model.error == nil,
+              panel == nil, !showSubtitleImporter, !pictureInPicture.active,
+              size.width > 0, size.height > 0, !edgeRejected else { return }
+        if edgeDrag == nil {
+            guard abs(value.translation.height) > abs(value.translation.width) else {
+                edgeRejected = true; return
+            }
+            let side: OfflineEdgeSide
+            let initial: Double
+            if value.startLocation.x < size.width * 0.18 {
+                side = .brightness; initial = brightness
+            } else if value.startLocation.x > size.width * 0.82, let actual = volumeController.volume() {
+                side = .volume; initial = actual
+            } else { edgeRejected = true; return }
+            hideTask?.cancel(); edgeFeedbackTask?.cancel()
+            edgeDrag = OfflineEdgeDrag(side: side, initial: initial)
+        }
+        guard let drag = edgeDrag else { return }
+        // Android uses the initial edge level plus 1.5 screen heights of gain.
+        let target = drag.initial - Double(value.translation.height / size.height) * 1.5
+        let actual: Double
+        switch drag.side {
+        case .brightness:
+            actual = min(1, max(0.02, target)); brightness = actual
+        case .volume:
+            guard let reported = volumeController.setVolume(target) else { return }
+            actual = reported
+        }
+        edgeFeedback = OfflineEdgeFeedback(side: drag.side, value: actual)
+    }
+    private func finishEdgeDrag() {
+        edgeDrag = nil; edgeRejected = false
+        edgeFeedbackTask?.cancel()
+        if edgeFeedback != nil {
+            edgeFeedbackTask = Task {
+                try? await Task.sleep(nanoseconds: 900_000_000)
+                if !Task.isCancelled { edgeFeedback = nil }
+            }
+        }
+        if controlsVisible { scheduleHide() }
+    }
+    private func cancelEdgeDrag() {
+        edgeDrag = nil; edgeRejected = false; edgeFeedback = nil
+        edgeFeedbackTask?.cancel(); edgeFeedbackTask = nil
     }
     private func stamp(_ seconds: Double) -> String {
         let value = seconds.isFinite ? max(0, Int(seconds.rounded(.down))) : 0
@@ -525,10 +668,70 @@ private final class OfflinePictureInPicture: NSObject, ObservableObject, AVPictu
     }
 }
 
-private struct OfflineSystemVolume: UIViewRepresentable {
-    func makeUIView(context: Context) -> MPVolumeView {
-        let view = MPVolumeView(); view.showsRouteButton = false; view.tintColor = .white
-        return view
+private enum OfflineEdgeSide: Equatable { case brightness, volume }
+private struct OfflineEdgeDrag { let side: OfflineEdgeSide; let initial: Double }
+private struct OfflineEdgeFeedback { let side: OfflineEdgeSide; let value: Double }
+
+private struct OfflineSkipFeedback {
+    var total = 0
+    var startedAt: Date?
+    var generation = 0
+    mutating func record(_ delta: Int) {
+        let now = Date()
+        total = startedAt.map { now.timeIntervalSince($0) < 0.85 } == true ? total + delta : delta
+        startedAt = now; generation += 1
     }
-    func updateUIView(_ uiView: MPVolumeView, context: Context) {}
+}
+
+/// The same 305-degree arc, arrow, expanding ripple and cumulative number as
+/// Android's SkipControl. Only this control animates; no floating message.
+private struct OfflineSkipControl: View {
+    let forward: Bool
+    let feedback: OfflineSkipFeedback
+    let reduceMotion: Bool
+    let action: () -> Void
+    @State private var active = false
+
+    var body: some View {
+        Button(action: action) {
+            TimelineView(.animation(minimumInterval: 1.0 / 60, paused: !active || reduceMotion)) { timeline in
+                Canvas { context, size in
+                    let elapsed = feedback.startedAt.map { timeline.date.timeIntervalSince($0) } ?? 1
+                    let fraction = min(1, max(0, elapsed / 0.85))
+                    let pulse = active ? (1 + cos(.pi * fraction)) / 2 : 0
+                    draw(context: context, size: size, pulse: pulse)
+                }
+            }.frame(width: 64, height: 64).contentShape(Rectangle())
+        }
+        .accessibilityLabel(forward ? "Forward 10 seconds" : "Back 10 seconds")
+        .accessibilityIdentifier(forward ? "offline-forward-10" : "offline-back-10")
+        .task(id: feedback.generation) {
+            guard let start = feedback.startedAt else { active = false; return }
+            let remaining = max(0, 0.85 - Date().timeIntervalSince(start))
+            active = remaining > 0
+            if remaining > 0 { try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000)) }
+            if !Task.isCancelled { active = false }
+        }
+    }
+
+    private func draw(context: GraphicsContext, size: CGSize, pulse: Double) {
+        let unit = min(size.width, size.height) / 96
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        let movement = reduceMotion ? 0 : pulse
+        let radius = unit * CGFloat(33 + 8 * (1 - movement))
+        let circle = Path(ellipseIn: CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2))
+        context.fill(circle, with: .color(.white.opacity(active ? (reduceMotion ? 0.07 : pulse * 28 / 255) : 0)))
+        var arcContext = context
+        arcContext.translateBy(x: center.x, y: center.y)
+        arcContext.scaleBy(x: forward ? 1 : -1, y: 1)
+        arcContext.rotate(by: .degrees(movement * 22))
+        var arc = Path()
+        arc.addArc(center: .zero, radius: 23 * unit, startAngle: .degrees(-55), endAngle: .degrees(250), clockwise: false)
+        arc.move(to: CGPoint(x: 13.19 * unit, y: -27.84 * unit))
+        arc.addLine(to: CGPoint(x: 13.19 * unit, y: -18.84 * unit))
+        arc.addLine(to: CGPoint(x: 4.19 * unit, y: -18.84 * unit))
+        arcContext.stroke(arc, with: .color(.white), style: StrokeStyle(lineWidth: 1.6 * unit, lineCap: .round, lineJoin: .round))
+        let number = active ? "\(feedback.total > 0 ? "+" : "")\(feedback.total)" : "10"
+        context.draw(Text(number).font(.system(size: 18 * unit, weight: .medium)).foregroundColor(.white), at: center)
+    }
 }

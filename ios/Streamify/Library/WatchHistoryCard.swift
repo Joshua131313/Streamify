@@ -35,7 +35,7 @@ struct WatchHistoryCard: View {
                         }
                         .clipped().contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(HapticPlainButtonStyle())
                 .accessibilityLabel("Resume \(entry.media.title)")
                 .accessibilityIdentifier("history-resume-\(entry.id)")
 
@@ -69,7 +69,7 @@ struct WatchHistoryCard: View {
                 Image(systemName: "ellipsis").font(.system(size: 19, weight: .medium))
                     .foregroundStyle(AppTheme.muted).frame(width: 44, height: 44).contentShape(Rectangle())
             }
-            .buttonStyle(.plain).accessibilityLabel("Actions for \(entry.media.title)")
+            .buttonStyle(HapticPlainButtonStyle()).accessibilityLabel("Actions for \(entry.media.title)")
         }
         .padding(12).background(AppTheme.panel).clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(AppTheme.border, lineWidth: 0.5) }
