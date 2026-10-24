@@ -321,6 +321,7 @@ final class ControlInteractionFlowTests: XCTestCase {
         let sportsInput = app.textFields["sports-dialog-search"]
         XCTAssertTrue(sportsInput.waitForExistence(timeout: 8))
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 8))
+        dismissSearchKeyboardTutorial()
         XCTAssertTrue(sportsInput.isHittable)
         XCTAssertFalse(app.buttons["tab-sports"].isHittable)
         capture("Sports header icon expands into focused full search")
