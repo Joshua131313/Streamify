@@ -54,6 +54,7 @@ enum AppTab: String, CaseIterable {
 }
 
 struct RootView: View {
+    @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var downloads: DownloadStore
     @EnvironmentObject private var sportsPlayback: SportsPlaybackSession
     @Environment(\.scenePhase) private var scenePhase

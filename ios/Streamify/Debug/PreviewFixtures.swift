@@ -44,7 +44,14 @@ enum PreviewFixtures {
             let directory = try DownloadFiles.directory()
             let fileName = "\(id.uuidString).mp4"
             let destination = directory.appendingPathComponent(fileName)
-            if !FileManager.default.fileExists(atPath: destination.path) { try FileManager.default.copyItem(at: source, to: destination) }
+            if FileManager.default.fileExists(atPath: destination.path) { try FileManager.default.removeItem(at: destination) }
+            if ProcessInfo.processInfo.arguments.contains("--ui-damaged-download-fixture") {
+                // Represents older completed metadata whose local file is damaged.
+                // New imports/downloads go through the production validator.
+                try Data("A deliberately damaged local movie.".utf8).write(to: destination)
+            } else {
+                try FileManager.default.copyItem(at: source, to: destination)
+            }
             let posterName = "\(id.uuidString)-artwork-00000000-0000-0000-0000-000000000043.jpg"
             let poster = UIImage(named: "collection-avengers")?.jpegData(compressionQuality: 0.8)
             if let poster { try poster.write(to: directory.appendingPathComponent(posterName), options: .atomic) }

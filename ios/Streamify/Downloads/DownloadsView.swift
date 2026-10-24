@@ -79,7 +79,7 @@ private struct DownloadRow: View {
                                 .accessibilityIdentifier("download-progress-\(item.id)")
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }.contentShape(Rectangle())
-                }.buttonStyle(HapticPlainButtonStyle()).disabled(item.status != .completed)
+                }.buttonStyle(HapticCardButtonStyle()).disabled(item.status != .completed)
                     .foregroundStyle(AppTheme.foreground)
                     .accessibilityLabel("Play offline \(item.title)")
                     .accessibilityIdentifier("download-play-\(item.id)")
@@ -98,10 +98,7 @@ private struct DownloadRow: View {
                         .foregroundStyle(AppTheme.foreground).accessibilityHidden(true)
                 }
                 Menu {
-                    if item.status == .completed { Button("Play offline", systemImage: "play.fill", action: play) }
-                    if item.status == .downloading { Button("Cancel download", systemImage: "xmark") { downloads.cancel(id: item.id) } }
-                    if item.source != nil && (item.status == .cancelled || item.status == .failed) { Button("Retry download", systemImage: "arrow.clockwise") { downloads.retry(id: item.id) } }
-                    Button("Delete", systemImage: "trash", role: .destructive) { confirmDelete = true }
+                    downloadActions
                 } label: {
                     Image(systemName: "ellipsis").font(.title3).frame(width: 44, height: 44)
                 }.foregroundStyle(AppTheme.foreground).accessibilityLabel("Actions for \(item.title)")
@@ -112,12 +109,23 @@ private struct DownloadRow: View {
                     .font(.caption.weight(.semibold)).foregroundStyle(AppTheme.foreground)
             }
         }.padding(.vertical, 10).padding(.horizontal, 10).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 12))
+            .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(AppTheme.border, lineWidth: 0.5) }
+            .streamifyCardDepth()
+            .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 12))
+            .contextMenu { downloadActions }
             .accessibilityElement(children: .contain).accessibilityIdentifier("download-card-\(item.id)")
             .accessibilityValue(artwork == nil ? "Artwork unavailable" : "Artwork saved offline")
             .task(id: item.posterFileName) { artwork = item.posterFileURL.flatMap { UIImage(contentsOfFile: $0.path) } }
             .confirmationDialog("Delete \(item.title)?", isPresented: $confirmDelete, titleVisibility: .visible) {
                 Button("Delete video", role: .destructive) { downloads.remove(id: item.id) }
             } message: { Text("This removes the saved video from this iPhone.") }
+    }
+
+    @ViewBuilder private var downloadActions: some View {
+        if item.status == .completed { Button("Play offline", systemImage: "play.fill", action: play) }
+        if item.status == .downloading { Button("Cancel download", systemImage: "xmark") { downloads.cancel(id: item.id) } }
+        if item.source != nil && (item.status == .cancelled || item.status == .failed) { Button("Retry download", systemImage: "arrow.clockwise") { downloads.retry(id: item.id) } }
+        Button("Delete", systemImage: "trash", role: .destructive) { confirmDelete = true }
     }
 
     private var thumbnail: some View {

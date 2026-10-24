@@ -198,16 +198,9 @@ struct PosterCard: View {
     @EnvironmentObject private var library: LibraryStore
 
     var body: some View {
-        MediaDetailLink(media: media) {
+        MediaDetailLink(media: media, cardCornerRadius: roomy ? 12 : 8, includesCardMenu: true) {
             PosterContent(media: media, rank: rank, roomy: roomy)
                 .contentShape(Rectangle())
-        }
-        .buttonStyle(HapticPlainButtonStyle())
-        .contextMenu {
-            Button(library.isSaved(media) ? "Remove from My list" : "Add to My list",
-                   systemImage: library.isSaved(media) ? "checkmark" : "plus") { library.toggleSaved(media) }
-            ShareLink(item: URL(string: media.kind == .anime
-                ? "https://anilist.co/anime/\(media.id)" : "https://www.themoviedb.org/\(media.kind.rawValue)/\(media.id)")!)
         }
     }
 }

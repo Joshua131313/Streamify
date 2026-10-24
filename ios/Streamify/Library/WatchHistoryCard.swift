@@ -35,7 +35,7 @@ struct WatchHistoryCard: View {
                         }
                         .clipped().contentShape(Rectangle())
                 }
-                .buttonStyle(HapticPlainButtonStyle())
+                .buttonStyle(HapticCardButtonStyle(cornerRadius: 8))
                 .accessibilityLabel("Resume \(entry.media.title)")
                 .accessibilityIdentifier("history-resume-\(entry.id)")
 
@@ -63,8 +63,7 @@ struct WatchHistoryCard: View {
                     .accessibilityIdentifier("history-status-\(entry.id)")
             }.frame(maxWidth: .infinity, alignment: .leading)
             Menu {
-                Button("Remove from history", systemImage: "trash", role: .destructive) { library.removeHistory(entry) }
-                Button(library.isSaved(entry.media) ? "Remove from My list" : "Add to My list", systemImage: "bookmark") { library.toggleSaved(entry.media) }
+                historyActions
             } label: {
                 Image(systemName: "ellipsis").font(.system(size: 19, weight: .medium))
                     .foregroundStyle(AppTheme.muted).frame(width: 44, height: 44).contentShape(Rectangle())
@@ -73,7 +72,18 @@ struct WatchHistoryCard: View {
         }
         .padding(12).background(AppTheme.panel).clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(AppTheme.border, lineWidth: 0.5) }
+        .streamifyCardDepth(cornerRadius: 14)
+        .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 14))
+        .contextMenu {
+            Button("Resume", systemImage: "play.fill", action: resume)
+            historyActions
+        }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("history-card-\(entry.id)")
+    }
+
+    @ViewBuilder private var historyActions: some View {
+        Button(library.isSaved(entry.media) ? "Remove from My list" : "Add to My list", systemImage: "bookmark") { library.toggleSaved(entry.media) }
+        Button("Remove from history", systemImage: "trash", role: .destructive) { library.removeHistory(entry) }
     }
 }

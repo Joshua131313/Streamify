@@ -92,7 +92,7 @@ struct HomeView: View {
                         }.frame(maxWidth: .infinity, alignment: .leading)
                         Image(systemName: "arrow.right").font(.headline)
                     }.padding(18).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 16))
-                }.buttonStyle(HapticPlainButtonStyle()).padding(.horizontal, 20)
+                }.buttonStyle(HapticCardButtonStyle(cornerRadius: 16)).padding(.horizontal, 20)
 
                 PosterRail(title: "TOP 10 Today", items: Array(model.trending.prefix(10)), ranked: true)
                 PosterRail(title: "Popular shows", items: model.shows)
@@ -181,7 +181,7 @@ struct HomeView: View {
                                 .contentShape(RoundedRectangle(cornerRadius: 16))
                                 .accessibilityElement(children: .ignore)
                                 .accessibilityLabel("Explore collection \(collection.name)")
-                        }.buttonStyle(HapticPlainButtonStyle())
+                        }.buttonStyle(HapticCardButtonStyle(cornerRadius: 16))
                     }
                 }.padding(.horizontal, 16)
             }.scrollIndicators(.hidden)
@@ -336,7 +336,7 @@ struct FeaturedCarousel: View {
 
     private func hero(_ media: MediaItem) -> some View {
         ZStack(alignment: .bottomLeading) {
-            MediaDetailLink(media: media, onPresentationChanged: { detailsPresented = $0 }) {
+            MediaDetailLink(media: media, onPresentationChanged: { detailsPresented = $0 }, cardCornerRadius: 16, includesCardMenu: true) {
                 RemoteArtwork(url: horizontalSizeClass == .regular ? media.heroBackdropURL : media.heroPosterURL)
                     .overlay {
                         LinearGradient(stops: [.init(color: .clear, location: 0.45),
@@ -379,6 +379,7 @@ struct FeaturedCarousel: View {
 private struct ContinueWatchingRail: View {
     @EnvironmentObject private var library: LibraryStore
     @State private var selected: WatchEntry?
+    @State private var selectedDetails: MediaItem?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -409,12 +410,14 @@ private struct ContinueWatchingRail: View {
                                     }
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
                                     .contentShape(RoundedRectangle(cornerRadius: 12))
-                            }.buttonStyle(HapticPlainButtonStyle()).accessibilityLabel("Resume \(entry.media.title)")
+                            }.buttonStyle(HapticCardButtonStyle(cornerRadius: 12)).accessibilityLabel("Resume \(entry.media.title)")
                             Text(entry.media.title).font(.subheadline.weight(.medium)).lineLimit(1)
                             Text(watchSubtitle(entry)).font(.caption2).foregroundStyle(AppTheme.muted).lineLimit(1)
                         }.frame(width: 184)
+                            .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 12))
                             .contextMenu {
-                                MediaDetailLink(media: entry.media) { Text("Details") }
+                                Button("Resume", systemImage: "play.fill") { selected = entry }
+                                Button("Details", systemImage: "info.circle") { selectedDetails = entry.media }
                                 Button("Remove from history", role: .destructive) { library.removeHistory(entry) }
                             }
                     }
@@ -422,6 +425,9 @@ private struct ContinueWatchingRail: View {
             }.scrollIndicators(.hidden)
         }
         .fullScreenCover(item: $selected) { MediaPlayerView(media: $0.media, season: $0.season, episode: $0.episode) }
+        .fullScreenCover(item: $selectedDetails) { media in
+            NavigationStack { MediaDetailView(media: media) }.presentationBackground(AppTheme.canvas)
+        }
     }
 
     private func watchSubtitle(_ entry: WatchEntry) -> String {

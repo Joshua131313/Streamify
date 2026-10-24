@@ -637,7 +637,7 @@ struct SportsGameCard: View {
                     matchTeam(game.away)
                     matchTeam(game.home)
                 }.contentShape(Rectangle())
-            }.buttonStyle(HapticPlainButtonStyle()).accessibilityElement(children: .combine).accessibilityIdentifier("sports-game-\(game.id)")
+            }.buttonStyle(HapticCardButtonStyle()).accessibilityElement(children: .combine).accessibilityIdentifier("sports-game-\(game.id)")
             Rectangle().fill(AppTheme.border).frame(height: 0.5)
             HStack(spacing: 10) {
                 Button(action: action) {
@@ -664,7 +664,14 @@ struct SportsGameCard: View {
             }.font(.caption.weight(.semibold))
         }.padding(16).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 20))
             .overlay { RoundedRectangle(cornerRadius: 20).strokeBorder(AppTheme.border, lineWidth: 0.7) }
-            .shadow(color: .black.opacity(0.08), radius: 8, y: 3)
+            .streamifyCardDepth(cornerRadius: 20)
+            .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 20))
+            .contextMenu {
+                Button("Game Center", systemImage: "sportscourt", action: action)
+                if game.canWatch {
+                    Button("Watch game", systemImage: "play.fill") { watchRevision += 1 }.disabled(watchLoading)
+                }
+            }
             .task(id: "\(watchRevision)-\(scenePhase == .active)") {
                 let request = watchRevision
                 guard scenePhase == .active else {
