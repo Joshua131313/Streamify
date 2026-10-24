@@ -488,10 +488,32 @@ private final class OfflinePictureInPicture: NSObject, ObservableObject, AVPictu
     }
     func start() { if possible { starting = true; controller?.startPictureInPicture() } }
     func stop() { controller?.stopPictureInPicture(); observation?.invalidate(); observation = nil; controller?.delegate = nil; controller = nil; active = false; starting = false; possible = false }
-    func pictureInPictureControllerDidStartPictureInPicture(_ pictureInPictureController: AVPictureInPictureController) { starting = false; active = true }
-    func pictureInPictureControllerDidStopPictureInPicture(_ pictureInPictureController: AVPictureInPictureController) { starting = false; active = false; onStopped?() }
-    func pictureInPictureController(_ pictureInPictureController: AVPictureInPictureController, failedToStartPictureInPictureWithError error: Error) { starting = false; active = false; onStopped?() }
-    func pictureInPictureController(_ pictureInPictureController: AVPictureInPictureController, restoreUserInterfaceForPictureInPictureStopWithCompletionHandler completionHandler: @escaping (Bool) -> Void) { completionHandler(true) }
+    nonisolated func pictureInPictureControllerDidStartPictureInPicture(_ pictureInPictureController: AVPictureInPictureController) {
+        let identity = ObjectIdentifier(pictureInPictureController)
+        Task { @MainActor [weak self] in
+            guard let self, self.controller.map(ObjectIdentifier.init) == identity else { return }
+            self.starting = false; self.active = true
+        }
+    }
+    nonisolated func pictureInPictureControllerDidStopPictureInPicture(_ pictureInPictureController: AVPictureInPictureController) {
+        let identity = ObjectIdentifier(pictureInPictureController)
+        Task { @MainActor [weak self] in
+            guard let self, self.controller.map(ObjectIdentifier.init) == identity else { return }
+            self.starting = false; self.active = false; self.onStopped?()
+        }
+    }
+    nonisolated func pictureInPictureController(_ pictureInPictureController: AVPictureInPictureController, failedToStartPictureInPictureWithError error: Error) {
+        let identity = ObjectIdentifier(pictureInPictureController)
+        Task { @MainActor [weak self] in
+            guard let self, self.controller.map(ObjectIdentifier.init) == identity else { return }
+            self.starting = false; self.active = false; self.onStopped?()
+        }
+    }
+    nonisolated func pictureInPictureController(_ pictureInPictureController: AVPictureInPictureController, restoreUserInterfaceForPictureInPictureStopWithCompletionHandler completionHandler: @escaping (Bool) -> Void) {
+        // The full-screen view remains mounted throughout PiP. This callback
+        // needs no actor-owned state and can acknowledge restoration directly.
+        completionHandler(true)
+    }
 }
 
 private struct OfflineSystemVolume: UIViewRepresentable {

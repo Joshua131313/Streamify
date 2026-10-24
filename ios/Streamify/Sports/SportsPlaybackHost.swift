@@ -31,17 +31,28 @@ struct SportsPlaybackHost: UIViewRepresentable {
             window.session = session
             window.windowLevel = UIWindow.Level(rawValue: UIWindow.Level.normal.rawValue + 1)
             window.backgroundColor = .clear
-            let controller = UIHostingController(rootView: SportsPlaybackOverlay(session: session))
-            controller.view.backgroundColor = .clear
-            window.rootViewController = controller
             window.isHidden = session.item == nil
             // Do not call makeKeyAndVisible: search and keyboard stay attached to
             // the normal app window while the miniature player is visible.
             self.window = window
-            observation = session.$item.combineLatest(session.$presentation).sink { [weak window] item, mode in
-                window?.isHidden = item == nil
-                window?.rootViewController?.view.accessibilityViewIsModal = item != nil && mode == .expanded
-            }
+            observation = session.$item.combineLatest(session.$presentation).receive(on: RunLoop.main)
+                .sink { [weak self, weak window] item, mode in
+                    guard let self, let window else { return }
+                    guard item != nil else {
+                        window.isHidden = true
+                        // Hiding a window alone keeps its view tree alive. A
+                        // genuine Close must release WebKit/native playback now.
+                        window.rootViewController = nil
+                        return
+                    }
+                    if window.rootViewController == nil {
+                        let controller = UIHostingController(rootView: SportsPlaybackOverlay(session: self.session))
+                        controller.view.backgroundColor = .clear
+                        window.rootViewController = controller
+                    }
+                    window.isHidden = false
+                    window.rootViewController?.view.accessibilityViewIsModal = mode == .expanded
+                }
             keyboardObservation = NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)
                 .merge(with: NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification))
                 .receive(on: RunLoop.main).sink { [weak self, weak window] notification in

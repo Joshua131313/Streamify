@@ -13,6 +13,16 @@ enum PlaybackAudioSession {
     }
 }
 
+private final class NativePlaybackTimeObservation {
+    var player: AVPlayer?
+    var token: Any?
+    func clear() {
+        if let token { player?.removeTimeObserver(token) }
+        token = nil; player = nil
+    }
+    deinit { clear() }
+}
+
 @MainActor
 private final class NativePlaybackModel: ObservableObject {
     @Published private(set) var player: AVPlayer?
@@ -22,7 +32,7 @@ private final class NativePlaybackModel: ObservableObject {
     private var playbackObservation: NSKeyValueObservation?
     private var failureObserver: NSObjectProtocol?
     private var endingObserver: NSObjectProtocol?
-    private var timeObserver: Any?
+    private let timeObservation = NativePlaybackTimeObservation()
     private var checkpoint = PlaybackCheckpoint()
     private var onProgress: ((Double, Double) -> Void)?
     private var resumeSeconds: Double = 0
@@ -69,7 +79,8 @@ private final class NativePlaybackModel: ObservableObject {
                     }
                 }
             }
-            timeObserver = created.addPeriodicTimeObserver(forInterval: CMTime(seconds: 1, preferredTimescale: 600), queue: .main) { [weak self] _ in
+            timeObservation.player = created
+            timeObservation.token = created.addPeriodicTimeObserver(forInterval: CMTime(seconds: 1, preferredTimescale: 600), queue: .main) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     guard let self, self.generation == request else { return }
                     self.restoreIfPossible(); self.capture()
@@ -114,8 +125,7 @@ private final class NativePlaybackModel: ObservableObject {
         failureObserver = nil
         if let endingObserver { NotificationCenter.default.removeObserver(endingObserver) }
         endingObserver = nil
-        if let timeObserver { player?.removeTimeObserver(timeObserver) }
-        timeObserver = nil
+        timeObservation.clear()
         player?.pause()
         player?.replaceCurrentItem(with: nil)
         player = nil
@@ -154,7 +164,6 @@ private final class NativePlaybackModel: ObservableObject {
     deinit {
         if let failureObserver { NotificationCenter.default.removeObserver(failureObserver) }
         if let endingObserver { NotificationCenter.default.removeObserver(endingObserver) }
-        if let timeObserver { player?.removeTimeObserver(timeObserver) }
     }
 }
 
