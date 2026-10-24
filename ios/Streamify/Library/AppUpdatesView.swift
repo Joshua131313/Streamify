@@ -1,5 +1,17 @@
 import Foundation
 import SwiftUI
+import UIKit
+
+private enum SideStoreLinks {
+    static let source = link(action: "source", address: URL(string: "https://raw.githubusercontent.com/Joshua131313/Streamify/refs/heads/codex/native-ios/ios/sideload-source.json")!)
+    static func link(action: String, address: URL) -> URL {
+        var components = URLComponents()
+        components.scheme = "sidestore"
+        components.host = action
+        components.queryItems = [URLQueryItem(name: "url", value: address.absoluteString)]
+        return components.url!
+    }
+}
 
 struct AppUpdate: Equatable {
     let version: String
@@ -187,6 +199,8 @@ private final class AppUpdateRedirectPolicy: NSObject, URLSessionTaskDelegate {
 struct AppUpdatesView: View {
     @State private var phase = Phase.idle
     @State private var checkTask: Task<Void, Never>?
+    @State private var sideStoreAvailable = false
+    @Environment(\.scenePhase) private var scenePhase
     private let currentVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"
 
     private enum Phase {
@@ -204,6 +218,11 @@ struct AppUpdatesView: View {
                     if case .checked(.available(let update)) = phase {
                         if !update.notes.isEmpty { Text(verbatim: update.notes).font(.footnote).textSelection(.enabled) }
                         Text(ByteCountFormatter.string(fromByteCount: update.size, countStyle: .file)).font(.caption).foregroundStyle(AppTheme.muted)
+                        if sideStoreAvailable {
+                            Link(destination: SideStoreLinks.link(action: "install", address: update.downloadURL)) {
+                                Label("Install with SideStore", systemImage: "arrow.down.app")
+                            }.buttonStyle(PrimaryButtonStyle()).accessibilityIdentifier("install-ios-update")
+                        }
                         Link(destination: update.downloadURL) { Label("Download IPA", systemImage: "arrow.down.circle") }
                             .buttonStyle(PrimaryButtonStyle()).accessibilityIdentifier("download-ios-update")
                         ShareLink(item: update.downloadURL) { Label("Share IPA link", systemImage: "square.and.arrow.up") }
@@ -221,16 +240,27 @@ struct AppUpdatesView: View {
                     Text("Install the IPA with SideStore on iPhone or iLoader on your computer. Keep the existing app installed.")
                     Text("SideStore needs one initial computer setup. A free Apple Account needs its apps refreshed within seven days.")
                         .foregroundStyle(AppTheme.muted)
+                    if sideStoreAvailable {
+                        Link(destination: SideStoreLinks.source) { Label("Add Streamify to SideStore", systemImage: "plus.app") }
+                            .buttonStyle(SecondaryButtonStyle()).accessibilityIdentifier("add-sidestore-source")
+                        Text("Add the source once to see future Streamify releases in SideStore’s update list.").foregroundStyle(AppTheme.muted)
+                    }
                     Link("SideStore setup guide", destination: URL(string: "https://docs.sidestore.io/docs/installation/prerequisites")!)
                 }.font(.subheadline).padding(20).streamifyControlSurface(cornerRadius: 16)
             }.padding(20)
         }
         .background(AppTheme.canvas).foregroundStyle(AppTheme.foreground)
         .navigationTitle("App updates").navigationBarTitleDisplayMode(.inline)
+        .onAppear { refreshSideStoreAvailability() }
+        .onChange(of: scenePhase) { _, phase in if phase == .active { refreshSideStoreAvailability() } }
         .onDisappear {
             checkTask?.cancel(); checkTask = nil
             if isChecking { phase = .idle }
         }
+    }
+
+    private func refreshSideStoreAvailability() {
+        sideStoreAvailable = UIApplication.shared.canOpenURL(SideStoreLinks.source)
     }
 
     private var isChecking: Bool { if case .checking = phase { return true }; return false }

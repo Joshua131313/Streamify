@@ -13,6 +13,17 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["tab-home"].waitForExistence(timeout: 15))
     }
 
+    override func tearDownWithError() throws {
+        if testRun?.hasSucceeded == false, let app {
+            capture("FAILURE current screen")
+            let hierarchy = XCTAttachment(string: app.debugDescription)
+            hierarchy.name = "FAILURE accessibility hierarchy"
+            hierarchy.lifetime = .keepAlways
+            add(hierarchy)
+        }
+        app?.terminate()
+    }
+
     func testHomeHeroProgressPauseSwipeAndFilledSelectors() {
         let progress = app.buttons["hero-main-progress"]
         XCTAssertTrue(progress.waitForExistence(timeout: 15))
@@ -42,11 +53,23 @@ final class ParityFlowTests: XCTestCase {
         for (title, kind) in [("Movies", "movie"), ("Shows", "tv"), ("Anime", "anime")] {
             if title != "Movies" { relaunch() }
             app.buttons[title].firstMatch.tap()
-            XCTAssertTrue(element("category-catalog-\(kind)").waitForExistence(timeout: 12))
+            let catalog = app.scrollViews["category-catalog-\(kind)"].firstMatch
+            XCTAssertTrue(catalog.waitForExistence(timeout: 12))
             let expected = kind == "movie" ? "media-link-movie:42" : kind == "tv" ? "media-link-tv:43" : "media-link-anime:44"
             XCTAssertTrue(app.buttons[expected].firstMatch.waitForExistence(timeout: 12))
             capture("06 Category \(title) hero and controls")
-            element("category-catalog-\(kind)").swipeUp()
+            let gridHeading = app.staticTexts["Explore \(title)"]
+            let key = kind == "movie" ? "movie:42" : kind == "tv" ? "tv:43" : "anime:44"
+            let gridPoster = catalog.descendants(matching: .any).matching(identifier: "poster-artwork-\(key)").firstMatch
+            for _ in 0..<5 {
+                if gridHeading.isHittable && gridPoster.isHittable { break }
+                dragVertically(up: true, in: catalog)
+                XCTAssertFalse(app.buttons["close-media-details"].exists, "Scrolling a catalog must not activate its hero card.")
+            }
+            XCTAssertTrue(gridHeading.isHittable)
+            XCTAssertTrue(gridPoster.isHittable, "The category's actual poster grid must be visible after scrolling.")
+            XCTAssertTrue(catalog.exists)
+            XCTAssertFalse(app.buttons["close-media-details"].exists)
             capture("07 Category \(title) poster grid")
         }
         relaunch()
@@ -61,11 +84,18 @@ final class ParityFlowTests: XCTestCase {
     }
 
     func testMovieTrailerDownloadQualityCastSheetAndDragReturn() {
-        let originalHomeCard = app.buttons["media-link-movie:42"].firstMatch
-        XCTAssertTrue(originalHomeCard.waitForExistence(timeout: 12))
-        XCTAssertTrue(originalHomeCard.isHittable)
+        // The hero and several shelves contain this title. Select its hero page and
+        // address the hero's distinct label instead of the first off-screen shelf.
+        let firstSlide = app.buttons["Show The Last Horizon"].firstMatch
+        XCTAssertTrue(firstSlide.waitForExistence(timeout: 15))
+        if app.buttons["hero-carousel-pause"].label == "Pause carousel" { app.buttons["hero-carousel-pause"].tap() }
+        firstSlide.tap()
+        let originalHomeCard = app.buttons["Details for The Last Horizon"].firstMatch
+        capture("10a Original Home card before opening")
+        XCTAssertTrue(wait { originalHomeCard.isHittable })
         originalHomeCard.tap()
         XCTAssertTrue(app.buttons["close-media-details"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["download-movie:42"].waitForExistence(timeout: 8), "The tapped Home hero must open its own movie.")
         XCTAssertTrue(app.buttons["trailer-mute"].waitForExistence(timeout: 10))
         XCTAssertTrue(wait { self.app.buttons["trailer-mute"].isEnabled })
         capture("10 Movie autoplay preview and download action")
@@ -100,7 +130,7 @@ final class ParityFlowTests: XCTestCase {
         // Reset scroll to the hero, then exercise UIKit's native zoom dismissal gesture.
         for _ in 0..<5 {
             if !app.buttons["close-media-details"].exists || app.buttons["trailer-mute"].isHittable { break }
-            element("media-detail-page").swipeDown()
+            dragVertically(up: false)
         }
         if app.buttons["close-media-details"].exists {
             let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.14))
@@ -150,10 +180,10 @@ final class ParityFlowTests: XCTestCase {
         let second = element("poster-artwork-tv:43")
         XCTAssertTrue(first.waitForExistence(timeout: 5))
         XCTAssertTrue(second.exists)
+        capture("21 My list uniform poster images")
         XCTAssertEqual(first.frame.width, second.frame.width, accuracy: 1)
         XCTAssertEqual(first.frame.height, second.frame.height, accuracy: 1)
         XCTAssertEqual(first.frame.width / first.frame.height, 2.0 / 3.0, accuracy: 0.01)
-        capture("21 My list uniform poster images")
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'History'")).firstMatch.tap()
         XCTAssertTrue(app.buttons["Resume Midnight Dispatch"].waitForExistence(timeout: 5))
         capture("22 Watch history")
@@ -205,6 +235,14 @@ final class ParityFlowTests: XCTestCase {
         app.buttons["tab-sports"].tap()
         XCTAssertTrue(element("sports-screen").waitForExistence(timeout: 8))
         capture("30 Sports league directory")
+        app.buttons["focus-sports-search"].tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["tab-sports"].isSelected)
+        XCTAssertTrue(app.textFields["sports-search-field"].isHittable)
+        capture("30b Sports header search stays in Sports")
+        app.keyboards.buttons["Search"].tap()
+        XCTAssertTrue(wait { !self.app.keyboards.firstMatch.exists })
+        XCTAssertTrue(app.buttons["tab-sports"].isSelected)
         reveal(app.buttons["sports-league-NBA"])
         app.buttons["sports-league-NBA"].tap()
         let game = app.buttons["sports-game-nba:nba-fixture"].firstMatch
@@ -249,9 +287,15 @@ final class ParityFlowTests: XCTestCase {
 
     private func openTitle(_ key: String) {
         app.buttons["tab-search"].tap()
-        XCTAssertTrue(app.buttons["media-link-\(key)"].firstMatch.waitForExistence(timeout: 12))
-        app.buttons["media-link-\(key)"].firstMatch.tap()
+        XCTAssertTrue(app.textFields["browse-search"].waitForExistence(timeout: 5))
+        let card = app.buttons.matching(identifier: "media-link-\(key)")
+        XCTAssertTrue(wait(timeout: 12) { card.allElementsBoundByIndex.contains { $0.isHittable } })
+        guard let target = card.allElementsBoundByIndex.first(where: { $0.isHittable }) else { XCTFail("No visible catalog card for \(key)"); return }
+        target.tap()
         XCTAssertTrue(app.buttons["close-media-details"].waitForExistence(timeout: 8))
+        capture("Selected catalog card \(key)")
+        let downloadKey = key.hasPrefix("tv:") ? "\(key):1:1" : key
+        XCTAssertTrue(app.buttons["download-\(downloadKey)"].firstMatch.waitForExistence(timeout: 8), "A catalog card must open the title that was tapped.")
     }
     private func relaunch() {
         app.terminate()
@@ -264,19 +308,27 @@ final class ParityFlowTests: XCTestCase {
     private func reveal(_ target: XCUIElement, attempts: Int = 12) {
         for _ in 0..<attempts {
             if target.exists && target.isHittable { return }
-            if target.exists && target.frame.maxY < app.frame.midY { app.swipeDown() }
-            else { app.swipeUp() }
+            dragVertically(up: !(target.exists && target.frame.maxY < app.frame.midY))
         }
     }
     private func scrollSportsToTop() {
-        let search = app.textFields["Search teams & games"]
+        let search = app.textFields["sports-search-field"]
         let multiWatch = app.buttons["sports-multi-watch"]
         for _ in 0..<8 {
             if search.exists && search.isHittable && multiWatch.exists && multiWatch.isHittable { break }
-            element("sports-screen").swipeDown()
+            dragVertically(up: false, in: app.scrollViews["sports-screen"].firstMatch)
         }
         XCTAssertTrue(search.isHittable, "Return to the sports header before locating controls above the schedule.")
         XCTAssertTrue(multiWatch.isHittable)
+    }
+    private func dragVertically(up: Bool, in scrollView: XCUIElement? = nil) {
+        // Use the content gutter, away from image buttons and nested horizontal rails.
+        // An ancestor accessibility ID can also occur on a child button; do not ask
+        // that ambiguous element to synthesize a swipe at its own activation point.
+        let surface = scrollView ?? app!
+        let start = surface.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: up ? 0.78 : 0.28))
+        let end = surface.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: up ? 0.28 : 0.78))
+        start.press(forDuration: 0.05, thenDragTo: end)
     }
     private func wait(timeout: TimeInterval = 8, _ condition: @escaping () -> Bool) -> Bool {
         let expectation = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in condition() }, object: nil)

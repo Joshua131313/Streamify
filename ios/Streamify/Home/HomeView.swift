@@ -39,8 +39,16 @@ struct HomeView: View {
     @EnvironmentObject private var library: LibraryStore
     @StateObject private var model = HomeModel()
     @State private var retry = 0
-    @State private var carouselVisible = true
-    @State private var interacting = false
+    @State private var carouselFrame: CGRect = .null
+    @State private var viewportFrame: CGRect = .null
+    @State private var scrollMoving = false
+    @GestureState private var interacting = false
+
+    private var carouselVisible: Bool {
+        guard !carouselFrame.isNull, !viewportFrame.isNull, carouselFrame.height > 0, viewportFrame.height > 0 else { return true }
+        let intersection = carouselFrame.intersection(viewportFrame)
+        return !intersection.isNull && intersection.height > carouselFrame.height * 0.7
+    }
 
     var body: some View {
         ScrollView {
@@ -66,10 +74,11 @@ struct HomeView: View {
                     InlineError(message: error) { retry += 1 }.padding(.horizontal, 20)
                 }
                 if !model.trending.isEmpty {
-                    FeaturedCarousel(items: Array(model.trending.prefix(5)), visible: carouselVisible && !interacting)
+                    FeaturedCarousel(items: Array(model.trending.prefix(5)), visible: carouselVisible && !interacting && !scrollMoving)
                         .background {
                             GeometryReader { geometry in
-                                Color.clear.preference(key: HeroPositionKey.self, value: geometry.frame(in: .named("home-scroll")))
+                                Color.clear.preference(key: HeroPositionKey.self, value: geometry.frame(in: .global))
+                                    .allowsHitTesting(false).accessibilityHidden(true)
                             }
                         }
                 }
@@ -100,12 +109,30 @@ struct HomeView: View {
             }.padding(.top, 4).padding(.bottom, 24)
         }
         .accessibilityIdentifier("home-catalog")
-        .coordinateSpace(name: "home-scroll")
-        .simultaneousGesture(DragGesture(minimumDistance: 5).onChanged { _ in interacting = true }.onEnded { _ in interacting = false })
-        .onPreferenceChange(HeroPositionKey.self) { frame in
-            carouselVisible = frame.maxY > frame.height * 0.7 && frame.minY < 250
+        .background {
+            GeometryReader { geometry in
+                Color.clear.preference(key: HomeViewportKey.self, value: geometry.frame(in: .global))
+                    .allowsHitTesting(false).accessibilityHidden(true)
+            }
         }
-        .background(AppTheme.canvas)
+        // GestureState resets after cancellation as well as a completed drag.
+        // A competing ScrollView/TabView recognizer must not leave autoplay paused.
+        .simultaneousGesture(DragGesture(minimumDistance: 5).updating($interacting) { _, value, _ in value = true })
+        .onPreferenceChange(HeroPositionKey.self) { frame in
+            if !frame.isNull && !frame.isEmpty { carouselFrame = frame }
+        }
+        .onPreferenceChange(HomeViewportKey.self) { frame in
+            if !frame.isNull && !frame.isEmpty { viewportFrame = frame }
+        }
+        .task(id: carouselFrame.minY) {
+            guard !carouselFrame.isNull else { return }
+            scrollMoving = true
+            do {
+                try await Task.sleep(for: .milliseconds(180))
+                try Task.checkCancellation()
+                scrollMoving = false
+            } catch { }
+        }
         .task(id: settings.tmdbToken + String(retry)) { await model.load(client: settings.client) }
         .refreshable { await model.load(client: settings.client) }
     }
@@ -141,12 +168,19 @@ struct HomeView: View {
                 HStack(spacing: 10) {
                     ForEach(FilmCollection.bundled.filter(\.featured)) { collection in
                         NavigationLink { CollectionDetailView(collection: collection) } label: {
-                            Image(collection.assetName).resizable().scaledToFill().frame(width: 260, height: 180)
+                            Rectangle().fill(AppTheme.panel).frame(width: 260, height: 180)
+                                .overlay {
+                                    Image(collection.assetName).resizable().scaledToFill()
+                                        .frame(width: 260, height: 180).clipped().allowsHitTesting(false).accessibilityHidden(true)
+                                }
                                 .overlay(alignment: .bottomLeading) {
                                     Text(collection.name).font(.title3.bold()).foregroundStyle(.white).padding(20)
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                         .background(LinearGradient(colors: [.clear, .black.opacity(0.9)], startPoint: .top, endPoint: .bottom))
                                 }.clipShape(RoundedRectangle(cornerRadius: 16))
+                                .contentShape(RoundedRectangle(cornerRadius: 16))
+                                .accessibilityElement(children: .ignore)
+                                .accessibilityLabel("Explore collection \(collection.name)")
                         }.buttonStyle(.plain)
                     }
                 }.padding(.horizontal, 16)
@@ -156,7 +190,12 @@ struct HomeView: View {
 }
 
 private struct HeroPositionKey: PreferenceKey {
-    static var defaultValue: CGRect = .zero
+    static var defaultValue: CGRect = .null
+    static func reduce(value: inout CGRect, nextValue: () -> CGRect) { value = nextValue() }
+}
+
+private struct HomeViewportKey: PreferenceKey {
+    static var defaultValue: CGRect = .null
     static func reduce(value: inout CGRect, nextValue: () -> CGRect) { value = nextValue() }
 }
 
@@ -174,7 +213,7 @@ struct FeaturedCarousel: View {
     @State private var player: MediaItem?
     @State private var detailsPresented = false
     @State private var appeared = false
-    @State private var dragging = false
+    @GestureState private var dragging = false
     @State private var cycleStartedAt: Date?
     @State private var settledAfter = Date.distantPast
     @State private var cycleRevision = 0
@@ -200,13 +239,15 @@ struct FeaturedCarousel: View {
             .padding(.horizontal, 16)
             .accessibilityIdentifier("hero-carousel")
             .simultaneousGesture(DragGesture(minimumDistance: 5)
-                .onChanged { _ in dragging = true }
-                .onEnded { _ in dragging = false; resetCycle(after: transitionDuration) })
+                .updating($dragging) { _, value, _ in value = true })
             if items.count > 1 { indicators }
         }
         .onAppear { appeared = true }
         .onDisappear { appeared = false; cycleStartedAt = nil }
         .onChange(of: index) { _, _ in resetCycle(after: transitionDuration) }
+        .onChange(of: dragging) { wasDragging, isDragging in
+            if wasDragging && !isDragging { resetCycle(after: transitionDuration) }
+        }
         .onChange(of: items.map(\.key)) { _, keys in
             index = min(index, max(0, keys.count - 1))
             resetCycle()
@@ -302,6 +343,8 @@ struct FeaturedCarousel: View {
                                                .init(color: Color(red: 27 / 255, green: 23 / 255, blue: 32 / 255).opacity(0.7), location: 0.8),
                                                .init(color: Color(red: 27 / 255, green: 23 / 255, blue: 32 / 255), location: 1)], startPoint: .top, endPoint: .bottom)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(Rectangle())
             }.accessibilityLabel("Details for \(media.title)")
             VStack(alignment: .leading, spacing: 14) {
                 Text(media.title).font(.system(size: heroTitleSize, weight: .bold)).lineLimit(2).allowsHitTesting(false)
@@ -328,6 +371,7 @@ struct FeaturedCarousel: View {
                 .padding(6).allowsHitTesting(false).accessibilityHidden(true)
         }
         .clipShape(RoundedRectangle(cornerRadius: 16))
+        .contentShape(RoundedRectangle(cornerRadius: 16))
         .overlay { RoundedRectangle(cornerRadius: 16).strokeBorder(.white.opacity(0.16), lineWidth: 1) }
     }
 }
@@ -364,6 +408,7 @@ private struct ContinueWatchingRail: View {
                                         }
                                     }
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    .contentShape(RoundedRectangle(cornerRadius: 12))
                             }.buttonStyle(.plain).accessibilityLabel("Resume \(entry.media.title)")
                             Text(entry.media.title).font(.subheadline.weight(.medium)).lineLimit(1)
                             Text(watchSubtitle(entry)).font(.caption2).foregroundStyle(AppTheme.muted).lineLimit(1)

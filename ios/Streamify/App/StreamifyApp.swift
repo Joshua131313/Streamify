@@ -42,7 +42,7 @@ enum AppTab: String, CaseIterable {
         switch self { case .home: "Home"; case .sports: "Sports"; case .search: "Search"; case .library: "My list" }
     }
     var symbol: String {
-        switch self { case .home: "house"; case .sports: "basketball"; case .search: "magnifyingglass"; case .library: "person.crop.square" }
+        switch self { case .home: "house"; case .sports: "globe"; case .search: "magnifyingglass"; case .library: "person.crop.square" }
     }
 }
 
@@ -52,11 +52,12 @@ struct RootView: View {
     @State private var settingsOpen = false
     @State private var accountOpen = false
     @State private var downloadsOpen = false
+    @State private var sportsSearchRequest = 0
 
     var body: some View {
         TabView(selection: $tab) {
             NavigationStack { rootPage(.home) { HomeView(openSettings: { settingsOpen = true }, openSports: { tab = .sports }) } }.tag(AppTab.home)
-            NavigationStack { rootPage(.sports) { SportsView() } }.tag(AppTab.sports)
+            NavigationStack { rootPage(.sports) { SportsView(searchRequest: sportsSearchRequest) } }.tag(AppTab.sports)
             NavigationStack { rootPage(.search) { BrowseView() } }.tag(AppTab.search)
             NavigationStack { rootPage(.library) { LibraryView() } }.tag(AppTab.library)
         }
@@ -68,13 +69,13 @@ struct RootView: View {
 
     private func rootPage<Content: View>(_ page: AppTab, @ViewBuilder content: () -> Content) -> some View {
         content()
-            .background(AppTheme.canvas)
             .navigationTitle(page.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .tabBar)
             .toolbar(.hidden, for: .navigationBar)
             .safeAreaInset(edge: .top, spacing: 0) { header(page) }
             .safeAreaInset(edge: .bottom, spacing: 0) { FloatingNavigation(selection: $tab) }
+            .background { StreamifyRootBackdrop() }
     }
 
     private func header(_ page: AppTab) -> some View {
@@ -82,10 +83,14 @@ struct RootView: View {
             Image("streamify-logo").resizable().scaledToFit().frame(width: 30, height: 30).accessibilityHidden(true)
             Text(page.title).font(.system(size: 24, weight: .bold)).lineLimit(1)
                 .padding(.leading, 10).frame(maxWidth: .infinity, alignment: .leading).accessibilityAddTraits(.isHeader)
-            Button { tab = .search } label: { Image(systemName: "magnifyingglass").frame(width: 44, height: 44) }
+            Button {
+                if page == .sports { sportsSearchRequest += 1 }
+                else { tab = .search }
+            } label: { Image(systemName: "magnifyingglass").frame(width: 44, height: 44) }
                 .accessibilityLabel("Search")
+                .accessibilityIdentifier(page == .sports ? "focus-sports-search" : "open-catalog-search")
             Button { downloadsOpen = true } label: {
-                Image(systemName: "arrow.down.circle").frame(width: 44, height: 44)
+                Image(systemName: "arrow.down.to.line").frame(width: 44, height: 44)
                     .overlay(alignment: .topTrailing) {
                         if downloads.items.contains(where: { $0.status == .downloading }) {
                             Circle().fill(AppTheme.accent).frame(width: 7, height: 7).padding(8)
@@ -100,7 +105,6 @@ struct RootView: View {
         }
         .font(.system(size: 23)).buttonStyle(.plain).foregroundStyle(AppTheme.foreground)
         .padding(.leading, 16).padding(.trailing, 8).frame(minHeight: 60)
-        .background(AppTheme.canvas)
     }
 }
 

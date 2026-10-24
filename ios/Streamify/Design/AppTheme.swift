@@ -19,6 +19,29 @@ enum AppTheme {
     static let border = Color.primary.opacity(0.10)
 }
 
+/// The Android root backdrop fades from its plum tint to canvas over 420 dp.
+/// A single stationary surface spans the root header, scrolling content and insets.
+struct StreamifyRootBackdrop: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var topTint: Color {
+        colorScheme == .dark
+            ? Color(red: 48.0 / 255, green: 39.0 / 255, blue: 53.0 / 255)
+            : Color(red: 231.0 / 255, green: 223.0 / 255, blue: 236.0 / 255)
+    }
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            AppTheme.canvas
+            LinearGradient(colors: [topTint, AppTheme.canvas], startPoint: .top, endPoint: .bottom)
+                .frame(height: 420)
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
 extension View {
     func streamifyControlSurface(cornerRadius: CGFloat = 12) -> some View {
         background(AppTheme.controlFill, in: RoundedRectangle(cornerRadius: cornerRadius))
@@ -48,17 +71,30 @@ struct RemoteArtwork: View {
 
     var body: some View {
         GeometryReader { geometry in
-            AsyncImage(url: url) { phase in
-                if let image = phase.image {
-                    image.resizable().aspectRatio(contentMode: contentMode)
-                } else {
-                    Rectangle().fill(AppTheme.panel)
-                        .overlay { Image(systemName: "play.rectangle").font(.title).foregroundStyle(.tertiary) }
+            // The transparent surface owns layout and hit bounds. A fill image
+            // can draw wider than this surface before clipping; it must never
+            // contribute that larger frame to a parent button or accessibility.
+            Color.clear
+                .overlay {
+                    AsyncImage(url: url) { phase in
+                        if let image = phase.image {
+                            image.resizable().aspectRatio(contentMode: contentMode)
+                        } else {
+                            Rectangle().fill(AppTheme.panel)
+                                .overlay { Image(systemName: "play.rectangle").font(.title).foregroundStyle(.tertiary) }
+                        }
+                    }
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .clipped()
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
                 }
-            }
-            .frame(width: geometry.size.width, height: geometry.size.height)
-            .clipped()
+                .frame(width: geometry.size.width, height: geometry.size.height)
+                .contentShape(Rectangle())
         }
+        .clipped()
+        .contentShape(Rectangle())
+        .accessibilityHidden(true)
     }
 }
 
@@ -147,6 +183,7 @@ struct PosterCard: View {
     var body: some View {
         MediaDetailLink(media: media) {
             PosterContent(media: media, rank: rank, roomy: roomy)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .contextMenu {
@@ -165,8 +202,9 @@ struct PosterArtwork: View {
     var cornerRadius: CGFloat = 8
     var body: some View {
         Rectangle().fill(AppTheme.panel).aspectRatio(2.0 / 3.0, contentMode: .fit)
-            .overlay { RemoteArtwork(url: url) }
+            .overlay { RemoteArtwork(url: url).allowsHitTesting(false) }
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+            .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
     }
 }
 
@@ -178,31 +216,35 @@ struct PosterContent: View {
     var body: some View {
             VStack(alignment: .leading, spacing: roomy ? 8 : 6) {
                 PosterArtwork(url: media.posterURL, cornerRadius: roomy ? 12 : 8)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("\(media.title) poster")
-                    .accessibilityAddTraits(.isImage)
-                    .accessibilityIdentifier("poster-artwork-\(media.key)")
                     .overlay(alignment: .topTrailing) {
                         if media.rating > 0 {
                             Label(String(format: "%.1f", media.rating), systemImage: "star.fill")
                                 .font(.caption2.bold()).padding(6)
                                 .foregroundStyle(.white).background(.black.opacity(0.75), in: RoundedRectangle(cornerRadius: 6))
                                 .padding(6)
+                                .accessibilityHidden(true)
                         }
                     }
                     .overlay(alignment: .bottomLeading) {
                         if let rank {
                             Text(String(rank)).font(.system(size: 46, weight: .black, design: .rounded))
                                 .foregroundStyle(.white).shadow(color: .black, radius: 4).padding(.leading, 8)
-                                .accessibilityLabel("Number \(rank)")
+                                .accessibilityHidden(true)
                         }
                     }
                     .clipShape(RoundedRectangle(cornerRadius: roomy ? 12 : 8))
+                    .contentShape(Rectangle())
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(media.title) poster\(rank.map { ", number \($0)" } ?? "")")
+                    .accessibilityAddTraits(.isImage)
+                    .accessibilityIdentifier("poster-artwork-\(media.key)")
                 Text(media.title).font(roomy ? .system(size: roomyTitleSize, weight: .medium) : .caption.weight(.medium))
                     .lineLimit(roomy ? 2 : 1, reservesSpace: true).multilineTextAlignment(.leading)
                 Text([media.year, media.kind.singular].filter { !$0.isEmpty }.joined(separator: " · "))
                     .font(.caption2).foregroundStyle(AppTheme.muted).lineLimit(1)
             }.frame(maxWidth: .infinity, alignment: .leading)
+                .clipped()
+                .contentShape(Rectangle())
     }
 }
 

@@ -4,26 +4,58 @@ Native SwiftUI interface based on the Android app in this repository. Requires i
 
 The Android red accent, brand artwork, portrait hero, poster shelves, compact discovery menus, floating Home / Sports / Search / My list navigation, collections, and sports league cards are carried across to native iOS views. Native navigation, sheets, context menus, VoiceOver labels, Dynamic Type, safe areas, reduced motion, light/dark/system appearance, AirPlay, and Files import adapt the interface to iPhone.
 
-## Current validation
+## Version 1.1.0
+
+The current source adds movie/episode Download actions, autoplay detail trailers, cast sheets, card-to-detail zoom on iOS 18+, animated hero progress indicators, consistent poster sizing, sports scoring tables, multi-watch audio selection, and a manual iOS update check. Home selectors and shared controls now use the Android-style filled surfaces. These changes require a newly built IPA; the already installed 1.0.0 app does not update itself.
+
+## Previous 1.0.0 validation
 
 On October 23, 2026, the [macOS CI build](https://github.com/Joshua131313/Streamify/actions/runs/40000855365) passed **12 unit tests and one navigation UI test**, with zero failures, on an iPhone 17 Pro simulator. This includes real Keychain read/write/update/delete, saved/history persistence, catalog and sports fixtures, stream matching, download attempt identity, root titles, a single floating navigation bar, and saving settings. The five exported screenshots were visually reviewed; the duplicate system tab bar and unsigned-simulator Keychain error found in the first pass are fixed.
 
-The ARM64 iPhone Release build also passed. The downloaded package is `build/Streamify-unsigned.ipa`: **version 1.0.0, build 3, iOS 17+**, bundle ID `com.streamify.app`. Its SHA-256 is in `build/Streamify-unsigned.ipa.sha256`. [Download the CI device package](https://github.com/Joshua131313/Streamify/actions/runs/40000855365/artifacts/12522751198) or [the simulator screenshots](https://github.com/Joshua131313/Streamify/actions/runs/40000855365/artifacts/12522142051).
+The ARM64 iPhone Release build also passed. That run's IPA was **version 1.0.0, build 3, iOS 17+**, bundle ID `com.streamify.app`. [Download the previous CI device package](https://github.com/Joshua131313/Streamify/actions/runs/40000855365/artifacts/12522751198) or [its simulator screenshots](https://github.com/Joshua131313/Streamify/actions/runs/40000855365/artifacts/12522142051). The local `build/Streamify-unsigned.ipa` and its `.sha256` sidecar are replaced when a newer build is downloaded.
 
-The package is unsigned and still needs personal signing before installation. Physical iPhone playback has not been tested, and no TestFlight upload has been performed. Portable Swift grammar, resource JSON, property lists, 17 collection images, 15 provider templates, and the opaque 1024px app icon also pass validation.
+These results describe **1.0.0**, not the current 1.1.0 changes. The user subsequently installed 1.0.0 on an iPhone through iLoader. End-to-end physical-device playback has not been verified, and no TestFlight upload has been performed. Portable Swift grammar, resource JSON, property lists, 17 collection images, 15 provider templates, and the opaque 1024px app icon also passed the previous validation.
 
 ## Test on your iPhone from Windows
 
-You do not currently have an Apple Developer Program membership, so TestFlight is not available yet. A free personal-signing route is available for your own test device:
+The current free-account setup uses [iLoader](https://iloader.app/), which successfully installed the first build. Sideloadly failed at Apple sign-in before installation. To install a newly built update:
 
-1. Use the local `build/Streamify-unsigned.ipa`, or download the **Streamify-iOS-unsigned-for-local-signing** artifact from the successful build linked above and extract it. The source and workflows are already pushed on branch `codex/native-ios`.
-2. For future changes, run **iOS build and tests** on that branch in GitHub Actions. It uses a macOS runner and generates the Xcode project from `project.yml`; only a passing run produces a device package.
-3. Use [Sideloadly for Windows](https://sideloadly.io/) or another signing tool you already trust to sign this IPA with your own Apple Account and install it on your connected iPhone. Follow the tool's current setup instructions. Enter Apple credentials directly in that tool, never in chat or this repository.
-4. Free personal signing expires after seven days and must be refreshed. [Sideloadly FAQ](https://sideloadly.io/faq).
+1. Run **iOS build and tests** on `codex/native-ios` in GitHub Actions. Use the **Streamify-iOS-unsigned-for-local-signing** artifact from the successful run for the desired version, and extract it. Earlier runs contain earlier app versions.
+2. Keep Streamify installed. Connect and unlock the iPhone, open iLoader on Windows, and select the phone. Use the same Apple Account as the existing installation; enter credentials and verification codes directly in iLoader.
+3. Choose **Import IPA**, then select `C:\Users\josht\Documents\streamify-main\ios\build\Streamify-unsigned.ipa` after replacing that local file with the new build. Keep the phone connected while iLoader signs and installs it.
+4. Open Streamify. If iOS requests it, enable **Settings → Privacy & Security → Developer Mode**, restart, unlock, and confirm. [Apple's Developer Mode instructions](https://developer.apple.com/documentation/xcode/enabling-developer-mode-on-a-device).
+
+Free-account provisioning expires after seven days and needs refreshing. [Apple's account limits](https://developer.apple.com/help/account/basics/about-your-developer-account). iLoader supports wireless connections after device setup, but it still runs on a computer; Wi-Fi removes the cable requirement, not the computer requirement. [iLoader features](https://iloader.app/).
 
 The unsigned IPA cannot be installed merely by tapping it in Files. The simulator test-results artifact is also not an iPhone app. A failed CI run produces no usable device package.
 
-After installation, open **More → Settings** and add a TMDB API key or read access token for movie and TV catalog data. The key stays in your iPhone Keychain. Anime and sports work without that key. No local `.env` credentials are bundled into this app.
+After installation, open **More options → Settings** from the top-right menu and add a TMDB API key or read access token for movie and TV catalog data. The key stays in your iPhone Keychain. Anime and sports work without that key. No local `.env` credentials are bundled into this app.
+
+## Checking updates on the iPhone
+
+**Settings → App updates → Check for updates** reads public GitHub releases and only offers a newer stable `ios-v<version>` release with a valid IPA asset. Android releases, drafts and prereleases are ignored. It shows release notes plus Download IPA and Share IPA link actions; checks are manual and require no GitHub token. No public iOS release has been published yet, so the current check correctly reports that none is available. CI artifacts remain the source of test builds.
+
+The IPA still needs signing and installation. Streamify cannot replace its own executable simply by downloading it. When SideStore is installed, the update page also shows **Install with SideStore** for a newer release and **Add Streamify to SideStore** for its update source, using the [official SideStore URL schemes](https://docs.sidestore.io/docs/advanced/url-schema). To update using only the iPhone after one initial computer setup, use [SideStore's official setup guide](https://docs.sidestore.io/docs/installation/prerequisites). SideStore needs Wi-Fi and LocalDevVPN enabled when installing, updating or refreshing apps. It retains the free-account seven-day refresh requirement. Keep the original Streamify installation and import the newer IPA through SideStore; its [FAQ](https://docs.sidestore.io/docs/faq) describes transferring existing apps without deleting their data. Signing-service availability can still affect installation.
+
+TestFlight offers iPhone update buttons and automatic updates once the app is distributed through it, but publishing requires Apple Developer Program membership. [Apple's TestFlight instructions](https://testflight.apple.com/), [developer account requirements](https://developer.apple.com/help/account/basics/about-your-developer-account).
+
+### SideStore source setup
+
+After initial [SideStore setup](https://docs.sidestore.io/docs/installation/prerequisites), keep Streamify installed, enable Wi-Fi and LocalDevVPN, and sign in to SideStore with the same Apple Account. Refresh SideStore first. Once the new IPA and source are published, add this URL in **SideStore → Sources → +**:
+
+```text
+https://raw.githubusercontent.com/Joshua131313/Streamify/refs/heads/codex/native-ios/ios/sideload-source.json
+```
+
+This is the planned stable source address; it is usable only after `ios/sideload-source.json` has been published on `codex/native-ios`. Install/update Streamify from that source without deleting the existing app. Later releases can be installed from SideStore on the phone, and SideStore still needs regular refreshes before the seven-day expiry.
+
+For maintainers: after verifying the **new** device IPA, prepare its source locally from the repository root (replace `VERSION` and `YYYY-MM-DD` with the verified version and release date):
+
+```sh
+python ios/scripts/make-sideload-source.py --ipa ios/build/Streamify-unsigned.ipa --expected-version VERSION --date YYYY-MM-DD
+```
+
+The script reads the IPA's exact bundle/version/build/minimum iOS and archive size; it rejects a version mismatch, simulator package, signed/provisioned package markers or app extensions. It writes `ios/sideload-source.json` for [AltStore Classic's source format](https://faq.altstore.io/developers/make-a-source), also used by [SideStore sources](https://docs.sidestore.io/docs/faq). It performs no network requests or publication. Publish the verified IPA as `Streamify-VERSION-unsigned.ipa` in release `ios-vVERSION`, verify the public asset/icon URLs, then publish the generated source. An unsigned, extension-free build lists no signing entitlements; any future entitlement change requires review before publishing the feed.
 
 ## Build on a Mac
 
@@ -37,7 +69,7 @@ open Streamify.xcodeproj
 
 Choose the Streamify target, set your unique bundle identifier and signing team, select your iPhone, and run. A personal Apple Account can sign a local development build through Xcode; an Apple Developer Program membership is required for TestFlight distribution. See [Apple's device-running guide](https://developer.apple.com/documentation/Xcode/running-your-app-on-simulated-or-physical-devices).
 
-The generated project is ignored. Re-run `xcodegen generate` after adding source files; the specification includes the entire source tree. There is no React runtime or bundled website. Only external player pages use WKWebView.
+The generated project is ignored. Re-run `xcodegen generate` after adding source files; the specification includes the entire source tree. There is no React runtime or bundled website. External players and trailer previews use WKWebView.
 
 ## TestFlight later
 
@@ -56,21 +88,22 @@ The distribution IPA is intended for App Store Connect, not direct installation 
 
 | Android surface | iOS implementation |
 | --- | --- |
-| Home | Swipe/automatic poster hero, play/save/info, carousel pause, Top 10, continue watching, recommendations, provider/genre shelves, collections |
+| Home | Swipe/automatic poster hero with timed animated indicators, tap-to-select slides, pause, play/save/info, filled selectors, Top 10, continue watching, recommendations, provider/genre shelves, collections; automatic cycling pauses while inactive, covered, dragging, or using reduced motion/VoiceOver |
 | Movies / Shows / Anime | Independent category discovery with genres, sort, real paginated data |
 | Search | Debounced mixed movie/show search, anime search, recent searches, native filters and load more |
-| Details | Synopsis, genres, rating, trailer, save, cast biographies, credits, recommendations, season/episode picker |
+| Details | Muted autoplay trailer with mute/replay controls and poster fallback; preview pauses when covered, scrolled away or inactive. Synopsis, genres, rating, save, cast biographies in a medium/large sliding sheet, credits, recommendations, season/episode picker. On iOS 18+, native interactive zoom returns to the tapped card; iOS 17 uses a dismissible sheet. Reduced motion skips the zoom. |
+| Poster cards | Shared 2:3 clipped artwork surface for loaded, loading and missing images; consistent card widths within each rail/grid, with fixed title space |
 | Collections | All 17 original franchises and artwork, search/genre filter, release-order collection movies |
 | My list / History | Local persistence, movie/show/anime identity separation, search/type filters, remove and resume last episode |
 | Sports | NFL/NBA/WNBA/NHL/MLB logos, ESPN schedules, local date handling, two-week strip/calendar, live/upcoming/final/following filters, list/carousel, search/follow teams, roster/results |
-| Game center | Live score refresh, period scoring, team statistics, latest play, stream discovery with errors/empty states |
-| Sports channels / Multi-watch | Four providers, seven broadcaster links, up to four selected stream tiles with reload/expand/remove; audio controls remain with each source |
+| Game center | Live score refresh; aligned team-by-quarter/period/inning scoring table with totals and horizontal overflow for long games; team statistics, latest play, stream discovery with errors/empty states |
+| Sports channels / Multi-watch | Four providers, seven broadcaster links, in-view live-game picker, up to four stable stream tiles with reload/expand/remove and one selected audible stream; other HTML media tiles are muted |
 | Player | All 15 movie/TV provider templates, verified AniList-to-MAL anime matching and SUB/DUB options, native persistent exit/reload/provider/Safari/AirPlay controls, embed/direct modes, episode picker/next episode |
-| Downloads | Direct HTTPS MP4/M4V/MOV transfers with background URLSession and actual byte progress, cancel/retry/delete, Files import, native offline playback |
-| Appearance / Settings / Preferences | Dark/light/system, Keychain catalog token, optional sports backend, default source, favorite genres |
-| Account / cloud library / shared chat | Account and preference interface with honest device-only status. Google sign-in, cloud sync, and chat sending are not configured or implemented in this dependency-free first iOS version. Existing production Firebase settings are untouched. |
+| Downloads | Download actions on movie details, selected TV episodes and the player; quality selection resolves an available direct video file using the Android source flow. Background transfers, actual byte progress, duplicate prevention, fresh-source retry, cancel/delete, direct HTTPS MP4/M4V/MOV links, Files import and native offline playback. Streaming-only/DRM sources produce an explanation; anime and live sports downloads are unavailable. |
+| Appearance / Settings / Preferences | Dark/light/system, Keychain catalog token, optional sports backend, default source, favorite genres and manual iOS release checks |
+| Account / cloud library / shared chat | Account and preference interface with honest device-only status. Google sign-in, cloud sync, and chat sending are not configured or implemented. Existing production Firebase settings are untouched. |
 
-Other differences: category discovery uses an adaptive grid; Android download extraction, subtitle selection, exact seek/progress integration, player lock/hold-unlock, skip-intro, automatic ending overlays and app self-updates are not ported. AVKit supplies native controls for local/direct video; WKWebView providers supply their own video controls. An external provider opening is recorded in history but does not prove successful playback or provide a reliable timestamp. Team following and library state are local and do not sync with Android or the web yet. Provider availability and physical iPhone playback still need device validation.
+Other differences: category discovery uses an adaptive grid. Subtitle selection, exact seek/progress integration, player lock/hold-unlock, skip-intro and automatic ending overlays are not ported. AVKit supplies native controls for local/direct video; WKWebView providers supply their own video controls and may restrict autoplay/audio. A provider opening is recorded in history but does not prove successful playback or provide a reliable timestamp. Team following and library state are local and do not sync with Android or the web. Native iOS transitions and sheets adapt to OS/accessibility settings rather than reproducing Android animation frames exactly. The update check does not sign or install IPAs. Provider availability and the new 1.1.0 interactions still need physical-iPhone validation.
 
 ## Source layout
 
@@ -82,11 +115,11 @@ Streamify/Browse       Search, categories, filters and pagination
 Streamify/Media        Details, cast, collections, provider player, anime resolution
 Streamify/Sports       Schedules, game center, teams, channels, multi-watch
 Streamify/Downloads    Background direct-file transfers, Files import and offline player
-Streamify/Library      Saved/history, settings, account status and preferences
+Streamify/Library      Saved/history, settings, account status, preferences, iOS update checks
 Streamify/Data         TMDB/AniList clients, models, Keychain and local persistence
 Streamify/Resources    Original Android artwork/config, icon, launch and privacy manifest
 StreamifyTests         Network fixture, persistence, identity and provider/parser tests
-StreamifyUITests       Navigation smoke test and attached screenshots
+StreamifyUITests       Screen/interaction checks and attached screenshots
 ```
 
 `python3 scripts/validate.py` validates prepared resources on any Python machine. Optional Swift grammar validation uses `python3 -m pip install --target .tools tree-sitter tree-sitter-swift` then `python3 scripts/validate.py --syntax`; it does not type-check SwiftUI. `prepare-assets.py` is only for recopying shared Android artwork and needs Pillow. All prepared assets are included with the source.

@@ -22,6 +22,7 @@ private enum SportsLayout: String, CaseIterable, Identifiable {
 }
 
 struct SportsView: View {
+    var searchRequest = 0
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var library: LibraryStore
     @Environment(\.scenePhase) private var scenePhase
@@ -33,6 +34,8 @@ struct SportsView: View {
     @State private var home = true
     @State private var channels = false
     @State private var query = ""
+    @FocusState private var searchFocused: Bool
+    @State private var handledSearchRequest = 0
     @State private var games: [SportsGame] = []
     @State private var teams: [SportsTeamResult] = []
     @State private var loading = true
@@ -69,6 +72,7 @@ struct SportsView: View {
     }
 
     var body: some View {
+        ScrollViewReader { scroll in
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 24) {
                 if !home || !query.isEmpty {
@@ -109,10 +113,20 @@ struct SportsView: View {
                 }
             }.padding(.top, 12).padding(.bottom, 110)
         }
-        .background(AppTheme.canvas).foregroundStyle(AppTheme.foreground)
+        .foregroundStyle(AppTheme.foreground)
         .accessibilityIdentifier("sports-screen")
         .onChange(of: today) { _, value in day = min(lastDay, max(value, day)) }
         .scrollDismissesKeyboard(.interactively)
+        .task(id: searchRequest) {
+            guard searchRequest > 0, searchRequest != handledSearchRequest else { return }
+            handledSearchRequest = searchRequest
+            withAnimation(.easeInOut(duration: 0.2)) { scroll.scrollTo("sports-search-field", anchor: .top) }
+            do {
+                try await Task.sleep(for: .milliseconds(250))
+                try Task.checkCancellation()
+                searchFocused = true
+            } catch { }
+        }
         .refreshable { await loadSchedule() }
         .task(id: requestKey) {
             guard scenePhase == .active, !channels else { return }
@@ -162,6 +176,7 @@ struct SportsView: View {
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { day = Calendar.current.startOfDay(for: day); showCalendar = false } } }
             }.presentationDetents([.medium, .large])
         }
+        }
     }
 
     private var intro: some View {
@@ -185,8 +200,11 @@ struct SportsView: View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass").foregroundStyle(AppTheme.muted)
             TextField("Search teams & games", text: $query).autocorrectionDisabled().textInputAutocapitalization(.never)
+                .focused($searchFocused).submitLabel(.search).onSubmit { searchFocused = false }
+                .accessibilityIdentifier("sports-search-field")
             if !query.isEmpty { Button { query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(AppTheme.muted) }.accessibilityLabel("Clear sports search") }
         }.padding(14).streamifyControlSurface(cornerRadius: 14).padding(.horizontal, 20)
+            .id("sports-search-field")
     }
 
     private var leagueDirectory: some View {

@@ -10,6 +10,7 @@
     <key>CFBundleShortVersionString</key><string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
     <key>LSRequiresIPhoneOS</key><true/>
+    <key>LSApplicationQueriesSchemes</key><array><string>sidestore</string></array>
     <key>UIApplicationSceneManifest</key><dict><key>UIApplicationSupportsMultipleScenes</key><false/></dict>
     <key>ITSAppUsesNonExemptEncryption</key><false/>
     <key>UILaunchScreen</key>

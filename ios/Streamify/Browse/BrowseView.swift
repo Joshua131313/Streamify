@@ -168,7 +168,7 @@ struct BrowseView: View {
             if category {
                 LinearGradient(colors: [categoryTint.opacity(colorScheme == .dark ? 1 : 0.16), AppTheme.canvas], startPoint: .top, endPoint: .center)
                     .background(AppTheme.canvas).ignoresSafeArea()
-            } else { AppTheme.canvas.ignoresSafeArea() }
+            }
         }
         .task(id: requestKey) {
             model.reset()

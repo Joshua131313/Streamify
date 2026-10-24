@@ -91,7 +91,6 @@ struct LibraryView: View {
             }.padding(20)
         }
         .scrollDismissesKeyboard(.interactively)
-        .background(AppTheme.canvas)
         .foregroundStyle(AppTheme.foreground)
         .sheet(isPresented: $showDownloads) { NavigationStack { DownloadsView() } }
         .fullScreenCover(item: $player) { MediaPlayerView(media: $0.media, season: $0.season, episode: $0.episode) }

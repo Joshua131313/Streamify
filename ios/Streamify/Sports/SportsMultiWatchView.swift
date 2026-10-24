@@ -46,6 +46,7 @@ struct SportsMultiWatchView: View {
                 }
             }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("sports-multiwatch-screen")
         .onAppear { if audibleID == nil { audibleID = queue.streams.first?.id } }
         .onChange(of: queue.streams.map(\.id)) { _, ids in

@@ -13,7 +13,7 @@ struct MediaDetailLink<Label: View>: View {
     var body: some View {
         if #available(iOS 18, *) {
             Button { presented = true } label: {
-                label().matchedTransitionSource(id: media.key, in: transition)
+                label().contentShape(Rectangle()).matchedTransitionSource(id: media.key, in: transition)
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("media-link-\(media.key)")
@@ -26,7 +26,7 @@ struct MediaDetailLink<Label: View>: View {
             }
             .onChange(of: presented) { _, visible in onPresentationChanged?(visible) }
         } else {
-            Button { presented = true } label: { label() }
+            Button { presented = true } label: { label().contentShape(Rectangle()) }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("media-link-\(media.key)")
                 .sheet(isPresented: $presented) {
