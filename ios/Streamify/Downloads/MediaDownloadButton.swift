@@ -136,7 +136,7 @@ struct MediaDownloadSheet: View {
                                 .accessibilityLabel("\(value)p download quality")
                                 .accessibilityAddTraits(quality == value ? .isSelected : [])
                         }
-                        Text("Uses the best available resolution at or below your choice. Some titles are available for streaming only.")
+                        Text("Downloads the resolution you choose. If that quality is unavailable or incompatible, choose another resolution. Some titles are available for streaming only.")
                             .font(.footnote).foregroundStyle(AppTheme.muted)
                     }
                     if let error { Text(error).font(.subheadline).foregroundStyle(AppTheme.accent).accessibilityIdentifier("download-error") }

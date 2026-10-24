@@ -247,6 +247,7 @@ final class DownloadStore: ObservableObject {
             items[index].source = url.absoluteString
             items[index].title = String(title.prefix(240))
             items[index].quality = resolved.quality
+            items[index].automaticSourceRefreshes = 0
             items[index].catalog = descriptor
             if items[index].posterSource != posterSource { clearArtwork(id: id) }
             items[index].posterSource = posterSource
