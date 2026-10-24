@@ -42,20 +42,30 @@ final class OfflinePlayerFlowTests: XCTestCase {
         XCTAssertTrue(wait { play.label == "Play" })
         XCTAssertFalse(app.navigationBars["Downloads"].isHittable, "The offline player must cover the Downloads navigation header; covered controllers may remain in the accessibility tree.")
         let progress = app.sliders["offline-progress"]
-        let beforeSeek = progressTimestamp(progress)
-        app.buttons["offline-forward-10"].tap()
-        XCTAssertTrue(wait { self.progressTimestamp(progress) != beforeSeek }, "Skip must move the real local video's timestamp.")
-        capture("44 Full-canvas offline controls and real seek")
-        XCTAssertGreaterThanOrEqual(progress.frame.height, 44)
-        let beforeThumbSeek = seconds(progressTimestamp(progress))
-        dragProgressThumbForPreview(progress, to: 0.7)
         let duration = seconds(progressTimestamp(progress).components(separatedBy: " of ").last ?? "")
         XCTAssertEqual(duration, 600, "The seek must use the actual ten-minute local video.")
         let remaining = app.staticTexts["offline-remaining"]
         XCTAssertTrue(remaining.waitForExistence(timeout: 3))
-        XCTAssertTrue(wait {
+        let beforeSeek = progressTimestamp(progress)
+        let beforeSkipPosition = duration - remainingSeconds(remaining)
+        app.buttons["offline-forward-10"].tap()
+        XCTAssertTrue(wait(timeout: 30) {
+            let actualPosition = duration - self.remainingSeconds(remaining)
+            return !self.app.activityIndicators["Loading offline video"].exists
+                && self.progressTimestamp(progress) != beforeSeek
+                && (8...12).contains(actualPosition - beforeSkipPosition)
+                && abs(actualPosition - self.seconds(self.progressTimestamp(progress))) <= 2
+        }, "Skip must complete a real ten-second seek; slider=\(progressTimestamp(progress)); remaining=\(remaining.label); loading=\(app.activityIndicators["Loading offline video"].exists).")
+        XCTAssertEqual(play.label, "Play", "Forward10 while paused must preserve the paused playback state.")
+        XCTContext.runActivity(named: "Forward10 completed in actual player: before=\(beforeSkipPosition)s; after=\(duration - remainingSeconds(remaining))s; slider=\(progressTimestamp(progress)); remaining=\(remaining.label)") { _ in }
+        capture("44 Full-canvas offline controls and real seek")
+        XCTAssertGreaterThanOrEqual(progress.frame.height, 44)
+        let beforeThumbSeek = seconds(progressTimestamp(progress))
+        dragProgressThumbForPreview(progress, to: 0.7)
+        XCTAssertTrue(wait(timeout: 30) {
             let committed = duration - self.remainingSeconds(remaining)
-            return committed > beforeThumbSeek + 30
+            return !self.app.activityIndicators["Loading offline video"].exists
+                && committed > beforeThumbSeek + 30
                 && abs(committed - self.seconds(self.progressTimestamp(progress))) <= 2
         }, "Releasing the native thumb must commit a substantial real forward seek, confirmed by the player's remaining time and slider timestamp.")
         let committedPosition = duration - remainingSeconds(remaining)
@@ -91,7 +101,10 @@ final class OfflinePlayerFlowTests: XCTestCase {
         revealControls(for: play)
         play.tap()
         XCTAssertTrue(wait { play.label == "Play" })
-        XCTAssertTrue(wait { abs(duration - self.remainingSeconds(remaining) - committedPosition) <= 5 },
+        XCTAssertTrue(wait(timeout: 30) {
+            !self.app.activityIndicators["Loading offline video"].exists
+                && abs(duration - self.remainingSeconds(remaining) - committedPosition) <= 5
+        },
             "Reopening the same downloaded file must resume within five seconds of its observed committed seek, confirmed by the actual player time.")
         XCTContext.runActivity(named: "Reopened player position: \(duration - remainingSeconds(remaining))s; saved seek=\(committedPosition)s; remaining=\(remaining.label)") { _ in }
         capture("46 Reopened offline video resumes its saved progress")
@@ -208,7 +221,7 @@ final class OfflinePlayerFlowTests: XCTestCase {
         XCTContext.runActivity(named: "Physical native thumb drag for decoded preview; value=\(initialValue); frame=\(progress.frame); \(label)") { _ in
             start.press(forDuration: 0.15, thenDragTo: end)
         }
-        XCTAssertTrue(wait { self.progressTimestamp(progress) != initialValue }, "The physical drag must commit a real timestamp change.")
+        XCTAssertTrue(wait(timeout: 30) { self.progressTimestamp(progress) != initialValue }, "The physical drag must commit a real timestamp change.")
         XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "offline-seek-preview").firstMatch.exists,
             "Releasing the real thumb must dismiss its decoded preview.")
         XCTContext.runActivity(named: "Physical native thumb result: \(progressTimestamp(progress)); \(progress.label)") { _ in }
@@ -244,9 +257,9 @@ final class OfflinePlayerFlowTests: XCTestCase {
         XCTAssertTrue(target.isHittable)
     }
 
-    private func wait(_ condition: @escaping () -> Bool) -> Bool {
+    private func wait(timeout: TimeInterval = 10, _ condition: @escaping () -> Bool) -> Bool {
         let expectation = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in condition() }, object: nil)
-        return XCTWaiter.wait(for: [expectation], timeout: 10) == .completed
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
     private func seconds(_ value: String) -> Int {
         let first = value.components(separatedBy: " of ").first ?? ""

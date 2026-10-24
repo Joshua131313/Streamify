@@ -25,7 +25,10 @@ final class SportsSystemPiP: ObservableObject {
         requestAction = request; stopAction = stop
     }
     func reportCapability(_ value: SportsPiPCapability, owner: UUID) {
-        guard self.owner == owner else { return }; capability = value
+        // WebKit reports a heartbeat every second. Publishing identical values
+        // rebuilds the observed player chrome, including an open source menu.
+        guard self.owner == owner, capability != value else { return }
+        capability = value
     }
     func request() {
         guard !isActive, !isRequesting else { return }

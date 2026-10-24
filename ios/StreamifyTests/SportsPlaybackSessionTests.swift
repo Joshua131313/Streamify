@@ -1,7 +1,31 @@
 import XCTest
+import Combine
 @testable import Streamify
 
 final class SportsPlaybackSessionTests: XCTestCase {
+    @MainActor func testUnchangedPiPCapabilityHeartbeatsDoNotInvalidatePlayerChrome() {
+        let pictureInPicture = SportsSystemPiP(), owner = UUID()
+        pictureInPicture.attach(owner: owner, capability: .unavailable, request: {}, stop: {})
+        var invalidations = 0
+        let observation = pictureInPicture.objectWillChange.sink { invalidations += 1 }
+        defer { observation.cancel() }
+
+        for _ in 0..<10 { pictureInPicture.reportCapability(.unavailable, owner: owner) }
+        XCTAssertEqual(invalidations, 0, "Unchanged WebKit heartbeats must not rebuild an open native source menu.")
+
+        pictureInPicture.reportCapability(.available, owner: owner)
+        XCTAssertEqual(invalidations, 1, "A real capability transition must still update the PiP control.")
+        XCTAssertEqual(pictureInPicture.capability, .available)
+        pictureInPicture.reportCapability(.available, owner: owner)
+        pictureInPicture.reportCapability(.unavailable, owner: UUID())
+        XCTAssertEqual(invalidations, 1, "Duplicate and stale-driver reports must not invalidate current player chrome.")
+        XCTAssertEqual(pictureInPicture.capability, .available)
+
+        pictureInPicture.reportCapability(.unavailable, owner: owner)
+        XCTAssertEqual(invalidations, 2)
+        XCTAssertEqual(pictureInPicture.capability, .unavailable)
+    }
+
     @MainActor func testPresentationKeepsTheSameStreamOriginAndNativePiPOwner() {
         let source = SportsStream(title: "Bravo", url: URL(string: "https://example.com/bravo.mp4")!)
         let session = SportsPlaybackSession()
