@@ -297,7 +297,11 @@ final class ControlInteractionFlowTests: XCTestCase {
         capture("Catalog header icon expands into full search")
         app.buttons["cancel-catalog-search"].tap()
         XCTAssertTrue(wait { catalogHeader.isHittable && fieldSource.isHittable })
+    }
 
+    func testSportsSearchReturnsToItsSelectedLeaguesAndFutureDate() {
+        // Keep this independent from the catalogue flow: each covers its own
+        // presentation context within XCTest's per-test execution allowance.
         app.buttons["tab-sports"].tap()
         let leagues = app.buttons["sports-league-picker"]
         XCTAssertTrue(leagues.waitForExistence(timeout: 8))

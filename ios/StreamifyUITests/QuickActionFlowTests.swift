@@ -16,6 +16,8 @@ final class QuickActionFlowTests: XCTestCase {
                 let hierarchy = XCTAttachment(string: app.debugDescription)
                 hierarchy.name = "FAILURE quick action hierarchy"; hierarchy.lifetime = .keepAlways; add(hierarchy)
             }
+            let home = XCTAttachment(string: XCUIApplication(bundleIdentifier: "com.apple.springboard").debugDescription)
+            home.name = "FAILURE quick action Home Screen hierarchy"; home.lifetime = .keepAlways; add(home)
         }
         app?.terminate()
     }
@@ -54,7 +56,7 @@ final class QuickActionFlowTests: XCTestCase {
         }
     }
 
-    func testActualWarmHomeScreenFavoritesActionLeavesHistoryAndPreservesSavedTitles() {
+    func testActualWarmHomeScreenFavoritesActionLeavesHistoryAndPreservesSavedTitles() throws {
         app = XCUIApplication()
         app.launchArguments = ["--ui-fixtures"]
         app.launch()
@@ -66,20 +68,25 @@ final class QuickActionFlowTests: XCTestCase {
         XCTAssertTrue(history.isSelected)
         XCUIDevice.shared.press(.home)
         let home = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        let icon = home.icons["Streamify"].firstMatch
-        for _ in 0..<4 {
-            if icon.exists && icon.isHittable { break }
+        XCTAssertTrue(home.wait(for: .runningForeground, timeout: 10))
+        var iconFrame = visibleIconFrame(in: home, timeout: 8)
+        for _ in 0..<4 where iconFrame == nil {
             home.swipeLeft()
+            iconFrame = visibleIconFrame(in: home, timeout: 2)
         }
-        if !icon.exists || !icon.isHittable {
-            for _ in 0..<4 {
-                if icon.exists && icon.isHittable { break }
+        if iconFrame == nil {
+            for _ in 0..<4 where iconFrame == nil {
                 home.swipeRight()
+                iconFrame = visibleIconFrame(in: home, timeout: 2)
             }
         }
-        XCTAssertTrue(icon.waitForExistence(timeout: 8))
-        XCTAssertTrue(icon.isHittable)
-        icon.press(forDuration: 1.1)
+        let frame = try XCTUnwrap(iconFrame, "The installed Streamify icon must be visible on the actual Home Screen.")
+        let homeFrame = home.frame
+        // SpringBoard may expose the icon before its AX activation point is
+        // available. Press the centre of its observed visible frame instead.
+        home.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: frame.midX - homeFrame.minX, dy: frame.midY - homeFrame.minY))
+            .press(forDuration: 1.1)
         let favoriteAction = home.buttons["My Favorites"].firstMatch
         XCTAssertTrue(favoriteAction.waitForExistence(timeout: 8), "The installed static action must appear in the actual Home Screen menu.")
         XCTAssertTrue(home.buttons["My Downloads"].exists)
@@ -93,6 +100,24 @@ final class QuickActionFlowTests: XCTestCase {
         XCTAssertFalse(app.buttons["History · 2"].isSelected)
         XCTAssertTrue(app.buttons["tab-library"].isSelected)
         capture("Actual warm My Favorites quick action returns to saved titles")
+    }
+
+    private func visibleIconFrame(in home: XCUIApplication, timeout: TimeInterval) -> CGRect? {
+        var result: CGRect?
+        let predicate = NSPredicate { _, _ in
+            let bounds = home.frame.insetBy(dx: 4, dy: 4)
+            for icon in home.icons.matching(NSPredicate(format: "label == %@", "Streamify")).allElementsBoundByIndex {
+                let frame = icon.frame
+                guard frame.minX.isFinite, frame.minY.isFinite,
+                      frame.width.isFinite, frame.height.isFinite,
+                      frame.width > 20, frame.height > 20, bounds.contains(frame) else { continue }
+                result = frame
+                return true
+            }
+            return false
+        }
+        _ = XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: nil)], timeout: timeout)
+        return result
     }
 
     func testWidgetSportsAndWatchURLsRouteWarmAndColdWithoutReplayingClosedPlayer() throws {
