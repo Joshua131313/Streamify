@@ -40,14 +40,16 @@ struct SportsChannelsView: View {
             Text("Sports channels").font(.title2.bold())
             Text("Stream providers").font(.headline)
             ForEach(providers) { provider in
-                SportsPanel {
-                    Text(provider.name).font(.headline)
-                    ViewThatFits(in: .horizontal) {
-                        HStack(alignment: .bottom, spacing: 12) {
-                            channelField(provider)
-                            watchButton(provider)
+                SportsPlaybackOriginCard { origin in
+                    SportsPanel {
+                        Text(provider.name).font(.headline)
+                        ViewThatFits(in: .horizontal) {
+                            HStack(alignment: .bottom, spacing: 12) {
+                                channelField(provider)
+                                watchButton(provider, origin: origin)
+                            }
+                            VStack(alignment: .leading, spacing: 12) { channelField(provider); watchButton(provider, origin: origin) }
                         }
-                        VStack(alignment: .leading, spacing: 12) { channelField(provider); watchButton(provider) }
                     }
                 }
             }
@@ -76,10 +78,10 @@ struct SportsChannelsView: View {
         }
     }
 
-    private func watchButton(_ provider: SportsChannelProvider) -> some View {
+    private func watchButton(_ provider: SportsChannelProvider, origin: SportsPlaybackOrigin) -> some View {
         Button {
             let channel = numbers[provider.id] ?? provider.initial
-            if let url = sportsHTTPSURL(provider.base + channel + provider.suffix) { playback.play(title: "\(provider.name) · Channel \(channel)", url: url) }
+            if let url = sportsHTTPSURL(provider.base + channel + provider.suffix) { playback.play(title: "\(provider.name) · Channel \(channel)", url: url, origin: origin) }
         } label: {
             Label("Watch", systemImage: "play.fill").font(.subheadline.weight(.semibold))
                 .padding(.horizontal, 18).frame(minHeight: 48).foregroundStyle(Color.black)

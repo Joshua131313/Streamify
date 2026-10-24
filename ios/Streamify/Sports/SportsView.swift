@@ -617,6 +617,7 @@ struct SportsGameCard: View {
     var action: () -> Void
     @EnvironmentObject private var playback: SportsPlaybackSession
     @Environment(\.scenePhase) private var scenePhase
+    @StateObject private var playbackOrigin = SportsPlaybackOrigin()
     @State private var watchRevision = 0
     @State private var handledWatchRevision = 0
     @State private var watchLoading = false
@@ -665,6 +666,7 @@ struct SportsGameCard: View {
         }.padding(16).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 20))
             .overlay { RoundedRectangle(cornerRadius: 20).strokeBorder(AppTheme.border, lineWidth: 0.7) }
             .streamifyCardDepth(cornerRadius: 20)
+            .sportsPlaybackOrigin(playbackOrigin)
             .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 20))
             .contextMenu {
                 Button("Game Center", systemImage: "sportscourt", action: action)
@@ -685,6 +687,7 @@ struct SportsGameCard: View {
                 // after returning to a tab or restoring a recycled lazy row.
                 handledWatchRevision = request
                 let scheduleGeneration = daySwipeScope?.generation
+                let requestOrigin = playbackOrigin
                 watchLoading = true
                 watchError = nil
                 defer { if watchRevision == request { watchLoading = false } }
@@ -693,7 +696,7 @@ struct SportsGameCard: View {
                     try Task.checkCancellation()
                     guard watchRevision == request, daySwipeScope?.generation == scheduleGeneration else { return }
                     if let first = streams.first {
-                        playback.play(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: first.url, sources: streams)
+                        playback.play(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: first.url, sources: streams, origin: requestOrigin)
                     }
                     else { watchError = "No source is available for this game yet. Try again closer to game time." }
                 } catch is CancellationError { }

@@ -21,6 +21,7 @@ final class SportsPlaybackSession: ObservableObject {
     @Published private(set) var direct = false
     @Published private(set) var isVideoFullscreen = false
     @Published private(set) var safeAreaInsets = UIEdgeInsets.zero
+    @Published private(set) var origin: SportsPlaybackOrigin?
     let pictureInPicture = SportsSystemPiP()
 
     var isExpanded: Bool { item != nil && presentation == .expanded }
@@ -38,13 +39,17 @@ final class SportsPlaybackSession: ObservableObject {
         }
     }
 
-    func play(title: String, url: URL, sources: [SportsStream] = []) {
+    func play(title: String, url: URL, sources: [SportsStream] = [], origin: SportsPlaybackOrigin? = nil) {
         guard sportsHTTPSURL(url.absoluteString) != nil else { return }
         var seen = Set<URL>()
         var choices = sources.flatMap(\.availableSources).filter { seen.insert($0.url).inserted }
         if !seen.contains(url) { choices.insert(SportsStream(title: "Current source", url: url), at: 0) }
-        if item?.url == url, item?.title == title { expand(); return }
+        if item?.url == url, item?.title == title {
+            if let origin { self.origin = origin }
+            expand(); return
+        }
         pictureInPicture.reset()
+        self.origin = origin
         item = SportsPlaybackItem(id: UUID(), title: title, url: url, sources: choices)
         reload = 0; direct = false; isVideoFullscreen = false; presentation = .expanded
     }
@@ -72,6 +77,7 @@ final class SportsPlaybackSession: ObservableObject {
     func close() {
         pictureInPicture.reset()
         item = nil
+        origin = nil
         reload = 0; direct = false; isVideoFullscreen = false; presentation = .expanded
     }
     func updateSafeArea(_ value: UIEdgeInsets) { if safeAreaInsets != value { safeAreaInsets = value } }

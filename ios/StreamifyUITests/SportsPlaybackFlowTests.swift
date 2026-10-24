@@ -11,7 +11,7 @@ final class SportsPlaybackFlowTests: XCTestCase {
         app = XCUIApplication()
         app.launchArguments = ["--ui-fixtures"]
         if name.contains("testNativeSystemPictureInPicture") { app.launchArguments.append("--ui-native-pip-fixture") }
-        if name.contains("testProviderElementFullscreen") { app.launchArguments.append("--ui-element-fullscreen-fixture") }
+        if name.contains("testProviderElementFullscreen") || name.contains("testSwipeDownSportsPlayer") { app.launchArguments.append("--ui-element-fullscreen-fixture") }
         if name.contains("testProviderNativeVideoFullscreen") { app.launchArguments.append("--ui-native-video-fullscreen-fixture") }
         app.launch()
         XCTAssertTrue(app.buttons["tab-home"].waitForExistence(timeout: 15))
@@ -133,6 +133,41 @@ final class SportsPlaybackFlowTests: XCTestCase {
         }
         capture("Native video fullscreen exits twice and retains the selected bravo source")
         closeAndVerifySportsDoesNotReopen(source)
+    }
+
+    func testSwipeDownSportsPlayerCancelsWithoutReloadingThenReturnsToItsGameCard() {
+        let source = openSportsPlayerOnBravo()
+        XCTAssertTrue(app.webViews.staticTexts["Bundled H264 video ready"].waitForExistence(timeout: 12))
+        let document = playbackDocument
+        let selectedDocument = document.label
+        let sourceValue = source.value as? String
+        let sourceFrame = source.frame
+        let partialStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.32))
+        let partialEnd = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.39))
+        partialStart.press(forDuration: 0.05, thenDragTo: partialEnd, withVelocity: .slow, thenHoldForDuration: 0.3)
+        XCTAssertTrue(wait { source.isHittable && abs(source.frame.minY - sourceFrame.minY) < 2 && abs(source.frame.minX - sourceFrame.minX) < 2 },
+            "A short pull must spring the existing player back to its full-size position")
+        XCTAssertEqual(source.value as? String, sourceValue)
+        XCTAssertEqual(document.label, selectedDocument, "Cancelling must keep the selected WebKit video document alive")
+        XCTAssertTrue(app.webViews.staticTexts["Bundled H264 video ready"].exists)
+        capture("Cancelled sports card pull restores the same bravo video document")
+
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.32))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.76))
+        start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.1)
+        XCTAssertTrue(wait { !source.exists }, "A committed downward pull must close the sports player")
+        let watch = app.buttons["Watch BOS vs TOR"].firstMatch
+        XCTAssertTrue(watch.waitForExistence(timeout: 8))
+        XCTAssertTrue(watch.isHittable, "Dismissing should return to the originating visible game card")
+        capture("Committed sports pull returns to the original game card")
+        app.buttons["tab-home"].tap()
+        XCTAssertTrue(app.buttons["tab-home"].isSelected)
+        app.buttons["tab-sports"].tap()
+        XCTAssertTrue(app.buttons["tab-sports"].isSelected)
+        let reopened = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in source.exists }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [reopened], timeout: 3), .timedOut,
+            "A drag-dismissed player must not reopen when returning to Sports")
+        XCTAssertEqual(app.buttons["Watch BOS vs TOR"].firstMatch.exists, true)
     }
 
     func testSelectedSportsSourceAndDocumentSurviveBackgroundRoundTrip() {

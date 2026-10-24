@@ -5,13 +5,15 @@ final class SportsPlaybackSessionTests: XCTestCase {
     @MainActor func testFullscreenKeepsTheSameStreamAndNativePiPOwner() {
         let source = SportsStream(title: "Bravo", url: URL(string: "https://example.com/bravo.mp4")!)
         let session = SportsPlaybackSession()
-        session.play(title: "Game", url: source.url, sources: [source])
+        let origin = SportsPlaybackOrigin()
+        session.play(title: "Game", url: source.url, sources: [source], origin: origin)
         let identity = session.item?.id, owner = UUID()
         session.pictureInPicture.attach(owner: owner, capability: .available, request: {}, stop: {})
         session.toggleVideoFullscreen()
         XCTAssertTrue(session.isVideoFullscreen)
         XCTAssertEqual(session.item?.id, identity)
         XCTAssertEqual(session.item?.url, source.url)
+        XCTAssertTrue(session.origin === origin)
         XCTAssertTrue(session.pictureInPicture.owns(owner: owner), "Fullscreen must not replace the actual PiP/player driver")
         XCTAssertEqual(session.reload, 0)
         session.pictureInPicture.didStart(owner: owner)
@@ -26,6 +28,7 @@ final class SportsPlaybackSessionTests: XCTestCase {
         XCTAssertEqual(session.item?.id, identity)
         session.close()
         XCTAssertFalse(session.isVideoFullscreen)
+        XCTAssertNil(session.origin, "Closing must release the old return card before another game opens")
     }
 
     @MainActor func testOnlyConfirmedSystemPiPHidesPlayerAndRestoreKeepsSource() {

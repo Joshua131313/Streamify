@@ -88,19 +88,21 @@ struct SportsGameView: View {
 
     private var overview: some View {
         VStack(alignment: .leading, spacing: 20) {
-            SportsPanel {
-                Text("Game information").font(.headline)
-                Text("\(current.away.name) at \(current.home.name). \(current.status).").foregroundStyle(AppTheme.muted)
-                Label(current.broadcasts.isEmpty ? "Broadcast not announced" : current.broadcasts, systemImage: "tv").font(.subheadline).foregroundStyle(AppTheme.muted)
-                if current.canWatch, let first = streams.first {
-                    Button { play(first) } label: { Label("Watch game", systemImage: "play.fill").font(.headline).frame(maxWidth: .infinity).padding(14).foregroundStyle(Color.black).background(Color.white, in: RoundedRectangle(cornerRadius: 12)) }.buttonStyle(HapticPlainButtonStyle())
+            SportsPlaybackOriginCard { origin in
+                SportsPanel {
+                    Text("Game information").font(.headline)
+                    Text("\(current.away.name) at \(current.home.name). \(current.status).").foregroundStyle(AppTheme.muted)
+                    Label(current.broadcasts.isEmpty ? "Broadcast not announced" : current.broadcasts, systemImage: "tv").font(.subheadline).foregroundStyle(AppTheme.muted)
+                    if current.canWatch, let first = streams.first {
+                        Button { play(first, origin: origin) } label: { Label("Watch game", systemImage: "play.fill").font(.headline).frame(maxWidth: .infinity).padding(14).foregroundStyle(Color.black).background(Color.white, in: RoundedRectangle(cornerRadius: 12)) }.buttonStyle(HapticPlainButtonStyle())
+                    }
+                    Button {
+                        guard let first = streams.first else { return }
+                        queue.add(SportsStream(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: first.url, alternatives: streams))
+                        showMultiWatch = true
+                    } label: { Label("Add to multi-watch", systemImage: "rectangle.split.2x2").font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 44).streamifyControlSurface() }
+                        .buttonStyle(HapticPlainButtonStyle()).disabled(streams.isEmpty || queue.streams.count >= 4)
                 }
-                Button {
-                    guard let first = streams.first else { return }
-                    queue.add(SportsStream(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: first.url, alternatives: streams))
-                    showMultiWatch = true
-                } label: { Label("Add to multi-watch", systemImage: "rectangle.split.2x2").font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 44).streamifyControlSurface() }
-                    .buttonStyle(HapticPlainButtonStyle()).disabled(streams.isEmpty || queue.streams.count >= 4)
             }
             ForEach([current.away, current.home]) { team in
                 Button { selectedTeam = SportsTeamResult(league: game.league, team: team) } label: {
@@ -116,16 +118,18 @@ struct SportsGameView: View {
                         .font(.subheadline).foregroundStyle(AppTheme.muted)
                 }
                 ForEach(streams) { stream in
-                    SportsPanel {
-                        Text(stream.title).font(.subheadline.weight(.semibold))
-                        HStack(spacing: 12) {
-                            Button { play(stream) } label: { Label("Watch", systemImage: "play.fill").frame(maxWidth: .infinity, minHeight: 30) }
-                                .buttonStyle(HapticBorderedButtonStyle(prominent: true)).tint(AppTheme.foreground).foregroundStyle(AppTheme.canvas)
-                            Button {
-                                queue.add(SportsStream(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: stream.url, alternatives: streams))
-                                showMultiWatch = true
-                            } label: { Image(systemName: "rectangle.split.2x2").frame(minWidth: 32, minHeight: 28) }.buttonStyle(HapticBorderedButtonStyle())
-                                .disabled(queue.streams.count >= 4 || queue.streams.contains(where: { $0.url == stream.url })).accessibilityLabel("Add source to multi-watch")
+                    SportsPlaybackOriginCard { origin in
+                        SportsPanel {
+                            Text(stream.title).font(.subheadline.weight(.semibold))
+                            HStack(spacing: 12) {
+                                Button { play(stream, origin: origin) } label: { Label("Watch", systemImage: "play.fill").frame(maxWidth: .infinity, minHeight: 30) }
+                                    .buttonStyle(HapticBorderedButtonStyle(prominent: true)).tint(AppTheme.foreground).foregroundStyle(AppTheme.canvas)
+                                Button {
+                                    queue.add(SportsStream(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: stream.url, alternatives: streams))
+                                    showMultiWatch = true
+                                } label: { Image(systemName: "rectangle.split.2x2").frame(minWidth: 32, minHeight: 28) }.buttonStyle(HapticBorderedButtonStyle())
+                                    .disabled(queue.streams.count >= 4 || queue.streams.contains(where: { $0.url == stream.url })).accessibilityLabel("Add source to multi-watch")
+                            }
                         }
                     }
                 }
@@ -133,8 +137,8 @@ struct SportsGameView: View {
         }
     }
 
-    private func play(_ stream: SportsStream) {
-        playback.play(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: stream.url, sources: streams)
+    private func play(_ stream: SportsStream, origin: SportsPlaybackOrigin) {
+        playback.play(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: stream.url, sources: streams, origin: origin)
     }
 
     private func followButton(_ team: SportsTeam) -> some View {

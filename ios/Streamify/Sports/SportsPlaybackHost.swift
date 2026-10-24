@@ -62,7 +62,11 @@ struct SportsPlaybackHost: UIViewRepresentable {
                         return
                     }
                     if window.rootViewController == nil {
-                        let controller = UIHostingController(rootView: SportsPlaybackOverlay(session: self.session).buttonStyle(HapticAutomaticButtonStyle()))
+                        let controller = UIHostingController(rootView: SportsPlaybackOverlay(session: self.session,
+                            sourceFrame: { [weak self, weak window] in
+                                guard let window else { return nil }
+                                return self?.session.origin?.frame(in: window)
+                            }).buttonStyle(HapticAutomaticButtonStyle()))
                         controller.view.backgroundColor = .clear
                         window.rootViewController = controller
                     }
@@ -137,51 +141,124 @@ private struct SportsPlaybackOverlay: View {
     @ObservedObject var session: SportsPlaybackSession
     @ObservedObject private var pictureInPicture: SportsSystemPiP
     @Environment(\.openURL) private var openURL
-    init(session: SportsPlaybackSession) {
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private let sourceFrame: () -> CGRect?
+    @State private var drag = CGSize.zero
+    @State private var returnFrame: CGRect?
+    @State private var dismissing = false
+    @State private var dismissalToken = UUID()
+    init(session: SportsPlaybackSession, sourceFrame: @escaping () -> CGRect?) {
         self.session = session
+        self.sourceFrame = sourceFrame
         _pictureInPicture = ObservedObject(wrappedValue: session.pictureInPicture)
     }
     var body: some View {
         GeometryReader { geometry in
             if let item = session.item {
-                VStack(spacing: 0) {
-                    header(item).padding(.top, session.safeAreaInsets.top)
-                        .frame(height: session.isVideoFullscreen ? 0 : 60 + session.safeAreaInsets.top)
-                        .clipped().opacity(session.isVideoFullscreen ? 0 : 1)
-                        .allowsHitTesting(!session.isVideoFullscreen).accessibilityHidden(session.isVideoFullscreen)
-                    ProviderPlaybackSurface(url: item.url, reload: session.reload, direct: session.direct,
-                        preservePlaybackOnBackground: true, systemPiP: pictureInPicture)
-                        .id(item.id)
-                    footer(item).padding(.bottom, session.safeAreaInsets.bottom)
-                        .frame(height: session.isVideoFullscreen ? 0 : 54 + session.safeAreaInsets.bottom)
-                        .clipped().opacity(session.isVideoFullscreen ? 0 : 1)
-                        .allowsHitTesting(!session.isVideoFullscreen).accessibilityHidden(session.isVideoFullscreen)
+                let rect = displayedFrame(in: geometry.size)
+                ZStack(alignment: .topLeading) {
+                    Color.black.opacity(dismissing ? 0 : max(0, 0.35 - Double(drag.height / max(1, geometry.size.height))))
+                        .allowsHitTesting(false).accessibilityHidden(true)
+                    playerCanvas(item, size: geometry.size)
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .scaleEffect(rect.width / max(1, geometry.size.width))
+                        .frame(width: rect.width, height: rect.height)
+                        .clipShape(RoundedRectangle(cornerRadius: reduceMotion ? 0 : dismissing ? 20 : min(24, max(0, drag.height) / 5), style: .continuous))
+                        .opacity(dismissing ? 0 : 1)
+                        .position(x: rect.midX, y: rect.midY)
                 }
                 .frame(width: geometry.size.width, height: geometry.size.height)
-                .background(.black)
-                .overlay(alignment: .topTrailing) {
-                    if session.isVideoFullscreen {
-                        Button(action: session.toggleVideoFullscreen) {
-                            Image(systemName: "arrow.down.right.and.arrow.up.left")
-                                .font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
-                                .frame(width: 32, height: 32).background(.black.opacity(0.7), in: Circle())
-                                .frame(width: 44, height: 44).contentShape(Rectangle())
-                        }.buttonStyle(HapticPlainButtonStyle())
-                            .accessibilityLabel("Exit fullscreen").accessibilityIdentifier("sports-player-exit-fullscreen")
-                            .padding(.trailing, max(12, session.safeAreaInsets.right))
-                            .padding(.top, max(8, session.safeAreaInsets.top))
-                    }
-                }
                 .accessibilityElement(children: .contain).accessibilityIdentifier("sports-player")
                 .accessibilityValue("\(item.title), \(session.sourceTitle)")
                 .playerSwipeToDismiss { session.close() }
+                .onChange(of: geometry.size) { _, _ in resetDismissal() }
             }
         }.ignoresSafeArea().preferredColorScheme(.dark).foregroundStyle(.white).tint(.white)
         .statusBarHidden(session.isVideoFullscreen)
         .persistentSystemOverlays(session.isVideoFullscreen ? .hidden : .automatic)
+        .onChange(of: session.item?.id) { _, _ in resetDismissal() }
+        .onChange(of: session.item?.url) { _, _ in resetDismissal() }
+        .onChange(of: session.presentation) { _, _ in resetDismissal() }
+        .onChange(of: session.isVideoFullscreen) { _, _ in resetDismissal() }
+        .onChange(of: scenePhase) { _, phase in if phase != .active { resetDismissal() } }
         .alert("Picture in Picture", isPresented: Binding(get: { pictureInPicture.message != nil }, set: { if !$0 { pictureInPicture.message = nil } })) {
             Button("OK") { pictureInPicture.message = nil }
         } message: { Text(pictureInPicture.message ?? "This source could not start iOS Picture in Picture.") }
+    }
+    private func displayedFrame(in size: CGSize) -> CGRect {
+        let bounds = CGRect(origin: .zero, size: size)
+        guard !reduceMotion else { return bounds }
+        if dismissing {
+            return returnFrame ?? CGRect(x: size.width * 0.12, y: size.height * 0.55,
+                width: size.width * 0.76, height: size.height * 0.35)
+        }
+        let vertical = max(0, drag.height)
+        let scale = 1 - min(0.18, SportsPlayerDismissPolicy.progress(translation: drag, size: size) * 0.3)
+        let width = size.width * scale, height = size.height * scale
+        return CGRect(x: (size.width - width) / 2 + drag.width * 0.2,
+            y: (size.height - height) / 2 + vertical * 0.8, width: width, height: height)
+    }
+    private func finishDismissal(item: SportsPlaybackItem) {
+        guard !dismissing, session.item?.id == item.id, session.isExpanded else { return }
+        returnFrame = sourceFrame() ?? returnFrame
+        let token = UUID()
+        dismissalToken = token
+        AppHaptics.tap()
+        withAnimation(reduceMotion ? .easeOut(duration: 0.15) : .spring(response: 0.42, dampingFraction: 0.9),
+            completionCriteria: .logicallyComplete) {
+            dismissing = true
+        } completion: {
+            guard dismissalToken == token, session.item?.id == item.id,
+                  session.item?.url == item.url, session.isExpanded else { return }
+            session.close()
+        }
+    }
+    private func resetDismissal() {
+        dismissalToken = UUID()
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { drag = .zero; returnFrame = nil; dismissing = false }
+    }
+    private func playerCanvas(_ item: SportsPlaybackItem, size: CGSize) -> some View {
+        VStack(spacing: 0) {
+            header(item).padding(.top, session.safeAreaInsets.top)
+                .frame(height: session.isVideoFullscreen ? 0 : 60 + session.safeAreaInsets.top)
+                .clipped().opacity(session.isVideoFullscreen ? 0 : 1)
+                .allowsHitTesting(!session.isVideoFullscreen).accessibilityHidden(session.isVideoFullscreen)
+            ProviderPlaybackSurface(url: item.url, reload: session.reload, direct: session.direct,
+                preservePlaybackOnBackground: true, systemPiP: pictureInPicture)
+                .id(item.id)
+                .sportsPlayerSwipeDownToDismiss(enabled: session.isExpanded && !session.isVideoFullscreen && !dismissing,
+                    onChanged: { translation in
+                        if drag == .zero { returnFrame = sourceFrame() }
+                        drag = translation
+                    }, onEnded: { translation, velocity, cancelled in
+                        if !cancelled && SportsPlayerDismissPolicy.shouldDismiss(translation: translation, velocity: velocity, size: size) {
+                            finishDismissal(item: item)
+                        } else {
+                            withAnimation(reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.85)) { drag = .zero }
+                        }
+                    })
+            footer(item).padding(.bottom, session.safeAreaInsets.bottom)
+                .frame(height: session.isVideoFullscreen ? 0 : 54 + session.safeAreaInsets.bottom)
+                .clipped().opacity(session.isVideoFullscreen ? 0 : 1)
+                .allowsHitTesting(!session.isVideoFullscreen).accessibilityHidden(session.isVideoFullscreen)
+        }
+        .background(.black)
+        .overlay(alignment: .topTrailing) {
+            if session.isVideoFullscreen {
+                Button(action: session.toggleVideoFullscreen) {
+                    Image(systemName: "arrow.down.right.and.arrow.up.left")
+                        .font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
+                        .frame(width: 32, height: 32).background(.black.opacity(0.7), in: Circle())
+                        .frame(width: 44, height: 44).contentShape(Rectangle())
+                }.buttonStyle(HapticPlainButtonStyle())
+                    .accessibilityLabel("Exit fullscreen").accessibilityIdentifier("sports-player-exit-fullscreen")
+                    .padding(.trailing, max(12, session.safeAreaInsets.right))
+                    .padding(.top, max(8, session.safeAreaInsets.top))
+            }
+        }
     }
     private func header(_ item: SportsPlaybackItem) -> some View {
         HStack(spacing: 8) {

@@ -17,7 +17,7 @@ struct SportsMultiWatchView: View {
                     active: scenePhase == .active && playback.item == nil,
                     toggleAudio: { audibleID = audibleID == stream.id ? nil : stream.id },
                     selectSource: { queue.selectSource(streamID: stream.id, url: $0) },
-                    open: { playback.play(title: stream.title, url: stream.url, sources: stream.availableSources) }, remove: { queue.remove(stream) })
+                    open: { origin in playback.play(title: stream.title, url: stream.url, sources: stream.availableSources, origin: origin) }, remove: { queue.remove(stream) })
                     .id(stream.id)
             }
             if queue.streams.isEmpty || queue.streams.count == 3 {
@@ -172,8 +172,9 @@ private struct SportsWatchTile: View {
     let active: Bool
     let toggleAudio: () -> Void
     let selectSource: (URL) -> Void
-    let open: () -> Void
+    let open: (SportsPlaybackOrigin) -> Void
     let remove: () -> Void
+    @StateObject private var playbackOrigin = SportsPlaybackOrigin()
     @State private var revision = 0
     @State private var error: String?
 
@@ -192,7 +193,7 @@ private struct SportsWatchTile: View {
                             }
                         }
                     } label: { Label("Select stream", systemImage: "play.rectangle") }
-                    Button("Fullscreen", systemImage: "arrow.up.left.and.arrow.down.right", action: open)
+                    Button("Fullscreen", systemImage: "arrow.up.left.and.arrow.down.right") { open(playbackOrigin) }
                     Button("Reload", systemImage: "arrow.clockwise") { revision += 1; error = nil }
                     Link(destination: stream.url) { Label("Open in browser", systemImage: "safari") }
                     Button("Remove", systemImage: "xmark", action: remove)
@@ -204,6 +205,7 @@ private struct SportsWatchTile: View {
             SportsTileWebView(url: stream.url, revision: revision, audible: audible, active: active, error: $error)
                 .frame(maxWidth: .infinity, maxHeight: .infinity).background(.black)
         }.background(.black).clipShape(RoundedRectangle(cornerRadius: 10)).padding(3)
+            .sportsPlaybackOrigin(playbackOrigin)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("sports-watch-tile")
             .accessibilityValue(stream.availableSources.first { $0.url == stream.url }?.title ?? stream.title)
