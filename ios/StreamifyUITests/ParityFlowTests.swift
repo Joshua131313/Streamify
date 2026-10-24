@@ -101,6 +101,8 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertTrue(wait { originalHomeCard.isHittable })
         originalHomeCard.tap()
         XCTAssertTrue(app.buttons["close-media-details"].waitForExistence(timeout: 8))
+        XCTAssertGreaterThan(app.buttons["close-media-details"].frame.midX, app.frame.midX, "The secondary close control belongs at the top right.")
+        XCTAssertGreaterThanOrEqual(app.buttons["close-media-details"].frame.width, 44)
         XCTAssertTrue(app.buttons["download-movie:42"].waitForExistence(timeout: 8), "The tapped Home hero must open its own movie.")
         XCTAssertTrue(app.buttons["trailer-mute"].waitForExistence(timeout: 10))
         XCTAssertTrue(wait { self.app.buttons["trailer-mute"].isEnabled })

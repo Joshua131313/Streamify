@@ -99,16 +99,21 @@ struct MediaDetailView: View {
         .accessibilityIdentifier("media-detail-page")
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.visible, for: .navigationBar)
-        .toolbarBackground(AppTheme.canvas.opacity(0.9), for: .navigationBar)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button { dismiss() } label: { Image(systemName: "xmark").frame(width: 44, height: 44) }
-                    .accessibilityLabel("Close details").accessibilityIdentifier("close-media-details")
+        .toolbar(.hidden, for: .navigationBar)
+        .overlay(alignment: .topTrailing) {
+            Button { dismiss() } label: {
+                ZStack {
+                    Circle().fill(.ultraThinMaterial).environment(\.colorScheme, .dark)
+                    Circle().fill(.black.opacity(0.22))
+                    Image(systemName: "xmark").font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.9))
+                }
+                .frame(width: 32, height: 32)
+                .frame(width: 44, height: 44).contentShape(Rectangle())
             }
-            ToolbarItem(placement: .principal) {
-                Capsule().fill(AppTheme.muted.opacity(0.5)).frame(width: 34, height: 4).accessibilityHidden(true)
-            }
+            .buttonStyle(.plain).accessibilityLabel("Close details")
+            .accessibilityIdentifier("close-media-details")
+            .padding(.trailing, 12).padding(.top, 6)
         }
         .accessibilityAction(.escape) { dismiss() }
         .onAppear { pageVisible = true }
