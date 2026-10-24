@@ -1,16 +1,24 @@
 # Streamify for iOS
 
-Native SwiftUI interface based on the Android app in this repository. Requires iOS 17 or later, supports iPhone and iPad, and uses SwiftUI, WebKit, AVKit, URLSession and Keychain without third-party runtime packages.
+Native SwiftUI interface based on the Android app in this repository. Requires iOS 17 or later, supports iPhone and iPad, and uses SwiftUI, WebKit, AVKit, URLSession and Keychain. Guest sports chat uses Firebase Core, Auth and Firestore; the WidgetKit extension has no Firebase dependency.
 
 The Android red accent, brand artwork, portrait hero, poster shelves, compact discovery menus, floating Home / Sports / Search / My list navigation, collections, and sports league cards are carried across to native iOS views. Native navigation, sheets, context menus, VoiceOver labels, Dynamic Type, safe areas, reduced motion, light/dark/system appearance, AirPlay, and Files import adapt the interface to iPhone.
 
 ## Version 1.1.2
 
-The current source refines the bounded Home header, slimmer floating navigation and keyboard handling, high-resolution hero artwork, and card-to-detail transitions. Root navigation uses instant tab selection. Catalog and sports search open dedicated dialogs. Detail trailers have no extra native control strip. History uses compact landscape cards with actual saved playback progress, and shared button surfaces use a 12-point corner radius. Sports adds modern game/score/roster tables, bold final winning scores and a small chevron without a separate Winner badge, player photos, server switching inside the player and each multi-watch tile, and swipe-left player exit. Sports playback keeps the same game, source and playback surface across app returns. Its Picture in Picture action requests the default iOS system player only when the provider reports support; unsupported sources stay in the full player with an explanation. Downloads cache artwork on disk and use compact cards; the full-screen offline player has overlaid controls, real seek/resume, speed, audio/captions, local SRT/VTT import, lock, and episode switching. Button activations provide subtle haptics. Interactive cards add restrained press depth and rounded native long-press previews/actions; the hero pauses while its card menu is open. Sports provides an app-owned fullscreen control that retains the same source/player and requests landscape, while WebKit element fullscreen is explicitly enabled for providers. Downloads use circular progress indicators and an animated navbar activity ring. Offline seeking shows actual local video frames that follow the slider thumb; hidden edge gestures adjust brightness/volume, and hold-to-unlock and skip animations follow Android. Imports and finished downloads validate local asset tracks before being marked ready; incompatible existing files offer alternate-download and file-sharing actions. These source changes await combined CI and physical-device verification and require a newly built IPA; the last confirmed installed 1.1.2 build 15 does not update itself.
+The current source includes the compact sports toolbar with multiple league selection, college football, mixed live schedules, accessible score and roster tables, and small winning-score chevrons. The background fills both system safe areas; root tab changes are instant. Search opens from its input, cards have native press/context interactions, and history shows actual saved progress.
 
-## Latest completed verification
+Sports uses the embedded provider's fullscreen control, with no added Streamify fullscreen button. A downward drag returns the player to its game card; horizontal-swipe dismissal is removed. The retained player preserves its selected stream across app returns and uses system Picture in Picture when the provider and device support it.
 
-[Build17](https://github.com/Joshua131313/Streamify/actions/runs/40055169671) compiled the iPhone Release package and passed 69 unit tests and 20 UI tests. One actual PiP capability test was skipped because the simulator reported unsupported; three UI tests failed at the old unlock control, calendar accessibility bounds, and sports-search accessibility identifiers. All 116 exported screenshots were reviewed. The current source corrects those failures and adds the features above; its own combined run is required before reporting them verified.
+Cold launch opens the cinematic profile chooser. Up to five local profiles keep separate favorites, history, searches, teams and genres. Existing guest data migrates into the first profile. Guest sports chat joins the same matchup rooms as Android and creates an anonymous identity only on the first Send.
+
+Downloads group shows into episode pages with season sections, cached artwork, circular progress and swipe/context actions. Quality is exact: selecting 1080p never silently downloads 480p. Choose quality is available on existing catalog downloads. An expired URL can refresh once at the same quality; this is not an alternate provider. The offline player includes Android-style skip/hold-to-unlock animations, hidden edge adjustments and a thumb-following 208×117 video-frame seek preview. Invalid or incompatible files are rejected before being marked ready.
+
+## Current verification and delivery
+
+Build 28 is the last confirmed installation on the physical iPhone. The user requested that the next verified IPA be left ready to download, with no further automatic installation. The full candidate run is [build31](https://github.com/Joshua131313/Streamify/actions/runs/40074925101), source `26562c4bf4a15067075cc3eb60fdc4b0fdc5d109`; its final results will be recorded here after completion. A device artifact alone does not establish that its simulator suites passed.
+
+Portable validation passes for resources, property lists, 17 collections, 15 providers and 106 Swift source files. The local Firebase emulator contract passed five checks for guest access, message/reply schema, timestamps and denied reaction updates. Production guest-account verification was rejected by automatic approval review and did not run; no production chat message was sent. Live-service and physical-device behavior still require testing from the updated app.
 
 ## Previous 1.0.0 validation
 
@@ -120,7 +128,7 @@ Native app buttons use light selection haptics, with a slightly firmer light imp
 
 Other differences: category discovery uses an adaptive grid. Offline playback uses custom controls over AVPlayer; iOS rotation, AirPlay, PiP and volume follow platform capabilities. Skip-intro requires timing metadata that is not currently provided. WKWebView providers supply their own video controls and may restrict autoplay/audio or prevent timestamp access. Actual HTML5/native video progress is recorded only when the player can report valid timestamps; opening a protected provider alone never fabricates progress. Team following and library state are local and do not sync with Android or the web. Native iOS transitions and sheets adapt to OS/accessibility settings. The update check does not sign or install IPAs. Provider availability and the new 1.1.2 interactions still need physical-iPhone validation.
 
-Sports system PiP depends on the external provider and iOS video support. The existing playback view stays mounted while native PiP is active, and restoring PiP returns to the same selected stream. Unsupported provider PiP leaves the full player visible. The test suite includes WebKit-document identity checks across background/foreground returns and a separate real AVKit PiP flow that skips only when the system reports it unavailable; these new flows still await CI results. A synthetic 10-minute H264 resource exercises real offline play, pause, seeking and resume without downloading a video.
+Sports system PiP depends on the external provider and iOS video support. The existing playback view stays mounted while native PiP is active, and restoring PiP returns to the same selected stream. Unsupported provider PiP leaves the full player visible. The test suite includes WebKit-document identity checks across background/foreground returns and a separate real AVKit PiP flow that skips only when the system reports it unavailable. Full candidate results are recorded above. A synthetic 10-minute H264 resource exercises real offline play, pause, seeking and resume without downloading a video.
 
 ## Source layout
 
@@ -133,6 +141,7 @@ Streamify/Media        Details, cast, collections, provider player, anime resolu
 Streamify/Sports       Schedules, game center, teams, channels, multi-watch
 Streamify/Downloads    Background direct-file transfers, Files import and offline player
 Streamify/Library      Saved/history, settings, account status, preferences, iOS update checks
+Streamify/Profiles     Local profile identity, isolated libraries and cinematic chooser
 Streamify/Data         TMDB/AniList clients, models, Keychain and local persistence
 Streamify/Resources    Original Android artwork/config, icon, launch and privacy manifest
 StreamifyTests         Network fixture, persistence, identity and provider/parser tests

@@ -110,24 +110,8 @@ private struct DownloadSeriesRow: View {
     private var artworkKey: String { series.episodes.map { "\($0.id):\($0.posterFileName ?? "")" }.joined(separator: "|") }
 
     var body: some View {
-        Button(action: open) {
-            HStack(spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 4).fill(AppTheme.foreground.opacity(0.06))
-                    if let artwork { Image(uiImage: artwork).resizable().scaledToFit() }
-                    else { Image(systemName: "tv").font(.title3).foregroundStyle(AppTheme.muted) }
-                }.frame(width: 112, height: 70).clipShape(RoundedRectangle(cornerRadius: 4)).accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(series.title).font(.subheadline.weight(.semibold)).lineLimit(2)
-                    Text(summary).font(.caption.monospacedDigit()).foregroundStyle(AppTheme.muted).lineLimit(2)
-                }.frame(maxWidth: .infinity, alignment: .leading)
-                if !series.active.isEmpty {
-                    DownloadActivityIndicator(progress: series.progress, size: 26, animated: false)
-                        .accessibilityHidden(true)
-                }
-                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(AppTheme.muted)
-            }.frame(minHeight: 70).contentShape(Rectangle())
-        }.buttonStyle(HapticCardButtonStyle(cornerRadius: 6)).foregroundStyle(AppTheme.foreground)
+        Button { AppHaptics.tap(); open() } label: { rowLabel }
+            .buttonStyle(CardPressedButtonStyle(cornerRadius: 6)).foregroundStyle(AppTheme.foreground)
             .accessibilityLabel("\(series.title), \(summary), View episodes")
             .accessibilityValue(series.active.isEmpty ? "" : series.progress.map { "\(Int($0 * 100)) percent" } ?? "Downloading. Total size unknown")
             .accessibilityIdentifier("download-series-\(series.id)")
@@ -137,6 +121,11 @@ private struct DownloadSeriesRow: View {
                 if !series.active.isEmpty { Button("Cancel downloads", systemImage: "stop.fill") { cancelActive() } }
                 if !series.retryable.isEmpty { Button("Retry downloads", systemImage: "arrow.clockwise") { retryFailed() } }
                 Button("Delete downloads", systemImage: "trash", role: .destructive, action: requestDelete)
+            } preview: {
+                rowLabel.frame(width: 294).padding(12)
+                    .foregroundStyle(AppTheme.foreground)
+                    .background(AppTheme.canvas, in: RoundedRectangle(cornerRadius: 16))
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 Button(action: requestDelete) { Label("Delete", systemImage: "trash") }
@@ -166,6 +155,25 @@ private struct DownloadSeriesRow: View {
                 }.accessibilityIdentifier("download-series-confirm-delete-\(series.id)")
                 Button("Cancel", role: .cancel) {}
             } message: { Text("This removes these episode downloads from this iPhone.") }
+    }
+
+    private var rowLabel: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 4).fill(AppTheme.foreground.opacity(0.06))
+                if let artwork { Image(uiImage: artwork).resizable().scaledToFit() }
+                else { Image(systemName: "tv").font(.title3).foregroundStyle(AppTheme.muted) }
+            }.frame(width: 112, height: 70).clipShape(RoundedRectangle(cornerRadius: 4)).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 5) {
+                Text(series.title).font(.subheadline.weight(.semibold)).lineLimit(2)
+                Text(summary).font(.caption.monospacedDigit()).foregroundStyle(AppTheme.muted).lineLimit(2)
+            }.frame(maxWidth: .infinity, alignment: .leading)
+            if !series.active.isEmpty {
+                DownloadActivityIndicator(progress: series.progress, size: 26, animated: false)
+                    .accessibilityHidden(true)
+            }
+            Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(AppTheme.muted)
+        }.frame(minHeight: 70).contentShape(Rectangle())
     }
 
     private func requestDelete() { deletionIDs = series.episodes.map(\.id); confirmDelete = true }
