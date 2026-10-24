@@ -63,7 +63,9 @@ final class SportsChatFlowTests: XCTestCase {
         reveal(composer); composer.tap()
         composer.typeText(String(repeating: "a", count: 1001))
         XCTAssertTrue(wait { (composer.value as? String ?? "").utf16.count == 1000 })
-        XCTAssertTrue(app.staticTexts["1000/1,000"].exists)
+        // SwiftUI localizes the interpolated integer in this visible counter.
+        // The composer value above remains the strict UTF-16 boundary check.
+        XCTAssertTrue(app.staticTexts["1,000/1,000"].exists)
         XCTAssertTrue(app.buttons["sports-chat-send"].isEnabled)
         capture("Guest composer caps input at the Android compatible thousand character limit")
     }

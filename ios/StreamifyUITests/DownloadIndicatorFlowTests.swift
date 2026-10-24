@@ -57,6 +57,9 @@ final class DownloadIndicatorFlowTests: XCTestCase {
         let unknown = app.buttons["download-activity-\(unknownID)"]
         XCTAssertTrue(known.waitForExistence(timeout: 5))
         XCTAssertEqual(value(known), "25 percent")
+        XCTAssertTrue(known.label.contains("Cancel download"))
+        XCTAssertGreaterThanOrEqual(known.frame.width, 44)
+        XCTAssertGreaterThanOrEqual(known.frame.height, 44)
         let series = app.buttons["download-series-43"]
         XCTAssertTrue(series.waitForExistence(timeout: 5))
         XCTAssertTrue(series.label.contains("1 episode"), "A single saved episode must still use its show's drill-in.")
@@ -66,10 +69,7 @@ final class DownloadIndicatorFlowTests: XCTestCase {
         XCTAssertTrue(unknown.waitForExistence(timeout: 5))
         XCTAssertEqual(value(unknown), "Downloading. Total size unknown")
         XCTAssertFalse(value(unknown).contains("percent"), "Unknown totals must never display invented percentages.")
-        XCTAssertTrue(known.label.contains("Cancel download"))
-        XCTAssertGreaterThanOrEqual(known.frame.width, 44)
-        XCTAssertGreaterThanOrEqual(known.frame.height, 44)
-        capture("Downloads uses matching determinate and indeterminate rings")
+        capture("Show episode displays its actual indeterminate download ring")
 
         unknown.tap()
         XCTAssertTrue(wait { !unknown.exists }, "The ring's stop control must cancel its own transfer.")

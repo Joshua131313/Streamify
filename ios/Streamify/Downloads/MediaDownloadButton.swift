@@ -125,7 +125,7 @@ struct MediaDownloadSheet: View {
                             Button { quality = value } label: {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 4) {
-                                        Text("\(value)p").font(.subheadline.weight(.semibold))
+                                        Text("\(String(value))p").font(.subheadline.weight(.semibold))
                                         Text(value == 1080 ? "Best quality" : "Smaller download").font(.caption).foregroundStyle(AppTheme.muted)
                                     }
                                     Spacer()
@@ -133,7 +133,7 @@ struct MediaDownloadSheet: View {
                                         .foregroundStyle(quality == value ? AppTheme.foreground : AppTheme.muted)
                                 }.padding(14).streamifyControlSurface()
                             }.buttonStyle(HapticPlainButtonStyle()).disabled(resolving)
-                                .accessibilityLabel("\(value)p download quality")
+                                .accessibilityLabel("\(String(value))p download quality")
                                 .accessibilityAddTraits(quality == value ? .isSelected : [])
                         }
                         Text("Downloads the resolution you choose. If that quality is unavailable or incompatible, choose another resolution. Some titles are available for streaming only.")
