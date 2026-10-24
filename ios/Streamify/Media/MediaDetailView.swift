@@ -92,6 +92,9 @@ struct MediaDetailView: View {
             .padding(.bottom, 32)
         }
         .coordinateSpace(name: "detail-scroll")
+        // The header is intentionally absent. Clip the scrolling content to
+        // its safe-area viewport so it cannot paint over the clock and icons.
+        .clipped()
         .onPreferenceChange(DetailHeroPositionKey.self) { frame in
             // SwiftUI emits an empty preference while the poster becomes a player.
             // It is not a visibility change and must not suspend a ready trailer.

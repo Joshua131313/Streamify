@@ -269,7 +269,8 @@ final class DownloadStore: ObservableObject {
     func cancel(id: UUID) {
         guard let index = items.firstIndex(where: { $0.id == id }), items[index].status == .downloading else { return }
         cancelValidation(id: id)
-        clearArtwork(id: id)
+        // The cancelled row remains available for Retry. Keep its saved poster
+        // and any artwork fetch; deleting the row removes that artwork instead.
         resolutions[id]?.cancel()
         resolutions[id] = nil
         resolutionAttempts[id] = nil

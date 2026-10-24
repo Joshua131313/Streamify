@@ -53,7 +53,12 @@ final class SportsPlaybackFlowTests: XCTestCase {
         let exit = app.buttons["sports-player-exit-fullscreen"]
         XCTAssertTrue(exit.waitForExistence(timeout: 8))
         XCTAssertTrue(wait { self.app.frame.width > self.app.frame.height }, "Fullscreen should request the supported landscape scene")
-        XCTAssertTrue(wait { !source.exists }, "Fullscreen must release the header's video space and hide its controls")
+        // SwiftUI can retain clipped header nodes in the accessibility tree.
+        // Verify the actual video surface takes their space instead of treating
+        // the existence of those covered nodes as a rendering failure.
+        XCTAssertTrue(wait { self.fillsScreen(self.app.webViews.firstMatch.frame) },
+            "Fullscreen must give the WebKit surface the entire landscape viewport")
+        XCTAssertTrue(exit.isHittable)
         XCTAssertTrue(document.waitForExistence(timeout: 5))
         XCTAssertEqual(document.label, selectedDocument, "Fullscreen must retain the same WKWebView document instead of reconnecting")
         capture("Sports fullscreen keeps the same bravo document in landscape")
@@ -83,9 +88,17 @@ final class SportsPlaybackFlowTests: XCTestCase {
             enter.tap()
             let active = app.webViews.staticTexts["Provider fullscreen active"]
             XCTAssertTrue(active.waitForExistence(timeout: 10), "A real WebKit fullscreenchange must confirm entry")
-            let exit = app.webViews.buttons["Exit provider fullscreen"]
-            XCTAssertTrue(wait { exit.isHittable && !source.isHittable },
-                "Provider fullscreen must appear above the sports header and accept taps")
+            XCTAssertTrue(wait { self.providerFullscreenWindow() != nil },
+                "WebKit must present the real fullscreen document in its own window above the sports header")
+            guard let fullscreenWindow = providerFullscreenWindow() else {
+                XCTFail("WebKit's fullscreen window disappeared before its exit could be exercised")
+                return
+            }
+            let exit = fullscreenWindow.webViews.buttons["Exit provider fullscreen"].firstMatch
+            XCTAssertTrue(exit.isHittable, "The presented fullscreen document must receive its own exit tap")
+            XCTAssertTrue(fillsScreen(fullscreenWindow.frame))
+            XCTAssertFalse(fullscreenWindow.buttons["sports-player-source-picker"].exists,
+                "The fullscreen window must contain the video document rather than the app header")
             let fullscreenViewport = providerViewport()
             XCTAssertGreaterThan(fullscreenViewport.width * fullscreenViewport.height,
                 inlineViewport.width * inlineViewport.height * 1.08,
@@ -115,12 +128,25 @@ final class SportsPlaybackFlowTests: XCTestCase {
             let enter = app.webViews.buttons["Enter video fullscreen"]
             XCTAssertTrue(enter.isHittable)
             enter.tap()
-            XCTAssertTrue(wait(timeout: 12) { !source.isHittable },
-                "WebKit's real AVKit controller must appear above the sports window")
-            let exit = nativeVideoFullscreenExit()
+            let entered = app.webViews.staticTexts["Video fullscreen, entries \(cycle), exits \(cycle - 1)"].firstMatch
+            XCTAssertTrue(entered.waitForExistence(timeout: 12),
+                "The real webkitbeginfullscreen event must confirm native video entry")
+            XCTAssertTrue(wait { self.nativeVideoFullscreenWindow() != nil },
+                "WebKit's real AVKit video window must appear above the sports window")
+            guard let fullscreenWindow = nativeVideoFullscreenWindow() else {
+                XCTFail("The native fullscreen window disappeared before its exit could be exercised")
+                return
+            }
+            XCTAssertTrue(fillsScreen(fullscreenWindow.frame), "Native fullscreen must fill the actual device viewport")
+            XCTAssertFalse(fullscreenWindow.buttons["sports-player-source-picker"].exists)
+            let exit = nativeVideoFullscreenExit(in: fullscreenWindow)
+            // AVKit hides transport controls automatically. Reveal them before
+            // waiting for their accessibility nodes, not after a failed wait.
+            if !exit.exists || !exit.isHittable {
+                fullscreenWindow.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            }
             XCTAssertTrue(exit.waitForExistence(timeout: 8),
                 "The system video fullscreen controller must expose its own exit control")
-            if !exit.isHittable { app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap() }
             XCTAssertTrue(exit.isHittable, "The system fullscreen controller must receive touches")
             capture("Native WebKit H264 fullscreen cycle \(cycle) is visible above the sports player")
             exit.tap()
@@ -334,10 +360,32 @@ final class SportsPlaybackFlowTests: XCTestCase {
         return CGSize(width: CGFloat(width), height: CGFloat(height))
     }
 
-    private func nativeVideoFullscreenExit() -> XCUIElement {
+    private func providerFullscreenWindow() -> XCUIElement? {
+        // XCTest reports the covered sports header as hittable on iOS 26.
+        // Identify WebKit's actual presentation window instead of relying on
+        // hit-testing a different, covered window.
+        app.windows.allElementsBoundByIndex.first { window in
+            !window.buttons["sports-player-source-picker"].exists &&
+                window.webViews.staticTexts["Provider fullscreen active"].firstMatch.exists
+        }
+    }
+
+    private func nativeVideoFullscreenWindow() -> XCUIElement? {
+        app.windows.allElementsBoundByIndex.first { window in
+            !window.buttons["sports-player-source-picker"].exists &&
+                window.webViews.count == 0 && window.otherElements["Media"].firstMatch.exists
+        }
+    }
+
+    private func fillsScreen(_ frame: CGRect) -> Bool {
+        abs(frame.minX - app.frame.minX) < 8 && abs(frame.minY - app.frame.minY) < 8 &&
+            frame.width >= app.frame.width - 8 && frame.height >= app.frame.height - 8
+    }
+
+    private func nativeVideoFullscreenExit(in window: XCUIElement) -> XCUIElement {
         // AVKit varies this localized English label across supported iOS versions.
         // These are native controls; the fixture's DOM exit is deliberately excluded.
-        app.buttons.matching(NSPredicate(format: "label IN %@",
+        window.buttons.matching(NSPredicate(format: "label IN %@",
             ["Done", "Close", "Exit Full Screen", "Exit Fullscreen", "Exit fullscreen", "Minimize", "Collapse Video", "Collapse video"])).firstMatch
     }
 

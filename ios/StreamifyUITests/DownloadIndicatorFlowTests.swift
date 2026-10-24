@@ -96,6 +96,7 @@ final class DownloadIndicatorFlowTests: XCTestCase {
         let known = app.buttons["download-activity-\(knownID)"]
         let unknown = app.buttons["download-activity-\(unknownID)"]
         XCTAssertTrue(knownCard.waitForExistence(timeout: 5))
+        XCTAssertTrue(wait { self.value(knownCard) == "Artwork saved offline" })
         XCTAssertTrue(known.waitForExistence(timeout: 5))
         XCTAssertEqual(value(known), "25 percent")
         XCTAssertEqual(value(unknown), "Downloading. Total size unknown")
@@ -117,6 +118,7 @@ final class DownloadIndicatorFlowTests: XCTestCase {
         let actions = app.buttons["download-actions-\(knownID)"]
         XCTAssertTrue(actions.waitForExistence(timeout: 5))
         XCTAssertEqual(value(actions), "Cancelled")
+        XCTAssertEqual(value(knownCard), "Artwork saved offline", "Cancelling a transfer must keep the row's cached poster for Retry.")
         XCTAssertTrue(app.buttons["download-play-00000000-0000-0000-0000-000000000042"].exists)
         capture("Swipe cancel stops only the selected download")
     }
@@ -141,8 +143,16 @@ final class DownloadIndicatorFlowTests: XCTestCase {
         XCTAssertTrue(confirmDelete.waitForExistence(timeout: 5))
         capture("Download swipe deletion requires its existing file confirmation")
         let cancel = app.buttons["Cancel"].firstMatch
-        XCTAssertTrue(cancel.isHittable)
-        cancel.tap()
+        if cancel.exists && cancel.isHittable {
+            cancel.tap()
+        } else {
+            // iOS 26 presents this confirmation as a popover. Its cancel
+            // affordance is the actual surrounding dismissal region.
+            let dismiss = element("PopoverDismissRegion")
+            XCTAssertTrue(dismiss.waitForExistence(timeout: 5))
+            XCTAssertTrue(dismiss.isHittable)
+            dismiss.tap()
+        }
         XCTAssertTrue(wait { !confirmDelete.exists && playFile.isHittable })
         playFile.tap()
         let play = app.buttons["offline-play-pause"]

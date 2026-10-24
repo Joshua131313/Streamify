@@ -230,6 +230,8 @@ struct SportsView: View {
             }
             Spacer(minLength: 8)
             Button {
+                guard daySwipeScope.permitsProtectedAction else { return }
+                AppHaptics.tap()
                 filter = filter == .live ? .all : .live
                 home = false
                 if filter == .live { selectDay(today) }
@@ -242,7 +244,7 @@ struct SportsView: View {
                     .background(filter == .live ? AppTheme.foreground : AppTheme.controlFill, in: Capsule())
                     .overlay { Capsule().strokeBorder(filter == .live ? .clear : AppTheme.border, lineWidth: 0.7) }
                     .frame(minHeight: 44).contentShape(Rectangle())
-            }.buttonStyle(HapticPlainButtonStyle()).accessibilityLabel("Live games")
+            }.buttonStyle(.plain).accessibilityLabel("Live games")
                 .disabled(!liveAvailable).opacity(liveAvailable ? 1 : 0.4)
                 .accessibilityValue(liveAvailable ? (filter == .live ? "On" : "Off") : "Unavailable for future dates")
                 .accessibilityAddTraits(filter == .live ? .isSelected : [])
@@ -257,7 +259,7 @@ struct SportsView: View {
             ProgressView("Loading games…").frame(maxWidth: .infinity).frame(height: 44)
                 .accessibilityIdentifier("sports-schedule-loading")
         }
-        if let error { StateMessage(symbol: "wifi.exclamationmark", title: "Schedule unavailable", message: error, actionTitle: "Retry", action: { revision += 1 }).sportsDaySwipeExcluded(daySwipeScope) }
+        if let error { StateMessage(symbol: "wifi.exclamationmark", title: "Schedule unavailable", message: error, actionTitle: "Retry", action: { if daySwipeScope.permitsProtectedAction { revision += 1 } }).sportsDaySwipeExcluded(daySwipeScope) }
         if partial { Label("Some feeds are unavailable. Showing the games that loaded.", systemImage: "exclamationmark.circle").font(.footnote).foregroundStyle(AppTheme.muted).padding(.horizontal, 20) }
     }
 
@@ -678,24 +680,32 @@ struct SportsGameCard: View {
             }.buttonStyle(HapticCardButtonStyle()).accessibilityElement(children: .combine).accessibilityIdentifier("sports-game-\(game.id)")
             Rectangle().fill(AppTheme.border).frame(height: 0.5)
             HStack(spacing: 10) {
-                Button(action: action) {
+                Button {
+                    guard daySwipeScope?.permitsProtectedAction != false else { return }
+                    AppHaptics.tap()
+                    action()
+                } label: {
                     HStack(spacing: 7) {
                         Text("Game Center")
                         Image(systemName: "arrow.up.right").font(.system(size: 10, weight: .semibold))
                     }.frame(maxWidth: .infinity, minHeight: 44)
                         .background(AppTheme.controlFill, in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
                         .overlay { RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius).strokeBorder(AppTheme.border, lineWidth: 0.7) }
-                }.buttonStyle(HapticPlainButtonStyle())
+                }.buttonStyle(.plain)
                     .sportsDaySwipeExcluded(daySwipeScope)
                 if game.canWatch {
-                    Button { watchRevision += 1 } label: {
+                    Button {
+                        guard daySwipeScope?.permitsProtectedAction != false else { return }
+                        AppHaptics.tap()
+                        watchRevision += 1
+                    } label: {
                         HStack(spacing: 7) {
                             if watchLoading { ProgressView().controlSize(.small).tint(AppTheme.canvas) }
                             else { Image(systemName: "play.fill").font(.system(size: 11)) }
                             Text("Watch")
                         }.frame(maxWidth: .infinity, minHeight: 44)
                             .foregroundStyle(AppTheme.canvas).background(AppTheme.foreground, in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
-                    }.buttonStyle(HapticPlainButtonStyle()).disabled(watchLoading)
+                    }.buttonStyle(.plain).disabled(watchLoading)
                         .accessibilityLabel("Watch \(game.away.abbreviation) vs \(game.home.abbreviation)")
                         .sportsDaySwipeExcluded(daySwipeScope)
                 }

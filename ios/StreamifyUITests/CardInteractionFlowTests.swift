@@ -114,13 +114,14 @@ final class CardInteractionFlowTests: XCTestCase {
     }
 
     private func revealOfflineControls(_ target: XCUIElement) {
-        if !target.exists || !target.isHittable {
+        for _ in 0..<3 {
+            if target.exists && target.isHittable { return }
             let canvas = app.otherElements["Offline video"].firstMatch
             XCTAssertTrue(canvas.waitForExistence(timeout: 5))
             canvas.tap()
-            XCTAssertTrue(target.waitForExistence(timeout: 3))
+            if wait({ target.exists && target.isHittable }) { return }
         }
-        XCTAssertTrue(target.isHittable)
+        XCTFail("The actual video canvas must reveal its playback control before pausing.")
     }
 
     private func wait(_ condition: @escaping () -> Bool) -> Bool {

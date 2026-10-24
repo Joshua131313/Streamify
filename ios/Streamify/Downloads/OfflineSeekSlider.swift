@@ -115,6 +115,25 @@ final class OfflineTrackingSlider: UISlider {
     var onBegin: ((OfflineTrackingSlider) -> Void)?
     var onFinish: ((OfflineTrackingSlider, Bool) -> Void)?
     var onLayout: ((OfflineTrackingSlider) -> Void)?
+    override var accessibilityLabel: String? {
+        get {
+            let label = super.accessibilityLabel ?? "Playback progress"
+            #if DEBUG
+            if PreviewFixtures.enabled {
+                // The held thumb can differ from another slider's geometry.
+                // UI fixtures expose this actual control's public UIKit bounds
+                // so XCTest can drag it without guessing a timestamp's percent.
+                let track = trackRect(forBounds: bounds)
+                let thumb = thumbRect(forBounds: bounds, trackRect: track, value: value)
+                let first = thumbRect(forBounds: bounds, trackRect: track, value: minimumValue)
+                let last = thumbRect(forBounds: bounds, trackRect: track, value: maximumValue)
+                return "\(label); fixture-thumb:\(thumb.midX),\(thumb.midY); fixture-range:\(first.midX),\(last.midX)"
+            }
+            #endif
+            return label
+        }
+        set { super.accessibilityLabel = newValue }
+    }
     override func beginTracking(_ touch: UITouch, with event: UIEvent?) -> Bool {
         // Mark editing before UISlider can emit an initial valueChanged event;
         // that event must never be mistaken for an accessibility seek commit.

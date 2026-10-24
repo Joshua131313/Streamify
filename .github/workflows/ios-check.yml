@@ -62,6 +62,7 @@ jobs:
       - name: Build all test targets and verify assigned screens
         env:
           TEST_SUITE: ${{ matrix.suite }}
+          FOCUSED_FIXES: ${{ contains(github.event.head_commit.message, '[focused-ios]') }}
         run: |
           mkdir -p ios/build/diagnostics
           # Keep a small process sample if a UI interaction leaves the simulator
@@ -91,6 +92,21 @@ jobs:
               ;;
             *) exit 2 ;;
           esac
+          # After a completed full run, a marked repair commit reruns the
+          # affected flows. Ordinary pushes retain all 40 UI tests above.
+          if [[ "$FOCUSED_FIXES" == "true" ]]; then
+            case "$TEST_SUITE" in
+              playback)
+                SELECTORS=(-only-testing:StreamifyTests -only-testing:StreamifyUITests/DownloadIndicatorFlowTests -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testFullscreenExpandsTheSameSelectedSportsDocumentAndReturnsToControls -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testProviderElementFullscreenKeepsTheSameDocumentAndExitsNormally -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testProviderNativeVideoFullscreenPresentsAboveTheSportsWindowAndKeepsItsSource)
+                ;;
+              controls)
+                SELECTORS=(-only-testing:StreamifyUITests/CardInteractionFlowTests/testCompletedDownloadHoldPlaysItsActualLocalFileAndReturnsToSameCard -only-testing:StreamifyUITests/OfflinePlayerFlowTests/testCachedPosterAndActualLocalPlaybackControls)
+                ;;
+              screens)
+                SELECTORS=(-only-testing:StreamifyUITests/ParityFlowTests/testExploreGenresPosterOpensItsExactMovieAndReturnsToRail -only-testing:StreamifyUITests/ParityFlowTests/testMovieTrailerDownloadQualityCastSheetAndDragReturn -only-testing:StreamifyUITests/ParityFlowTests/testShowEpisodeDownloadsAndPlayerEpisodePicker -only-testing:StreamifyUITests/ParityFlowTests/testScheduleDaySwipesKeepToolbarAndRootTabStationary -only-testing:StreamifyUITests/ParityFlowTests/testQuickLiveTogglePrioritizesLiveGamesAndRetainsOtherFilters -only-testing:StreamifyUITests/ParityFlowTests/testCollegeFootballLeagueOpensItsGameAndAvailableStream)
+                ;;
+            esac
+          fi
           # Disjoint suites run on separate simulators; every test runs once.
           xcodebuild test-without-building "${COMMON[@]}" "${TEST_OPTIONS[@]}" "${SELECTORS[@]}" -resultBundlePath ios/build/Streamify.xcresult
       - name: Export simulator screenshots

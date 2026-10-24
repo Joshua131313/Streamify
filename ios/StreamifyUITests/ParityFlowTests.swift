@@ -493,9 +493,14 @@ final class ParityFlowTests: XCTestCase {
         let protectedEnd = gameCenter.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5))
         protectedStart.press(forDuration: 0.05, thenDragTo: protectedEnd)
         XCTAssertEqual(date.value as? String, originalDate)
-        XCTAssertFalse(app.buttons["sports-team-roster-tab"].exists)
+        XCTAssertFalse(app.navigationBars["Game center"].exists, "Dragging inside Game Center must cancel its press, not open its sheet.")
+        XCTAssertFalse(app.buttons["Close player"].exists)
         XCTAssertTrue(app.buttons["tab-sports"].isSelected)
         capture("Swipe right returns to today without changing leagues or root tabs")
+        gameCenter.tap()
+        XCTAssertTrue(app.navigationBars["Game center"].waitForExistence(timeout: 5), "A normal tap immediately after the cancelled drag must still open Game Center.")
+        app.buttons["Close"].tap()
+        XCTAssertTrue(wait { !self.app.navigationBars["Game center"].exists && date.exists })
     }
 
     func testSportsScheduleScoringTableRosterChannelsAndMultiWatch() {

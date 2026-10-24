@@ -7,8 +7,24 @@ import WebKit
 @MainActor
 final class SportsDaySwipeScope: ObservableObject {
     private let excluded = NSHashTable<UIView>.weakObjects()
+    private var protectedDragActive = false
+    private var protectedActionSuppressedUntil: TimeInterval = 0
     private(set) var generation = 0
     func invalidateRequests() { generation &+= 1 }
+    var permitsProtectedAction: Bool {
+        !protectedDragActive && ProcessInfo.processInfo.systemUptime >= protectedActionSuppressedUntil
+    }
+    func beginTouch() {
+        protectedDragActive = false
+        protectedActionSuppressedUntil = 0
+    }
+    func beginProtectedDrag() { protectedDragActive = true }
+    func endProtectedDrag() {
+        protectedDragActive = false
+        // SwiftUI may dispatch its release action after the UIKit pan's ended
+        // callback. A fresh touch resets this immediately, so the next tap works.
+        protectedActionSuppressedUntil = ProcessInfo.processInfo.systemUptime + 0.35
+    }
     fileprivate func add(_ view: UIView) { excluded.add(view) }
     fileprivate func excludes(_ touch: UITouch, in window: UIWindow) -> Bool {
         excluded.allObjects.contains { view in
@@ -52,8 +68,8 @@ fileprivate final class SportsDaySwipeMarker: UIView {
     override func didMoveToWindow() { super.didMoveToWindow(); moved?() }
 }
 
-/// The pan observes this schedule's window, while its marker and touch gates
-/// exclude headers, other tabs, sheets, controls and horizontal scrolling rails.
+/// The pan observes this schedule's window. Marked action buttons accept only
+/// cancellation; headers, other tabs, sheets, inputs and horizontal rails opt out.
 @MainActor
 struct SportsDaySwipeObserver: UIViewRepresentable {
     let scope: SportsDaySwipeScope
@@ -88,6 +104,8 @@ struct SportsDaySwipeObserver: UIViewRepresentable {
         private weak var verticalScroll: UIScrollView?
         private var initialVerticalOffset: CGFloat = 0
         private var eligible = false
+        private var protectedActionTouch = false
+        private var protectedDragRecognized = false
         private var initialDirection = 0
         lazy var pan: UIPanGestureRecognizer = {
             let value = UIPanGestureRecognizer(target: self, action: #selector(handle(_:)))
@@ -112,17 +130,22 @@ struct SportsDaySwipeObserver: UIViewRepresentable {
             window?.removeGestureRecognizer(pan)
             window = nil
             eligible = false
+            protectedActionTouch = false
+            protectedDragRecognized = false
             verticalScroll = nil
+            parent.scope.beginTouch()
         }
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
             eligible = false
+            protectedActionTouch = false
+            protectedDragRecognized = false
             verticalScroll = nil
             initialDirection = 0
+            parent.scope.beginTouch()
             guard parent.enabled, let marker, let window, touch.view?.window === window,
                   !window.isHidden, window.alpha > 0.01,
                   !hasPresentation(window.rootViewController),
-                  marker.bounds.contains(touch.location(in: marker)),
-                  !parent.scope.excludes(touch, in: window) else { return false }
+                  marker.bounds.contains(touch.location(in: marker)) else { return false }
             var ancestor: UIView? = marker
             while let view = ancestor {
                 if view.isHidden || view.alpha < 0.01 || (view.clipsToBounds && !view.bounds.contains(touch.location(in: view))) { return false }
@@ -139,6 +162,7 @@ struct SportsDaySwipeObserver: UIViewRepresentable {
                 if view === window { break }
                 candidate = view.superview
             }
+            protectedActionTouch = parent.scope.excludes(touch, in: window)
             eligible = true
             return true
         }
@@ -146,6 +170,7 @@ struct SportsDaySwipeObserver: UIViewRepresentable {
             guard parent.enabled, eligible, !verticallyScrolled else { return false }
             let velocity = pan.velocity(in: window)
             guard SportsDaySwipeGate.horizontal(velocity) else { return false }
+            if protectedActionTouch { return true }
             initialDirection = velocity.x < 0 ? 1 : -1
             return initialDirection == 1 ? parent.canGoForward : parent.canGoBack
         }
@@ -161,15 +186,27 @@ struct SportsDaySwipeObserver: UIViewRepresentable {
         @objc private func handle(_ recognizer: UIPanGestureRecognizer) {
             let translation = recognizer.translation(in: window)
             switch recognizer.state {
+            case .began:
+                if protectedActionTouch {
+                    protectedDragRecognized = true
+                    parent.scope.beginProtectedDrag()
+                }
             case .changed:
                 if verticallyScrolled || abs(translation.y) > max(18, abs(translation.x) * 0.65) { eligible = false }
             case .ended:
+                if protectedActionTouch {
+                    parent.scope.endProtectedDrag()
+                    eligible = false
+                    return
+                }
                 defer { eligible = false }
                 guard parent.enabled, eligible, !verticallyScrolled,
                       let direction = SportsDaySwipeGate.direction(translation: translation), direction == initialDirection,
                       direction == 1 ? parent.canGoForward : parent.canGoBack else { return }
                 parent.changeDay(direction)
-            case .cancelled, .failed: eligible = false
+            case .cancelled, .failed:
+                if protectedDragRecognized { parent.scope.endProtectedDrag() }
+                eligible = false
             default: break
             }
         }

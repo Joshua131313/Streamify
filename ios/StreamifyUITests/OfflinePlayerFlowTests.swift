@@ -1,5 +1,4 @@
 import XCTest
-import UIKit
 
 /// Uses a synthetic 10-minute H264 local file: no download server or remote video.
 final class OfflinePlayerFlowTests: XCTestCase {
@@ -24,7 +23,7 @@ final class OfflinePlayerFlowTests: XCTestCase {
         app?.terminate()
     }
 
-    @MainActor func testCachedPosterAndActualLocalPlaybackControls() {
+    func testCachedPosterAndActualLocalPlaybackControls() {
         XCTAssertTrue(app.buttons["open-downloads"].waitForExistence(timeout: 15))
         app.buttons["open-downloads"].tap()
         let card = app.descendants(matching: .any).matching(identifier: "download-card-\(fixtureID)").firstMatch
@@ -164,31 +163,22 @@ final class OfflinePlayerFlowTests: XCTestCase {
         start.press(forDuration: 0.05, thenDragTo: finish)
     }
 
-    @MainActor private func dragProgressThumb(_ progress: XCUIElement, to fraction: Double) {
-        let time = (progress.value as? String ?? "").components(separatedBy: " of ")
-        guard time.count == 2, seconds(time[1]) > 0 else {
-            XCTFail("The real player must expose its current time and duration before seeking.")
+    private func dragProgressThumb(_ progress: XCUIElement, to fraction: Double) {
+        let label = progress.label
+        func geometry(_ prefix: String) -> [Double] {
+            guard let field = label.components(separatedBy: "; ").first(where: { $0.hasPrefix(prefix) }) else { return [] }
+            return field.dropFirst(prefix.count).split(separator: ",").compactMap { Double($0) }
+        }
+        let thumb = geometry("fixture-thumb:")
+        let range = geometry("fixture-range:")
+        guard thumb.count == 2, range.count == 2, range[1] > range[0] else {
+            XCTFail("The fixture must expose the presented native slider's actual thumb and track geometry: \(label)")
             return
         }
-        // XCTest's normalized adjustment estimates the starting thumb from its
-        // AX value, which is a timestamp here. On iOS 26 its drag started left
-        // of the native pill thumb's center and sought to 3:47 for a 30% target.
-        // Use UIKit's own geometry at the measured control size, preserving a
-        // real touch drag without assuming a fixed thumb width for this OS.
-        let geometry = UISlider(frame: CGRect(origin: .zero, size: progress.frame.size))
-        geometry.minimumValue = 0
-        geometry.maximumValue = Float(seconds(time[1]))
-        geometry.layoutIfNeeded()
-        let track = geometry.trackRect(forBounds: geometry.bounds)
         let origin = progress.coordinate(withNormalizedOffset: .zero)
-        func thumb(at value: Float) -> CGRect {
-            geometry.thumbRect(forBounds: geometry.bounds, trackRect: track, value: value)
-        }
-        let initial = thumb(at: Float(seconds(time[0])))
-        let target = thumb(at: geometry.maximumValue * Float(fraction))
-        let start = origin.withOffset(CGVector(dx: initial.midX, dy: initial.midY))
-        let end = origin.withOffset(CGVector(dx: target.midX, dy: target.midY))
-        XCTContext.runActivity(named: "Drag native seek thumb from \(time[0]) to \(Int(fraction * 100)) percent; thumb \(initial) -> \(target)") { _ in
+        let start = origin.withOffset(CGVector(dx: thumb[0], dy: thumb[1]))
+        let end = origin.withOffset(CGVector(dx: range[0] + (range[1] - range[0]) * fraction, dy: thumb[1]))
+        XCTContext.runActivity(named: "Drag presented native seek thumb to \(Int(fraction * 100)) percent; \(label)") { _ in
             start.press(forDuration: 0.15, thenDragTo: end)
         }
     }
