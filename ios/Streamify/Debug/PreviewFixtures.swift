@@ -92,14 +92,53 @@ enum PreviewFixtures {
     static let anime = MediaItem(id: 44, kind: .anime, title: "Starlight Academy", overview: synopsis,
         posterPath: "https://image.tmdb.org/fixture-harry-potter.jpg", backdropPath: "https://image.tmdb.org/fixture-harry-potter.jpg", rating: 8.6, releaseDate: "2026", genreIDs: [])
     static var playerHTML: String {
-        let controls = ProcessInfo.processInfo.arguments.contains("--ui-element-fullscreen-fixture") ? """
-        <button onclick="document.querySelector('main').requestFullscreen().catch(()=>document.getElementById('fullscreen-state').textContent='Fullscreen failed')">Enter provider fullscreen</button>
-        <button onclick="document.exitFullscreen()">Exit provider fullscreen</button>
-        <p id="fullscreen-state" role="status">Provider inline</p>
-        <script>document.addEventListener('fullscreenchange',()=>document.getElementById('fullscreen-state').textContent=document.fullscreenElement?'Provider fullscreen active':'Provider inline');</script>
-        """ : ""
+        let nativeFullscreen = ProcessInfo.processInfo.arguments.contains("--ui-native-video-fullscreen-fixture")
+        let elementFullscreen = ProcessInfo.processInfo.arguments.contains("--ui-element-fullscreen-fixture")
+        if nativeFullscreen || elementFullscreen { return fullscreenPlayerHTML(nativeVideo: nativeFullscreen) }
         return """
-        <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;height:100%;background:#090909;color:#fff;font:16px -apple-system;display:grid;place-items:center}main{text-align:center}main:fullscreen{display:grid;place-content:center;box-sizing:border-box;width:100%;height:100%;background:#090909}button{min-height:44px;margin:8px;border:0;border-radius:10px;padding:8px 16px}b{font-size:48px;color:#e91c39}small{color:#aaa}#playback-session{font-size:10px;color:#aaa}</style></head><body><main><b>▶</b><p>Streamify preview player</p><small>Local UI fixture · no external video loaded</small><p id="playback-session"></p>\(controls)</main><script>document.getElementById('playback-session').textContent='Playback session '+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);</script></body></html>
+        <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;height:100%;background:#090909;color:#fff;font:16px -apple-system;display:grid;place-items:center}main{text-align:center}b{font-size:48px;color:#e91c39}small{color:#aaa}#playback-session{font-size:10px;color:#aaa}</style></head><body><main><b>▶</b><p>Streamify preview player</p><small>Local UI fixture · no external video loaded</small><p id="playback-session"></p></main><script>document.getElementById('playback-session').textContent='Playback session '+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);</script></body></html>
+        """
+    }
+
+    /// Both fullscreen paths play the bundled H264 file in WebKit. The provider
+    /// button calls the browser API inside its real user gesture; it does not
+    /// drive the app's separate fullscreen state or simulate fullscreen events.
+    private static func fullscreenPlayerHTML(nativeVideo: Bool) -> String {
+        let videoData = Bundle.main.url(forResource: "offline-player", withExtension: "mp4")
+            .flatMap { try? Data(contentsOf: $0) }?.base64EncodedString() ?? ""
+        let action = nativeVideo ? "enterNativeVideoFullscreen()" : "enterElementFullscreen()"
+        let title = nativeVideo ? "Enter video fullscreen" : "Enter provider fullscreen"
+        let exit = nativeVideo ? "" : "<button onclick=\"document.exitFullscreen()\">Exit provider fullscreen</button>"
+        return """
+        <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+        <style>
+        html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#090909;color:#fff;font:14px -apple-system}
+        main{box-sizing:border-box;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:#090909}
+        main:fullscreen{width:100vw;height:100vh}video{display:block;flex:1;min-height:0;width:100%;max-height:62%;object-fit:contain;background:#000}
+        button{min-height:44px;flex-shrink:0;margin:4px;border:0;border-radius:10px;padding:8px 16px}p{margin:3px;flex-shrink:0}#playback-session,#viewport{font-size:10px;color:#aaa}
+        </style></head><body><main>
+        <video id="fixture-video" controls autoplay muted loop playsinline src="data:video/mp4;base64,\(videoData)"></video>
+        <p id="video-state" role="status">Video loading</p><p id="playback-session"></p>
+        <button id="enter-fullscreen" onclick="\(action)">\(title)</button>
+        \(exit)
+        <p id="fullscreen-state" role="status">Provider inline</p><p id="native-state" role="status">Video inline, entries 0, exits 0</p><p id="viewport"></p>
+        </main><script>
+        const video=document.getElementById('fixture-video');let entries=0,exits=0;
+        document.getElementById('playback-session').textContent='Playback session '+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
+        function viewport(){document.getElementById('viewport').textContent='Provider viewport '+window.innerWidth+' by '+window.innerHeight;}
+        function ready(){if(video.readyState>=2&&Number.isFinite(video.duration)&&video.duration>0)document.getElementById('video-state').textContent='Bundled H264 video ready';}
+        video.addEventListener('loadeddata',ready);video.addEventListener('canplay',ready);
+        video.addEventListener('error',()=>document.getElementById('video-state').textContent='Bundled video failed');
+        function enterElementFullscreen(){video.play().catch(()=>{});document.querySelector('main').requestFullscreen().catch(()=>document.getElementById('fullscreen-state').textContent='Fullscreen failed');}
+        function enterNativeVideoFullscreen(){
+          if(typeof video.webkitEnterFullscreen!=='function'){document.getElementById('native-state').textContent='Native video fullscreen unavailable';return;}
+          try{video.play().catch(()=>{});video.webkitEnterFullscreen();}catch(error){document.getElementById('native-state').textContent='Native video fullscreen failed';}
+        }
+        video.addEventListener('webkitbeginfullscreen',()=>{entries++;document.getElementById('native-state').textContent='Video fullscreen, entries '+entries+', exits '+exits;});
+        video.addEventListener('webkitendfullscreen',()=>{exits++;document.getElementById('native-state').textContent='Video inline, entries '+entries+', exits '+exits;});
+        document.addEventListener('fullscreenchange',()=>{document.getElementById('fullscreen-state').textContent=document.fullscreenElement?'Provider fullscreen active':'Provider inline';viewport();});
+        window.addEventListener('resize',viewport);viewport();ready();
+        </script></body></html>
         """
     }
     static func trailerHTML(token: String) -> String {

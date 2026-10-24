@@ -12,6 +12,7 @@ final class SportsPlaybackFlowTests: XCTestCase {
         app.launchArguments = ["--ui-fixtures"]
         if name.contains("testNativeSystemPictureInPicture") { app.launchArguments.append("--ui-native-pip-fixture") }
         if name.contains("testProviderElementFullscreen") { app.launchArguments.append("--ui-element-fullscreen-fixture") }
+        if name.contains("testProviderNativeVideoFullscreen") { app.launchArguments.append("--ui-native-video-fullscreen-fixture") }
         app.launch()
         XCTAssertTrue(app.buttons["tab-home"].waitForExistence(timeout: 15))
     }
@@ -51,14 +52,14 @@ final class SportsPlaybackFlowTests: XCTestCase {
         fullscreen.tap()
         let exit = app.buttons["sports-player-exit-fullscreen"]
         XCTAssertTrue(exit.waitForExistence(timeout: 8))
-        XCTAssertTrue(wait { app.frame.width > app.frame.height }, "Fullscreen should request the supported landscape scene")
+        XCTAssertTrue(wait { self.app.frame.width > self.app.frame.height }, "Fullscreen should request the supported landscape scene")
         XCTAssertTrue(wait { !source.exists }, "Fullscreen must release the header's video space and hide its controls")
         XCTAssertTrue(document.waitForExistence(timeout: 5))
         XCTAssertEqual(document.label, selectedDocument, "Fullscreen must retain the same WKWebView document instead of reconnecting")
         capture("Sports fullscreen keeps the same bravo document in landscape")
         exit.tap()
         XCTAssertTrue(source.waitForExistence(timeout: 8))
-        XCTAssertTrue(wait { app.frame.height > app.frame.width }, "Exit should restore the prior portrait scene")
+        XCTAssertTrue(wait { self.app.frame.height > self.app.frame.width }, "Exit should restore the prior portrait scene")
         XCTAssertTrue((source.value as? String ?? "").contains("bravo"))
         XCTAssertEqual(document.label, selectedDocument)
         XCTAssertTrue(fullscreen.isHittable)
@@ -69,36 +70,69 @@ final class SportsPlaybackFlowTests: XCTestCase {
     }
 
     func testProviderElementFullscreenKeepsTheSameDocumentAndExitsNormally() {
-        app.buttons["tab-sports"].tap()
-        selectNBA()
-        let watch = app.buttons["Watch BOS vs TOR"].firstMatch
-        reveal(watch)
-        XCTAssertTrue(watch.isHittable)
-        watch.tap()
-        let source = app.buttons["sports-player-source-picker"]
-        XCTAssertTrue(source.waitForExistence(timeout: 10))
-        let document = app.webViews.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Playback session '")).firstMatch
-        XCTAssertTrue(document.waitForExistence(timeout: 10))
+        let source = openSportsPlayerOnBravo()
+        let document = playbackDocument
         let selectedDocument = document.label
         let sourceValue = source.value as? String
-        let enter = app.webViews.buttons["Enter provider fullscreen"]
-        XCTAssertTrue(enter.waitForExistence(timeout: 8))
-        enter.tap()
-        let active = app.webViews.staticTexts["Provider fullscreen active"]
-        XCTAssertTrue(active.waitForExistence(timeout: 10), "The actual WebKit fullscreenchange event must confirm element fullscreen")
-        XCTAssertEqual(document.label, selectedDocument)
-        capture("Actual provider element fullscreen keeps the same document")
-        let exit = app.webViews.buttons["Exit provider fullscreen"]
-        XCTAssertTrue(exit.isHittable)
-        exit.tap()
-        XCTAssertTrue(app.webViews.staticTexts["Provider inline"].waitForExistence(timeout: 8))
-        XCTAssertTrue(source.waitForExistence(timeout: 8))
-        XCTAssertTrue(source.isHittable)
-        XCTAssertEqual(source.value as? String, sourceValue)
-        XCTAssertEqual(document.label, selectedDocument)
-        capture("Provider element fullscreen exits without losing its document or source")
-        app.buttons["Close player"].tap()
-        XCTAssertTrue(wait { !source.exists })
+        XCTAssertTrue(app.webViews.staticTexts["Bundled H264 video ready"].waitForExistence(timeout: 12),
+            "The fullscreen fixture must decode a real H264 video, not only a placeholder element")
+        let inlineViewport = providerViewport()
+        for cycle in 1...2 {
+            let enter = app.webViews.buttons["Enter provider fullscreen"]
+            XCTAssertTrue(enter.isHittable)
+            enter.tap()
+            let active = app.webViews.staticTexts["Provider fullscreen active"]
+            XCTAssertTrue(active.waitForExistence(timeout: 10), "A real WebKit fullscreenchange must confirm entry")
+            let exit = app.webViews.buttons["Exit provider fullscreen"]
+            XCTAssertTrue(wait { exit.isHittable && !source.isHittable },
+                "Provider fullscreen must appear above the sports header and accept taps")
+            let fullscreenViewport = providerViewport()
+            XCTAssertGreaterThan(fullscreenViewport.width * fullscreenViewport.height,
+                inlineViewport.width * inlineViewport.height * 1.08,
+                "The fullscreen document must gain viewport space, rather than changing only an icon")
+            XCTAssertGreaterThanOrEqual(fullscreenViewport.width, min(app.frame.width, app.frame.height) - 8)
+            XCTAssertGreaterThanOrEqual(fullscreenViewport.height, app.frame.height - 64)
+            XCTAssertEqual(document.label, selectedDocument)
+            capture("Actual provider element fullscreen cycle \(cycle) fills the viewport")
+            exit.tap()
+            XCTAssertTrue(app.webViews.staticTexts["Provider inline"].waitForExistence(timeout: 8))
+            XCTAssertTrue(wait { source.isHittable })
+            XCTAssertEqual(source.value as? String, sourceValue)
+            XCTAssertEqual(document.label, selectedDocument, "Exiting must retain the selected stream document")
+        }
+        capture("Provider element fullscreen exits twice without reconnecting")
+        closeAndVerifySportsDoesNotReopen(source)
+    }
+
+    func testProviderNativeVideoFullscreenPresentsAboveTheSportsWindowAndKeepsItsSource() {
+        let source = openSportsPlayerOnBravo()
+        let document = playbackDocument
+        let selectedDocument = document.label
+        let sourceValue = source.value as? String
+        XCTAssertTrue(app.webViews.staticTexts["Bundled H264 video ready"].waitForExistence(timeout: 12),
+            "The browser must decode the bundled H264 media before its native fullscreen API runs")
+        for cycle in 1...2 {
+            let enter = app.webViews.buttons["Enter video fullscreen"]
+            XCTAssertTrue(enter.isHittable)
+            enter.tap()
+            XCTAssertTrue(wait(timeout: 12) { !source.isHittable },
+                "WebKit's real AVKit controller must appear above the sports window")
+            let exit = nativeVideoFullscreenExit()
+            XCTAssertTrue(exit.waitForExistence(timeout: 8),
+                "The system video fullscreen controller must expose its own exit control")
+            if !exit.isHittable { app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap() }
+            XCTAssertTrue(exit.isHittable, "The system fullscreen controller must receive touches")
+            capture("Native WebKit H264 fullscreen cycle \(cycle) is visible above the sports player")
+            exit.tap()
+            let inline = app.webViews.staticTexts["Video inline, entries \(cycle), exits \(cycle)"]
+            XCTAssertTrue(inline.waitForExistence(timeout: 10),
+                "Both real webkitbeginfullscreen and webkitendfullscreen events must fire")
+            XCTAssertTrue(wait { source.isHittable })
+            XCTAssertEqual(source.value as? String, sourceValue)
+            XCTAssertEqual(document.label, selectedDocument, "Native fullscreen must preserve the actual WKWebView document")
+        }
+        capture("Native video fullscreen exits twice and retains the selected bravo source")
+        closeAndVerifySportsDoesNotReopen(source)
     }
 
     func testSelectedSportsSourceAndDocumentSurviveBackgroundRoundTrip() {
@@ -227,6 +261,61 @@ final class SportsPlaybackFlowTests: XCTestCase {
         app.buttons["Close player"].tap()
         XCTAssertTrue(wait { !source.exists })
         XCTAssertTrue(app.buttons["tab-home"].isSelected)
+    }
+
+    private var playbackDocument: XCUIElement {
+        app.webViews.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Playback session '")).firstMatch
+    }
+
+    /// Switch before fullscreen so a document reconnect cannot pass by silently
+    /// returning to the default alpha source.
+    private func openSportsPlayerOnBravo() -> XCUIElement {
+        app.buttons["tab-sports"].tap()
+        selectNBA()
+        let watch = app.buttons["Watch BOS vs TOR"].firstMatch
+        reveal(watch)
+        XCTAssertTrue(watch.isHittable)
+        watch.tap()
+        let source = app.buttons["sports-player-source-picker"]
+        XCTAssertTrue(source.waitForExistence(timeout: 10))
+        XCTAssertTrue(playbackDocument.waitForExistence(timeout: 10))
+        let alphaDocument = playbackDocument.label
+        source.tap()
+        XCTAssertTrue(app.buttons["sports-player-source-option-1"].waitForExistence(timeout: 5))
+        app.buttons["sports-player-source-option-1"].tap()
+        XCTAssertTrue(wait { (source.value as? String ?? "").contains("bravo") })
+        XCTAssertTrue(wait { self.playbackDocument.exists && self.playbackDocument.label != alphaDocument })
+        return source
+    }
+
+    private func providerViewport() -> CGSize {
+        let viewport = app.webViews.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Provider viewport '")).firstMatch
+        XCTAssertTrue(viewport.waitForExistence(timeout: 5))
+        let dimensions = viewport.label.replacingOccurrences(of: "Provider viewport ", with: "").components(separatedBy: " by ")
+        guard dimensions.count == 2, let width = Double(dimensions[0]), let height = Double(dimensions[1]) else {
+            XCTFail("The real WebKit viewport must report numeric dimensions: \(viewport.label)")
+            return .zero
+        }
+        return CGSize(width: CGFloat(width), height: CGFloat(height))
+    }
+
+    private func nativeVideoFullscreenExit() -> XCUIElement {
+        // AVKit varies this localized English label across supported iOS versions.
+        // These are native controls; the fixture's DOM exit is deliberately excluded.
+        app.buttons.matching(NSPredicate(format: "label IN %@",
+            ["Done", "Close", "Exit Full Screen", "Exit Fullscreen", "Exit fullscreen", "Minimize", "Collapse Video", "Collapse video"])).firstMatch
+    }
+
+    private func closeAndVerifySportsDoesNotReopen(_ source: XCUIElement) {
+        app.buttons["Close player"].tap()
+        XCTAssertTrue(wait { !source.exists })
+        app.buttons["tab-home"].tap()
+        XCTAssertTrue(app.buttons["tab-home"].isSelected)
+        app.buttons["tab-sports"].tap()
+        XCTAssertTrue(app.buttons["tab-sports"].isSelected)
+        let reopened = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in source.exists }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [reopened], timeout: 3), .timedOut,
+            "A finished fullscreen session must stay closed after switching tabs")
     }
 
     private func selectNBA() {

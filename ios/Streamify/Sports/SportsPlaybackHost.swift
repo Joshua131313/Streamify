@@ -21,27 +21,33 @@ struct SportsPlaybackHost: UIViewRepresentable {
     func makeUIView(context: Context) -> SportsPlaybackAttachment {
         let view = SportsPlaybackAttachment()
         view.isUserInteractionEnabled = false
-        view.attach = { [weak coordinator = context.coordinator] scene in coordinator?.attach(to: scene) }
+        view.attach = { [weak coordinator = context.coordinator] window in coordinator?.attach(to: window) }
         return view
     }
     func updateUIView(_ view: SportsPlaybackAttachment, context: Context) {
-        if let scene = view.window?.windowScene { context.coordinator.attach(to: scene) }
+        if let window = view.window { context.coordinator.attach(to: window) }
     }
     static func dismantleUIView(_ view: SportsPlaybackAttachment, coordinator: Coordinator) { coordinator.detach() }
 
     @MainActor final class Coordinator {
         private let session: SportsPlaybackSession
         private var window: SportsPlaybackWindow?
+        private weak var applicationWindow: UIWindow?
+        private var showingExpandedPlayer = false
         private var observation: AnyCancellable?
         private var requestedFullscreenGeometry = false
         private var previousOrientation: UIInterfaceOrientationMask?
         init(session: SportsPlaybackSession) { self.session = session }
-        func attach(to scene: UIWindowScene) {
+        func attach(to applicationWindow: UIWindow) {
+            guard let scene = applicationWindow.windowScene else { return }
             guard window?.windowScene !== scene else { return }
             detach()
+            self.applicationWindow = applicationWindow
             let window = SportsPlaybackWindow(windowScene: scene)
             window.session = session
-            window.windowLevel = UIWindow.Level(rawValue: UIWindow.Level.normal.rawValue + 1)
+            // WebKit presents element fullscreen in its own normal-level window.
+            // An elevated app window covers that video with our black backdrop.
+            window.windowLevel = .normal
             window.backgroundColor = .clear
             window.isHidden = session.item == nil
             self.window = window
@@ -50,6 +56,7 @@ struct SportsPlaybackHost: UIViewRepresentable {
                     guard let self, let window else { return }
                     self.updateFullscreenGeometry(active: item != nil && mode == .expanded && fullscreen, window: window)
                     guard item != nil else {
+                        self.updateWindowFocus(expanded: false, window: window)
                         window.isHidden = true
                         window.rootViewController = nil
                         return
@@ -63,14 +70,31 @@ struct SportsPlaybackHost: UIViewRepresentable {
                     // preserves its view, size, player and WebKit document.
                     window.isHidden = false
                     window.alpha = mode == .expanded ? 1 : 0
+                    self.updateWindowFocus(expanded: mode == .expanded, window: window)
                     window.rootViewController?.view.accessibilityElementsHidden = mode != .expanded
                     window.rootViewController?.view.accessibilityViewIsModal = mode == .expanded
                 }
         }
         func detach() {
             observation?.cancel(); observation = nil
-            if let window { updateFullscreenGeometry(active: false, window: window) }
+            if let window {
+                updateFullscreenGeometry(active: false, window: window)
+                updateWindowFocus(expanded: false, window: window)
+            }
             window?.isHidden = true; window?.rootViewController = nil; window = nil
+            applicationWindow = nil
+        }
+        private func updateWindowFocus(expanded: Bool, window: UIWindow) {
+            guard showingExpandedPlayer != expanded else { return }
+            showingExpandedPlayer = expanded
+            if expanded {
+                // Only acquire focus on an actual presentation transition. Source,
+                // safe-area and chrome updates must not cover WebKit fullscreen
+                // or steal focus from its controls while it owns presentation.
+                window.makeKeyAndVisible()
+            } else if let applicationWindow, !applicationWindow.isHidden {
+                applicationWindow.makeKey()
+            }
         }
         private func updateFullscreenGeometry(active: Bool, window: UIWindow) {
             guard active != requestedFullscreenGeometry, let scene = window.windowScene else { return }
@@ -92,8 +116,8 @@ struct SportsPlaybackHost: UIViewRepresentable {
 }
 
 final class SportsPlaybackAttachment: UIView {
-    var attach: ((UIWindowScene) -> Void)?
-    override func didMoveToWindow() { super.didMoveToWindow(); if let scene = window?.windowScene { attach?(scene) } }
+    var attach: ((UIWindow) -> Void)?
+    override func didMoveToWindow() { super.didMoveToWindow(); if let window { attach?(window) } }
 }
 
 private final class SportsPlaybackWindow: UIWindow {
