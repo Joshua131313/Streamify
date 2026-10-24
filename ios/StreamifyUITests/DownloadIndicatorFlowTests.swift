@@ -87,6 +87,83 @@ final class DownloadIndicatorFlowTests: XCTestCase {
         capture("Download activity clears after the last transfer is canceled")
     }
 
+    func testSwipeLeftRevealsActionsAndCancelOnlyStopsItsTransfer() {
+        let toolbar = app.buttons["open-downloads"]
+        XCTAssertTrue(toolbar.waitForExistence(timeout: 15))
+        toolbar.tap()
+        XCTAssertTrue(app.navigationBars["Downloads"].waitForExistence(timeout: 5))
+        let knownCard = element("download-card-\(knownID)")
+        let known = app.buttons["download-activity-\(knownID)"]
+        let unknown = app.buttons["download-activity-\(unknownID)"]
+        XCTAssertTrue(knownCard.waitForExistence(timeout: 5))
+        XCTAssertTrue(known.waitForExistence(timeout: 5))
+        XCTAssertEqual(value(known), "25 percent")
+        XCTAssertEqual(value(unknown), "Downloading. Total size unknown")
+        XCTAssertFalse(app.staticTexts["download-progress-\(knownID)"].exists,
+            "The circle carries progress without repeating visible Downloading/percentage text")
+        XCTAssertFalse(app.staticTexts["download-progress-\(unknownID)"].exists)
+        knownCard.swipeLeft()
+        let cancel = app.buttons["download-swipe-cancel-\(knownID)"]
+        let delete = app.buttons["download-swipe-delete-\(knownID)"]
+        XCTAssertTrue(cancel.waitForExistence(timeout: 5))
+        XCTAssertTrue(cancel.isHittable)
+        XCTAssertTrue(delete.isHittable)
+        XCTAssertTrue(known.exists, "A swipe must reveal actions, never execute one by itself")
+        XCTAssertFalse(app.buttons["Delete video"].exists)
+        capture("Swipe left reveals download actions without repeating transfer text")
+        cancel.tap()
+        XCTAssertTrue(wait { !known.exists })
+        XCTAssertTrue(unknown.exists, "Cancel must leave the other transfer running")
+        let actions = app.buttons["download-actions-\(knownID)"]
+        XCTAssertTrue(actions.waitForExistence(timeout: 5))
+        XCTAssertEqual(value(actions), "Cancelled")
+        XCTAssertTrue(app.buttons["download-play-00000000-0000-0000-0000-000000000042"].exists)
+        capture("Swipe cancel stops only the selected download")
+    }
+
+    func testCompletedSwipeDeleteRequiresConfirmationAndCancelPreservesPlayableFile() {
+        let toolbar = app.buttons["open-downloads"]
+        XCTAssertTrue(toolbar.waitForExistence(timeout: 15))
+        toolbar.tap()
+        let completedID = "00000000-0000-0000-0000-000000000042"
+        let card = element("download-card-\(completedID)")
+        let playFile = app.buttons["download-play-\(completedID)"]
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        XCTAssertTrue(wait { self.value(card) == "Artwork saved offline" })
+        reveal(playFile)
+        card.swipeLeft()
+        let delete = app.buttons["download-swipe-delete-\(completedID)"]
+        XCTAssertTrue(delete.waitForExistence(timeout: 5))
+        XCTAssertTrue(delete.isHittable)
+        XCTAssertFalse(app.buttons["Delete video"].exists, "Swiping alone must never confirm or delete a local file")
+        delete.tap()
+        let confirmDelete = app.buttons["Delete video"]
+        XCTAssertTrue(confirmDelete.waitForExistence(timeout: 5))
+        capture("Download swipe deletion requires its existing file confirmation")
+        let cancel = app.buttons["Cancel"].firstMatch
+        XCTAssertTrue(cancel.isHittable)
+        cancel.tap()
+        XCTAssertTrue(wait { !confirmDelete.exists && playFile.isHittable })
+        playFile.tap()
+        let play = app.buttons["offline-play-pause"]
+        XCTAssertTrue(play.waitForExistence(timeout: 10))
+        XCTAssertTrue(wait { play.isEnabled && play.label == "Pause" },
+            "Cancelling deletion must preserve the actual local H264 file and its playback")
+        play.tap()
+        XCTAssertTrue(wait { play.label == "Play" })
+        XCTAssertTrue(wait { (self.app.sliders["offline-progress"].value as? String ?? "").contains(" of 10:00") })
+        XCTAssertFalse(element("offline-video-error").exists)
+        capture("Cancelled swipe deletion leaves the saved video playable")
+        app.buttons["offline-close"].tap()
+        XCTAssertTrue(app.navigationBars["Downloads"].waitForExistence(timeout: 5))
+        XCTAssertTrue(card.exists)
+        XCTAssertTrue(playFile.isHittable)
+    }
+
+    private func element(_ identifier: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+    }
+
     private func value(_ element: XCUIElement) -> String { element.value as? String ?? "" }
     private func wait(_ condition: @escaping () -> Bool) -> Bool {
         let expectation = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in condition() }, object: nil)

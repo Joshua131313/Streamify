@@ -1,10 +1,57 @@
 import Foundation
 
+/// Today includes games still in progress from the preceding local date.
+/// Resolve duplicate states before date filtering so a stale live copy cannot
+/// bring a game back after another response has already reported it final.
+enum SportsScheduleDayPolicy {
+    static func canonicalGames(_ games: [SportsGame]) -> [SportsGame] {
+        var latest: [String: SportsGame] = [:]
+        for game in games {
+            if let previous = latest[game.id], phase(previous) > phase(game) { continue }
+            latest[game.id] = game
+        }
+        return latest.values.sorted {
+            if $0.date != $1.date { return ($0.date ?? .distantFuture) < ($1.date ?? .distantFuture) }
+            return $0.id < $1.id
+        }
+    }
+
+    static func games(_ games: [SportsGame], for day: Date, now: Date, calendar: Calendar) -> [SportsGame] {
+        canonicalGames(games).filter { includes($0, on: day, now: now, calendar: calendar) }
+    }
+
+    static func includes(_ game: SportsGame, on day: Date, now: Date, calendar: Calendar) -> Bool {
+        guard let start = game.date else { return false }
+        if calendar.isDate(start, inSameDayAs: day) { return true }
+        let today = calendar.startOfDay(for: now)
+        guard calendar.isDate(day, inSameDayAs: today), game.isLive,
+              let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else { return false }
+        return start >= yesterday && start < today
+    }
+
+    static func markerDay(for game: SportsGame, now: Date, calendar: Calendar) -> Date? {
+        guard let start = game.date else { return nil }
+        let today = calendar.startOfDay(for: now)
+        return start < today && includes(game, on: today, now: now, calendar: calendar) ? today : calendar.startOfDay(for: start)
+    }
+
+    static func selectedDay(_ selection: Date, now: Date, calendar: Calendar) -> Date {
+        let today = calendar.startOfDay(for: now)
+        let lastDay = calendar.date(byAdding: .day, value: 13, to: today) ?? today
+        return min(lastDay, max(today, calendar.startOfDay(for: selection)))
+    }
+
+    private static func phase(_ game: SportsGame) -> Int {
+        game.isFinal ? 2 : game.isLive ? 1 : 0
+    }
+}
+
 /// Uses the same ESPN schedule and Streamed discovery contracts as Android.
 struct SportsService: Sendable {
     var backend = ""
     var session: URLSession = .shared
     var calendar: Calendar = .current
+    var now: @Sendable () -> Date = { Date() }
 
     private func json(_ value: String) async throws -> Any {
         guard let url = sportsHTTPSURL(value) else { throw SportsServiceError.invalidURL }
@@ -77,6 +124,8 @@ struct SportsService: Sendable {
     }
 
     func schedule(leagues: [SportsLeague], day: Date) async throws -> SportsSchedule {
+        let referenceTime = now()
+        let selectedDay = calendar.startOfDay(for: day)
         let selected = SportsLeague.allCases.filter { leagues.contains($0) }
         guard !selected.isEmpty else { return SportsSchedule(games: [], failedLeagues: [], partial: false) }
         var games: [SportsGame] = []
@@ -87,7 +136,7 @@ struct SportsService: Sendable {
             for league in selected {
                 group.addTask {
                     do {
-                        let result = try await self.schedule(league: league, day: day)
+                        let result = try await self.schedule(league: league, day: selectedDay, now: referenceTime)
                         return LeagueScheduleResult(league: league, schedule: result)
                     } catch is CancellationError { throw CancellationError() }
                     catch { try Task.checkCancellation(); return LeagueScheduleResult(league: league, schedule: nil) }
@@ -107,25 +156,37 @@ struct SportsService: Sendable {
         let schedule: SportsSchedule?
     }
 
-    private func schedule(league: SportsLeague, day: Date) async throws -> SportsSchedule {
+    private func schedule(league: SportsLeague, day: Date, now: Date) async throws -> SportsSchedule {
         let date = DateFormatter()
         date.locale = Locale(identifier: "en_US_POSIX")
         date.timeZone = calendar.timeZone
         date.dateFormat = "yyyy-MM-dd"
+        let utc = DateFormatter()
+        utc.locale = Locale(identifier: "en_US_POSIX")
+        utc.timeZone = TimeZone(secondsFromGMT: 0)
+        utc.dateFormat = "yyyy-MM-dd"
         let base = backend.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         var backendGames: [SportsGame] = []
         if !base.isEmpty && league != .ncaaf {
             guard sportsHTTPSURL(base) != nil else { throw SportsServiceError.invalidURL }
             do {
                 let dayText = date.string(from: day)
-                let response = try await object("\(base)/api/schedule?league=\(league.rawValue)&start=\(dayText)&end=\(dayText)")
-                backendGames = response.sportsObjects("games").compactMap { backendGame($0, league: league) }.filter { $0.date.map { calendar.isDate($0, inSameDayAs: day) } == true }
-                if (response["failedDates"] as? [Any] ?? []).isEmpty { return SportsSchedule(games: backendGames, failedLeagues: [], partial: false) }
+                let firstDay = calendar.isDate(day, inSameDayAs: now) ? calendar.date(byAdding: .day, value: -1, to: day) ?? day : day
+                var backendCalendar = Calendar(identifier: .gregorian)
+                backendCalendar.timeZone = TimeZone(secondsFromGMT: 0)!
+                let minimumDay = backendCalendar.date(byAdding: .day, value: -1, to: now) ?? now
+                // The backend accepts UTC yesterday onward and already returns
+                // adjacent UTC feeds. Reuse those feeds, expanding the range only
+                // when the previous local day starts an additional UTC day back.
+                let requiredStart = backendCalendar.date(byAdding: .day, value: 1, to: backendCalendar.startOfDay(for: firstDay)) ?? firstDay
+                let firstDayText = max(min(dayText, utc.string(from: requiredStart)), utc.string(from: minimumDay))
+                let response = try await object("\(base)/api/schedule?league=\(league.rawValue)&start=\(firstDayText)&end=\(dayText)")
+                backendGames = response.sportsObjects("games").compactMap { backendGame($0, league: league) }
+                if (response["failedDates"] as? [Any] ?? []).isEmpty {
+                    return SportsSchedule(games: SportsScheduleDayPolicy.games(backendGames, for: day, now: now, calendar: calendar), failedLeagues: [], partial: false)
+                }
             } catch is CancellationError { throw CancellationError() } catch { }
         }
-        let utc = DateFormatter()
-        utc.locale = Locale(identifier: "en_US_POSIX")
-        utc.timeZone = TimeZone(secondsFromGMT: 0)
         utc.dateFormat = "yyyyMMdd"
         var games = backendGames
         var failed = 0
@@ -142,10 +203,7 @@ struct SportsService: Sendable {
             }
         }
         if failed == attempted && backendGames.isEmpty { throw SportsServiceError.noSchedule }
-        var identities = Set<String>()
-        return SportsSchedule(games: games.filter { game in
-            game.date.map { calendar.isDate($0, inSameDayAs: day) } == true && identities.insert(game.id).inserted
-        }, failedLeagues: [], partial: failed > 0)
+        return SportsSchedule(games: SportsScheduleDayPolicy.games(games, for: day, now: now, calendar: calendar), failedLeagues: [], partial: failed > 0)
     }
 
     func teams(league: SportsLeague) async throws -> [SportsTeamResult] {
@@ -199,6 +257,21 @@ struct SportsService: Sendable {
         }
         let latest = response.sportsObjects("plays").last?.sportsText("text") ?? response.sportsObject("drives").sportsObject("current").sportsObjects("plays").last?.sportsText("text") ?? ""
         return SportsGameCenter(game: fresh, scoring: scoring, statistics: statistics, latest: latest)
+    }
+
+    static func validEventID(_ value: String) -> Bool {
+        !value.isEmpty && value.utf8.count <= 32 && value.utf8.allSatisfy { (48...57).contains($0) }
+    }
+
+    /// Widget links contain ESPN identities, never an arbitrary player URL.
+    /// Fetch fresh status and teams before discovering any playable source.
+    func game(league: SportsLeague, eventID: String) async throws -> SportsGame {
+        guard Self.validEventID(eventID) else { throw SportsServiceError.invalidURL }
+        let response = try await object("\(league.endpoint)/summary?event=\(eventID)")
+        guard let game = parseGame(response.sportsObject("header"), league: league), game.eventID == eventID else {
+            throw SportsServiceError.invalidResponse
+        }
+        return game
     }
 
     func streams(_ game: SportsGame) async throws -> [SportsStream] {

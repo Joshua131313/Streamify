@@ -19,6 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Generate Xcode project
         run: |
+          swift --version
           brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
           xcodegen generate --spec ios/project.yml
       - name: Build device package for local signing
@@ -41,6 +42,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Generate Xcode project
         run: |
+          swift --version
           brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
           xcodebuild -version
           xcodegen generate --spec ios/project.yml
@@ -66,22 +68,56 @@ jobs:
           ) &
           DIAGNOSTIC_PID=$!
           trap 'kill "$DIAGNOSTIC_PID" 2>/dev/null || true' EXIT
-          xcodebuild test -project ios/Streamify.xcodeproj -scheme Streamify -configuration Debug -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_ID" -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 360 -resultBundlePath ios/build/Streamify.xcresult CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY='-'
+          COMMON=(-project ios/Streamify.xcodeproj -scheme Streamify -configuration Debug -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_ID" -derivedDataPath ios/build/Simulator CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY='-')
+          TEST_OPTIONS=(-parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 360)
+          xcodebuild build-for-testing "${COMMON[@]}"
+          # Verify the changed playback/download flows first; each test runs once.
+          xcodebuild test-without-building "${COMMON[@]}" "${TEST_OPTIONS[@]}" -resultBundlePath ios/build/Playback.xcresult -only-testing:StreamifyTests -only-testing:StreamifyUITests/SportsPlaybackFlowTests -only-testing:StreamifyUITests/DownloadIndicatorFlowTests -only-testing:StreamifyUITests/QuickActionFlowTests -only-testing:StreamifyUITests/ControlInteractionFlowTests/testSearchFieldAndHeaderPresentFullSearchAndReturnToTheirOriginalContext
+      - name: Export focused playback screenshots
+        if: always()
+        continue-on-error: true
+        run: |
+          if test -d ios/build/Playback.xcresult; then
+            xcrun xcresulttool export attachments --path ios/build/Playback.xcresult --output-path ios/build/screenshots/Playback
+            xcrun xcresulttool get test-results summary --path ios/build/Playback.xcresult > ios/build/screenshots/Playback/test-summary.json
+          fi
+      - name: Save focused playback verification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Streamify-iOS-focused-playback
+          path: ios/build/screenshots/Playback
+          if-no-files-found: ignore
+      - name: Verify remaining UI screens
+        run: |
+          (
+            while sleep 60; do
+              for APP_PID in $(pgrep -x Streamify || true); do
+                sample "$APP_PID" 1 1 -file "ios/build/diagnostics/Streamify-$APP_PID-$(date +%s).txt" >/dev/null 2>&1 || true
+              done
+            done
+          ) &
+          DIAGNOSTIC_PID=$!
+          trap 'kill "$DIAGNOSTIC_PID" 2>/dev/null || true' EXIT
+          xcodebuild test-without-building -project ios/Streamify.xcodeproj -scheme Streamify -configuration Debug -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_ID" -derivedDataPath ios/build/Simulator -parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 360 -resultBundlePath ios/build/Streamify.xcresult -skip-testing:StreamifyTests -skip-testing:StreamifyUITests/SportsPlaybackFlowTests -skip-testing:StreamifyUITests/DownloadIndicatorFlowTests -skip-testing:StreamifyUITests/QuickActionFlowTests -skip-testing:StreamifyUITests/ControlInteractionFlowTests/testSearchFieldAndHeaderPresentFullSearchAndReturnToTheirOriginalContext CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY='-'
       - name: Export simulator screenshots
         if: always()
         continue-on-error: true
         run: |
-          if test -d ios/build/Streamify.xcresult; then
-            xcrun xcresulttool export attachments --path ios/build/Streamify.xcresult --output-path ios/build/screenshots
-            xcrun xcresulttool get test-results summary --path ios/build/Streamify.xcresult > ios/build/screenshots/test-summary.json
-          fi
+          for RESULT in ios/build/Streamify.xcresult; do
+            if test -d "$RESULT"; then
+              NAME=$(basename "$RESULT" .xcresult)
+              xcrun xcresulttool export attachments --path "$RESULT" --output-path "ios/build/screenshots/$NAME"
+              xcrun xcresulttool get test-results summary --path "$RESULT" > "ios/build/screenshots/$NAME/test-summary.json"
+            fi
+          done
       - name: Save test results and screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Streamify-iOS-test-results
           path: |
-            ios/build/Streamify.xcresult
+            ios/build/*.xcresult
             ios/build/diagnostics
           if-no-files-found: ignore
       - name: Save viewable simulator screenshots

@@ -22,6 +22,7 @@ struct SportsSearchDialog: View {
     @State private var selectedGame: SportsGame?
     @State private var selectedTeam: SportsTeamResult?
     @State private var revision = 0
+    @State private var hasFocused = false
 
     init(day: Date, initialGames: [SportsGame]) {
         self.day = day
@@ -77,10 +78,13 @@ struct SportsSearchDialog: View {
             }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("sports-search-dialog")
+            .accessibilityAction(.escape) { focused = false; dismiss() }
             .task {
                 recents = Array((defaults.stringArray(forKey: recentsKey) ?? []).prefix(8))
-                try? await Task.sleep(for: .milliseconds(250))
-                guard !Task.isCancelled else { return }
+            }
+            .searchPresentationReady {
+                guard !hasFocused else { return }
+                hasFocused = true
                 focused = true
             }
             .task(id: revision) {
@@ -112,7 +116,6 @@ struct SportsSearchDialog: View {
                 if active { dismiss() }
             }
         }
-        .presentationDetents([.large]).presentationDragIndicator(.hidden)
     }
 
     private var searchBar: some View {

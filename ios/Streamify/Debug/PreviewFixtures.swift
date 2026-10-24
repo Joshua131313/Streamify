@@ -262,7 +262,9 @@ enum PreviewFixtures {
                 ["team": team(home), "statistics": [["name": "fieldGoals", "label": "Field Goals", "displayValue": home ? "41-80" : "39-83"], ["name": "rebounds", "label": "Rebounds", "displayValue": home ? "46" : "41"]]]
             }
             let event = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "event" })?.value ?? ""
-            return ["header": event.hasSuffix("-final") ? final : game, "boxscore": ["teams": [stats(false), stats(true)]], "plays": [["text": "Toronto takes the lead with a three point shot."]]]
+            var header = event.hasSuffix("-final") ? final : game
+            if SportsService.validEventID(event) { header["id"] = event }
+            return ["header": header, "boxscore": ["teams": [stats(false), stats(true)]], "plays": [["text": "Toronto takes the lead with a three point shot."]]]
         }
         if parts.last == "roster" {
             return ["athletes": [["items": [["id": "1", "displayName": "Jordan Hayes", "jersey": "7", "position": ["abbreviation": "G"], "displayHeight": "6' 3\""], ["id": "2", "displayName": "Sam Rivera", "jersey": "22", "position": ["abbreviation": "F"], "displayHeight": "6' 8\""]]]]]

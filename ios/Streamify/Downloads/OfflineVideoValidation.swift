@@ -65,21 +65,7 @@ enum OfflineVideoValidation {
         let asset = AVURLAsset(url: url)
         return try await withTaskCancellationHandler {
             do {
-                let (playable, duration, protected) = try await asset.load(.isPlayable, .duration, .hasProtectedContent)
-                try Task.checkCancellation()
-                guard !protected else { throw OfflineVideoError.protectedContent }
-                let video = try await asset.loadTracks(withMediaType: .video)
-                try Task.checkCancellation()
-                guard !video.isEmpty else { throw OfflineVideoError.noVideo }
-                guard duration.seconds.isFinite, duration.seconds > 0 else { throw OfflineVideoError.damagedFile }
-                guard try await hasPlayableTrack(video) else { throw OfflineVideoError.incompatible }
-                let audio = try await asset.loadTracks(withMediaType: .audio)
-                if !audio.isEmpty {
-                    guard try await hasPlayableTrack(audio) else { throw OfflineVideoError.incompatible }
-                }
-                guard playable else { throw OfflineVideoError.unplayable }
-                try Task.checkCancellation()
-                return Result(asset: asset, duration: duration.seconds)
+                return try await inspect(asset)
             } catch {
                 if Task.isCancelled { throw CancellationError() }
                 throw OfflineVideoError.classify(error)
@@ -89,6 +75,56 @@ enum OfflineVideoValidation {
         }
     }
 
+    /// Ask AVFoundation about the actual candidate before starting a complete
+    /// download. Container names and HEVC tags alone do not determine support.
+    /// AVFoundation loads the metadata it needs; a deadline and cancellation
+    /// stop outstanding native asset loads. Local test assets use the same path.
+    static func validateRemoteSource(_ url: URL, timeout: TimeInterval = 12) async throws {
+        try Task.checkCancellation()
+        let asset = AVURLAsset(url: url)
+        defer { asset.cancelLoading() }
+        let seconds = timeout.isFinite ? min(60, max(0.05, timeout)) : 12
+        do {
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                group.addTask {
+                    try await withTaskCancellationHandler {
+                        _ = try await inspect(asset)
+                    } onCancel: { asset.cancelLoading() }
+                }
+                group.addTask {
+                    try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                    throw OfflineSourceValidationError.unavailable
+                }
+                defer { group.cancelAll() }
+                _ = try await group.next()
+            }
+        } catch {
+            if Task.isCancelled || error is CancellationError { throw CancellationError() }
+            // Only an explicit native unsupported/protected error establishes
+            // compatibility. Network, rate limits and unknown metadata errors
+            // must not be turned into a codec verdict or a lower-quality retry.
+            throw OfflineSourceValidationError.classify(error)
+        }
+    }
+
+    private static func inspect(_ asset: AVURLAsset) async throws -> Result {
+        let (playable, duration, protected) = try await asset.load(.isPlayable, .duration, .hasProtectedContent)
+        try Task.checkCancellation()
+        guard !protected else { throw OfflineVideoError.protectedContent }
+        let video = try await asset.loadTracks(withMediaType: .video)
+        try Task.checkCancellation()
+        guard !video.isEmpty else { throw OfflineVideoError.noVideo }
+        guard duration.seconds.isFinite, duration.seconds > 0 else { throw OfflineVideoError.damagedFile }
+        guard try await hasPlayableTrack(video) else { throw OfflineVideoError.incompatible }
+        let audio = try await asset.loadTracks(withMediaType: .audio)
+        if !audio.isEmpty {
+            guard try await hasPlayableTrack(audio) else { throw OfflineVideoError.incompatible }
+        }
+        guard playable else { throw OfflineVideoError.unplayable }
+        try Task.checkCancellation()
+        return Result(asset: asset, duration: duration.seconds)
+    }
+
     private static func hasPlayableTrack(_ tracks: [AVAssetTrack]) async throws -> Bool {
         for track in tracks {
             let (decodable, playable) = try await track.load(.isDecodable, .isPlayable)
@@ -96,5 +132,34 @@ enum OfflineVideoValidation {
             if decodable && playable { return true }
         }
         return false
+    }
+}
+
+enum OfflineSourceValidationError: LocalizedError {
+    case unavailable
+    var errorDescription: String? { "The download source could not be checked. Please try again later." }
+
+    static func classify(_ error: Error) -> Error {
+        if let error = error as? OfflineVideoError {
+            if error.isCompatibilityIssue { return error }
+            return Self.unavailable
+        }
+        var current = error as NSError?
+        var unrecognizedFormat = false
+        for _ in 0..<6 {
+            guard let item = current else { break }
+            // Transport failures take precedence over a media wrapper error.
+            if item.domain == NSURLErrorDomain { return Self.unavailable }
+            if item.domain == AVFoundationErrorDomain, item.code == AVError.Code.fileFormatNotRecognized.rawValue {
+                unrecognizedFormat = true
+            }
+            current = item.userInfo[NSUnderlyingErrorKey] as? NSError
+        }
+        // A recognized native format rejection is a reason to inspect another
+        // candidate. It does not establish which codec or container detail failed.
+        if unrecognizedFormat { return OfflineVideoError.unplayable }
+        let classified = OfflineVideoError.classify(error)
+        if classified == .incompatible || classified == .protectedContent { return classified }
+        return Self.unavailable
     }
 }

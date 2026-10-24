@@ -3,6 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleDisplayName</key><string>Streamify</string>
+    <key>CFBundleDevelopmentRegion</key><string>en</string>
     <key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
     <key>CFBundleName</key><string>$(PRODUCT_NAME)</string>
@@ -11,6 +12,26 @@
     <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
     <key>LSRequiresIPhoneOS</key><true/>
     <key>LSApplicationQueriesSchemes</key><array><string>sidestore</string></array>
+    <key>CFBundleURLTypes</key>
+    <array><dict><key>CFBundleURLName</key><string>com.streamify.app</string><key>CFBundleURLSchemes</key><array><string>streamify</string></array></dict></array>
+    <key>UIApplicationShortcutItems</key>
+    <array>
+        <dict>
+            <key>UIApplicationShortcutItemType</key><string>com.streamify.app.downloads</string>
+            <key>UIApplicationShortcutItemTitle</key><string>My Downloads</string>
+            <key>UIApplicationShortcutItemIconSymbolName</key><string>arrow.down.circle</string>
+        </dict>
+        <dict>
+            <key>UIApplicationShortcutItemType</key><string>com.streamify.app.favorites</string>
+            <key>UIApplicationShortcutItemTitle</key><string>My Favorites</string>
+            <key>UIApplicationShortcutItemIconSymbolName</key><string>heart</string>
+        </dict>
+        <dict>
+            <key>UIApplicationShortcutItemType</key><string>com.streamify.app.sports</string>
+            <key>UIApplicationShortcutItemTitle</key><string>Sports</string>
+            <key>UIApplicationShortcutItemIconSymbolName</key><string>sportscourt</string>
+        </dict>
+    </array>
     <key>UIApplicationSceneManifest</key><dict><key>UIApplicationSupportsMultipleScenes</key><false/></dict>
     <key>ITSAppUsesNonExemptEncryption</key><false/>
     <key>UILaunchScreen</key>

@@ -102,6 +102,55 @@ final class OfflineVideoValidationTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: source.path))
     }
 
+    func testSourcePreflightUsesTheActualBundledH264AssetMetadata() async throws {
+        let source = try XCTUnwrap(Bundle(for: DownloadStore.self).url(forResource: "offline-player", withExtension: "mp4"))
+        try await OfflineVideoValidation.validateRemoteSource(source, timeout: 5)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: source.path), "Preflight only inspects the source and never changes its bytes")
+    }
+
+    func testUnreadableSourceMetadataStopsPreflightWithoutChangingOriginal() async throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let source = directory.appendingPathComponent("unreadable.mp4")
+        let bytes = Data("This is not media metadata.".utf8)
+        try bytes.write(to: source)
+        do {
+            try await OfflineVideoValidation.validateRemoteSource(source, timeout: 3)
+            XCTFail("Unreadable native metadata must fail preflight")
+        } catch {
+            XCTAssertTrue(error is OfflineSourceValidationError || error as? OfflineVideoError == .unplayable,
+                "Unreadable metadata must stop transfer with availability or an explicit native format rejection: \(error)")
+        }
+        XCTAssertEqual(try Data(contentsOf: source), bytes)
+    }
+
+    func testSourcePreflightCancellationIsNotReclassifiedAsCompatibilityFailure() async throws {
+        let source = try XCTUnwrap(Bundle(for: DownloadStore.self).url(forResource: "offline-player", withExtension: "mp4"))
+        let task = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            try await OfflineVideoValidation.validateRemoteSource(source)
+        }
+        do { try await task.value; XCTFail("Cancelled source inspection must not continue") }
+        catch { XCTAssertTrue(error is CancellationError) }
+    }
+
+    func testRemoteTransportErrorsTakePrecedenceOverMediaWrapperErrors() {
+        let network = NSError(domain: NSURLErrorDomain, code: URLError.badServerResponse.rawValue)
+        let wrapped = NSError(domain: AVFoundationErrorDomain, code: AVError.Code.decoderNotFound.rawValue,
+            userInfo: [NSUnderlyingErrorKey: network])
+        XCTAssertTrue(OfflineSourceValidationError.classify(wrapped) is OfflineSourceValidationError,
+            "A server/rate-limit failure must not become a codec verdict merely because AVFoundation wraps it")
+        let unsupported = NSError(domain: AVFoundationErrorDomain, code: AVError.Code.decoderNotFound.rawValue)
+        XCTAssertEqual(OfflineSourceValidationError.classify(unsupported) as? OfflineVideoError, .incompatible)
+        XCTAssertTrue(OfflineSourceValidationError.classify(URLError(.timedOut)) is OfflineSourceValidationError)
+        let format = NSError(domain: AVFoundationErrorDomain, code: AVError.Code.fileFormatNotRecognized.rawValue)
+        XCTAssertEqual(OfflineSourceValidationError.classify(format) as? OfflineVideoError, .unplayable,
+            "An explicit native format rejection should permit inspecting another available file")
+        let networkWrappedAsFormat = NSError(domain: AVFoundationErrorDomain, code: AVError.Code.fileFormatNotRecognized.rawValue,
+            userInfo: [NSUnderlyingErrorKey: network])
+        XCTAssertTrue(OfflineSourceValidationError.classify(networkWrappedAsFormat) is OfflineSourceValidationError)
+    }
+
     private func temporaryDirectory() throws -> URL {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)

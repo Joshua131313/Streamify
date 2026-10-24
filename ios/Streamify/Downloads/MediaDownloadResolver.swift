@@ -13,6 +13,7 @@ enum MediaDownloadResolutionError: LocalizedError {
     case streamingOnly
     case qualityUnavailable
     case unsafeSource
+    case incompatibleSource
 
     var errorDescription: String? {
         switch self {
@@ -30,6 +31,8 @@ enum MediaDownloadResolutionError: LocalizedError {
             return "No download is available at this quality. Select a higher resolution and try again."
         case .unsafeSource:
             return "The source did not provide a supported HTTPS video file. Try streaming this title instead."
+        case .incompatibleSource:
+            return "The available download files cannot be played by this iPhone. Try streaming this title or choose another download source."
         }
     }
 }
@@ -38,8 +41,13 @@ enum MediaDownloadResolutionError: LocalizedError {
 /// Metadata requests are bounded; embedded players, playlists, and DRM are never downloaded.
 struct MediaDownloadResolver {
     private let session: URLSession
+    private let sourceValidator: @Sendable (URL) async throws -> Void
 
-    init(session: URLSession = .shared) { self.session = session }
+    init(session: URLSession = .shared,
+         sourceValidator: @escaping @Sendable (URL) async throws -> Void = { try await OfflineVideoValidation.validateRemoteSource($0) }) {
+        self.session = session
+        self.sourceValidator = sourceValidator
+    }
 
     func resolve(media: MediaItem, season: Int = 1, episode: Int = 1,
                  maximumQuality: Int = 1080) async throws -> ResolvedMediaDownload {
@@ -88,6 +96,8 @@ struct MediaDownloadResolver {
 
         var foundAddress = false
         var foundPlaylist = false
+        var foundIncompatibleSource = false
+        var checkedSources = Set<URL>()
         for quality in qualities {
             guard let item = available[String(quality)] as? [String: Any],
                   let value = item["url"] as? String, !value.isEmpty else { continue }
@@ -98,8 +108,23 @@ struct MediaDownloadResolver {
                 continue
             }
             try Task.checkCancellation()
+            // Some quality entries point at the same physical file. Do not
+            // inspect an already rejected source again and amplify rate limits.
+            guard checkedSources.insert(url).inserted else { continue }
+            do {
+                try await sourceValidator(url)
+                try Task.checkCancellation()
+            } catch {
+                if Task.isCancelled || error is CancellationError { throw CancellationError() }
+                if let error = error as? OfflineVideoError, error.isCompatibilityIssue {
+                    foundIncompatibleSource = true
+                    continue
+                }
+                throw MediaDownloadResolutionError.unavailable
+            }
             return ResolvedMediaDownload(url: url, quality: quality)
         }
+        if foundIncompatibleSource { throw MediaDownloadResolutionError.incompatibleSource }
         if foundPlaylist { throw MediaDownloadResolutionError.streamingOnly }
         throw foundAddress ? MediaDownloadResolutionError.unsafeSource : MediaDownloadResolutionError.qualityUnavailable
     }

@@ -20,6 +20,14 @@ The ARM64 iPhone Release build also passed. That run's IPA was **version 1.0.0, 
 
 These results describe **1.0.0**, not the current 1.1.2 changes. Version 1.1.0 build 7 was subsequently installed on the iPhone through iLoader. End-to-end physical-device playback has not been verified, and no TestFlight upload has been performed. Portable Swift grammar, resource JSON, property lists, 17 collection images, 15 provider templates, and the opaque 1024px app icon also passed the previous validation.
 
+## Home Screen widget and shortcuts
+
+After installing the updated build, open Streamify once. Touch and hold an empty area of the iPhone Home Screen, choose **Edit → Add Widget**, search for **Streamify Live Games**, and add its small, medium, or large size. The small widget opens its displayed game; medium and large widgets provide individual **Watch** links. Streamify checks the game's current status and available sources when a link opens. With no live games or unavailable scores, the widget opens Sports instead.
+
+The widget shows when scores were last updated. It requests a refresh about every ten minutes; iOS controls the actual schedule, so this is not a continuously updating scoreboard. After fifteen minutes without a new timeline, old scores are replaced by an update message. Open Sports for current scores and streams.
+
+Touch and hold the Streamify app icon for **My Downloads**, **My Favorites**, or **Sports**. These shortcuts open the corresponding section directly, including when the app is closed.
+
 ## Test on your iPhone from Windows
 
 The current free-account setup uses [iLoader](https://iloader.app/), which successfully installed the first build. Sideloadly failed at Apple sign-in before installation. To install a newly built update:

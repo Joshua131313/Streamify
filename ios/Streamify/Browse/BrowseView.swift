@@ -85,6 +85,7 @@ struct BrowseView: View {
     @State private var topRated = false
     @State private var revision = 0
     @State private var showSearch = false
+    @Namespace private var searchTransition
     private let providers = [(0, "All providers"), (8, "Netflix"), (9, "Prime Video"), (337, "Disney+"), (350, "Apple TV"), (15, "Hulu"), (531, "Paramount+")]
     private let animeGenres = ["Action", "Adventure", "Comedy", "Drama", "Fantasy", "Romance", "Sci-Fi", "Sports", "Thriller"]
 
@@ -108,6 +109,7 @@ struct BrowseView: View {
                             Image(systemName: "arrow.up.left.and.arrow.down.right").font(.caption)
                         }.font(.subheadline).foregroundStyle(AppTheme.muted)
                             .padding(.horizontal, 16).frame(minHeight: 56).streamifyControlSurface()
+                            .streamifySearchSource("catalog-search-field", in: searchTransition)
                     }.buttonStyle(HapticPlainButtonStyle()).accessibilityIdentifier("open-catalog-search-dialog").padding(.horizontal, pageGutter)
                     VStack(alignment: .leading, spacing: 12) {
                         if cleanQuery.isEmpty { SectionHeading(title: "Find your next favorite").padding(.horizontal, pageGutter) }
@@ -188,7 +190,9 @@ struct BrowseView: View {
                 if !Task.isCancelled { model.genres = [] }
             }
         }
-        .sheet(isPresented: $showSearch) { CatalogSearchDialog(initialKind: kind) }
+        .streamifySearchPresentation(isPresented: $showSearch, sourceID: "catalog-search-field", in: searchTransition) {
+            CatalogSearchDialog(initialKind: kind)
+        }
         .refreshable { await load(first: true) }
     }
 

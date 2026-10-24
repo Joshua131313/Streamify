@@ -11,7 +11,7 @@ final class MediaDownloadResolverTests: XCTestCase {
                 "720": ["url": "https://cdn.example.test/video-720.mp4"]
             ]]])
         ])
-        let result = try await MediaDownloadResolver(session: fixture.session)
+        let result = try await MediaDownloadResolver(session: fixture.session, sourceValidator: { _ in })
             .resolve(media: MediaItem(id: 42, kind: .movie, title: "Fixture"))
         XCTAssertEqual(result.quality, 1080)
         XCTAssertEqual(result.url.absoluteString, "https://cdn.example.test/video.mp4?expires=2000000000&signature=a%2Bb%2Fc%3D")
@@ -34,7 +34,7 @@ final class MediaDownloadResolverTests: XCTestCase {
                 "480": ["url": "https://cdn.example.test/low.mp4"]
             ]]])
         ])
-        let result = try await MediaDownloadResolver(session: fixture.session)
+        let result = try await MediaDownloadResolver(session: fixture.session, sourceValidator: { _ in })
             .resolve(media: MediaItem(id: 84, kind: .tv, title: "Fixture series"), season: 2, episode: 7, maximumQuality: 720)
         XCTAssertEqual(result.quality, 720)
         XCTAssertEqual(result.url.absoluteString, "https://cdn.example.test/media/episode?token=abc%2Fdef&quality=720")
@@ -46,7 +46,7 @@ final class MediaDownloadResolverTests: XCTestCase {
             "1080": ["url": "http://cdn.example.test/video.mp4"],
             "720": ["url": "https://cdn.example.test/video.mp4"]
         ]])
-        let result = try await MediaDownloadResolver(session: fixture.session)
+        let result = try await MediaDownloadResolver(session: fixture.session, sourceValidator: { _ in })
             .resolve(media: MediaItem(id: 42, kind: .movie, title: "Fixture"))
         XCTAssertEqual(result.quality, 720)
     }
@@ -58,7 +58,7 @@ final class MediaDownloadResolverTests: XCTestCase {
                         "https://cdn.example.test/watch.php", "https://cdn.example.test/line\nbreak.mp4"] {
             let fixture = sourceFixture(["type": "file", "qualities": ["1080": ["url": address]]])
             do {
-                _ = try await MediaDownloadResolver(session: fixture.session)
+                _ = try await MediaDownloadResolver(session: fixture.session, sourceValidator: { _ in })
                     .resolve(media: MediaItem(id: 42, kind: .movie, title: "Fixture"))
                 XCTFail("Accepted an unsafe video address: \(address)")
             } catch {
@@ -78,7 +78,7 @@ final class MediaDownloadResolverTests: XCTestCase {
         for stream in streams {
             let fixture = sourceFixture(stream)
             do {
-                _ = try await MediaDownloadResolver(session: fixture.session)
+                _ = try await MediaDownloadResolver(session: fixture.session, sourceValidator: { _ in })
                     .resolve(media: MediaItem(id: 42, kind: .movie, title: "Fixture"))
                 XCTFail("A playlist or DRM source must not be downloaded.")
             } catch {
@@ -90,7 +90,7 @@ final class MediaDownloadResolverTests: XCTestCase {
     func testQualityLimitDoesNotSilentlyDownloadHigherResolution() async {
         let fixture = sourceFixture(["type": "file", "qualities": ["1080": ["url": "https://cdn.example.test/video.mp4"]]])
         do {
-            _ = try await MediaDownloadResolver(session: fixture.session)
+            _ = try await MediaDownloadResolver(session: fixture.session, sourceValidator: { _ in })
                 .resolve(media: MediaItem(id: 42, kind: .movie, title: "Fixture"), maximumQuality: 480)
             XCTFail("A higher resolution must not bypass the user's quality limit.")
         } catch {
@@ -100,7 +100,7 @@ final class MediaDownloadResolverTests: XCTestCase {
 
     func testInvalidIdentitiesAndEpisodeNumbersMakeNoRequest() async {
         let fixture = DownloadResolverFixture([])
-        let resolver = MediaDownloadResolver(session: fixture.session)
+        let resolver = MediaDownloadResolver(session: fixture.session, sourceValidator: { _ in })
         for item in [MediaItem(id: 42, kind: .anime, title: "Anime"), MediaItem(id: 0, kind: .movie, title: "Invalid") ] {
             do { _ = try await resolver.resolve(media: item); XCTFail("Unsupported identity was accepted.") }
             catch { XCTAssertTrue(error.localizedDescription.contains("movies and TV")) }
@@ -116,7 +116,7 @@ final class MediaDownloadResolverTests: XCTestCase {
         for token in ["", " ", "../admin", "https://evil.example.test/path", "token#fragment", "line\nbreak", String(repeating: "A", count: 4097)] {
             let fixture = DownloadResolverFixture([.json(["result": token])])
             do {
-                _ = try await MediaDownloadResolver(session: fixture.session)
+                _ = try await MediaDownloadResolver(session: fixture.session, sourceValidator: { _ in })
                     .resolve(media: MediaItem(id: 42, kind: .movie, title: "Fixture"))
                 XCTFail("A malformed token was accepted.")
             } catch { XCTAssertTrue(error.localizedDescription.contains("unreadable response")) }
@@ -135,7 +135,7 @@ final class MediaDownloadResolverTests: XCTestCase {
         for reply in replies {
             let fixture = DownloadResolverFixture([reply])
             do {
-                _ = try await MediaDownloadResolver(session: fixture.session)
+                _ = try await MediaDownloadResolver(session: fixture.session, sourceValidator: { _ in })
                     .resolve(media: MediaItem(id: 42, kind: .movie, title: "Fixture"))
                 XCTFail("Invalid metadata was accepted.")
             } catch { XCTAssertTrue(error is MediaDownloadResolutionError) }
@@ -148,7 +148,7 @@ final class MediaDownloadResolverTests: XCTestCase {
             .json(["result": "fixture-token"]), .body(Data(repeating: 65, count: 512 * 1024 + 1))
         ])
         do {
-            _ = try await MediaDownloadResolver(session: fixture.session)
+            _ = try await MediaDownloadResolver(session: fixture.session, sourceValidator: { _ in })
                 .resolve(media: MediaItem(id: 42, kind: .movie, title: "Fixture"))
             XCTFail("An oversized provider response was accepted.")
         } catch { XCTAssertTrue(error.localizedDescription.contains("unreadable response")) }
@@ -159,7 +159,7 @@ final class MediaDownloadResolverTests: XCTestCase {
         let started = expectation(description: "Metadata request started")
         let fixture = DownloadResolverFixture([.pending(started)])
         let task = Task {
-            try await MediaDownloadResolver(session: fixture.session)
+            try await MediaDownloadResolver(session: fixture.session, sourceValidator: { _ in })
                 .resolve(media: MediaItem(id: 42, kind: .movie, title: "Fixture"))
         }
         await fulfillment(of: [started], timeout: 3)
@@ -169,9 +169,111 @@ final class MediaDownloadResolverTests: XCTestCase {
         XCTAssertEqual(fixture.requests.count, 1)
     }
 
+    func testNativeIncompatibilityFallsBackBeforeReturningTheActualLowerQuality() async throws {
+        let fixture = sourceFixture(["type": "file", "qualities": [
+            "1080": ["url": "https://cdn.example.test/1080.mp4"],
+            "720": ["url": "https://cdn.example.test/1080.mp4"],
+            "480": ["url": "https://cdn.example.test/480.mp4"],
+            "360": ["url": "https://cdn.example.test/360.mp4"]
+        ]])
+        let checked = DownloadSourceValidationProbe()
+        let resolver = MediaDownloadResolver(session: fixture.session, sourceValidator: { url in
+            await checked.record(url)
+            if url.lastPathComponent == "1080.mp4" { throw OfflineVideoError.incompatible }
+        })
+        let result = try await resolver.resolve(media: MediaItem(id: 124364, kind: .tv, title: "Fixture series"),
+            season: 1, episode: 1, maximumQuality: 1080)
+        XCTAssertEqual(result.quality, 480, "Persist the verified candidate's actual quality, not the original 1080 preference")
+        XCTAssertEqual(result.url.lastPathComponent, "480.mp4")
+        let paths = await checked.paths
+        XCTAssertEqual(paths, ["1080.mp4", "480.mp4"], "Skip duplicate rejected addresses and stop inspecting once a compatible file is found")
+        XCTAssertEqual(fixture.requests.count, 2, "Only bounded API metadata is fetched by this injected contract test")
+    }
+
+    func testAllNativeIncompatibleFilesProduceAClearCompatibilityError() async {
+        let fixture = sourceFixture(["type": "file", "qualities": [
+            "1080": ["url": "https://cdn.example.test/1080.mp4"],
+            "480": ["url": "https://cdn.example.test/480.mp4"]
+        ]])
+        let checked = DownloadSourceValidationProbe()
+        do {
+            _ = try await MediaDownloadResolver(session: fixture.session, sourceValidator: { url in
+                await checked.record(url)
+                throw OfflineVideoError.incompatible
+            }).resolve(media: MediaItem(id: 42, kind: .movie, title: "Fixture"))
+            XCTFail("A file the native player cannot play must not start a complete download")
+        } catch let error as MediaDownloadResolutionError {
+            guard case .incompatibleSource = error else { XCTFail("Unexpected source error: \(error)"); return }
+            XCTAssertTrue(error.localizedDescription.contains("cannot be played by this iPhone"))
+        } catch { XCTFail("Expected a source compatibility error: \(error)") }
+        let paths = await checked.paths
+        XCTAssertEqual(paths, ["1080.mp4", "480.mp4"])
+    }
+
+    func testNetworkFailureDuringPreflightDoesNotBecomeACodecErrorOrTryAnotherQuality() async {
+        let fixture = sourceFixture(["type": "file", "qualities": [
+            "1080": ["url": "https://cdn.example.test/1080.mp4"],
+            "480": ["url": "https://cdn.example.test/480.mp4"]
+        ]])
+        let checked = DownloadSourceValidationProbe()
+        do {
+            _ = try await MediaDownloadResolver(session: fixture.session, sourceValidator: { url in
+                await checked.record(url)
+                throw URLError(.badServerResponse)
+            }).resolve(media: MediaItem(id: 42, kind: .movie, title: "Fixture"))
+            XCTFail("Unavailable metadata cannot establish native compatibility")
+        } catch let error as MediaDownloadResolutionError {
+            guard case .unavailable = error else { XCTFail("A network failure was mislabeled: \(error)"); return }
+        } catch { XCTFail("Expected an unavailable source error: \(error)") }
+        let paths = await checked.paths
+        XCTAssertEqual(paths, ["1080.mp4"], "A network or rate-limit error must not trigger another candidate request")
+    }
+
+    func testCancellationDuringPreflightStopsBeforeCheckingAnotherCandidate() async {
+        let fixture = sourceFixture(["type": "file", "qualities": [
+            "1080": ["url": "https://cdn.example.test/1080.mp4"],
+            "480": ["url": "https://cdn.example.test/480.mp4"]
+        ]])
+        let checked = DownloadSourceValidationProbe()
+        let started = expectation(description: "Native source inspection started")
+        let resolver = MediaDownloadResolver(session: fixture.session, sourceValidator: { url in
+            await checked.record(url)
+            started.fulfill()
+            try await Task.sleep(nanoseconds: 30_000_000_000)
+        })
+        let task = Task { try await resolver.resolve(media: MediaItem(id: 42, kind: .movie, title: "Fixture")) }
+        await fulfillment(of: [started], timeout: 3)
+        task.cancel()
+        do { _ = try await task.value; XCTFail("Cancelled preflight must not return a source") }
+        catch { XCTAssertTrue(error is CancellationError) }
+        let paths = await checked.paths
+        XCTAssertEqual(paths, ["1080.mp4"])
+    }
+
+    func testPreflightDoesNotBlacklistHEVCNamesOrExceedTheSelectedQuality() async throws {
+        let fixture = sourceFixture(["type": "file", "qualities": [
+            "1080": ["url": "https://cdn.example.test/1080.mp4"],
+            "720": ["url": "https://cdn.example.test/hev1-720.mp4"],
+            "480": ["url": "https://cdn.example.test/480.mp4"]
+        ]])
+        let checked = DownloadSourceValidationProbe()
+        let result = try await MediaDownloadResolver(session: fixture.session, sourceValidator: { url in
+            await checked.record(url)
+        }).resolve(media: MediaItem(id: 42, kind: .movie, title: "Fixture"), maximumQuality: 720)
+        XCTAssertEqual(result.quality, 720)
+        let paths = await checked.paths
+        XCTAssertEqual(paths, ["hev1-720.mp4"], "Native inspection decides support; a filename or a HEVC tag is not a device capability test")
+    }
+
     private func sourceFixture(_ stream: [String: Any]) -> DownloadResolverFixture {
         DownloadResolverFixture([.json(["result": "fixture-token"]), .json(["stream": stream])])
     }
+}
+
+private actor DownloadSourceValidationProbe {
+    private var urls: [URL] = []
+    func record(_ url: URL) { urls.append(url) }
+    var paths: [String] { urls.map(\.lastPathComponent) }
 }
 
 private final class DownloadResolverFixture {

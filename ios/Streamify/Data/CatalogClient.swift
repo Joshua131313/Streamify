@@ -80,10 +80,32 @@ struct TMDBClient {
 
     func collection(id: Int) async throws -> CollectionDetails {
         let json = try await request(path: "collection/\(id)")
-        return CollectionDetails(overview: json.string("overview"), movies: json.objects("parts")
-            .compactMap { Self.media($0, kind: .movie) }.sorted {
-                ($0.releaseDate.isEmpty ? "9999" : $0.releaseDate) < ($1.releaseDate.isEmpty ? "9999" : $1.releaseDate)
-            })
+        let base = json.objects("parts").compactMap { Self.media($0, kind: .movie) }
+        var seen = Set(base.map(\.key))
+        let includes = (FilmCollection.bundled.first { $0.id == id }?.includes ?? []).filter {
+            $0.id > 0 && $0.kind != .anime && seen.insert($0.key).inserted
+        }
+        let additional = try await withThrowingTaskGroup(of: MediaItem?.self) { group in
+            for reference in includes {
+                group.addTask {
+                    do {
+                        let json = try await request(path: "\(reference.kind.rawValue)/\(reference.id)")
+                        guard let media = Self.media(json, kind: reference.kind), media.id == reference.id else { return nil }
+                        return media
+                    } catch {
+                        try Task.checkCancellation()
+                        // A temporarily missing extra title must not hide the rest of the franchise.
+                        return nil
+                    }
+                }
+            }
+            var titles: [MediaItem] = []
+            for try await item in group { if let item { titles.append(item) } }
+            return titles
+        }
+        try Task.checkCancellation()
+        return .merging(overview: json.string("overview"), base: base, additional: additional,
+                        unavailableCount: includes.count - additional.count)
     }
 
     func person(id: Int) async throws -> PersonDetails {

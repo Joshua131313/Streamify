@@ -101,25 +101,38 @@ struct MediaDetails {
     let trailer: URL?
 }
 
+/// Explicit catalog identities allow a franchise collection to include TV series
+/// and films outside TMDB's single movie-only collection.
+struct CollectionMediaReference: Hashable, Codable {
+    let id: Int
+    let kind: MediaKind
+    let title: String
+    var key: String { "\(kind.rawValue):\(id)" }
+}
+
 struct FilmCollection: Identifiable, Hashable, Codable {
     let id: Int
     let name: String
     let backdrop: String
     let genres: [Int]
     let featured: Bool
+    let includes: [CollectionMediaReference]
     var assetName: String {
         "collection-" + URL(fileURLWithPath: backdrop).deletingPathExtension().lastPathComponent
     }
-    init(id: Int, name: String, backdrop: String, genres: [Int] = [], featured: Bool = false) {
+    init(id: Int, name: String, backdrop: String, genres: [Int] = [], featured: Bool = false,
+         includes: [CollectionMediaReference] = []) {
         self.id = id; self.name = name; self.backdrop = backdrop; self.genres = genres; self.featured = featured
+        self.includes = includes
     }
-    private enum CodingKeys: String, CodingKey { case id, name, backdrop, genres, featured }
+    private enum CodingKeys: String, CodingKey { case id, name, backdrop, genres, featured, includes }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(Int.self, forKey: .id); name = try c.decode(String.self, forKey: .name)
         backdrop = try c.decode(String.self, forKey: .backdrop)
         genres = try c.decodeIfPresent([Int].self, forKey: .genres) ?? []
         featured = try c.decodeIfPresent(Bool.self, forKey: .featured) ?? false
+        includes = try c.decodeIfPresent([CollectionMediaReference].self, forKey: .includes) ?? []
     }
     static var bundled: [FilmCollection] { bundledJSON("collections") ?? [] }
 }
@@ -127,6 +140,25 @@ struct FilmCollection: Identifiable, Hashable, Codable {
 struct CollectionDetails {
     let overview: String
     let movies: [MediaItem]
+    var unavailableCount: Int = 0
+
+    var mediaSummary: String {
+        let movieCount = movies.filter { $0.kind == .movie }.count
+        let seriesCount = movies.filter { $0.kind == .tv }.count
+        let summary = [movieCount > 0 ? "\(movieCount) \(movieCount == 1 ? "movie" : "movies")" : nil,
+                       seriesCount > 0 ? "\(seriesCount) series" : nil].compactMap { $0 }.joined(separator: " · ")
+        return summary.isEmpty ? "0 titles" : summary
+    }
+
+    static func merging(overview: String, base: [MediaItem], additional: [MediaItem], unavailableCount: Int = 0) -> Self {
+        var seen = Set<String>()
+        let titles = (base + additional).filter { seen.insert($0.key).inserted }.sorted {
+            let firstDate = $0.releaseDate.isEmpty ? "9999" : $0.releaseDate
+            let secondDate = $1.releaseDate.isEmpty ? "9999" : $1.releaseDate
+            return firstDate == secondDate ? $0.key < $1.key : firstDate < secondDate
+        }
+        return Self(overview: overview, movies: titles, unavailableCount: unavailableCount)
+    }
 }
 
 struct PersonDetails {

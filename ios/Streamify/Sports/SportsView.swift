@@ -31,6 +31,8 @@ private enum SportsLayout: String, CaseIterable, Identifiable {
 
 struct SportsView: View {
     var searchRequest = 0
+    var searchNamespace: Namespace.ID? = nil
+    var searchSourceID = "sports-search"
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var playback: SportsPlaybackSession
@@ -40,6 +42,7 @@ struct SportsView: View {
     @StateObject private var daySwipeScope = SportsDaySwipeScope()
     @State private var selectedLeagues = Set(SportsLeague.allCases)
     @State private var day = Calendar.current.startOfDay(for: Date())
+    @State private var currentToday = Calendar.current.startOfDay(for: Date())
     @State private var filter: SportsFilter = .all
     @State private var layout: SportsLayout = .list
     @State private var home = false
@@ -65,13 +68,13 @@ struct SportsView: View {
     @State private var daySwipeSerial = 0
     @State private var dayTransitioning = false
 
-    private var today: Date { Calendar.current.startOfDay(for: Date()) }
+    private var today: Date { currentToday }
     private var lastDay: Date { Calendar.current.date(byAdding: .day, value: 13, to: today) ?? today }
 
     private var leagues: [SportsLeague] { SportsLeague.allCases.filter { selectedLeagues.contains($0) } }
     private var allLeagues: Bool { selectedLeagues.count == SportsLeague.allCases.count }
     private var leagueTitle: String { allLeagues ? "All leagues" : leagues.map(\.title).joined(separator: ", ") }
-    private var liveAvailable: Bool { Calendar.current.isDateInToday(day) }
+    private var liveAvailable: Bool { Calendar.current.isDate(day, inSameDayAs: today) }
     private var requestKey: String { "\(leagues.map(\.rawValue).joined(separator: ","))-\(day.timeIntervalSince1970)-\(revision)-\(scenePhase == .active)-\(settings.apiBase)-\(channels)" }
     private var filteredGames: [SportsGame] {
         games.filter { game in
@@ -114,8 +117,13 @@ struct SportsView: View {
         }
         .foregroundStyle(AppTheme.foreground)
         .accessibilityIdentifier("sports-screen")
-        .onChange(of: today) { _, value in selectDay(min(lastDay, max(value, day))) }
-        .onChange(of: scenePhase) { _, value in if value != .active { dayTransitioning = false } }
+        .onAppear { refreshCurrentDay() }
+        .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in refreshCurrentDay() }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in refreshCurrentDay() }
+        .onChange(of: scenePhase) { _, value in
+            if value == .active { refreshCurrentDay() }
+            else { dayTransitioning = false }
+        }
         .scrollDismissesKeyboard(.interactively)
         .onChange(of: playback.isMinimized) { _, minimized in
             guard minimized else { return }
@@ -151,7 +159,7 @@ struct SportsView: View {
         .sheet(item: $selectedGame) { game in
             NavigationStack { SportsGameView(game: game).environmentObject(queue) }
         }
-        .sheet(isPresented: $showSportsSearch) {
+        .streamifySearchPresentation(isPresented: $showSportsSearch, sourceID: searchSourceID, in: searchNamespace) {
             SportsSearchDialog(day: day, initialGames: games).environmentObject(queue)
         }
         .sheet(isPresented: $showMultiWatch) { NavigationStack { SportsMultiWatchView().environmentObject(queue) } }
@@ -486,6 +494,32 @@ struct SportsView: View {
         }
     }
 
+    private func refreshCurrentDay(now: Date = Date()) {
+        let calendar = Calendar.current
+        let freshToday = calendar.startOfDay(for: now)
+        guard freshToday != currentToday else { return }
+        let selection = SportsScheduleDayPolicy.selectedDay(day, now: now, calendar: calendar)
+        daySwipeScope.invalidateRequests()
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            currentToday = freshToday
+            revision += 1
+            dayTransitioning = false
+            calendarLoadedAt = nil
+            calendarMarkers = [:]
+            if day != selection {
+                day = selection
+                games = []
+                loading = true
+                error = nil
+                partial = false
+            }
+            if !calendar.isDate(selection, inSameDayAs: freshToday), filter == .live { filter = .all }
+            calendarMonth = monthStart(selection)
+        }
+    }
+
     private func swipeDay(_ direction: Int) {
         guard !loading, !dayTransitioning, layout == .list, !home, !channels,
               let next = Calendar.current.date(byAdding: .day, value: direction, to: day), next >= today, next <= lastDay else { return }
@@ -537,6 +571,7 @@ struct SportsView: View {
     }
 
     private func loadSchedule() async {
+        refreshCurrentDay()
         guard !channels else { return }
         let requestedKey = requestKey
         loading = true
@@ -553,9 +588,10 @@ struct SportsView: View {
     }
 
     private func loadCalendarMarkers() async {
+        refreshCurrentDay()
         calendarLoading = true
         defer { calendarLoading = false }
-        let start = today, end = lastDay
+        let start = today, end = lastDay, referenceTime = Date()
         let calendar = Calendar.current
         let jobs: [(SportsLeague, Date, String)] = {
             var result: [(SportsLeague, Date, String)] = []
@@ -596,9 +632,10 @@ struct SportsView: View {
                 return results
             }
             try Task.checkCancellation()
+            guard start == today else { return }
             var markers: [Date: Set<SportsLeague>] = [:]
-            for game in batches.flatMap(\.games) {
-                guard let date = game.date.map({ calendar.startOfDay(for: $0) }), date >= start, date <= end else { continue }
+            for game in SportsScheduleDayPolicy.canonicalGames(batches.flatMap(\.games)) {
+                guard let date = SportsScheduleDayPolicy.markerDay(for: game, now: referenceTime, calendar: calendar), date >= start, date <= end else { continue }
                 markers[date, default: []].insert(game.league)
             }
             calendarMarkers = markers; calendarUnavailable = Set(batches.flatMap(\.unavailable)); calendarLoadedAt = Date()

@@ -71,11 +71,15 @@ struct CollectionDetailView: View {
             VStack(alignment: .leading, spacing: 24) {
                 CollectionArtwork(collection: collection).frame(height: 230)
                 if let details {
-                    Text("\(details.movies.count) movies · Release order").font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.muted)
+                    Text("\(details.mediaSummary) · Release order").font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.muted)
                     if !details.overview.isEmpty { Text(details.overview).foregroundStyle(AppTheme.muted) }
                     PosterGrid(items: details.movies)
+                    if details.unavailableCount > 0 {
+                        Button("Some titles couldn’t load. Retry") { revision += 1 }
+                            .font(.subheadline).foregroundStyle(AppTheme.muted)
+                    }
                     if details.movies.isEmpty {
-                        StateMessage(symbol: "film", title: "No movies yet", message: "Released movies will appear when available in the catalog.")
+                        StateMessage(symbol: "film", title: "No titles yet", message: "Movies and shows will appear when available in the catalog.")
                     }
                 }
                 if loading { ProgressView("Loading collection…").frame(maxWidth: .infinity).padding() }

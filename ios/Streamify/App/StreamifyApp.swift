@@ -8,12 +8,20 @@ struct StreamifyApp: App {
     @StateObject private var library: LibraryStore
     @StateObject private var downloads = DownloadStore.shared
     @StateObject private var sportsPlayback = SportsPlaybackSession()
+    @StateObject private var quickActions = AppQuickActionRouter.shared
 
     init() {
         #if DEBUG
         if PreviewFixtures.enabled { PreviewFixtures.install() }
         _settings = StateObject(wrappedValue: SettingsStore(defaults: PreviewFixtures.enabled ? PreviewFixtures.defaults : .standard))
         _library = StateObject(wrappedValue: LibraryStore(defaults: PreviewFixtures.enabled ? PreviewFixtures.defaults : .standard))
+        if PreviewFixtures.enabled {
+            let arguments = ProcessInfo.processInfo.arguments
+            if let index = arguments.firstIndex(of: "--ui-quick-action"), arguments.indices.contains(index + 1),
+               let action = AppQuickAction.allCases.first(where: { $0.rawValue.split(separator: ".").last.map(String.init) == arguments[index + 1] }) {
+                AppQuickActionRouter.shared.enqueue(action.destination)
+            }
+        }
         #else
         _settings = StateObject(wrappedValue: SettingsStore())
         _library = StateObject(wrappedValue: LibraryStore())
@@ -28,6 +36,7 @@ struct StreamifyApp: App {
                 .environmentObject(library)
                 .environmentObject(downloads)
                 .environmentObject(sportsPlayback)
+                .environmentObject(quickActions)
                 .background { SportsPlaybackHost(session: sportsPlayback).frame(width: 0, height: 0) }
                 .tint(AppTheme.foreground)
                 .preferredColorScheme(settings.appearance == "System" ? nil : settings.appearance == "Light" ? .light : .dark)
@@ -54,18 +63,27 @@ enum AppTab: String, CaseIterable {
 }
 
 struct RootView: View {
+    private enum LibraryDestination: Hashable { case downloads }
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var downloads: DownloadStore
     @EnvironmentObject private var sportsPlayback: SportsPlaybackSession
+    @EnvironmentObject private var quickActions: AppQuickActionRouter
     @Environment(\.scenePhase) private var scenePhase
     @State private var tab: AppTab = .home
     @State private var settingsOpen = false
     @State private var accountOpen = false
     @State private var downloadsOpen = false
     @State private var catalogSearchOpen = false
+    @State private var catalogSearchSourceID = "root-search-home"
+    @Namespace private var searchTransition
     @State private var sportsSearchRequest = 0
     @State private var keyboardVisible = false
     @State private var visibleRootPages = Set(AppTab.allCases)
+    @State private var navigationRevision = 0
+    @State private var libraryPath: [LibraryDestination] = []
+    @State private var quickActionRequest: AppQuickActionRouter.Request?
+    @State private var quickActionLoading = false
+    @State private var quickActionError: String?
 
     private var activeDownloads: [DownloadItem] { downloads.items.filter { $0.status == .downloading } }
     private var downloadProgress: Double? {
@@ -85,6 +103,7 @@ struct RootView: View {
 
     private var rootSelection: Binding<AppTab> {
         Binding(get: { tab }, set: { value in
+            if tab != value { quickActionRequest = nil; quickActionLoading = false; quickActionError = nil }
             visibleRootPages.insert(value)
             tab = value
         })
@@ -93,12 +112,12 @@ struct RootView: View {
     var body: some View {
         TabView(selection: rootSelection) {
             ForEach(AppTab.allCases, id: \.self) { page in
-                rootStack(page).tag(page)
+                rootStack(page).id(navigationRevision).tag(page)
             }
         }
         .toolbar(.hidden, for: .tabBar)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if !keyboardVisible && visibleRootPages.contains(tab) {
+            if !keyboardVisible && visibleRootPages.contains(tab) && (tab != .library || libraryPath.isEmpty) {
                 FloatingNavigation(selection: rootSelection)
             }
         }
@@ -110,20 +129,103 @@ struct RootView: View {
         }
         .sheet(isPresented: $accountOpen) { NavigationStack { AccountView() } }
         .sheet(isPresented: $downloadsOpen) { NavigationStack { DownloadsView() } }
-        .sheet(isPresented: $catalogSearchOpen) { CatalogSearchDialog() }
+        .streamifySearchPresentation(isPresented: $catalogSearchOpen, sourceID: catalogSearchSourceID, in: searchTransition) {
+            CatalogSearchDialog()
+        }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in keyboardVisible = true }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in keyboardVisible = false }
+        .onOpenURL { quickActions.enqueue(url: $0) }
+        .task(id: "\(quickActions.pending?.id.uuidString ?? "none")-\(scenePhase == .active)") {
+            guard scenePhase == .active, let request = quickActions.takePending() else { return }
+            navigate(request)
+        }
+        .task(id: quickActionRequest?.id) {
+            guard let request = quickActionRequest,
+                  case .watchSports(let league, let eventID) = request.destination else { return }
+            await watchGame(league: league, eventID: eventID, request: request)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { quickActionRequest = nil; quickActionLoading = false }
+        }
+        .overlay {
+            if quickActionLoading {
+                ProgressView("Opening game…").padding(24).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 16))
+                    .allowsHitTesting(false).accessibilityIdentifier("opening-widget-game")
+            }
+        }
+        .alert("Stream unavailable", isPresented: Binding(get: { quickActionError != nil }, set: { if !$0 { quickActionError = nil } })) {
+            Button("OK") { quickActionError = nil }
+        } message: { Text(quickActionError ?? "Try another live game in Sports.") }
     }
 
+    @ViewBuilder
     private func rootStack(_ page: AppTab) -> some View {
-        NavigationStack {
-            switch page {
-            case .home: rootPage(.home) { HomeView(openSettings: { settingsOpen = true }, openSports: { tab = .sports }) }
-            case .sports: rootPage(.sports) { SportsView(searchRequest: sportsSearchRequest) }
-            case .search: rootPage(.search) { BrowseView() }
-            case .library: rootPage(.library) { LibraryView() }
+        Group {
+            if page == .library {
+                NavigationStack(path: $libraryPath) {
+                    rootPage(.library) {
+                        LibraryView(favoritesRequest: quickActionRequest?.destination == .favorites ? quickActionRequest?.id : nil)
+                    }
+                    .navigationDestination(for: LibraryDestination.self) { _ in
+                        DownloadsView().toolbar(.visible, for: .navigationBar)
+                    }
+                }
+            } else {
+                NavigationStack {
+                    switch page {
+                    case .home: rootPage(.home) { HomeView(openSettings: { settingsOpen = true }, openSports: { tab = .sports }) }
+                    case .sports: rootPage(.sports) {
+                        SportsView(searchRequest: sportsSearchRequest, searchNamespace: searchTransition, searchSourceID: "root-search-sports")
+                    }
+                    case .search: rootPage(.search) { BrowseView() }
+                    case .library: EmptyView()
+                    }
+                }
             }
         }.environment(\.scenePhase, page == tab ? scenePhase : .inactive)
+    }
+
+    private func navigate(_ request: AppQuickActionRouter.Request) {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        settingsOpen = false; accountOpen = false; downloadsOpen = false; catalogSearchOpen = false
+        quickActionLoading = false; quickActionError = nil; keyboardVisible = false
+        libraryPath = []
+        navigationRevision &+= 1
+        // A deliberate Home Screen destination closes an expanded overlay. An
+        // actual system PiP session remains owned by the app and keeps playing.
+        if sportsPlayback.isExpanded { sportsPlayback.close() }
+        switch request.destination {
+        case .downloads: tab = .library; libraryPath = [.downloads]
+        case .favorites: tab = .library
+        case .sports, .watchSports: tab = .sports
+        }
+        visibleRootPages.insert(tab)
+        quickActionRequest = request
+    }
+
+    private func watchGame(league: SportsLeague, eventID: String, request: AppQuickActionRouter.Request) async {
+        quickActionLoading = true
+        defer { if quickActionRequest?.id == request.id { quickActionLoading = false } }
+        do {
+            let service = SportsService(backend: settings.apiBase)
+            let game = try await service.game(league: league, eventID: eventID)
+            try Task.checkCancellation()
+            let sources = try await service.streams(game)
+            try Task.checkCancellation()
+            guard quickActionRequest?.id == request.id, scenePhase == .active, tab == .sports,
+                  !settingsOpen, !accountOpen, !downloadsOpen, !catalogSearchOpen else { return }
+            guard let first = sources.first else {
+                quickActionError = game.isFinal ? "This game has finished. Choose a live game in Sports."
+                    : "No stream is available for this game right now. Try its Game Center or another live game in Sports."
+                return
+            }
+            sportsPlayback.play(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: first.url, sources: sources)
+        } catch is CancellationError { }
+        catch {
+            if !Task.isCancelled, quickActionRequest?.id == request.id {
+                quickActionError = "The game could not be opened. \(error.localizedDescription)"
+            }
+        }
     }
 
     private func rootPage<Content: View>(_ page: AppTab, @ViewBuilder content: () -> Content) -> some View {
@@ -150,10 +252,14 @@ struct RootView: View {
             }
             Button {
                 if page == .sports { sportsSearchRequest += 1 }
-                else { catalogSearchOpen = true }
+                else {
+                    catalogSearchSourceID = "root-search-\(page.rawValue)"
+                    catalogSearchOpen = true
+                }
             } label: { Image(systemName: "magnifyingglass").frame(width: 44, height: 44) }
                 .accessibilityLabel("Search")
                 .accessibilityIdentifier(page == .sports ? "focus-sports-search" : "open-catalog-search")
+                .streamifySearchSource("root-search-\(page.rawValue)", in: searchTransition)
             Button { downloadsOpen = true } label: {
                 Image(systemName: "arrow.down.to.line").frame(width: 44, height: 44)
                     .overlay(alignment: .topTrailing) {

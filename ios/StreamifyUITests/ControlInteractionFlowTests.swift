@@ -263,6 +263,73 @@ final class ControlInteractionFlowTests: XCTestCase {
         capture("Controls sports Today reset preserves NBA")
     }
 
+    func testSearchFieldAndHeaderPresentFullSearchAndReturnToTheirOriginalContext() {
+        app.buttons["tab-search"].tap()
+        let fieldSource = app.buttons["open-catalog-search-dialog"]
+        XCTAssertTrue(fieldSource.waitForExistence(timeout: 8))
+        let series = app.buttons["Series"].firstMatch
+        series.tap()
+        XCTAssertTrue(wait { series.isSelected })
+        let sourceFrame = fieldSource.frame
+        fieldSource.tap()
+        let catalogInput = app.textFields["browse-search"]
+        XCTAssertTrue(catalogInput.waitForExistence(timeout: 8))
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 8), "Typing should begin after the native presentation finishes.")
+        dismissSearchKeyboardTutorial()
+        XCTAssertTrue(catalogInput.isHittable)
+        XCTAssertTrue(app.buttons["catalog-search-kind-tv"].isSelected)
+        XCTAssertFalse(app.buttons["tab-search"].isHittable, "The full search screen owns typing without raising the bottom navigation.")
+        capture("Search input expands into the dedicated full search screen")
+        catalogInput.typeText("Midnight\n")
+        XCTAssertTrue(app.buttons["media-link-tv:43"].firstMatch.waitForExistence(timeout: 10))
+        app.buttons["cancel-catalog-search"].tap()
+        XCTAssertTrue(wait { fieldSource.isHittable && series.isSelected })
+        XCTAssertTrue(wait { abs(fieldSource.frame.minY - sourceFrame.minY) < 1 && abs(fieldSource.frame.width - sourceFrame.width) < 1 })
+        XCTAssertTrue(app.buttons["tab-search"].isSelected)
+        capture("Cancel returns to the same search field and Series discovery filter")
+
+        let catalogHeader = app.buttons["open-catalog-search"].firstMatch
+        XCTAssertTrue(catalogHeader.isHittable)
+        catalogHeader.tap()
+        XCTAssertTrue(catalogInput.waitForExistence(timeout: 8))
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 8))
+        XCTAssertFalse(app.buttons["tab-home"].isHittable)
+        capture("Catalog header icon expands into full search")
+        app.buttons["cancel-catalog-search"].tap()
+        XCTAssertTrue(wait { catalogHeader.isHittable && fieldSource.isHittable })
+
+        app.buttons["tab-sports"].tap()
+        let leagues = app.buttons["sports-league-picker"]
+        XCTAssertTrue(leagues.waitForExistence(timeout: 8))
+        leagues.tap()
+        app.buttons["sports-clear-leagues"].tap()
+        app.buttons["sports-league-option-nba"].tap()
+        app.buttons["sports-apply-leagues"].tap()
+        XCTAssertTrue(wait { leagues.value as? String == "NBA" })
+        let date = app.buttons["sports-date-picker"]
+        date.tap()
+        XCTAssertTrue(app.buttons["sports-date-offset-1"].waitForExistence(timeout: 8))
+        app.buttons["sports-date-offset-1"].tap()
+        app.buttons["sports-calendar-done"].tap()
+        XCTAssertTrue(date.waitForExistence(timeout: 8))
+        let selectedDate = date.value as? String
+        app.buttons["focus-sports-search"].tap()
+        let sportsInput = app.textFields["sports-dialog-search"]
+        XCTAssertTrue(sportsInput.waitForExistence(timeout: 8))
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 8))
+        XCTAssertTrue(sportsInput.isHittable)
+        XCTAssertFalse(app.buttons["tab-sports"].isHittable)
+        capture("Sports header icon expands into focused full search")
+        sportsInput.typeText("NBA\n")
+        app.buttons["close-sports-search"].tap()
+        XCTAssertTrue(wait { date.isHittable && self.app.buttons["focus-sports-search"].isHittable })
+        XCTAssertEqual(date.value as? String, selectedDate)
+        XCTAssertEqual(leagues.value as? String, "NBA")
+        XCTAssertFalse(app.buttons["sports-quick-live"].isEnabled)
+        XCTAssertTrue(app.buttons["tab-sports"].isSelected)
+        capture("Search cancel preserves selected leagues and future game date")
+    }
+
     func testOnlinePlayerProviderModeAndSeasonPickerApply() {
         app.buttons["tab-library"].tap()
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'History'")).firstMatch.tap()
@@ -356,6 +423,15 @@ final class ControlInteractionFlowTests: XCTestCase {
         more.tap()
         app.buttons["Settings"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+    }
+
+    private func dismissSearchKeyboardTutorial() {
+        let tutorial = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Speed up your typing")).firstMatch
+        if tutorial.waitForExistence(timeout: 2) {
+            let next = app.buttons["Continue"].firstMatch
+            XCTAssertTrue(next.waitForExistence(timeout: 3))
+            next.tap()
+        }
     }
 
     private func pauseHomeCarousel() {

@@ -23,6 +23,10 @@ targets:
           - Resources/PrivacyInfo.xcprivacy
       - path: Streamify/Resources/PrivacyInfo.xcprivacy
         buildPhase: resources
+    dependencies:
+      - target: StreamifyWidgets
+        embed: true
+        codeSign: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.streamify.app
@@ -37,6 +41,26 @@ targets:
         - StreamifyTests
         - StreamifyUITests
       gatherCoverageData: true
+  StreamifyWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: StreamifyWidgets
+        excludes:
+          - Info.plist
+      - path: Streamify/Sports/SportsModels.swift
+      - path: Streamify/Sports/SportsService.swift
+      - path: Streamify/Sports/SportsWidgetPolicy.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.streamify.app.widgets
+        PRODUCT_NAME: StreamifyWidgets
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: StreamifyWidgets/Info.plist
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+        SUPPORTS_MACCATALYST: NO
   StreamifyTests:
     type: bundle.unit-test
     platform: iOS

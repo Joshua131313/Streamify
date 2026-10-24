@@ -12,7 +12,9 @@ parser.add_argument("--syntax", action="store_true", help="Also parse Swift synt
 args = parser.parse_args()
 errors = []
 resources = ios / "Streamify/Resources"
-for path in resources.rglob("*.json"):
+widget_resources = ios / "StreamifyWidgets"
+resource_json = sorted(resources.rglob("*.json")) + sorted(widget_resources.rglob("*.json"))
+for path in resource_json:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
         if path.name == "Contents.json":
@@ -21,7 +23,7 @@ for path in resources.rglob("*.json"):
                     errors.append(f"Missing asset: {path.parent / item['filename']}")
     except Exception as exc:
         errors.append(f"{path}: {exc}")
-for path in [resources / "Info.plist", resources / "PrivacyInfo.xcprivacy"]:
+for path in [resources / "Info.plist", resources / "PrivacyInfo.xcprivacy", widget_resources / "Info.plist"]:
     try:
         with path.open("rb") as source:
             plistlib.load(source)
@@ -42,7 +44,7 @@ if icon.is_file():
         errors.append("App icon must be an opaque 1024x1024 PNG.")
 else:
     errors.append("App icon missing.")
-swift_files = sorted((ios / "Streamify").rglob("*.swift")) + sorted((ios / "StreamifyTests").rglob("*.swift")) + sorted((ios / "StreamifyUITests").rglob("*.swift"))
+swift_files = sorted((ios / "Streamify").rglob("*.swift")) + sorted((ios / "StreamifyWidgets").rglob("*.swift")) + sorted((ios / "StreamifyTests").rglob("*.swift")) + sorted((ios / "StreamifyUITests").rglob("*.swift"))
 for path in swift_files:
     if b"\x00" in path.read_bytes():
         errors.append(f"{path.relative_to(ios)}: source contains NUL bytes")

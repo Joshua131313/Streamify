@@ -64,13 +64,15 @@ struct CatalogSearchDialog: View {
                 }.scrollDismissesKeyboard(.interactively).accessibilityIdentifier("catalog-search-results")
             }
             .background(AppTheme.canvas).foregroundStyle(AppTheme.foreground)
+            .accessibilityElement(children: .contain).accessibilityIdentifier("catalog-search-screen")
+            .accessibilityAction(.escape) { focused = false; dismiss() }
             .navigationTitle("Search").navigationBarTitleDisplayMode(.inline)
             .toolbar(.visible, for: .navigationBar)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { focused = false; dismiss() }.accessibilityIdentifier("cancel-catalog-search") } }
-            .task {
+            .searchPresentationReady {
                 guard !hasFocused else { return }
-                do { try await Task.sleep(for: .milliseconds(200)); try Task.checkCancellation(); hasFocused = true; focused = true }
-                catch { }
+                hasFocused = true
+                focused = true
             }
             .task(id: requestKey) {
                 let request = requestKey
@@ -93,7 +95,7 @@ struct CatalogSearchDialog: View {
                     NavigationStack { MediaDetailView(media: media) }.presentationBackground(AppTheme.canvas)
                 }
             }
-        }.presentationDetents([.large]).presentationDragIndicator(.visible)
+        }
     }
 
     private var searchField: some View {

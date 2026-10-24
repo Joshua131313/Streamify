@@ -688,6 +688,13 @@ private final class DownloadSessionDelegate: NSObject, URLSessionDownloadDelegat
 /// Wire with @UIApplicationDelegateAdaptor(DownloadAppDelegate.self) in StreamifyApp.
 @MainActor
 final class DownloadAppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession,
+        options: UIScene.ConnectionOptions) -> UISceneConfiguration {
+        let configuration = UISceneConfiguration(name: nil, sessionRole: connectingSceneSession.role)
+        if connectingSceneSession.role == .windowApplication { configuration.delegateClass = AppQuickActionSceneDelegate.self }
+        return configuration
+    }
+
     func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String, completionHandler: @escaping () -> Void) {
         guard identifier == DownloadStore.sessionIdentifier else { completionHandler(); return }
         DownloadStore.shared.backgroundCompletion = completionHandler

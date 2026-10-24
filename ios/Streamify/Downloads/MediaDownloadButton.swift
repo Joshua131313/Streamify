@@ -14,10 +14,11 @@ struct MediaDownloadButton: View {
     @State private var showDownloads = false
 
     private var item: DownloadItem? { downloads.item(media: media, season: season, episode: episode) }
+    private var iconOnly: Bool { compact || item?.status == .downloading }
     private var label: String {
         switch item?.status {
         case .completed: return "Downloaded"
-        case .downloading: return item?.progress.map { "Downloading · \(Int($0 * 100))%" } ?? "Downloading"
+        case .downloading: return "Downloading"
         case .failed: return "Retry download"
         case .cancelled: return "Download again"
         case nil: return media.kind == .tv ? "Download S\(season) E\(episode)" : "Download"
@@ -48,13 +49,13 @@ struct MediaDownloadButton: View {
                         }.accessibilityHidden(true)
                     }
                     else { Image(systemName: symbol).font(compact ? .title3 : .body) }
-                    if !compact { Text(label).lineLimit(2).multilineTextAlignment(.center) }
+                    if !iconOnly { Text(label).lineLimit(2).multilineTextAlignment(.center) }
                 }
                 .font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.foreground)
-                .frame(maxWidth: compact ? nil : .infinity, minHeight: compact ? 44 : 50)
-                .frame(width: compact ? 44 : nil)
-                .background(compact ? Color.clear : AppTheme.controlFill, in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
-                .overlay { RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius).strokeBorder(compact ? Color.clear : AppTheme.border, lineWidth: 1) }
+                .frame(maxWidth: iconOnly ? nil : .infinity, minHeight: iconOnly ? 44 : 50)
+                .frame(width: iconOnly ? 44 : nil)
+                .background(iconOnly ? Color.clear : AppTheme.controlFill, in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
+                .overlay { RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius).strokeBorder(iconOnly ? Color.clear : AppTheme.border, lineWidth: 1) }
                 .contentShape(Rectangle())
             }
             .buttonStyle(HapticPlainButtonStyle())
@@ -64,7 +65,10 @@ struct MediaDownloadButton: View {
                 : "")
             .accessibilityIdentifier("download-\(DownloadStore.catalogKey(media: media, season: season, episode: episode))")
             .sheet(isPresented: $showOptions) {
-                NavigationStack { MediaDownloadSheet(media: media, season: season, episode: episode, episodeTitle: episodeTitle) }
+                NavigationStack {
+                    MediaDownloadSheet(media: media, season: season, episode: episode, episodeTitle: episodeTitle,
+                        previousError: item?.status == .failed ? item?.error : nil)
+                }
             }
             .sheet(isPresented: $showDownloads) { NavigationStack { DownloadsView() } }
             .onChange(of: showOptions || showDownloads) { _, visible in onPresentationChanged?(visible) }
@@ -79,6 +83,7 @@ struct MediaDownloadSheet: View {
     let episodeTitle: String?
     /// Explicit recovery keeps the previous file until its replacement is verified.
     var replacingDownloadID: UUID? = nil
+    var previousError: String? = nil
     @EnvironmentObject private var downloads: DownloadStore
     @Environment(\.dismiss) private var dismiss
     @AppStorage("streamify.ios.downloadQuality") private var quality = 1080
@@ -108,6 +113,12 @@ struct MediaDownloadSheet: View {
                     NavigationLink { DownloadsView() } label: { Label("View downloads", systemImage: "arrow.down.circle").frame(maxWidth: .infinity) }
                         .buttonStyle(SecondaryButtonStyle()).accessibilityIdentifier("view-downloads")
                 } else {
+                    if let previousError, !previousError.isEmpty, error == nil, !resolving {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Label("Last download couldn’t finish", systemImage: "exclamationmark.circle").font(.subheadline.weight(.semibold))
+                            Text(previousError).font(.caption).foregroundStyle(AppTheme.muted)
+                        }.accessibilityElement(children: .combine).accessibilityIdentifier("download-previous-error")
+                    }
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Download quality").font(.headline)
                         ForEach(qualities, id: \.self) { value in

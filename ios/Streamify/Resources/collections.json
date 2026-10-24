@@ -1,6 +1,6 @@
 [
   { "name": "Harry Potter", "id": 1241, "featured": true, "genres": [12, 14], "backdrop": "/images/harry-potter.jpg" },
-  { "name": "The Lord of the Rings", "id": 119, "featured": true, "genres": [12, 14, 28], "backdrop": "/images/lord-of-the-rings.jpg" },
+  {"name": "The Lord of the Rings", "id": 119, "featured": true, "genres": [12, 14, 28], "backdrop": "/images/lord-of-the-rings.jpg", "includes": [{"id": 1362, "kind": "movie", "title": "The Hobbit"}, {"id": 123, "kind": "movie", "title": "The Lord of the Rings"}, {"id": 1361, "kind": "movie", "title": "The Return of the King"}, {"id": 49051, "kind": "movie", "title": "The Hobbit: An Unexpected Journey"}, {"id": 57158, "kind": "movie", "title": "The Hobbit: The Desolation of Smaug"}, {"id": 122917, "kind": "movie", "title": "The Hobbit: The Battle of the Five Armies"}, {"id": 84773, "kind": "tv", "title": "The Lord of the Rings: The Rings of Power"}, {"id": 839033, "kind": "movie", "title": "The Lord of the Rings: The War of the Rohirrim"}]},
   { "name": "The Hobbit", "id": 121938, "genres": [12, 14], "backdrop": "/images/hobbit.jpg" },
   { "name": "Star Wars", "id": 10, "featured": true, "genres": [12, 28, 878], "backdrop": "/images/star-wars.jpg" },
   { "name": "Pirates of the Caribbean", "id": 295, "genres": [12, 28, 14], "backdrop": "/images/pirates.jpg" },

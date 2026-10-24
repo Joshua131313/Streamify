@@ -2,6 +2,7 @@ import SwiftUI
 
 @MainActor
 struct LibraryView: View {
+    var favoritesRequest: UUID? = nil
     @EnvironmentObject private var library: LibraryStore
     @State private var history = false
     @State private var query = ""
@@ -75,6 +76,11 @@ struct LibraryView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .foregroundStyle(AppTheme.foreground)
+        .onChange(of: favoritesRequest, initial: true) { _, request in
+            guard request != nil else { return }
+            history = false; query = ""; kind = nil
+            player = nil; showDownloads = false; clearHistory = false
+        }
         .sheet(isPresented: $showDownloads) { NavigationStack { DownloadsView() } }
         .fullScreenCover(item: $player) { MediaPlayerView(media: $0.media, season: $0.season, episode: $0.episode) }
         .confirmationDialog("Clear your watch history on this iPhone?", isPresented: $clearHistory, titleVisibility: .visible) {
