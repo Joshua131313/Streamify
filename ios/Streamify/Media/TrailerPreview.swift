@@ -251,7 +251,7 @@ private struct TrailerWebView: UIViewRepresentable {
             }
         }
         private func command(_ value: TrailerPlaybackCommand) {
-            web?.callAsyncJavaScript(value.script, arguments: value.arguments, in: nil, contentWorld: .page, completionHandler: nil)
+            web?.callAsyncJavaScript(value.script, arguments: value.arguments, in: nil, in: .page, completionHandler: nil)
         }
         private func pause() {
             active = false

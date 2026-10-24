@@ -61,7 +61,11 @@ final class ParityFlowTests: XCTestCase {
     }
 
     func testMovieTrailerDownloadQualityCastSheetAndDragReturn() {
-        openTitle("movie:42")
+        let originalHomeCard = app.buttons["media-link-movie:42"].firstMatch
+        XCTAssertTrue(originalHomeCard.waitForExistence(timeout: 12))
+        XCTAssertTrue(originalHomeCard.isHittable)
+        originalHomeCard.tap()
+        XCTAssertTrue(app.buttons["close-media-details"].waitForExistence(timeout: 8))
         XCTAssertTrue(app.buttons["trailer-mute"].waitForExistence(timeout: 10))
         XCTAssertTrue(wait { self.app.buttons["trailer-mute"].isEnabled })
         capture("10 Movie autoplay preview and download action")
@@ -84,9 +88,12 @@ final class ParityFlowTests: XCTestCase {
         app.buttons["Close"].firstMatch.tap()
         reveal(app.buttons["cast-91"])
         app.buttons["cast-91"].tap()
-        XCTAssertTrue(app.staticTexts["Alex Morgan"].waitForExistence(timeout: 8))
+        let castProfile = app.navigationBars["Cast profile"]
+        XCTAssertTrue(castProfile.waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Alex Morgan is an actor'")).firstMatch.waitForExistence(timeout: 8))
         capture("13 Cast vertical sheet")
-        app.buttons["Close"].firstMatch.tap()
+        castProfile.buttons["Close"].tap()
+        XCTAssertTrue(wait { !castProfile.exists })
         XCTAssertTrue(app.buttons["cast-91"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["close-media-details"].exists)
         capture("14 Cast dismissal preserves movie detail")
@@ -101,7 +108,9 @@ final class ParityFlowTests: XCTestCase {
             start.press(forDuration: 0.05, thenDragTo: end)
         }
         XCTAssertTrue(wait { !self.app.buttons["close-media-details"].exists }, "Dragging the detail card down should return to the original catalog card.")
-        XCTAssertTrue(app.buttons["media-link-movie:42"].firstMatch.exists)
+        XCTAssertTrue(app.buttons["tab-home"].isSelected)
+        XCTAssertTrue(originalHomeCard.exists)
+        XCTAssertTrue(originalHomeCard.isHittable)
         capture("15 Native card return to original catalog")
     }
 
@@ -202,6 +211,7 @@ final class ParityFlowTests: XCTestCase {
         reveal(game)
         XCTAssertTrue(game.waitForExistence(timeout: 10))
         capture("31 NBA schedule list")
+        scrollSportsToTop()
         reveal(app.buttons["sports-layout-Slider"])
         app.buttons["sports-layout-Slider"].tap()
         capture("32 NBA schedule slider")
@@ -228,7 +238,7 @@ final class ParityFlowTests: XCTestCase {
         reveal(app.buttons["sports-channels"])
         app.buttons["sports-channels"].tap()
         capture("37 Sports channel directory")
-        reveal(app.buttons["sports-multi-watch"])
+        scrollSportsToTop()
         app.buttons["sports-multi-watch"].tap()
         XCTAssertTrue(app.buttons["sports-multiwatch-add"].waitForExistence(timeout: 5))
         capture("38 Empty multi-watch")
@@ -257,6 +267,16 @@ final class ParityFlowTests: XCTestCase {
             if target.exists && target.frame.maxY < app.frame.midY { app.swipeDown() }
             else { app.swipeUp() }
         }
+    }
+    private func scrollSportsToTop() {
+        let search = app.textFields["Search teams & games"]
+        let multiWatch = app.buttons["sports-multi-watch"]
+        for _ in 0..<8 {
+            if search.exists && search.isHittable && multiWatch.exists && multiWatch.isHittable { break }
+            element("sports-screen").swipeDown()
+        }
+        XCTAssertTrue(search.isHittable, "Return to the sports header before locating controls above the schedule.")
+        XCTAssertTrue(multiWatch.isHittable)
     }
     private func wait(timeout: TimeInterval = 8, _ condition: @escaping () -> Bool) -> Bool {
         let expectation = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in condition() }, object: nil)
