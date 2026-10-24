@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit
 
 enum AppTheme {
+    static let buttonCornerRadius: CGFloat = 12
     static let accent = Color(uiColor: UIColor { $0.userInterfaceStyle == .dark
         ? UIColor(red: 1, green: 69.0 / 255, blue: 79.0 / 255, alpha: 1)
         : UIColor(red: 190.0 / 255, green: 38.0 / 255, blue: 53.0 / 255, alpha: 1) })
@@ -39,7 +40,7 @@ struct StreamifyRootBackdrop: View {
 }
 
 extension View {
-    func streamifyControlSurface(cornerRadius: CGFloat = 12) -> some View {
+    func streamifyControlSurface(cornerRadius: CGFloat = AppTheme.buttonCornerRadius) -> some View {
         background(AppTheme.controlFill, in: RoundedRectangle(cornerRadius: cornerRadius))
             .overlay { RoundedRectangle(cornerRadius: cornerRadius).strokeBorder(AppTheme.border, lineWidth: 1) }
     }
@@ -57,7 +58,7 @@ struct StreamifySelectLabel: View {
         .font(.subheadline.weight(.medium)).foregroundStyle(AppTheme.foreground)
         .padding(.horizontal, 14).frame(minHeight: 44)
         .streamifyControlSurface()
-        .contentShape(RoundedRectangle(cornerRadius: 12))
+        .contentShape(RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
     }
 }
 
@@ -155,7 +156,7 @@ struct PrimaryButtonStyle: ButtonStyle {
             .padding(.horizontal, 20).frame(minHeight: 48)
             .frame(maxWidth: .infinity)
             .foregroundStyle(AppTheme.canvas)
-            .background(AppTheme.foreground.opacity(configuration.isPressed ? 0.75 : 1), in: Capsule())
+            .background(AppTheme.foreground.opacity(configuration.isPressed ? 0.75 : 1), in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
     }
 }
 
@@ -165,8 +166,8 @@ struct SecondaryButtonStyle: ButtonStyle {
             .padding(.horizontal, 16).frame(minHeight: 48)
             .frame(maxWidth: .infinity)
             .foregroundStyle(AppTheme.foreground)
-            .background(AppTheme.foreground.opacity(configuration.isPressed ? 0.13 : 0.06), in: Capsule())
-            .overlay { Capsule().strokeBorder(AppTheme.border, lineWidth: 1) }
+            .background(AppTheme.foreground.opacity(configuration.isPressed ? 0.13 : 0.06), in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
+            .overlay { RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius).strokeBorder(AppTheme.border, lineWidth: 1) }
     }
 }
 

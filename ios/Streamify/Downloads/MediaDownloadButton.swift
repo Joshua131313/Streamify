@@ -40,8 +40,8 @@ struct MediaDownloadButton: View {
                 .font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.foreground)
                 .frame(maxWidth: compact ? nil : .infinity, minHeight: compact ? 44 : 50)
                 .frame(width: compact ? 44 : nil)
-                .background(compact ? Color.clear : AppTheme.controlFill, in: Capsule())
-                .overlay { Capsule().strokeBorder(compact ? Color.clear : AppTheme.border, lineWidth: 1) }
+                .background(compact ? Color.clear : AppTheme.controlFill, in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
+                .overlay { RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius).strokeBorder(compact ? Color.clear : AppTheme.border, lineWidth: 1) }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)

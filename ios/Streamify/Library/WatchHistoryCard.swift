@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// A landscape resume card shows only progress actually recorded by the player.
+/// A compact resume row shows only progress actually recorded by the player.
 struct WatchHistoryCard: View {
     let entry: WatchEntry
     let resume: () -> Void
@@ -20,15 +20,15 @@ struct WatchHistoryCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        HStack(spacing: 12) {
             ZStack(alignment: .bottom) {
                 Button(action: resume) {
-                    Color.clear.aspectRatio(16.0 / 9.0, contentMode: .fit)
+                    Color.clear.frame(width: 128, height: 72)
                         .overlay { RemoteArtwork(url: entry.media.backdropURL ?? entry.media.posterURL) }
                         .overlay {
-                            Image(systemName: "play.fill").font(.system(size: 21, weight: .semibold))
+                            Image(systemName: "play.fill").font(.system(size: 15, weight: .semibold))
                                 .foregroundStyle(.white).offset(x: 2)
-                                .frame(width: 52, height: 52)
+                                .frame(width: 36, height: 36)
                                 .background(.black.opacity(0.5), in: Circle())
                                 .overlay { Circle().strokeBorder(.white.opacity(0.8), lineWidth: 1) }
                                 .accessibilityHidden(true)
@@ -42,39 +42,37 @@ struct WatchHistoryCard: View {
                 if entry.durationSeconds > 0 {
                     ProgressView(value: entry.progress)
                         .progressViewStyle(.linear).tint(AppTheme.accent)
-                        .frame(height: 4).background(.white.opacity(0.2))
+                        .frame(height: 3).background(.white.opacity(0.25), in: Capsule()).clipShape(Capsule())
                         .accessibilityLabel("Watch progress for \(entry.media.title)")
                         .accessibilityValue("\(Int(entry.progress * 100)) percent")
                         .accessibilityIdentifier("history-progress-\(entry.id)")
                         .allowsHitTesting(false)
+                        .padding(.horizontal, 8).padding(.bottom, 6)
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .frame(width: 128, height: 72).clipShape(RoundedRectangle(cornerRadius: 8))
             .accessibilityElement(children: .contain)
 
-            HStack(alignment: .top, spacing: 8) {
-                VStack(alignment: .leading, spacing: 6) {
-                    MediaDetailLink(media: entry.media) {
-                        Text(entry.media.title).font(.headline)
-                            .foregroundStyle(AppTheme.foreground).lineLimit(2)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    Text(subtitle).font(.subheadline).foregroundStyle(AppTheme.muted)
-                        .accessibilityIdentifier("history-status-\(entry.id)")
-                    Text(entry.watchedAt, style: .date).font(.caption2).foregroundStyle(AppTheme.muted)
-                }.frame(maxWidth: .infinity, alignment: .leading)
-                Menu {
-                    Button("Remove from history", systemImage: "trash", role: .destructive) { library.removeHistory(entry) }
-                    Button(library.isSaved(entry.media) ? "Remove from My list" : "Add to My list", systemImage: "bookmark") { library.toggleSaved(entry.media) }
-                } label: {
-                    Image(systemName: "ellipsis").font(.system(size: 19, weight: .medium))
-                        .foregroundStyle(AppTheme.muted).frame(width: 44, height: 44).contentShape(Rectangle())
+            VStack(alignment: .leading, spacing: 6) {
+                MediaDetailLink(media: entry.media) {
+                    Text(entry.media.title).font(.subheadline.weight(.semibold))
+                        .foregroundStyle(AppTheme.foreground).lineLimit(2)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                 }
-                .buttonStyle(.plain).accessibilityLabel("Actions for \(entry.media.title)")
-            }.padding(.leading, 14).padding(.trailing, 5).padding(.vertical, 14)
+                Text(subtitle).font(.caption).foregroundStyle(AppTheme.muted).lineLimit(2)
+                    .accessibilityIdentifier("history-status-\(entry.id)")
+            }.frame(maxWidth: .infinity, alignment: .leading)
+            Menu {
+                Button("Remove from history", systemImage: "trash", role: .destructive) { library.removeHistory(entry) }
+                Button(library.isSaved(entry.media) ? "Remove from My list" : "Add to My list", systemImage: "bookmark") { library.toggleSaved(entry.media) }
+            } label: {
+                Image(systemName: "ellipsis").font(.system(size: 19, weight: .medium))
+                    .foregroundStyle(AppTheme.muted).frame(width: 44, height: 44).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain).accessibilityLabel("Actions for \(entry.media.title)")
         }
-        .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 16))
-        .overlay { RoundedRectangle(cornerRadius: 16).strokeBorder(AppTheme.border, lineWidth: 0.5) }
+        .padding(12).background(AppTheme.panel).clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(AppTheme.border, lineWidth: 0.5) }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("history-card-\(entry.id)")
     }

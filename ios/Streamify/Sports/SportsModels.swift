@@ -2,22 +2,27 @@ import Foundation
 import SwiftUI
 
 enum SportsLeague: String, CaseIterable, Identifiable, Codable, Sendable {
-    case nfl, nba, wnba, nhl, mlb
+    case nfl
+    case ncaaf = "college-football"
+    case nba, wnba, nhl, mlb
     var id: String { rawValue }
-    var title: String { rawValue.uppercased() }
+    var title: String { self == .ncaaf ? "NCAAF" : rawValue.uppercased() }
     var sport: String {
-        switch self { case .nfl: return "football"; case .nba, .wnba: return "basketball"; case .nhl: return "hockey"; case .mlb: return "baseball" }
+        switch self { case .nfl, .ncaaf: return "football"; case .nba, .wnba: return "basketball"; case .nhl: return "hockey"; case .mlb: return "baseball" }
     }
-    var category: String { self == .nfl ? "american-football" : sport }
-    var subtitle: String { self == .nfl ? "American football" : sport.capitalized }
+    var category: String { self == .nfl || self == .ncaaf ? "american-football" : sport }
+    var subtitle: String { self == .ncaaf ? "College football" : self == .nfl ? "American football" : sport.capitalized }
     var accent: Color {
         switch self { case .nfl: return Color(red: 0.71, green: 0.65, blue: 0.93)
+        case .ncaaf: return Color(red: 0.35, green: 0.66, blue: 0.94)
         case .nba: return Color(red: 0.96, green: 0.64, blue: 0.36)
         case .wnba: return Color(red: 0.98, green: 0.53, blue: 0.45)
         case .nhl: return Color(red: 0.48, green: 0.78, blue: 0.95)
         case .mlb: return Color(red: 0.44, green: 0.79, blue: 0.65) }
     }
     var endpoint: String { "https://site.api.espn.com/apis/site/v2/sports/\(sport)/\(rawValue)" }
+    /// ESPN's unfiltered college feed omits games; merge FBS and FCS explicitly.
+    var scoreboardParameters: [String] { self == .ncaaf ? ["&groups=80&limit=1000", "&groups=81&limit=1000"] : ["&limit=100"] }
 }
 
 struct SportsTeam: Identifiable, Hashable, Sendable {
@@ -27,6 +32,7 @@ struct SportsTeam: Identifiable, Hashable, Sendable {
     let logo: String
     var score = ""
     var record = ""
+    var streamNames: [String] = []
     var logoURL: URL? { sportsHTTPSURL(logo) }
     func key(in league: SportsLeague) -> String { "\(league.rawValue):\(id)" }
 }
@@ -72,7 +78,7 @@ struct SportsSchedule: Sendable {
     let partial: Bool
 }
 
-struct SportsTeamResult: Identifiable, Hashable {
+struct SportsTeamResult: Identifiable, Hashable, Sendable {
     let league: SportsLeague
     let team: SportsTeam
     var id: String { team.key(in: league) }

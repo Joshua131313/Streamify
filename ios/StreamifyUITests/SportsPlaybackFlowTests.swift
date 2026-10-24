@@ -9,6 +9,7 @@ final class SportsPlaybackFlowTests: XCTestCase {
         continueAfterFailure = false
         app = XCUIApplication()
         app.launchArguments = ["--ui-fixtures"]
+        if name.contains("testNativeSystemPictureInPicture") { app.launchArguments.append("--ui-native-pip-fixture") }
         app.launch()
         XCTAssertTrue(app.buttons["tab-home"].waitForExistence(timeout: 15))
     }
@@ -24,12 +25,9 @@ final class SportsPlaybackFlowTests: XCTestCase {
         app?.terminate()
     }
 
-    func testSelectedSportsSourceSurvivesBrowsingAndBackgroundRoundTrips() {
+    func testSelectedSportsSourceAndDocumentSurviveBackgroundRoundTrip() {
         app.buttons["tab-sports"].tap()
-        let nba = app.buttons["sports-league-NBA"]
-        reveal(nba)
-        XCTAssertTrue(nba.isHittable)
-        nba.tap()
+        selectNBA()
         let watch = app.buttons["Watch BOS vs TOR"].firstMatch
         reveal(watch)
         XCTAssertTrue(watch.waitForExistence(timeout: 10))
@@ -56,42 +54,87 @@ final class SportsPlaybackFlowTests: XCTestCase {
         XCTAssertTrue((source.value as? String ?? "").contains("bravo"))
         XCTAssertTrue(document.waitForExistence(timeout: 8))
         XCTAssertEqual(document.label, selectedDocument, "Backgrounding must keep the actual selected WebKit document alive.")
+        let unavailablePiP = app.buttons["sports-player-pip"]
+        XCTAssertTrue(unavailablePiP.waitForExistence(timeout: 5))
+        XCTAssertTrue(wait { unavailablePiP.value as? String == "Unavailable" }, "The HTML fixture contains no playable video and must not claim PiP capability.")
+        unavailablePiP.tap()
+        XCTAssertTrue(app.alerts["Picture in Picture"].waitForExistence(timeout: 5))
+        app.alerts["Picture in Picture"].buttons["OK"].tap()
+        XCTAssertTrue(source.exists)
+        XCTAssertEqual(document.label, selectedDocument)
+        XCTAssertFalse(app.buttons["sports-pip-restore"].exists, "An unsupported request must not create an active PiP state.")
 
-        let minimize = app.buttons["sports-player-minimize"]
-        XCTAssertTrue(minimize.waitForExistence(timeout: 5))
-        minimize.tap()
-        let mini = element("sports-mini-player")
-        let restore = app.buttons["sports-mini-restore"]
-        XCTAssertTrue(restore.waitForExistence(timeout: 8))
-        XCTAssertTrue(mini.exists)
+        capture("Returning to the app retains the actual game document and selected source")
+        app.buttons["Close player"].tap()
         XCTAssertTrue(wait { !source.exists })
-        XCTAssertTrue((mini.value as? String ?? "").contains("bravo"))
-        capture("Sports mini-player remains above the schedule")
+        XCTAssertTrue(app.buttons["tab-sports"].isSelected)
+    }
 
+    func testNativeSystemPictureInPictureKeepsTheSelectedGameWhileBrowsing() throws {
+        app.buttons["tab-sports"].tap()
+        selectNBA()
+        let watch = app.buttons["Watch BOS vs TOR"].firstMatch
+        reveal(watch)
+        XCTAssertTrue(watch.isHittable)
+        watch.tap()
+        let source = app.buttons["sports-player-source-picker"]
+        XCTAssertTrue(source.waitForExistence(timeout: 10))
+        source.tap()
+        XCTAssertTrue(app.buttons["sports-player-source-option-1"].waitForExistence(timeout: 5))
+        app.buttons["sports-player-source-option-1"].tap()
+        XCTAssertTrue(wait { (source.value as? String ?? "").contains("bravo") })
+        let nativePlay = app.buttons["sports-native-play-pause"]
+        XCTAssertTrue(nativePlay.waitForExistence(timeout: 12))
+        XCTAssertTrue(wait(timeout: 15) { nativePlay.isEnabled && nativePlay.label == "Pause" }, "The actual bundled H264 video must be playing before evaluating PiP support.")
+        let pip = app.buttons["sports-player-pip"]
+        XCTAssertTrue(pip.waitForExistence(timeout: 5))
+        XCTAssertTrue(wait(timeout: 15) { ["Available", "Unavailable"].contains(pip.value as? String ?? "") }, "The real native PiP driver must finish checking capability.")
+        if pip.value as? String == "Unavailable" {
+            _ = wait(timeout: 5) { pip.value as? String == "Available" }
+        }
+        if pip.value as? String == "Unavailable" {
+            capture("Actual native video plays but this runtime reports PiP unavailable")
+            throw XCTSkip("The bundled H264 video is playing, but native Picture in Picture is unavailable on this runtime. Session and WebKit lifecycle checks run separately.")
+        }
+        XCTAssertTrue(pip.isEnabled)
+        pip.tap()
+        let restore = app.buttons["sports-pip-restore"]
+        XCTAssertTrue(restore.waitForExistence(timeout: 12), "The restore action appears only after the real system PiP didStart callback.")
+        XCTAssertTrue(wait { !source.exists })
+        XCTAssertFalse(element("sports-mini-player").exists, "Browsing must use the operating system's video window.")
+        capture("Native system PiP started from the real video fixture")
         app.buttons["tab-search"].tap()
         XCTAssertTrue(app.buttons["tab-search"].isSelected)
-        XCTAssertTrue(app.textFields["browse-search"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["open-catalog-search-dialog"].waitForExistence(timeout: 5))
         XCTAssertTrue(restore.isHittable)
-        XCTAssertTrue((mini.value as? String ?? "").contains("bravo"))
-        capture("Browse Search with the same sports mini-player")
         app.buttons["tab-home"].tap()
         XCTAssertTrue(app.buttons["tab-home"].isSelected)
         XCTAssertTrue(restore.isHittable)
-        capture("Browse Home with the same sports mini-player")
-
         backgroundAndReturn()
-        XCTAssertTrue(restore.waitForExistence(timeout: 8), "Returning to the app must keep an already minimized player minimized.")
-        XCTAssertTrue((mini.value as? String ?? "").contains("bravo"))
+        XCTAssertTrue(restore.waitForExistence(timeout: 8))
+        capture("Native system PiP survives app browsing and backgrounding")
         restore.tap()
-        XCTAssertTrue(source.waitForExistence(timeout: 8))
+        XCTAssertTrue(source.waitForExistence(timeout: 10))
         XCTAssertTrue((source.value as? String ?? "").contains("BOS vs TOR"))
-        XCTAssertTrue((source.value as? String ?? "").contains("bravo"), "Restoring a player must retain the chosen server.")
-        XCTAssertTrue(document.waitForExistence(timeout: 8))
-        XCTAssertEqual(document.label, selectedDocument, "Minimizing, browsing, and restoring must reuse the actual WebKit document.")
-        capture("Restored sports session retains the game and bravo source")
+        XCTAssertTrue((source.value as? String ?? "").contains("bravo"))
+        XCTAssertTrue(wait { nativePlay.exists && nativePlay.isEnabled && nativePlay.label == "Pause" })
+        XCTAssertTrue(wait { !restore.exists })
+        capture("System PiP restores the same selected sports stream")
         app.buttons["Close player"].tap()
-        XCTAssertTrue(wait { !source.exists && !mini.exists })
+        XCTAssertTrue(wait { !source.exists })
         XCTAssertTrue(app.buttons["tab-home"].isSelected)
+    }
+
+    private func selectNBA() {
+        let picker = app.buttons["sports-league-picker"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 8))
+        picker.tap()
+        app.buttons["sports-clear-leagues"].tap()
+        app.buttons["sports-league-option-nba"].tap()
+        let apply = app.buttons["sports-apply-leagues"]
+        reveal(apply)
+        apply.tap()
+        XCTAssertTrue(wait { picker.value as? String == "NBA" })
     }
 
     private func backgroundAndReturn() {
@@ -121,7 +164,7 @@ final class SportsPlaybackFlowTests: XCTestCase {
     }
 
     private func capture(_ name: String) {
-        let attachment = XCTAttachment(screenshot: app.screenshot())
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)

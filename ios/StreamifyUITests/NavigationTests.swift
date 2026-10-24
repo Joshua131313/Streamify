@@ -12,7 +12,7 @@ final class NavigationTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Saved on this iPhone"].waitForExistence(timeout: 5))
         capture(app, "My list")
         app.buttons["tab-search"].tap()
-        XCTAssertTrue(app.textFields["browse-search"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["open-catalog-search-dialog"].waitForExistence(timeout: 5))
         capture(app, "Search")
         app.buttons["tab-sports"].tap()
         XCTAssertTrue(app.buttons["tab-sports"].isSelected)

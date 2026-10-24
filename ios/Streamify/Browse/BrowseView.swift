@@ -2,7 +2,7 @@ import SwiftUI
 import Combine
 
 @MainActor
-private final class BrowseModel: ObservableObject {
+final class BrowseModel: ObservableObject {
     @Published var items: [MediaItem] = []
     @Published var genres: [CatalogGenre] = []
     @Published var loading = false
@@ -13,7 +13,7 @@ private final class BrowseModel: ObservableObject {
 
     func reset() { generation = UUID(); items = []; page = 0; totalPages = 1; error = nil; loading = false }
 
-    func load(client: TMDBClient, kind: MediaKind?, query: String, genre: Int, animeGenre: String, provider: Int, topRated: Bool, first: Bool) async {
+    func load(client: TMDBClient, kind: MediaKind?, query: String, genre: Int, animeGenre: String, provider: Int, topRated: Bool, first: Bool, includeAnimeSearch: Bool = false) async {
         if first { reset() }
         guard !loading, page < totalPages else { return }
         let request = generation
@@ -34,14 +34,37 @@ private final class BrowseModel: ObservableObject {
                 if provider > 0 { params["with_watch_providers"] = String(provider); params["watch_region"] = "US" }
                 if topRated && path.hasPrefix("discover") { params["sort_by"] = "vote_average.desc"; params["vote_count.gte"] = "200" }
             }
-            let response = try await client.catalog(path: path, kind: kind, page: page + 1, query: query, parameters: params)
+            let response: MediaPage
+            var partialError: String?
+            if includeAnimeSearch, kind == nil, !query.isEmpty {
+                async let catalog = searchResult(client: client, path: path, kind: nil, page: page + 1, query: query)
+                async let anime = searchResult(client: client, path: path, kind: .anime, page: page + 1, query: query)
+                let results = await [catalog, anime]
+                let pages = results.compactMap { try? $0.get() }
+                guard !pages.isEmpty else { throw results.compactMap { result -> Error? in if case .failure(let error) = result { return error }; return nil }.first ?? CatalogError.invalidResponse }
+                if pages.count < results.count {
+                    let reason = results.compactMap { result -> String? in
+                        if case .failure(let error) = result { return error.localizedDescription }; return nil
+                    }.first ?? "Retry to search all sources."
+                    partialError = "Some catalog results are unavailable. \(reason)"
+                }
+                response = MediaPage(items: pages.flatMap(\.items), page: page + 1, totalPages: pages.map(\.totalPages).max() ?? 1)
+            } else {
+                response = try await client.catalog(path: path, kind: kind, page: page + 1, query: query, parameters: params)
+            }
             try Task.checkCancellation()
             guard request == generation else { return }
             var seen = Set(items.map(\.key))
             items.append(contentsOf: response.items.filter { seen.insert($0.key).inserted })
             page = response.page; totalPages = response.totalPages
+            error = partialError
         } catch is CancellationError { }
         catch { if request == generation && !Task.isCancelled { self.error = error.localizedDescription } }
+    }
+
+    private func searchResult(client: TMDBClient, path: String, kind: MediaKind?, page: Int, query: String) async -> Result<MediaPage, Error> {
+        do { return .success(try await client.catalog(path: path, kind: kind, page: page, query: query)) }
+        catch { return .failure(error) }
     }
 }
 
@@ -61,7 +84,7 @@ struct BrowseView: View {
     @State private var provider = 0
     @State private var topRated = false
     @State private var revision = 0
-    @FocusState private var focused: Bool
+    @State private var showSearch = false
     private let providers = [(0, "All providers"), (8, "Netflix"), (9, "Prime Video"), (337, "Disney+"), (350, "Apple TV"), (15, "Hulu"), (531, "Paramount+")]
     private let animeGenres = ["Action", "Adventure", "Comedy", "Drama", "Fantasy", "Romance", "Sci-Fi", "Sports", "Thriller"]
 
@@ -78,20 +101,14 @@ struct BrowseView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 20) {
                 if !category {
-                    HStack(spacing: 10) {
-                        Image(systemName: "magnifyingglass").foregroundStyle(AppTheme.muted)
-                        TextField(kind == .anime ? "Search anime" : "Search movies & series", text: $query)
-                            .accessibilityIdentifier("browse-search")
-                            .font(.subheadline)
-                            .textInputAutocapitalization(.never).autocorrectionDisabled().submitLabel(.search).focused($focused)
-                            .onSubmit { library.rememberSearch(cleanQuery); focused = false }
-                        if !query.isEmpty {
-                            Button { query = "" } label: {
-                                Image(systemName: "xmark").foregroundStyle(AppTheme.muted).frame(width: 44, height: 44)
-                            }.buttonStyle(.plain).accessibilityLabel("Clear search")
-                        }
-                    }.padding(.horizontal, 16).padding(.vertical, 6).frame(minHeight: 56)
-                        .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 16)).padding(.horizontal, pageGutter)
+                    Button { showSearch = true } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "magnifyingglass")
+                            Text(kind == .anime ? "Search anime" : "Search movies, series & anime").frame(maxWidth: .infinity, alignment: .leading)
+                            Image(systemName: "arrow.up.left.and.arrow.down.right").font(.caption)
+                        }.font(.subheadline).foregroundStyle(AppTheme.muted)
+                            .padding(.horizontal, 16).frame(minHeight: 56).streamifyControlSurface()
+                    }.buttonStyle(.plain).accessibilityIdentifier("open-catalog-search-dialog").padding(.horizontal, pageGutter)
                     VStack(alignment: .leading, spacing: 12) {
                         if cleanQuery.isEmpty { SectionHeading(title: "Find your next favorite").padding(.horizontal, pageGutter) }
                         ScrollView(.horizontal) {
@@ -113,27 +130,6 @@ struct BrowseView: View {
                 }
                 // TMDB search does not apply discover's filters. AniList search supports genre and sort.
                 if (cleanQuery.isEmpty || kind == .anime) && kind != nil { filters.padding(.horizontal, pageGutter) }
-                if query.isEmpty && !category && !library.recentSearches.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("Recent searches").font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.muted)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            Button("Clear") { library.clearSearches() }
-                                .font(.caption.weight(.semibold)).foregroundStyle(AppTheme.foreground)
-                                .padding(.horizontal, 14).frame(minHeight: 44).streamifyControlSurface()
-                        }.padding(.horizontal, pageGutter)
-                        ScrollView(.horizontal) {
-                            HStack(spacing: 10) { ForEach(Array(library.recentSearches.prefix(5)), id: \.self) { recent in
-                                Button { query = recent; focused = false } label: {
-                                    Label(recent, systemImage: "clock").font(.subheadline.weight(.medium)).lineLimit(1)
-                                        .padding(.horizontal, 12).frame(minHeight: 44).streamifyControlSurface()
-                                }.buttonStyle(.plain).foregroundStyle(AppTheme.muted)
-                                    .contextMenu { Button("Remove search", role: .destructive) { library.removeSearch(recent) } }
-                                    .accessibilityAction(named: Text("Remove search")) { library.removeSearch(recent) }
-                            } }.padding(.horizontal, pageGutter)
-                        }.scrollIndicators(.hidden)
-                    }
-                }
                 if cleanQuery.isEmpty || kind == .anime {
                     ScrollView(.horizontal) {
                         HStack(spacing: 10) {
@@ -192,8 +188,7 @@ struct BrowseView: View {
                 if !Task.isCancelled { model.genres = [] }
             }
         }
-        .onChange(of: focused) { _, active in if !active { library.rememberSearch(cleanQuery) } }
-        .onDisappear { library.rememberSearch(cleanQuery) }
+        .sheet(isPresented: $showSearch) { CatalogSearchDialog(initialKind: kind) }
         .refreshable { await load(first: true) }
     }
 

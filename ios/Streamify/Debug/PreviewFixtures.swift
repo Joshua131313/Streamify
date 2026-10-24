@@ -5,6 +5,12 @@ import UIKit
 /// Deterministic UI data; excluded from release builds.
 enum PreviewFixtures {
     static let enabled = ProcessInfo.processInfo.arguments.contains("--ui-fixtures")
+    static let usesNativePiPVideo = enabled && ProcessInfo.processInfo.arguments.contains("--ui-native-pip-fixture")
+    static func nativePlayerURL(for url: URL) -> URL? {
+        guard usesNativePiPVideo, url.scheme == "https", url.host == "fixture.streamify.test",
+              ["/native-alpha.mp4", "/native-bravo.mp4"].contains(url.path) else { return nil }
+        return Bundle.main.url(forResource: "offline-player", withExtension: "mp4")
+    }
     static let token = "ui-fixture"
     static let defaults: UserDefaults = {
         let name = "com.streamify.app.ui-fixtures"
@@ -39,11 +45,11 @@ enum PreviewFixtures {
             let poster = UIImage(named: "collection-avengers")?.jpegData(compressionQuality: 0.8)
             if let poster { try poster.write(to: directory.appendingPathComponent(posterName), options: .atomic) }
             let size = (try destination.resourceValues(forKeys: [.fileSizeKey])).fileSize ?? 0
-            var item = DownloadItem(id: id, title: movie.title, source: nil, fileName: fileName,
+            var item = DownloadItem(id: id, title: "Offline player fixture", source: nil, fileName: fileName,
                 createdAt: Date(), status: .completed, bytesWritten: Int64(size), expectedBytes: Int64(size))
             item.quality = 720
-            item.catalog = CatalogDownloadDescriptor(id: movie.id, kind: movie.kind.rawValue, title: movie.title, season: 1, episode: 1, episodeTitle: nil)
-            item.catalogKey = "movie:42"
+            item.catalog = CatalogDownloadDescriptor(id: 900042, kind: movie.kind.rawValue, title: item.title, season: 1, episode: 1, episodeTitle: nil)
+            item.catalogKey = "movie:900042"
             item.posterFileName = poster == nil ? nil : posterName
             UserDefaults.standard.removeObject(forKey: "streamify.ios.offlinePlayback.\(id.uuidString)")
             store.installCompletedFixture(item)
@@ -135,7 +141,8 @@ enum PreviewFixtures {
                 }
             } else if path.hasPrefix("/api/stream/") {
                 let source = path.contains("/bravo/") ? "bravo" : "alpha"
-                value = [["embedUrl": "https://fixture.streamify.test/\(source)", "streamNo": 1, "language": "English", "hd": true]]
+                let address = usesNativePiPVideo ? "https://fixture.streamify.test/native-\(source).mp4" : "https://fixture.streamify.test/\(source)"
+                value = [["embedUrl": address, "streamNo": 1, "language": "English", "hd": true]]
             } else { value = [Any]() }
         }
         else if host == "enc-dec.app" { value = ["result": "fixturetoken"] }
@@ -162,7 +169,7 @@ enum PreviewFixtures {
     }
     private static func sportsJSON(_ url: URL) -> Any {
         let parts = url.path.split(separator: "/").map(String.init)
-        let league = ["nba", "wnba", "nfl", "nhl", "mlb"].first { parts.contains($0) } ?? "nba"
+        let league = ["nba", "wnba", "nfl", "nhl", "mlb", "college-football"].first { parts.contains($0) } ?? "nba"
         func team(_ home: Bool) -> [String: Any] {
             ["id": home ? "200" : "100", "displayName": home ? "Toronto Towers" : "Boston Harbor", "abbreviation": home ? "TOR" : "BOS", "logo": "https://a.espncdn.com/fixture-logo.png", "logos": [["href": "https://a.espncdn.com/fixture-logo.png"]], "location": home ? "Toronto" : "Boston", "record": ["items": [["summary": "8-3"]]], "franchise": ["venue": ["fullName": "Streamify Arena"]]]
         }

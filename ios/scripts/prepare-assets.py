@@ -38,6 +38,7 @@ imageset("streamify-logo", drawables / "streamify_logo.png")
 imageset("espn-logo", drawables / "espn_logo.png")
 for league in ["nfl", "nba", "wnba", "nhl", "mlb"]:
     imageset("league-" + league, drawables / ("league_" + league + ".png"))
+imageset("league-college-football", android / "res/drawable/league_ncaaf.png")
 for source in (android / "assets/collections").glob("*.jpg"):
     imageset("collection-" + source.stem, source)
 for filename in ["collections.json", "media-servers.json"]:
@@ -54,4 +55,4 @@ write_json(icon / "Contents.json", {"images": [{"idiom": "universal", "platform"
 color = assets / "LaunchBackground.colorset"
 color.mkdir(exist_ok=True)
 write_json(color / "Contents.json", {"colors": [{"idiom": "universal", "color": {"color-space": "srgb", "components": {"red": "0.043", "green": "0.051", "blue": "0.063", "alpha": "1.000"}}}], "info": info})
-print("Prepared original brand artwork, five leagues, 17 collections, app icon, and catalog configuration.")
+print("Prepared original brand artwork, six leagues, 17 collections, app icon, and catalog configuration.")

@@ -47,7 +47,7 @@ struct MediaDetailView: View {
                                         .overlay { Capsule().strokeBorder(.white.opacity(0.08), lineWidth: 0.5) }
                                         .accessibilityIdentifier("detail-genre-\(genre.id)")
                                 }
-                            }.padding(.top, 2).accessibilityIdentifier("detail-genre-bubbles")
+                            }.padding(.top, 2).accessibilityElement(children: .contain).accessibilityIdentifier("detail-genre-bubbles")
                         }
                     }
                     VStack(spacing: 12) {
@@ -55,7 +55,7 @@ struct MediaDetailView: View {
                             Label(watchTitle, systemImage: "play.fill")
                                 .font(.headline).frame(maxWidth: .infinity).frame(minHeight: 50)
                         }
-                        .buttonStyle(.plain).foregroundStyle(.black).background(.white, in: Capsule())
+                        .buttonStyle(.plain).foregroundStyle(.black).background(.white, in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
                         MediaDownloadButton(media: title, season: previous?.season ?? season, episode: previous?.episode ?? 1,
                             onRequestDownload: { presentDownload(season: previous?.season ?? season, episode: previous?.episode ?? 1) })
                         HStack(spacing: 12) {

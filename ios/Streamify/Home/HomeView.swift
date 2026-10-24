@@ -355,13 +355,13 @@ struct FeaturedCarousel: View {
                     Button { player = media } label: {
                         Label("Watch", systemImage: "play.fill")
                             .font(.subheadline.bold()).frame(maxWidth: .infinity).frame(minHeight: 44)
-                            .foregroundStyle(.black).background(.white, in: Capsule())
+                            .foregroundStyle(.black).background(.white, in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
                     }.accessibilityLabel("Watch \(media.title)")
                     Button { library.toggleSaved(media) } label: {
                         Label(library.isSaved(media) ? "Added" : "My list", systemImage: library.isSaved(media) ? "checkmark" : "plus")
                             .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity).frame(minHeight: 44)
-                            .background(.white.opacity(0.24), in: Capsule())
-                            .overlay { Capsule().strokeBorder(.white.opacity(0.15), lineWidth: 0.7) }
+                            .background(.white.opacity(0.24), in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
+                            .overlay { RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius).strokeBorder(.white.opacity(0.15), lineWidth: 0.7) }
                     }.accessibilityLabel(library.isSaved(media) ? "Remove \(media.title) from My list" : "Save \(media.title)")
                 }.buttonStyle(.plain).padding(.top, 6)
             }.padding(14).foregroundStyle(.white)
@@ -510,7 +510,7 @@ private struct DiscoveryRail: View {
             Image(systemName: "chevron.down").font(.system(size: 10, weight: .medium)).foregroundStyle(AppTheme.muted)
         }
         .padding(.horizontal, 8).padding(.vertical, 7)
-        .background(AppTheme.foreground.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+        .background(AppTheme.foreground.opacity(0.08), in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
         .frame(minHeight: 48)
         .contentShape(Rectangle())
     }

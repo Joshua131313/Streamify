@@ -54,27 +54,27 @@ enum AppTab: String, CaseIterable {
 
 struct RootView: View {
     @EnvironmentObject private var downloads: DownloadStore
+    @EnvironmentObject private var sportsPlayback: SportsPlaybackSession
+    @Environment(\.scenePhase) private var scenePhase
     @State private var tab: AppTab = .home
     @State private var settingsOpen = false
     @State private var accountOpen = false
     @State private var downloadsOpen = false
+    @State private var catalogSearchOpen = false
     @State private var sportsSearchRequest = 0
     @State private var keyboardVisible = false
     @State private var visibleRootPages = Set(AppTab.allCases)
 
     private var rootSelection: Binding<AppTab> {
         Binding(get: { tab }, set: { value in
-            visibleRootPages.insert(value)
             tab = value
         })
     }
 
     var body: some View {
-        TabView(selection: rootSelection) {
-            NavigationStack { rootPage(.home) { HomeView(openSettings: { settingsOpen = true }, openSports: { tab = .sports }) } }.tag(AppTab.home)
-            NavigationStack { rootPage(.sports) { SportsView(searchRequest: sportsSearchRequest) } }.tag(AppTab.sports)
-            NavigationStack { rootPage(.search) { BrowseView() } }.tag(AppTab.search)
-            NavigationStack { rootPage(.library) { LibraryView() } }.tag(AppTab.library)
+        RootTabPager(selection: rootSelection, enabled: scenePhase == .active && !keyboardVisible &&
+            visibleRootPages.contains(tab) && !settingsOpen && !accountOpen && !downloadsOpen && !catalogSearchOpen) { page in
+            rootStack(page)
         }
         .toolbar(.hidden, for: .tabBar)
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -85,8 +85,20 @@ struct RootView: View {
         .sheet(isPresented: $settingsOpen) { NavigationStack { SettingsView() } }
         .sheet(isPresented: $accountOpen) { NavigationStack { AccountView() } }
         .sheet(isPresented: $downloadsOpen) { NavigationStack { DownloadsView() } }
+        .sheet(isPresented: $catalogSearchOpen) { CatalogSearchDialog() }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in keyboardVisible = true }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in keyboardVisible = false }
+    }
+
+    private func rootStack(_ page: AppTab) -> some View {
+        NavigationStack {
+            switch page {
+            case .home: rootPage(.home) { HomeView(openSettings: { settingsOpen = true }, openSports: { tab = .sports }) }
+            case .sports: rootPage(.sports) { SportsView(searchRequest: sportsSearchRequest) }
+            case .search: rootPage(.search) { BrowseView() }
+            case .library: rootPage(.library) { LibraryView() }
+            }
+        }.environment(\.scenePhase, page == tab ? scenePhase : .inactive)
     }
 
     private func rootPage<Content: View>(_ page: AppTab, @ViewBuilder content: () -> Content) -> some View {
@@ -106,9 +118,14 @@ struct RootView: View {
             Image("streamify-logo").resizable().scaledToFit().frame(width: 30, height: 30).accessibilityHidden(true)
             Text(page.title).font(.system(size: 24, weight: .bold)).lineLimit(1)
                 .padding(.leading, 10).frame(maxWidth: .infinity, alignment: .leading).accessibilityAddTraits(.isHeader)
+                .accessibilityIdentifier("root-title-\(page.rawValue)")
+            if sportsPlayback.isPiPActive {
+                Button { sportsPlayback.expand() } label: { Image(systemName: "pip.exit").frame(width: 44, height: 44) }
+                    .accessibilityLabel("Return to player").accessibilityIdentifier("sports-pip-restore")
+            }
             Button {
                 if page == .sports { sportsSearchRequest += 1 }
-                else { tab = .search }
+                else { catalogSearchOpen = true }
             } label: { Image(systemName: "magnifyingglass").frame(width: 44, height: 44) }
                 .accessibilityLabel("Search")
                 .accessibilityIdentifier(page == .sports ? "focus-sports-search" : "open-catalog-search")
@@ -172,7 +189,7 @@ private struct FloatingNavigation: View {
                             .lineLimit(1).minimumScaleFactor(0.8)
                             .scaleEffect(selected && !reduceMotion ? 1.02 : 1)
                     }
-                    .frame(maxWidth: .infinity).frame(minHeight: 44)
+                    .frame(maxWidth: .infinity).frame(minHeight: 50)
                     .background {
                         if selected {
                             Capsule().fill(.white.opacity(0.12))
@@ -198,6 +215,6 @@ private struct FloatingNavigation: View {
         .shadow(color: .black.opacity(0.3), radius: 12, y: 5)
         .animation(selectionAnimation, value: selection)
         .sensoryFeedback(.selection, trigger: selectionFeedback)
-        .padding(.horizontal, 40).padding(.top, 4)
+        .padding(.horizontal, 50).padding(.top, 4)
     }
 }

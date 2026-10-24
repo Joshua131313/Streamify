@@ -57,7 +57,7 @@ struct LibraryView: View {
                 if history {
                     let entries = library.history.filter { matches($0.media) }
                     if entries.isEmpty { emptyState }
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 260, maximum: 420), spacing: 16)], spacing: 24) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 320, maximum: 560), spacing: 16)], spacing: 12) {
                         ForEach(entries) { entry in
                             WatchHistoryCard(entry: entry, resume: { player = entry })
                         }

@@ -50,7 +50,11 @@ private final class NativePlaybackModel: ObservableObject {
         loading = true
         error = nil
         do {
-            let asset = AVURLAsset(url: url)
+            var assetURL = url
+            #if DEBUG
+            assetURL = PreviewFixtures.nativePlayerURL(for: url) ?? url
+            #endif
+            let asset = AVURLAsset(url: assetURL)
             let playable = try await asset.load(.isPlayable)
             try Task.checkCancellation()
             guard generation == request else { return }
@@ -257,6 +261,7 @@ struct ProviderPlaybackSurface: View {
     /// App-owned sports playback stays mounted for native/WebKit PiP. Other
     /// presentations retain their existing background-pause behavior.
     var preservePlaybackOnBackground = false
+    var systemPiP: SportsSystemPiP? = nil
     @State private var loading = true
     @State private var error: String?
     @StateObject private var nativePlayback = NativePlaybackModel()
@@ -270,7 +275,10 @@ struct ProviderPlaybackSurface: View {
             if secureURL(url.absoluteString) == nil {
                 Text("Only secure HTTPS player addresses are supported.").foregroundStyle(.white).padding()
             } else if isVideoFile {
-                VideoPlayer(player: nativePlayback.player)
+                Group {
+                    if let systemPiP { SportsNativePlayerSurface(player: nativePlayback.player, pictureInPicture: systemPiP) }
+                    else { VideoPlayer(player: nativePlayback.player) }
+                }
                     .task(id: "\(url.absoluteString):\(reload)") {
                         await nativePlayback.load(url, resumeSeconds: resumeSeconds, onProgress: onProgress)
                     }
@@ -278,7 +286,7 @@ struct ProviderPlaybackSurface: View {
                 if let error = nativePlayback.error { failureMessage(error) }
             } else {
                 PlayerWebView(url: url, reload: reload, direct: direct, referer: referer,
-                    resumeSeconds: resumeSeconds, onProgress: onProgress, loading: $loading, error: $error)
+                    resumeSeconds: resumeSeconds, onProgress: onProgress, systemPiP: systemPiP, loading: $loading, error: $error)
                 if loading {
                     loadingIndicator("Connecting to source…")
                 }
@@ -327,6 +335,7 @@ private struct PlayerWebView: UIViewRepresentable {
     let referer: URL?
     let resumeSeconds: Double
     let onProgress: ((Double, Double) -> Void)?
+    let systemPiP: SportsSystemPiP?
     @Binding var loading: Bool
     @Binding var error: String?
 
@@ -341,6 +350,7 @@ private struct PlayerWebView: UIViewRepresentable {
         configuration.userContentController.add(context.coordinator, name: "streamifyProgress")
         let webView = WKWebView(frame: .zero, configuration: configuration)
         context.coordinator.webView = webView
+        if let systemPiP { context.coordinator.pipBridge = SportsWebPiPBridge(webView: webView, pictureInPicture: systemPiP) }
         context.coordinator.observeLifecycle()
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
@@ -402,6 +412,7 @@ private struct PlayerWebView: UIViewRepresentable {
         private var checkpoint = PlaybackCheckpoint()
         private var lastMessageAt = -Double.infinity
         private var lifecycleObservers: [NSObjectProtocol] = []
+        var pipBridge: SportsWebPiPBridge?
         init(_ parent: PlayerWebView) { self.parent = parent }
 
         func observeLifecycle() {
@@ -418,6 +429,7 @@ private struct PlayerWebView: UIViewRepresentable {
             checkpoint = PlaybackCheckpoint(); lastMessageAt = -Double.infinity
             let controller = webView.configuration.userContentController
             controller.removeAllUserScripts()
+            pipBridge?.begin()
             if parent.onProgress != nil {
                 controller.addUserScript(WKUserScript(source: PlaybackProgressScript.document(token: token, resumeSeconds: parent.resumeSeconds),
                     injectionTime: .atDocumentEnd, forMainFrameOnly: false))
@@ -447,6 +459,7 @@ private struct PlayerWebView: UIViewRepresentable {
 
         func finishSession() {
             flush()
+            pipBridge?.finish(); pipBridge = nil
             token = UUID().uuidString
             lifecycleObservers.forEach { NotificationCenter.default.removeObserver($0) }
             lifecycleObservers.removeAll()
@@ -468,10 +481,11 @@ private struct PlayerWebView: UIViewRepresentable {
             }
             decisionHandler(.allow)
         }
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { parent.loading = false }
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { parent.loading = false; pipBridge?.loaded() }
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { failed(error) }
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { failed(error) }
         func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+            pipBridge?.terminated()
             parent.loading = false
             parent.error = "The player was stopped by iOS. Reload this source to continue."
         }

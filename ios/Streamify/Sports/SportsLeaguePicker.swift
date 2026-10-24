@@ -14,8 +14,8 @@ struct SportsLeaguePicker: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    Text("Choose the leagues shown in games and calendar dots.")
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("Choose one or more leagues for games and calendar dots.")
                         .font(.subheadline).foregroundStyle(AppTheme.muted)
                     HStack(spacing: 12) {
                         Button("Select all") { draft = Set(SportsLeague.allCases) }
@@ -23,21 +23,21 @@ struct SportsLeaguePicker: View {
                         Button("Clear") { draft.removeAll() }
                             .accessibilityIdentifier("sports-clear-leagues")
                     }.buttonStyle(SecondaryButtonStyle())
-                    VStack(spacing: 10) {
+                    VStack(spacing: 8) {
                         ForEach(SportsLeague.allCases) { league in
                             Button {
                                 if draft.contains(league) { draft.remove(league) }
                                 else { draft.insert(league) }
                             } label: {
-                                HStack(spacing: 14) {
-                                    Image("league-\(league.rawValue)").resizable().scaledToFit().frame(width: 32, height: 32)
+                                HStack(spacing: 12) {
+                                    Image("league-\(league.rawValue)").resizable().scaledToFit().frame(width: 24, height: 24)
                                     VStack(alignment: .leading, spacing: 3) {
                                         Text(league.title).font(.subheadline.weight(.semibold))
                                         Text(league.subtitle).font(.caption).foregroundStyle(AppTheme.muted)
                                     }.frame(maxWidth: .infinity, alignment: .leading)
                                     Image(systemName: draft.contains(league) ? "checkmark.circle.fill" : "circle")
                                         .font(.title3).foregroundStyle(draft.contains(league) ? AppTheme.foreground : AppTheme.muted)
-                                }.padding(14).frame(minHeight: 64).streamifyControlSurface(cornerRadius: 14)
+                                }.padding(12).frame(minHeight: 52).streamifyControlSurface()
                             }.buttonStyle(.plain)
                                 .accessibilityLabel(league.title)
                                 .accessibilityValue(draft.contains(league) ? "Selected" : "Not selected")
@@ -55,5 +55,6 @@ struct SportsLeaguePicker: View {
                 .navigationTitle("Filter leagues").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
         }.presentationDetents([.large]).presentationDragIndicator(.visible)
+            .accessibilityElement(children: .contain).accessibilityIdentifier("sports-league-sheet")
     }
 }

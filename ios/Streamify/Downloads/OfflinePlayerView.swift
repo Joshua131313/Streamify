@@ -460,8 +460,9 @@ private struct OfflineVideoSurface: UIViewRepresentable {
         let view = OfflinePlayerLayerView(); view.backgroundColor = .black; return view
     }
     func updateUIView(_ view: OfflinePlayerLayerView, context: Context) {
-        view.playerLayer.player = player
-        view.playerLayer.videoGravity = fill ? .resizeAspectFill : .resizeAspect
+        if view.playerLayer.player !== player { view.playerLayer.player = player }
+        let gravity: AVLayerVideoGravity = fill ? .resizeAspectFill : .resizeAspect
+        if view.playerLayer.videoGravity != gravity { view.playerLayer.videoGravity = gravity }
         DispatchQueue.main.async { pictureInPicture.attach(view.playerLayer) }
     }
     static func dismantleUIView(_ view: OfflinePlayerLayerView, coordinator: ()) { view.playerLayer.player = nil }

@@ -37,7 +37,8 @@ struct SportsService: Sendable {
     private func parseTeam(_ raw: [String: Any]) -> SportsTeam {
         SportsTeam(id: raw.sportsText("id"), name: raw.sportsText("displayName"), abbreviation: raw.sportsText("abbreviation"),
                    logo: raw.sportsObjects("logos").first?.sportsText("href") ?? raw.sportsText("logo"),
-                   record: raw.sportsObject("record").sportsObjects("items").first?.sportsText("summary") ?? "")
+                   record: raw.sportsObject("record").sportsObjects("items").first?.sportsText("summary") ?? "",
+                   streamNames: [raw.sportsText("displayName"), raw.sportsText("shortDisplayName"), raw.sportsText("location")].filter { !$0.isEmpty })
     }
 
     func parseGame(_ raw: [String: Any], league: SportsLeague) -> SportsGame? {
@@ -81,7 +82,7 @@ struct SportsService: Sendable {
         var games: [SportsGame] = []
         var failures: [SportsLeague] = []
         var partial = false
-        // At most five leagues run together, each requesting its three UTC days in order.
+        // Each league requests its adjacent UTC days in order.
         try await withThrowingTaskGroup(of: LeagueScheduleResult.self) { group in
             for league in selected {
                 group.addTask {
@@ -113,7 +114,7 @@ struct SportsService: Sendable {
         date.dateFormat = "yyyy-MM-dd"
         let base = backend.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         var backendGames: [SportsGame] = []
-        if !base.isEmpty {
+        if !base.isEmpty && league != .ncaaf {
             guard sportsHTTPSURL(base) != nil else { throw SportsServiceError.invalidURL }
             do {
                 let dayText = date.string(from: day)
@@ -128,15 +129,19 @@ struct SportsService: Sendable {
         utc.dateFormat = "yyyyMMdd"
         var games = backendGames
         var failed = 0
+        var attempted = 0
         // The selected local date can overlap two UTC days; include both neighbors.
         for offset in -1...1 {
             guard let target = calendar.date(byAdding: .day, value: offset, to: day) else { continue }
-            do {
-                let response = try await object("\(league.endpoint)/scoreboard?dates=\(utc.string(from: target))&limit=100")
-                games += response.sportsObjects("events").compactMap { parseGame($0, league: league) }
-            } catch is CancellationError { throw CancellationError() } catch { failed += 1 }
+            for parameters in league.scoreboardParameters {
+                attempted += 1
+                do {
+                    let response = try await object("\(league.endpoint)/scoreboard?dates=\(utc.string(from: target))\(parameters)")
+                    games += response.sportsObjects("events").compactMap { parseGame($0, league: league) }
+                } catch is CancellationError { throw CancellationError() } catch { failed += 1 }
+            }
         }
-        if failed == 3 && backendGames.isEmpty { throw SportsServiceError.noSchedule }
+        if failed == attempted && backendGames.isEmpty { throw SportsServiceError.noSchedule }
         var identities = Set<String>()
         return SportsSchedule(games: games.filter { game in
             game.date.map { calendar.isDate($0, inSameDayAs: day) } == true && identities.insert(game.id).inserted
@@ -154,7 +159,7 @@ struct SportsService: Sendable {
         let information = (try await object(root)).sportsObject("team")
         let schedule = try? await object(root + "/schedule")
         try Task.checkCancellation()
-        let roster = try? await object(root + "/roster")
+        let roster = try? await object(root + "/roster" + (result.league == .ncaaf ? "?limit=1000" : ""))
         try Task.checkCancellation()
         let athletes = (roster?.sportsObjects("athletes") ?? []).flatMap { group in group["items"] == nil ? [group] : group.sportsObjects("items") }
         return SportsTeamProfile(team: parseTeam(information), location: information.sportsText("location"),
@@ -227,6 +232,22 @@ struct SportsService: Sendable {
         }
         let homeName = normalized(game.home.name), awayName = normalized(game.away.name)
         guard !homeName.isEmpty, !awayName.isEmpty else { return nil }
+        func collegeTeamsMatch(_ item: [String: Any]) -> Bool {
+            let home = Set(([game.home.name] + game.home.streamNames).map(normalized).filter { !$0.isEmpty })
+            let away = Set(([game.away.name] + game.away.streamNames).map(normalized).filter { !$0.isEmpty })
+            func pair(_ first: String, _ second: String) -> Bool {
+                (home.contains(first) && away.contains(second)) || (away.contains(first) && home.contains(second))
+            }
+            let teams = item.sportsObject("teams")
+            let first = normalized(teams.sportsObject("home").sportsText("name"))
+            let second = normalized(teams.sportsObject("away").sportsText("name"))
+            // Structured teams are authoritative: Alabama must not match Alabama State.
+            if !first.isEmpty || !second.isEmpty { return pair(first, second) }
+            let sides = item.sportsText("title")
+                .replacingOccurrences(of: "\\s+(?:vs\\.?|v\\.?|at|versus)\\s+|\\s*@\\s*", with: "\n", options: [.regularExpression, .caseInsensitive])
+                .components(separatedBy: "\n").map(normalized)
+            return sides.count == 2 && pair(sides[0], sides[1])
+        }
         let match = matches.filter { item in
             let date = (item["date"] as? NSNumber)?.doubleValue ?? 0
             let teams = item.sportsObject("teams")
@@ -234,7 +255,8 @@ struct SportsService: Sendable {
             let title = normalized(item.sportsText("title"))
             return item.sportsText("category") == game.league.category && !item.sportsObjects("sources").isEmpty &&
                 (date == 1 || abs(date / 1000 - now.timeIntervalSince1970) <= 18 * 3600) &&
-                ((names.contains(homeName) && names.contains(awayName)) || (title.contains(homeName) && title.contains(awayName)))
+                (game.league != .ncaaf || date == 1 || game.date.map { abs(date / 1000 - $0.timeIntervalSince1970) <= 6 * 3600 } == true) &&
+                (game.league == .ncaaf ? collegeTeamsMatch(item) : ((names.contains(homeName) && names.contains(awayName)) || (title.contains(homeName) && title.contains(awayName))))
         }.min { abs((($0["date"] as? NSNumber)?.doubleValue ?? 0) / 1000 - now.timeIntervalSince1970) < abs((($1["date"] as? NSNumber)?.doubleValue ?? 0) / 1000 - now.timeIntervalSince1970) }
         return match
     }

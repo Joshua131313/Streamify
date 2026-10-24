@@ -24,6 +24,33 @@ final class ParityFlowTests: XCTestCase {
         app?.terminate()
     }
 
+    func testRootPageSwipesFollowTabsWithoutStealingHeroCarousel() {
+        let hero = element("hero-carousel")
+        XCTAssertTrue(hero.waitForExistence(timeout: 12))
+        if app.buttons["hero-carousel-pause"].label == "Pause carousel" { app.buttons["hero-carousel-pause"].tap() }
+        let firstTitle = app.buttons["hero-main-progress"].label
+        hero.swipeLeft()
+        XCTAssertTrue(wait { self.app.buttons["hero-main-progress"].label != firstTitle })
+        XCTAssertTrue(app.buttons["tab-home"].isSelected, "A carousel swipe belongs to that carousel.")
+        for tab in ["sports", "search", "library"] {
+            let title = app.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH 'root-title-'")).firstMatch
+            XCTAssertTrue(title.isHittable)
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.55, dy: 0))
+                .withOffset(CGVector(dx: 0, dy: title.frame.midY))
+            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.08, dy: 0))
+                .withOffset(CGVector(dx: 0, dy: title.frame.midY))
+            start.press(forDuration: 0.05, thenDragTo: end)
+            XCTAssertTrue(wait { self.app.buttons["tab-\(tab)"].isSelected })
+            XCTAssertTrue(app.staticTexts["root-title-\(tab)"].isHittable)
+        }
+        let title = app.staticTexts["root-title-library"]
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.15, dy: 0)).withOffset(CGVector(dx: 0, dy: title.frame.midY))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.68, dy: 0)).withOffset(CGVector(dx: 0, dy: title.frame.midY))
+        start.press(forDuration: 0.05, thenDragTo: end)
+        XCTAssertTrue(wait { self.app.buttons["tab-search"].isSelected })
+        capture("Root page swipe paging and narrower taller navigation")
+    }
+
     func testExploreGenresPosterOpensItsExactMovieAndReturnsToRail() {
         let rail = app.scrollViews["home-explore-genre"].firstMatch
         let poster = rail.buttons["explore-genre-media-movie:45"].firstMatch
@@ -99,19 +126,35 @@ final class ParityFlowTests: XCTestCase {
         }
         relaunch()
         app.buttons["tab-search"].tap()
+        XCTAssertTrue(app.buttons["open-catalog-search-dialog"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.textFields["browse-search"].exists, "Swiping or tapping the discovery tab must not open the search dialog automatically.")
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+        app.buttons["open-catalog-search-dialog"].tap()
         XCTAssertTrue(app.textFields["browse-search"].waitForExistence(timeout: 5))
-        capture("08 Search recent and discovery")
-        app.textFields["browse-search"].tap()
+        dismissTypingTutorial()
+        capture("08 Dedicated search dialog with recents and type filters")
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
-        XCTAssertTrue(wait { !self.app.buttons["tab-search"].exists }, "The bottom navigation must stay hidden while typing, rather than rise above the keyboard.")
-        capture("08b Search typing without floating navigation")
+        XCTAssertFalse(app.buttons["tab-search"].isHittable, "The search dialog owns typing without raising the root tab bar.")
+        app.buttons["catalog-search-kind-movie"].tap()
+        capture("08b Focused movie search")
         app.textFields["browse-search"].typeText("Horizon\n")
         XCTAssertTrue(wait { !self.app.keyboards.firstMatch.exists })
-        XCTAssertTrue(app.buttons["tab-search"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["tab-search"].isSelected)
         XCTAssertTrue(app.staticTexts["Search results"].waitForExistence(timeout: 8))
         XCTAssertTrue(app.buttons["media-link-movie:42"].firstMatch.waitForExistence(timeout: 8))
         capture("09 Search results")
+        app.buttons["media-link-movie:42"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["download-movie:42"].waitForExistence(timeout: 8), "A result must present its exact title from the dialog root.")
+        app.buttons["close-media-details"].tap()
+        XCTAssertEqual(app.textFields["browse-search"].value as? String, "Horizon")
+        app.buttons["clear-catalog-search"].tap()
+        XCTAssertTrue(app.staticTexts["Recent searches"].exists)
+        app.buttons["catalog-search-kind-anime"].tap()
+        app.textFields["browse-search"].typeText("Starlight\n")
+        XCTAssertTrue(app.buttons["media-link-anime:44"].waitForExistence(timeout: 10))
+        capture("09b Anime search in the same dialog")
+        app.buttons["cancel-catalog-search"].tap()
+        XCTAssertTrue(app.buttons["open-catalog-search-dialog"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["tab-search"].isSelected)
     }
 
     func testMovieTrailerDownloadQualityCastSheetAndDragReturn() {
@@ -221,9 +264,14 @@ final class ParityFlowTests: XCTestCase {
         let historyResume = app.buttons["history-resume-tv:43"]
         reveal(historyResume)
         XCTAssertTrue(historyResume.isHittable)
+        XCTAssertEqual(historyResume.frame.width, 128, accuracy: 1)
+        XCTAssertEqual(historyResume.frame.height, 72, accuracy: 1)
         XCTAssertEqual(historyResume.frame.width / historyResume.frame.height, 16.0 / 9.0, accuracy: 0.02)
+        XCTAssertLessThanOrEqual(element("history-card-tv:43").frame.height, 116, "History should use a compact row instead of a full-width image card.")
         let historyProgress = element("history-progress-tv:43")
         XCTAssertTrue(historyProgress.exists)
+        XCTAssertGreaterThan(historyProgress.frame.minX, historyResume.frame.minX)
+        XCTAssertLessThan(historyProgress.frame.maxX, historyResume.frame.maxX)
         XCTAssertEqual(historyProgress.value as? String, "11 percent", "History must show the saved playback position, not a fabricated progress value.")
         XCTAssertTrue(element("history-status-tv:43").label.contains("40 min left"))
         capture("22 Watch history")
@@ -273,14 +321,13 @@ final class ParityFlowTests: XCTestCase {
 
     func testSportsMultiLeagueCalendarKeepsSelectionAndPosition() {
         app.buttons["tab-sports"].tap()
-        let allLeagues = app.buttons["sports-all-leagues-schedule"]
-        reveal(allLeagues)
-        XCTAssertTrue(allLeagues.isHittable)
-        allLeagues.tap()
         let picker = app.buttons["sports-league-picker"]
-        reveal(picker)
         XCTAssertTrue(picker.waitForExistence(timeout: 8))
         XCTAssertEqual(picker.value as? String, "All leagues")
+        let firstGame = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'sports-game-' AND identifier CONTAINS ':'")).firstMatch
+        XCTAssertTrue(firstGame.waitForExistence(timeout: 10))
+        XCTAssertLessThan(firstGame.frame.minY, app.frame.height * 0.55, "Compact controls must leave the first game visible near the top.")
+        capture("43 Compact sports toolbar with game cards above the fold")
         picker.tap()
         XCTAssertTrue(app.buttons["sports-clear-leagues"].waitForExistence(timeout: 5))
         app.buttons["sports-clear-leagues"].tap()
@@ -290,36 +337,35 @@ final class ParityFlowTests: XCTestCase {
         app.buttons["sports-league-option-nba"].tap()
         reveal(apply)
         XCTAssertTrue(apply.isEnabled)
-        capture("43 Choose NFL and NBA together")
+        capture("43b Choose NFL and NBA together with small league logos")
         apply.tap()
         XCTAssertTrue(wait { !self.app.navigationBars["Filter leagues"].exists })
         XCTAssertEqual(picker.value as? String, "NFL + NBA")
-        let calendar = app.buttons["sports-layout-Calendar"]
-        reveal(calendar)
-        calendar.tap()
+        app.buttons["sports-date-picker"].tap()
         let tomorrow = app.buttons["sports-date-offset-1"]
-        reveal(tomorrow)
-        XCTAssertTrue(tomorrow.isHittable)
+        XCTAssertTrue(tomorrow.waitForExistence(timeout: 5))
         let initialY = tomorrow.frame.minY
         let initialX = tomorrow.frame.minX
         XCTAssertTrue(element("sports-calendar-league-nfl").exists)
         XCTAssertTrue(element("sports-calendar-league-nba").exists)
         XCTAssertFalse(element("sports-calendar-league-nhl").exists)
-        capture("44 NFL and NBA calendar before changing date")
+        capture("44 NFL and NBA calendar sheet")
         tomorrow.tap()
         XCTAssertTrue(wait { tomorrow.isSelected })
-        XCTAssertTrue(app.staticTexts["No games to show"].waitForExistence(timeout: 12))
-        XCTAssertEqual(tomorrow.frame.minY, initialY, accuracy: 2, "Selecting an empty day must not move the calendar vertically.")
+        XCTAssertEqual(tomorrow.frame.minY, initialY, accuracy: 2, "Selecting a day must not move the calendar vertically.")
         XCTAssertEqual(tomorrow.frame.minX, initialX, accuracy: 2)
-        XCTAssertTrue(element("sports-calendar-league-nfl").exists)
-        XCTAssertTrue(element("sports-calendar-league-nba").exists)
-        capture("45 Empty calendar day remains in place")
+        app.buttons["sports-calendar-done"].tap()
+        XCTAssertTrue(app.staticTexts["No games to show"].waitForExistence(timeout: 12))
+        XCTAssertEqual(picker.value as? String, "NFL + NBA")
+        capture("45 Compact empty-day result keeps selected leagues")
+        app.buttons["sports-date-picker"].tap()
         let today = app.buttons["sports-date-offset-0"]
-        XCTAssertTrue(today.isHittable)
+        XCTAssertTrue(today.waitForExistence(timeout: 5))
         today.tap()
         XCTAssertTrue(wait { today.isSelected })
+        XCTAssertEqual(tomorrow.frame.minY, initialY, accuracy: 2, "Date changes must preserve the calendar position.")
+        app.buttons["sports-calendar-done"].tap()
         XCTAssertTrue(wait { !self.app.staticTexts["No games to show"].exists && !self.element("sports-schedule-loading").exists })
-        XCTAssertEqual(tomorrow.frame.minY, initialY, accuracy: 2, "Restoring a busy day must preserve the calendar position.")
         let nfl = app.buttons["sports-game-nfl:nfl-fixture"]
         let nba = app.buttons["sports-game-nba:nba-fixture"]
         reveal(nfl)
@@ -329,51 +375,78 @@ final class ParityFlowTests: XCTestCase {
         capture("46 Combined NFL and NBA results")
     }
 
+    func testCollegeFootballLeagueOpensItsGameAndAvailableStream() {
+        app.buttons["tab-sports"].tap()
+        selectSportsLeagues(["college-football"])
+        let game = app.buttons["sports-game-college-football:college-football-fixture"]
+        XCTAssertTrue(game.waitForExistence(timeout: 10))
+        XCTAssertLessThan(game.frame.minY, app.frame.height * 0.55)
+        capture("College football compact schedule")
+        let watch = app.buttons["Watch BOS vs TOR"].firstMatch
+        reveal(watch)
+        watch.tap()
+        XCTAssertTrue(app.buttons["sports-player-source-picker"].waitForExistence(timeout: 8))
+        XCTAssertTrue((app.buttons["sports-player-source-picker"].value as? String ?? "").contains("alpha"))
+        capture("College football available fixture stream")
+        app.buttons["Close player"].tap()
+        XCTAssertTrue(wait { !self.app.buttons["Close player"].exists })
+        XCTAssertEqual(app.buttons["sports-league-picker"].value as? String, "NCAAF")
+    }
+
     func testSportsScheduleScoringTableRosterChannelsAndMultiWatch() {
         app.buttons["tab-sports"].tap()
         XCTAssertTrue(element("sports-screen").waitForExistence(timeout: 8))
-        capture("30 Sports league directory")
+        capture("30 Compact mixed-league sports schedule")
         app.buttons["focus-sports-search"].tap()
+        XCTAssertTrue(element("sports-search-dialog").waitForExistence(timeout: 8))
+        let sportsSearch = app.textFields["sports-dialog-search"]
+        XCTAssertTrue(sportsSearch.waitForExistence(timeout: 5))
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
-        // A fresh iOS simulator can show QuickPath's introductory card in
-        // place of the keys. Finish that tutorial before exercising submission.
+        // Complete the simulator's first-use keyboard tutorial if present.
         let keyboardTutorial = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Speed up your typing")).firstMatch
         if keyboardTutorial.waitForExistence(timeout: 2) {
             let continueTyping = app.buttons["Continue"].firstMatch
             XCTAssertTrue(continueTyping.waitForExistence(timeout: 3))
             continueTyping.tap()
         }
-        XCTAssertTrue(app.keyboards.buttons["Search"].waitForExistence(timeout: 5))
-        XCTAssertTrue(wait { !self.app.buttons["tab-sports"].exists })
-        XCTAssertTrue(app.textFields["sports-search-field"].isHittable)
-        capture("30b Sports header search stays in Sports")
-        // The keyboard accessory also dismisses an empty query without
-        // submitting a search or changing tabs.
-        XCTAssertTrue(app.buttons["dismiss-sports-search"].waitForExistence(timeout: 5))
-        app.buttons["dismiss-sports-search"].tap()
-        XCTAssertTrue(wait { !self.app.keyboards.firstMatch.exists })
-        XCTAssertTrue(app.buttons["tab-sports"].isSelected)
-        app.buttons["focus-sports-search"].tap()
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
-        app.textFields["sports-search-field"].typeText("NBA")
+        XCTAssertTrue(sportsSearch.isHittable)
+        sportsSearch.typeText("NBA")
         app.keyboards.buttons["Search"].tap()
         XCTAssertTrue(wait { !self.app.keyboards.firstMatch.exists })
+        XCTAssertTrue(app.staticTexts["Teams"].exists)
+        XCTAssertTrue(app.buttons["sports-search-team-nba:200"].waitForExistence(timeout: 8))
+        capture("30b Sports search dialog separates teams and games")
+        app.buttons["sports-search-team-nba:200"].tap()
+        XCTAssertTrue(app.buttons["sports-team-roster-tab"].waitForExistence(timeout: 8))
+        capture("30c Sports search opens the exact team")
+        app.navigationBars.buttons["Close"].tap()
+        XCTAssertTrue(sportsSearch.waitForExistence(timeout: 5))
+        XCTAssertEqual(sportsSearch.value as? String, "NBA")
+        app.buttons["close-sports-search"].tap()
+        XCTAssertTrue(app.buttons["tab-sports"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["tab-sports"].isSelected)
-        XCTAssertEqual(app.textFields["sports-search-field"].value as? String, "NBA")
-        app.buttons["Clear sports search"].tap()
-        reveal(app.buttons["sports-league-NBA"])
-        app.buttons["sports-league-NBA"].tap()
+        // Search leaves the underlying league selection and scroll state alone.
+        app.buttons["focus-sports-search"].tap()
+        XCTAssertTrue(app.buttons["NBA"].waitForExistence(timeout: 5))
+        capture("30d Recent sports searches")
+        app.buttons["close-sports-search"].tap()
+        selectSportsLeagues(["nba"])
         let game = app.buttons["sports-game-nba:nba-fixture"].firstMatch
         reveal(game)
         XCTAssertTrue(game.waitForExistence(timeout: 10))
         capture("31 NBA schedule list")
         scrollSportsToTop()
-        reveal(app.buttons["sports-layout-Slider"])
+        app.buttons["sports-filter-picker"].tap()
         app.buttons["sports-layout-Slider"].tap()
+        app.buttons["sports-filter-done"].tap()
         capture("32 NBA schedule slider")
-        app.buttons["sports-layout-Calendar"].tap()
-        capture("33 NBA schedule calendar")
+        app.buttons["sports-date-picker"].tap()
+        XCTAssertTrue(element("sports-calendar-grid").waitForExistence(timeout: 5))
+        capture("33 NBA schedule calendar sheet")
+        app.buttons["sports-calendar-done"].tap()
+        app.buttons["sports-filter-picker"].tap()
         app.buttons["sports-layout-List"].tap()
+        app.buttons["sports-filter-done"].tap()
         reveal(game)
         game.tap()
         XCTAssertTrue(app.buttons["sports-scoring-tab"].waitForExistence(timeout: 8))
@@ -411,14 +484,15 @@ final class ParityFlowTests: XCTestCase {
         capture("36 Team roster table")
         relaunch()
         app.buttons["tab-sports"].tap()
-        reveal(app.buttons["sports-league-NBA"])
-        app.buttons["sports-league-NBA"].tap()
+        selectSportsLeagues(["nba"])
         let finalGame = app.buttons["sports-game-nba:nba-final"].firstMatch
         reveal(finalGame)
         XCTAssertTrue(finalGame.exists)
-        capture("36b Final score card with winner")
+        XCTAssertFalse(app.staticTexts["WINNER"].exists)
+        capture("36b Final score card emphasizes the winning score")
         finalGame.tap()
         XCTAssertTrue(app.buttons["sports-scoring-tab"].waitForExistence(timeout: 8))
+        XCTAssertFalse(app.staticTexts["Winner"].exists)
         app.buttons["sports-scoring-tab"].tap()
         XCTAssertTrue(element("sports-scoring-total-200").waitForExistence(timeout: 8))
         XCTAssertTrue(element("sports-scoring-total-200").label.contains("winner"))
@@ -427,12 +501,11 @@ final class ParityFlowTests: XCTestCase {
         capture("36c Final scoring highlights the actual winner")
         relaunch()
         app.buttons["tab-sports"].tap()
-        element("sports-league-directory").swipeLeft()
-        element("sports-league-directory").swipeLeft()
-        reveal(app.buttons["sports-channels"])
+        app.buttons["sports-menu"].tap()
         app.buttons["sports-channels"].tap()
         capture("37 Sports channel directory")
         scrollSportsToTop()
+        app.buttons["sports-menu"].tap()
         app.buttons["sports-multi-watch"].tap()
         XCTAssertTrue(app.buttons["sports-multiwatch-add"].waitForExistence(timeout: 5))
         capture("38 Empty multi-watch")
@@ -466,8 +539,15 @@ final class ParityFlowTests: XCTestCase {
     }
 
     private func openTitle(_ key: String) {
-        app.buttons["tab-search"].tap()
-        XCTAssertTrue(app.textFields["browse-search"].waitForExistence(timeout: 5))
+        let field = app.textFields["browse-search"]
+        if !field.exists {
+            app.buttons["tab-search"].tap()
+            XCTAssertTrue(app.buttons["open-catalog-search-dialog"].waitForExistence(timeout: 5))
+            app.buttons["open-catalog-search-dialog"].tap()
+            XCTAssertTrue(field.waitForExistence(timeout: 5))
+            dismissTypingTutorial()
+            field.typeText(key.hasPrefix("tv:") ? "Midnight Dispatch\n" : key.hasPrefix("anime:") ? "Starlight\n" : "Horizon\n")
+        }
         let card = app.buttons.matching(identifier: "media-link-\(key)")
         XCTAssertTrue(wait(timeout: 12) { card.allElementsBoundByIndex.contains { $0.isHittable } })
         guard let target = card.allElementsBoundByIndex.first(where: { $0.isHittable }) else { XCTFail("No visible catalog card for \(key)"); return }
@@ -476,6 +556,14 @@ final class ParityFlowTests: XCTestCase {
         capture("Selected catalog card \(key)")
         let downloadKey = key.hasPrefix("tv:") ? "\(key):1:1" : key
         XCTAssertTrue(app.buttons["download-\(downloadKey)"].firstMatch.waitForExistence(timeout: 8), "A catalog card must open the title that was tapped.")
+    }
+    private func dismissTypingTutorial() {
+        let tutorial = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Speed up your typing'")).firstMatch
+        if tutorial.waitForExistence(timeout: 2) {
+            let button = app.buttons["Continue"].firstMatch
+            XCTAssertTrue(button.waitForExistence(timeout: 3))
+            button.tap()
+        }
     }
     private func relaunch() {
         app.terminate()
@@ -491,15 +579,24 @@ final class ParityFlowTests: XCTestCase {
             dragVertically(up: !(target.exists && target.frame.maxY < app.frame.midY))
         }
     }
+    private func selectSportsLeagues(_ leagues: [String]) {
+        scrollSportsToTop()
+        let picker = app.buttons["sports-league-picker"]
+        picker.tap()
+        app.buttons["sports-clear-leagues"].tap()
+        for league in leagues { app.buttons["sports-league-option-\(league)"].tap() }
+        let apply = app.buttons["sports-apply-leagues"]
+        reveal(apply)
+        apply.tap()
+        XCTAssertTrue(wait { !self.app.navigationBars["Filter leagues"].exists })
+    }
     private func scrollSportsToTop() {
-        let search = app.textFields["sports-search-field"]
-        let multiWatch = app.buttons["sports-multi-watch"]
+        let toolbar = app.buttons["sports-league-picker"]
         for _ in 0..<8 {
-            if search.exists && search.isHittable && multiWatch.exists && multiWatch.isHittable { break }
+            if toolbar.exists && toolbar.isHittable { break }
             dragVertically(up: false, in: app.scrollViews["sports-screen"].firstMatch)
         }
-        XCTAssertTrue(search.isHittable, "Return to the sports header before locating controls above the schedule.")
-        XCTAssertTrue(multiWatch.isHittable)
+        XCTAssertTrue(toolbar.isHittable, "Compact sports controls must remain reachable.")
     }
     private func dragVertically(up: Bool, in scrollView: XCUIElement? = nil) {
         // Use the content gutter, away from image buttons and nested horizontal rails.

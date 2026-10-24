@@ -326,7 +326,7 @@ struct SportsScoringTable: View {
         switch game.league {
         case .mlb: return String(index + 1)
         case .nhl: return index < 3 ? "P\(index + 1)" : index == 3 ? "OT" : "OT\(index - 2)"
-        case .nba, .wnba, .nfl: return index < 4 ? "Q\(index + 1)" : index == 4 ? "OT" : "OT\(index - 3)"
+        case .nba, .wnba, .nfl, .ncaaf: return index < 4 ? "Q\(index + 1)" : index == 4 ? "OT" : "OT\(index - 3)"
         }
     }
 

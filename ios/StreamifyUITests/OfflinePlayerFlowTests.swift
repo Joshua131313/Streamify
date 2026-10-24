@@ -1,6 +1,6 @@
 import XCTest
 
-/// Uses a synthetic 90-second H264 local file: no download server or remote video.
+/// Uses a synthetic 10-minute H264 local file: no download server or remote video.
 final class OfflinePlayerFlowTests: XCTestCase {
     private var app: XCUIApplication!
     private let fixtureID = "00000000-0000-0000-0000-000000000042"
@@ -34,9 +34,10 @@ final class OfflinePlayerFlowTests: XCTestCase {
         let play = app.buttons["offline-play-pause"]
         XCTAssertTrue(play.waitForExistence(timeout: 10))
         XCTAssertTrue(wait { play.isEnabled && play.label == "Pause" }, "The local H264 fixture must actually start playing.")
+        revealControls(for: play)
         play.tap()
         XCTAssertTrue(wait { play.label == "Play" })
-        XCTAssertFalse(app.navigationBars["Downloads"].exists, "The offline player must cover the Downloads navigation header.")
+        XCTAssertFalse(app.navigationBars["Downloads"].isHittable, "The offline player must cover the Downloads navigation header; covered controllers may remain in the accessibility tree.")
         let progress = app.sliders["offline-progress"]
         let beforeSeek = progress.value as? String
         app.buttons["offline-forward-10"].tap()
@@ -60,11 +61,24 @@ final class OfflinePlayerFlowTests: XCTestCase {
         app.buttons["download-play-\(fixtureID)"].tap()
         XCTAssertTrue(play.waitForExistence(timeout: 10))
         XCTAssertTrue(wait { play.isEnabled && play.label == "Pause" })
+        revealControls(for: play)
         play.tap()
         XCTAssertTrue(wait { play.label == "Play" })
         XCTAssertTrue(wait { self.seconds(progress.value as? String ?? "") >= 9 }, "Reopening the same downloaded file must resume its saved timestamp.")
         capture("46 Reopened offline video resumes its saved progress")
         app.buttons["offline-close"].tap()
+    }
+
+    private func revealControls(for target: XCUIElement) {
+        // Playback intentionally hides controls after four seconds. Reveal them
+        // with the shipped canvas gesture when XCTest's earlier checks outlast it.
+        if !target.exists || !target.isHittable {
+            let canvas = app.otherElements["Offline video"].firstMatch
+            XCTAssertTrue(canvas.waitForExistence(timeout: 5))
+            canvas.tap()
+            XCTAssertTrue(target.waitForExistence(timeout: 3))
+        }
+        XCTAssertTrue(target.isHittable)
     }
 
     private func wait(_ condition: @escaping () -> Bool) -> Bool {
