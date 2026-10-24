@@ -43,9 +43,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # A marked playback follow-up leaves the independent controls/screens
-        # repair run intact. Ordinary pushes retain all three full suites.
-        suite: ${{ contains(github.event.head_commit.message, '[playback-ios]') && fromJSON('["playback"]') || fromJSON('["playback", "controls", "screens"]') }}
+        suite: [playback, controls, screens]
     steps:
       - uses: actions/checkout@v4
       - name: Generate Xcode project
@@ -65,8 +63,6 @@ jobs:
       - name: Build all test targets and verify assigned screens
         env:
           TEST_SUITE: ${{ matrix.suite }}
-          FOCUSED_FIXES: ${{ contains(github.event.head_commit.message, '[focused-ios]') }}
-          PLAYBACK_FOLLOWUP: ${{ contains(github.event.head_commit.message, '[playback-ios]') }}
         run: |
           mkdir -p ios/build/diagnostics
           # Keep a small process sample if a UI interaction leaves the simulator
@@ -96,27 +92,7 @@ jobs:
               ;;
             *) exit 2 ;;
           esac
-          # Build34 provides full-suite coverage. Marked repairs rerun its
-          # remaining gesture-driver failures; ordinary pushes retain all 47 UI
-          # tests above. No production seek, lock, profile or sports behavior is
-          # bypassed by these tests.
-          if [[ "$FOCUSED_FIXES" == "true" ]]; then
-            case "$TEST_SUITE" in
-              playback)
-                SELECTORS=(-only-testing:StreamifyTests)
-                if [[ "$PLAYBACK_FOLLOWUP" == "true" ]]; then
-                  SELECTORS+=(-only-testing:StreamifyUITests/ControlInteractionFlowTests/testSearchFieldAndHeaderPresentFullSearchAndReturnToTheirOriginalContext -only-testing:StreamifyUITests/ControlInteractionFlowTests/testSportsSearchReturnsToItsSelectedLeaguesAndFutureDate -only-testing:StreamifyUITests/QuickActionFlowTests/testActualWarmHomeScreenFavoritesActionLeavesHistoryAndPreservesSavedTitles)
-                fi
-                ;;
-              controls)
-                SELECTORS=(-only-testing:StreamifyUITests/OfflinePlayerFlowTests -only-testing:StreamifyUITests/ProfileFlowTests)
-                ;;
-              screens)
-                SELECTORS=(-only-testing:StreamifyUITests/ParityFlowTests/testSportsScheduleScoringTableRosterChannelsAndMultiWatch)
-                ;;
-            esac
-          fi
-          # Disjoint suites run on separate simulators; every test runs once.
+          # Disjoint suites cover all 49 UI tests; every test runs once.
           xcodebuild test-without-building "${COMMON[@]}" "${TEST_OPTIONS[@]}" "${SELECTORS[@]}" -resultBundlePath ios/build/Streamify.xcresult
       - name: Export simulator screenshots
         if: always()

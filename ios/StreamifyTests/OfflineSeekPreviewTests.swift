@@ -73,7 +73,10 @@ final class OfflineSeekPreviewTests: XCTestCase {
         let model = OfflineSeekPreviewModel()
         defer { model.close() }
         model.show(url: source, seconds: 1, duration: 600)
-        let decoded = await settled { !model.loading }
+        // A fresh simulator can spend many seconds starting AVFoundation's
+        // decoder. Bound the actual wall clock, retaining the real-frame and
+        // pixel-size assertions rather than substituting a poster or a mock.
+        let decoded = await settled(timeout: .seconds(30)) { !model.loading }
         XCTAssertTrue(decoded)
         let frame = try XCTUnwrap(model.image?.cgImage, "The preview must use a decoded video frame, not a catalog poster.")
         XCTAssertGreaterThan(frame.width, 0)
@@ -129,8 +132,10 @@ final class OfflineSeekPreviewTests: XCTestCase {
         XCTAssertEqual(model.seconds, 8)
     }
 
-    @MainActor private func settled(_ condition: () -> Bool) async -> Bool {
-        for _ in 0..<500 {
+    @MainActor private func settled(timeout: Duration = .seconds(5), _ condition: () -> Bool) async -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: timeout)
+        while clock.now < deadline {
             if condition() { return true }
             try? await Task.sleep(for: .milliseconds(10))
         }

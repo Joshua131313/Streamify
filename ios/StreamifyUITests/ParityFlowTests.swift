@@ -27,7 +27,6 @@ final class ParityFlowTests: XCTestCase {
     func testRootTabsUseTapNavigationAndLeaveCarouselsIndependent() {
         let hero = element("hero-carousel")
         XCTAssertTrue(hero.waitForExistence(timeout: 12))
-        if app.buttons["hero-carousel-pause"].label == "Pause carousel" { app.buttons["hero-carousel-pause"].tap() }
         for tab in ["sports", "search", "library", "home"] {
             app.buttons["tab-\(tab)"].tap()
             XCTAssertTrue(app.buttons["tab-\(tab)"].isSelected)
@@ -38,6 +37,7 @@ final class ParityFlowTests: XCTestCase {
         let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.08, dy: 0)).withOffset(CGVector(dx: 0, dy: title.frame.midY))
         start.press(forDuration: 0.05, thenDragTo: end)
         XCTAssertTrue(app.buttons["tab-home"].isSelected, "A header drag must not switch root tabs.")
+        if app.buttons["hero-carousel-pause"].label == "Pause carousel" { app.buttons["hero-carousel-pause"].tap() }
         let firstTitle = app.buttons["hero-main-progress"].label
         hero.swipeLeft()
         XCTAssertTrue(wait { self.app.buttons["hero-main-progress"].label != firstTitle })
@@ -596,7 +596,9 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Jordan Hayes"].exists)
         XCTAssertTrue(app.staticTexts["PLAYER"].exists)
         capture("36 Team roster table")
-        relaunch()
+    }
+
+    func testFinalSportsScoringHighlightsTheActualWinner() {
         app.buttons["tab-sports"].tap()
         selectSportsLeagues(["nba"])
         let finalGame = app.buttons["sports-game-nba:nba-final"].firstMatch
@@ -613,7 +615,9 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertEqual(element("sports-scoring-total-200").value as? String, "105")
         XCTAssertFalse(element("sports-scoring-total-100").label.contains("winner"))
         capture("36c Final scoring highlights the actual winner")
-        relaunch()
+    }
+
+    func testSportsChannelsAndMultiwatchPreserveSelectedServerAndTile() {
         app.buttons["tab-sports"].tap()
         app.buttons["sports-menu"].tap()
         app.buttons["sports-channels"].tap()

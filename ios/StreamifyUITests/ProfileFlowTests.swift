@@ -52,9 +52,11 @@ final class ProfileFlowTests: XCTestCase {
         XCTAssertTrue(artwork.waitForExistence(timeout: 5))
         artwork.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3)).tap()
         XCTAssertTrue(app.buttons["download-movie:45"].waitForExistence(timeout: 8))
-        XCTAssertTrue(app.buttons["My list"].isHittable)
-        app.buttons["My list"].tap()
-        XCTAssertTrue(app.buttons["Saved"].waitForExistence(timeout: 4))
+        let detail = app.scrollViews["media-detail-page"]
+        XCTAssertTrue(detail.waitForExistence(timeout: 5))
+        XCTAssertTrue(detail.buttons["My list"].isHittable)
+        detail.buttons["My list"].tap()
+        XCTAssertTrue(detail.buttons["Saved"].waitForExistence(timeout: 4))
         app.buttons["close-media-details"].tap()
         XCTAssertTrue(app.buttons["tab-library"].waitForExistence(timeout: 5))
         app.buttons["tab-library"].tap()
@@ -103,7 +105,9 @@ final class ProfileFlowTests: XCTestCase {
         reveal(delete)
         XCTAssertTrue(delete.isEnabled)
         delete.tap()
-        let confirm = app.buttons["profile-delete-confirm"]
+        let confirmation = app.sheets["Delete Guest?"]
+        XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
+        let confirm = confirmation.buttons["profile-delete-confirm"].firstMatch
         XCTAssertTrue(confirm.waitForExistence(timeout: 5))
         capture("Profiles deletion requires explicit confirmation")
         let cancel = app.buttons.matching(NSPredicate(format: "label == 'Cancel' AND identifier != 'profile-editor-cancel'"))
@@ -121,8 +125,9 @@ final class ProfileFlowTests: XCTestCase {
         profileTile("Edit Guest").tap()
         reveal(app.buttons["profile-delete"])
         app.buttons["profile-delete"].tap()
-        XCTAssertTrue(app.buttons["profile-delete-confirm"].waitForExistence(timeout: 5))
-        app.buttons["profile-delete-confirm"].tap()
+        XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        confirm.tap()
         XCTAssertTrue(wait { !self.profileTile("Edit Guest").exists && self.profileTile("Edit Jordan").exists })
         XCTAssertEqual(profileTiles.count, 1)
         profileTile("Edit Jordan").tap()

@@ -138,17 +138,22 @@ struct RootView: View {
     }
 
     var body: some View {
-        TabView(selection: rootSelection) {
-            ForEach(AppTab.allCases, id: \.self) { page in
-                rootStack(page).id(navigationRevision).tag(page)
+        VStack(spacing: 0) {
+            TabView(selection: rootSelection) {
+                ForEach(AppTab.allCases, id: \.self) { page in
+                    rootStack(page).id(navigationRevision).tag(page)
+                }
             }
-        }
-        .toolbar(.hidden, for: .tabBar)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+            .toolbar(.hidden, for: .tabBar)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Keep the footer outside UIKit's paging surface. Its intrinsic
+            // height reserves the same space without giving a carousel's
+            // native view a hit region underneath these navigation buttons.
             if !keyboardVisible && visibleRootPages.contains(tab) && (tab != .library || libraryPath.isEmpty) {
                 FloatingNavigation(selection: rootSelection)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         // One backdrop also fills the status bar and home-indicator area.
         .background { StreamifyRootBackdrop() }
         .sheet(isPresented: $settingsOpen) {

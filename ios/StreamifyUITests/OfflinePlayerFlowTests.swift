@@ -51,9 +51,7 @@ final class OfflinePlayerFlowTests: XCTestCase {
         let nativeValue = progress.value as? String ?? ""
         XCTAssertFalse(nativeValue.isEmpty)
         XCTAssertFalse(nativeValue.contains(" of "), "The dedicated fixture must preserve UISlider's native numeric accessibility value for XCTest's normalized adjustment.")
-        XCTContext.runActivity(named: "Native normalized seek to 0.3; native value=\(nativeValue); actual time=\(progressTimestamp(progress)); \(progress.label)") { _ in
-            progress.adjust(toNormalizedSliderPosition: 0.3)
-        }
+        adjustNativeProgress(progress, to: 0.3)
         XCTAssertTrue(wait {
             let value = self.progressTimestamp(progress)
             return value.contains(" of 10:00") && (170...190).contains(self.seconds(value))
@@ -217,6 +215,31 @@ final class OfflinePlayerFlowTests: XCTestCase {
             return String(field.dropFirst(prefix.count))
         }
         return progress.value as? String ?? ""
+    }
+
+    private func adjustNativeProgress(_ progress: XCUIElement, to fraction: Double) {
+        let originalValue = progressTimestamp(progress)
+        defer { XCTAssertNotEqual(progressTimestamp(progress), originalValue, "Native adjustment must commit an actual timestamp change.") }
+        let duration = Double(seconds(originalValue.components(separatedBy: " of ").last ?? ""))
+        XCTAssertGreaterThan(duration, 0)
+        guard duration > 0 else { return }
+        let desiredSeconds = duration * fraction
+        var requestedFraction = fraction
+        // XCTest synthesizes an approximate drag even with the native numeric
+        // AX value. Correct only its requested input from observed real time;
+        // never assign playback state or broaden the strict target assertion.
+        for attempt in 1...3 {
+            let before = progressTimestamp(progress)
+            XCTContext.runActivity(named: "Native normalized seek attempt\(attempt); requested=\(requestedFraction); desiredSeconds=\(desiredSeconds); native value=\(progress.value as? String ?? "missing"); actual time=\(before)") { _ in
+                progress.adjust(toNormalizedSliderPosition: requestedFraction)
+            }
+            _ = wait { self.progressTimestamp(progress) != before }
+            let after = progressTimestamp(progress)
+            let actualSeconds = Double(seconds(after))
+            XCTContext.runActivity(named: "Native normalized attempt\(attempt) result: \(after); native value=\(progress.value as? String ?? "missing"); \(progress.label)") { _ in }
+            if abs(actualSeconds - desiredSeconds) <= 10 { return }
+            requestedFraction = min(1, max(0, requestedFraction + (desiredSeconds - actualSeconds) / duration))
+        }
     }
 
     private func brightnessPercent(_ slider: XCUIElement) -> Int {

@@ -264,7 +264,10 @@ final class ControlInteractionFlowTests: XCTestCase {
     }
 
     func testSearchFieldAndHeaderPresentFullSearchAndReturnToTheirOriginalContext() {
-        app.buttons["tab-search"].tap()
+        let searchTab = app.buttons["tab-search"]
+        searchTab.tap()
+        XCTAssertTrue(wait { searchTab.isSelected },
+            "One real tab tap must select Search while the Home carousel is running.")
         let fieldSource = app.buttons["open-catalog-search-dialog"]
         XCTAssertTrue(fieldSource.waitForExistence(timeout: 8))
         let series = app.buttons["Series"].firstMatch
