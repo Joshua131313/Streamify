@@ -117,6 +117,17 @@ struct SportsView: View {
         .accessibilityIdentifier("sports-screen")
         .onChange(of: today) { _, value in day = min(lastDay, max(value, day)) }
         .scrollDismissesKeyboard(.interactively)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                if searchFocused {
+                    Spacer()
+                    Button("Done") { searchFocused = false }
+                        .frame(minHeight: 44)
+                        .accessibilityIdentifier("dismiss-sports-search")
+                }
+            }
+        }
+        .onDisappear { searchFocused = false }
         .task(id: searchRequest) {
             guard searchRequest > 0, searchRequest != handledSearchRequest else { return }
             handledSearchRequest = searchRequest
@@ -190,7 +201,7 @@ struct SportsView: View {
         HStack {
             Text("GAME DAY").font(.caption.weight(.medium)).foregroundStyle(AppTheme.muted)
             Spacer()
-            Button { showMultiWatch = true } label: { Label("Multi-watch · \(queue.streams.count)/4", systemImage: "rectangle.split.2x2").font(.caption.weight(.semibold)).padding(.horizontal, 12).frame(minHeight: 44).streamifyControlSurface() }
+            Button { searchFocused = false; showMultiWatch = true } label: { Label("Multi-watch · \(queue.streams.count)/4", systemImage: "rectangle.split.2x2").font(.caption.weight(.semibold)).padding(.horizontal, 12).frame(minHeight: 44).streamifyControlSurface() }
                 .buttonStyle(.plain).accessibilityLabel("Open multi-watch. \(queue.streams.count) of four slots used")
                 .accessibilityIdentifier("sports-multi-watch")
         }.padding(.horizontal, 20)
@@ -215,7 +226,7 @@ struct SportsView: View {
                 ForEach(SportsLeague.allCases) { item in
                     leagueTile(title: item.title, selected: league == item && !channels, tint: item.accent) { Image("league-\(item.rawValue)").resizable().scaledToFit().frame(width: 36, height: 36) } action: { chooseLeague(item) }
                 }
-                leagueTile(title: "Channels", selected: channels, tint: AppTheme.foreground) { Image(systemName: "tv").font(.title2) } action: { channels = true; home = false; query = "" }
+                leagueTile(title: "Channels", selected: channels, tint: AppTheme.foreground) { Image(systemName: "tv").font(.title2) } action: { searchFocused = false; channels = true; home = false; query = "" }
             }.padding(.horizontal, 20)
         }.accessibilityIdentifier("sports-league-directory")
     }
@@ -336,6 +347,7 @@ struct SportsView: View {
     }
 
     private func chooseLeague(_ value: SportsLeague?, showHome: Bool = false) {
+        searchFocused = false
         league = value; home = showHome; channels = false; filter = .all; day = today; query = ""
     }
 

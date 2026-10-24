@@ -27,7 +27,7 @@ The current free-account setup uses [iLoader](https://iloader.app/), which succe
 
 Free-account provisioning expires after seven days and needs refreshing. [Apple's account limits](https://developer.apple.com/help/account/basics/about-your-developer-account). iLoader supports wireless connections after device setup, but it still runs on a computer; Wi-Fi removes the cable requirement, not the computer requirement. [iLoader features](https://iloader.app/).
 
-The unsigned IPA cannot be installed merely by tapping it in Files. The simulator test-results artifact is also not an iPhone app. A failed CI run produces no usable device package.
+The unsigned IPA cannot be installed merely by tapping it in Files. The simulator test-results artifact is also not an iPhone app. Device compilation runs alongside simulator tests so a test package can be installed promptly; an available IPA does not mean the simulator tests passed. Check both jobs before publishing a release.
 
 After installation, open **More options → Settings** from the top-right menu and add a TMDB API key or read access token for movie and TV catalog data. The key stays in your iPhone Keychain. Anime and sports work without that key. No local `.env` credentials are bundled into this app.
 

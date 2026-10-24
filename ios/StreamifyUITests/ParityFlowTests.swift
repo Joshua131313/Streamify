@@ -14,7 +14,7 @@ final class ParityFlowTests: XCTestCase {
     }
 
     override func tearDownWithError() throws {
-        if testRun?.hasSucceeded == false, let app {
+        if (testRun?.failureCount ?? 0) > 0, let app {
             capture("FAILURE current screen")
             let hierarchy = XCTAttachment(string: app.debugDescription)
             hierarchy.name = "FAILURE accessibility hierarchy"
@@ -77,7 +77,13 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertTrue(app.textFields["browse-search"].waitForExistence(timeout: 5))
         capture("08 Search recent and discovery")
         app.textFields["browse-search"].tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(wait { !self.app.buttons["tab-search"].exists }, "The bottom navigation must stay hidden while typing, rather than rise above the keyboard.")
+        capture("08b Search typing without floating navigation")
         app.textFields["browse-search"].typeText("Horizon\n")
+        XCTAssertTrue(wait { !self.app.keyboards.firstMatch.exists })
+        XCTAssertTrue(app.buttons["tab-search"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["tab-search"].isSelected)
         XCTAssertTrue(app.staticTexts["Search results"].waitForExistence(timeout: 8))
         XCTAssertTrue(app.buttons["media-link-movie:42"].firstMatch.waitForExistence(timeout: 8))
         capture("09 Search results")
@@ -98,6 +104,7 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["download-movie:42"].waitForExistence(timeout: 8), "The tapped Home hero must open its own movie.")
         XCTAssertTrue(app.buttons["trailer-mute"].waitForExistence(timeout: 10))
         XCTAssertTrue(wait { self.app.buttons["trailer-mute"].isEnabled })
+        XCTAssertTrue(app.webViews.staticTexts["Playing preview"].waitForExistence(timeout: 8), "The visible detail preview must actually receive the autoplay command.")
         capture("10 Movie autoplay preview and download action")
         app.buttons["trailer-mute"].tap()
         XCTAssertEqual(app.buttons["trailer-mute"].label, "Mute trailer")
@@ -237,12 +244,32 @@ final class ParityFlowTests: XCTestCase {
         capture("30 Sports league directory")
         app.buttons["focus-sports-search"].tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["tab-sports"].isSelected)
+        // A fresh iOS simulator can show QuickPath's introductory card in
+        // place of the keys. Finish that tutorial before exercising submission.
+        let keyboardTutorial = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Speed up your typing")).firstMatch
+        if keyboardTutorial.waitForExistence(timeout: 2) {
+            let continueTyping = app.buttons["Continue"].firstMatch
+            XCTAssertTrue(continueTyping.waitForExistence(timeout: 3))
+            continueTyping.tap()
+        }
+        XCTAssertTrue(app.keyboards.buttons["Search"].waitForExistence(timeout: 5))
+        XCTAssertTrue(wait { !self.app.buttons["tab-sports"].exists })
         XCTAssertTrue(app.textFields["sports-search-field"].isHittable)
         capture("30b Sports header search stays in Sports")
+        // The keyboard accessory also dismisses an empty query without
+        // submitting a search or changing tabs.
+        XCTAssertTrue(app.buttons["dismiss-sports-search"].waitForExistence(timeout: 5))
+        app.buttons["dismiss-sports-search"].tap()
+        XCTAssertTrue(wait { !self.app.keyboards.firstMatch.exists })
+        XCTAssertTrue(app.buttons["tab-sports"].isSelected)
+        app.buttons["focus-sports-search"].tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        app.textFields["sports-search-field"].typeText("NBA")
         app.keyboards.buttons["Search"].tap()
         XCTAssertTrue(wait { !self.app.keyboards.firstMatch.exists })
         XCTAssertTrue(app.buttons["tab-sports"].isSelected)
+        XCTAssertEqual(app.textFields["sports-search-field"].value as? String, "NBA")
+        app.buttons["Clear sports search"].tap()
         reveal(app.buttons["sports-league-NBA"])
         app.buttons["sports-league-NBA"].tap()
         let game = app.buttons["sports-game-nba:nba-fixture"].firstMatch

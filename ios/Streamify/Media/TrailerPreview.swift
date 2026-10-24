@@ -15,6 +15,7 @@ struct TrailerPreview: View {
                 RemoteArtwork(url: poster).frame(height: 240).clipped().accessibilityHidden(true)
             }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("trailer-preview")
     }
 }
@@ -50,7 +51,8 @@ private struct TrailerPreviewPlayer: View {
                 Button {
                     model.muted.toggle()
                 } label: {
-                    Image(systemName: model.muted ? "speaker.slash.fill" : "speaker.wave.2.fill").frame(width: 44, height: 44)
+                    Image(systemName: model.muted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                        .frame(width: 44, height: 44).contentShape(Rectangle())
                 }
                 .accessibilityLabel(model.muted ? "Unmute trailer" : "Mute trailer")
                 .accessibilityIdentifier("trailer-mute")

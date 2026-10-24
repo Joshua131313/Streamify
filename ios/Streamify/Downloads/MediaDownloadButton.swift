@@ -8,6 +8,7 @@ struct MediaDownloadButton: View {
     var episodeTitle: String? = nil
     var compact = false
     var onPresentationChanged: ((Bool) -> Void)? = nil
+    var onRequestDownload: (() -> Void)? = nil
     @EnvironmentObject private var downloads: DownloadStore
     @State private var showOptions = false
     @State private var showDownloads = false
@@ -27,6 +28,7 @@ struct MediaDownloadButton: View {
     var body: some View {
         if media.kind != .anime {
             Button {
+                if let onRequestDownload { onRequestDownload(); return }
                 if item?.status == .downloading || item?.status == .completed { showDownloads = true }
                 else { showOptions = true }
             } label: {
@@ -54,7 +56,7 @@ struct MediaDownloadButton: View {
     }
 }
 
-private struct MediaDownloadSheet: View {
+struct MediaDownloadSheet: View {
     let media: MediaItem
     let season: Int
     let episode: Int

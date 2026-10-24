@@ -4,6 +4,7 @@ struct MediaDetailView: View {
     let media: MediaItem
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var library: LibraryStore
+    @EnvironmentObject private var downloads: DownloadStore
     @Environment(\.dismiss) private var dismiss
     @State private var details: MediaDetails?
     @State private var error: String?
@@ -18,10 +19,12 @@ struct MediaDetailView: View {
     @State private var selectedCast: CastMember?
     @State private var previewVisible = true
     @State private var pageVisible = false
-    @State private var downloadPresented = false
+    @State private var downloadSelection: DetailDownloadSelection?
+    @State private var downloadsOpen = false
 
     private var title: MediaItem { details?.media ?? media }
     private var previous: WatchEntry? { library.history.first { $0.media.key == media.key } }
+    private var downloadPresented: Bool { downloadSelection != nil || downloadsOpen }
 
     var body: some View {
         GeometryReader { viewport in
@@ -29,7 +32,7 @@ struct MediaDetailView: View {
             LazyVStack(alignment: .leading, spacing: 28) {
                 hero
                     .background { GeometryReader { geometry in
-                        Color.clear.preference(key: DetailHeroPositionKey.self, value: geometry.frame(in: .named("detail-scroll")))
+                        Color.clear.preference(key: DetailHeroPositionKey.self, value: geometry.frame(in: .global))
                     } }
                 VStack(alignment: .leading, spacing: 20) {
                     VStack(alignment: .leading, spacing: 10) {
@@ -47,7 +50,7 @@ struct MediaDetailView: View {
                         }
                         .buttonStyle(.plain).foregroundStyle(.black).background(.white, in: Capsule())
                         MediaDownloadButton(media: title, season: previous?.season ?? season, episode: previous?.episode ?? 1,
-                            onPresentationChanged: { downloadPresented = $0 })
+                            onRequestDownload: { presentDownload(season: previous?.season ?? season, episode: previous?.episode ?? 1) })
                         HStack(spacing: 12) {
                             Button { library.toggleSaved(title) } label: {
                                 Label(library.isSaved(title) ? "Saved" : "My list", systemImage: library.isSaved(title) ? "checkmark" : "plus")
@@ -83,8 +86,12 @@ struct MediaDetailView: View {
         }
         .coordinateSpace(name: "detail-scroll")
         .onPreferenceChange(DetailHeroPositionKey.self) { frame in
-            let visible = max(0, min(frame.maxY, viewport.size.height) - max(0, frame.minY))
-            previewVisible = frame.height > 0 && visible > frame.height / 2
+            // SwiftUI emits an empty preference while the poster becomes a player.
+            // It is not a visibility change and must not suspend a ready trailer.
+            guard frame.width > 0, frame.height > 0, frame.minX.isFinite, frame.minY.isFinite,
+                  frame.width.isFinite, frame.height.isFinite else { return }
+            let intersection = frame.intersection(viewport.frame(in: .global))
+            previewVisible = !intersection.isNull && intersection.height > frame.height / 2
         }
         }
         .background(AppTheme.canvas)
@@ -111,6 +118,12 @@ struct MediaDetailView: View {
         .fullScreenCover(item: $selection) { choice in
             MediaPlayerView(media: title, season: choice.season, episode: choice.episode)
         }
+        // Episode rows live in a lazy stack. Their sheet presenter must remain at
+        // screen scope when iOS adjusts the underlying scroll view for a modal.
+        .sheet(item: $downloadSelection) { request in
+            NavigationStack { MediaDownloadSheet(media: title, season: request.season, episode: request.episode, episodeTitle: request.title) }
+        }
+        .sheet(isPresented: $downloadsOpen) { NavigationStack { DownloadsView() } }
         .sheet(item: $selectedCast) { person in
             NavigationStack {
                 PersonDetailView(id: person.id)
@@ -184,7 +197,7 @@ struct MediaDetailView: View {
                     }.buttonStyle(.plain)
                     if media.kind == .tv {
                         MediaDownloadButton(media: title, season: season, episode: episode.number, episodeTitle: episode.title,
-                            compact: true, onPresentationChanged: { downloadPresented = $0 })
+                            compact: true, onRequestDownload: { presentDownload(season: season, episode: episode.number, title: episode.title) })
                     }
                     }
                     if !episode.overview.isEmpty {
@@ -240,6 +253,18 @@ struct MediaDetailView: View {
     private func play(season: Int, episode: Int) {
         selection = PlaybackSelection(season: season, episode: episode)
     }
+    private func presentDownload(season: Int, episode: Int, title: String? = nil) {
+        let existing = downloads.item(media: self.title, season: season, episode: episode)
+        if existing?.status == .downloading || existing?.status == .completed { downloadsOpen = true }
+        else { downloadSelection = DetailDownloadSelection(season: season, episode: episode, title: title) }
+    }
+}
+
+private struct DetailDownloadSelection: Identifiable {
+    let id = UUID()
+    let season: Int
+    let episode: Int
+    let title: String?
 }
 
 private struct PlaybackSelection: Identifiable {

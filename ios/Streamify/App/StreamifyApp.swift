@@ -53,18 +53,34 @@ struct RootView: View {
     @State private var accountOpen = false
     @State private var downloadsOpen = false
     @State private var sportsSearchRequest = 0
+    @State private var keyboardVisible = false
+    @State private var visibleRootPages = Set(AppTab.allCases)
+
+    private var rootSelection: Binding<AppTab> {
+        Binding(get: { tab }, set: { value in
+            visibleRootPages.insert(value)
+            tab = value
+        })
+    }
 
     var body: some View {
-        TabView(selection: $tab) {
+        TabView(selection: rootSelection) {
             NavigationStack { rootPage(.home) { HomeView(openSettings: { settingsOpen = true }, openSports: { tab = .sports }) } }.tag(AppTab.home)
             NavigationStack { rootPage(.sports) { SportsView(searchRequest: sportsSearchRequest) } }.tag(AppTab.sports)
             NavigationStack { rootPage(.search) { BrowseView() } }.tag(AppTab.search)
             NavigationStack { rootPage(.library) { LibraryView() } }.tag(AppTab.library)
         }
         .toolbar(.hidden, for: .tabBar)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if !keyboardVisible && visibleRootPages.contains(tab) {
+                FloatingNavigation(selection: rootSelection)
+            }
+        }
         .sheet(isPresented: $settingsOpen) { NavigationStack { SettingsView() } }
         .sheet(isPresented: $accountOpen) { NavigationStack { AccountView() } }
         .sheet(isPresented: $downloadsOpen) { NavigationStack { DownloadsView() } }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in keyboardVisible = true }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in keyboardVisible = false }
     }
 
     private func rootPage<Content: View>(_ page: AppTab, @ViewBuilder content: () -> Content) -> some View {
@@ -74,8 +90,9 @@ struct RootView: View {
             .toolbar(.hidden, for: .tabBar)
             .toolbar(.hidden, for: .navigationBar)
             .safeAreaInset(edge: .top, spacing: 0) { header(page) }
-            .safeAreaInset(edge: .bottom, spacing: 0) { FloatingNavigation(selection: $tab) }
             .background { StreamifyRootBackdrop() }
+            .onAppear { visibleRootPages.insert(page) }
+            .onDisappear { visibleRootPages.remove(page) }
     }
 
     private func header(_ page: AppTab) -> some View {
@@ -105,42 +122,76 @@ struct RootView: View {
         }
         .font(.system(size: 23)).buttonStyle(.plain).foregroundStyle(AppTheme.foreground)
         .padding(.leading, 16).padding(.trailing, 8).frame(minHeight: 60)
+        .background { StreamifyRootBackdrop().clipped().ignoresSafeArea(edges: .top) }
     }
 }
 
 private struct FloatingNavigation: View {
     @Binding var selection: AppTab
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Namespace private var selectedTabAnimation
+    @State private var selectionFeedback = 0
+    @ScaledMetric(relativeTo: .caption2) private var labelSize: CGFloat = 10
+
+    private var selectionAnimation: Animation? {
+        reduceMotion ? nil : .spring(response: 0.38, dampingFraction: 0.82)
+    }
 
     var body: some View {
         HStack(spacing: 0) {
             ForEach(AppTab.allCases, id: \.self) { tab in
+                let selected = tab == selection
                 Button {
-                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) { selection = tab }
+                    guard !selected else { return }
+                    selectionFeedback += 1
+                    withAnimation(selectionAnimation) { selection = tab }
                 } label: {
-                    VStack(spacing: 2) {
-                        if tab == .library {
-                            Image(systemName: "person.fill").font(.system(size: 18))
-                                .foregroundStyle(.white).frame(width: 24, height: 24)
-                                .background(AppTheme.accent, in: RoundedRectangle(cornerRadius: 7))
-                        } else {
-                            Image(systemName: tab.symbol).font(.system(size: 24))
-                                .foregroundStyle(AppTheme.foreground.opacity(tab == selection ? 1 : 0.5))
+                    VStack(spacing: 3) {
+                        ZStack {
+                            if tab == .library {
+                                Image(systemName: "person.fill").font(.system(size: 17, weight: .semibold))
+                                    .foregroundStyle(.white).frame(width: 25, height: 25)
+                                    .background(AppTheme.accent, in: RoundedRectangle(cornerRadius: 7))
+                            } else {
+                                Image(systemName: tab == .home && selected ? "house.fill" : tab.symbol)
+                                    .font(.system(size: 23, weight: selected ? .semibold : .regular))
+                                    .foregroundStyle(.white.opacity(selected ? 1 : 0.55))
+                            }
                         }
-                        Text(tab.title).font(.system(size: 10, weight: tab == selection ? .semibold : .medium))
-                            .foregroundStyle(AppTheme.foreground.opacity(tab == selection ? 1 : 0.5))
+                        .frame(width: 28, height: 28)
+                        .scaleEffect(selected && !reduceMotion ? 1.06 : 1)
+                        .accessibilityHidden(true)
+                        Text(tab.title).font(.system(size: labelSize, weight: selected ? .semibold : .medium))
+                            .foregroundStyle(.white.opacity(selected ? 1 : 0.55))
+                            .lineLimit(1).minimumScaleFactor(0.8)
+                            .scaleEffect(selected && !reduceMotion ? 1.02 : 1)
                     }
                     .frame(maxWidth: .infinity).frame(minHeight: 54)
+                    .background {
+                        if selected {
+                            Capsule().fill(.white.opacity(0.12))
+                                .overlay { Capsule().strokeBorder(.white.opacity(0.06), lineWidth: 0.5) }
+                                .matchedGeometryEffect(id: "selected-tab", in: selectedTabAnimation)
+                                .padding(.horizontal, 2)
+                        }
+                    }
+                    .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                .accessibilityAddTraits(tab == selection ? [.isSelected] : [])
+                .accessibilityLabel(tab.title)
+                .accessibilityAddTraits(selected ? [.isSelected] : [])
                 .accessibilityIdentifier("tab-\(tab.rawValue)")
             }
         }
-        .padding(.horizontal, 4).padding(.vertical, 2).frame(maxWidth: 400)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 29))
-        .overlay { RoundedRectangle(cornerRadius: 29).stroke(AppTheme.border, lineWidth: 0.5) }
-        .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+        .padding(4).frame(maxWidth: 400)
+        .background {
+            Capsule().fill(.ultraThinMaterial).environment(\.colorScheme, .dark)
+                .overlay { Capsule().fill(.black.opacity(0.3)) }
+        }
+        .overlay { Capsule().strokeBorder(.white.opacity(0.14), lineWidth: 0.7) }
+        .shadow(color: .black.opacity(0.3), radius: 12, y: 5)
+        .animation(selectionAnimation, value: selection)
+        .sensoryFeedback(.selection, trigger: selectionFeedback)
         .padding(.horizontal, 40).padding(.top, 8).padding(.bottom, 6)
     }
 }
