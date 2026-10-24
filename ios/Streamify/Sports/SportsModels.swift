@@ -45,6 +45,22 @@ struct SportsGame: Identifiable, Hashable, Sendable {
     var id: String { "\(league.rawValue):\(eventID)" }
     var isLive: Bool { state == "in" }
     var isFinal: Bool { state == "post" }
+    private var finalScores: (away: Double, home: Double)? {
+        let detail = status.lowercased()
+        guard isFinal, !["cancel", "postpon", "suspend", "no contest", "abandon"].contains(where: detail.contains),
+              let awayScore = Double(away.score), let homeScore = Double(home.score),
+              awayScore.isFinite, homeScore.isFinite, awayScore >= 0, homeScore >= 0 else { return nil }
+        return (awayScore, homeScore)
+    }
+    var winner: SportsTeam? {
+        guard let scores = finalScores, scores.away != scores.home else { return nil }
+        return scores.away > scores.home ? away : home
+    }
+    var isTied: Bool { finalScores.map { $0.away == $0.home } ?? false }
+    var resultLabel: String? {
+        if let winner { return "\(winner.abbreviation.isEmpty ? winner.name : winner.abbreviation) won" }
+        return isTied ? "Tied game" : nil
+    }
     var canWatch: Bool {
         isLive || (state == "pre" && date.map { (0...3600).contains($0.timeIntervalSinceNow) } == true)
     }
@@ -68,6 +84,8 @@ struct SportsRosterPlayer: Identifiable {
     let number: String
     let position: String
     let height: String
+    var photo: String = ""
+    var photoURL: URL? { sportsHTTPSURL(photo) }
 }
 
 struct SportsTeamProfile {
@@ -97,7 +115,21 @@ struct SportsGameCenter {
 struct SportsStream: Identifiable, Hashable {
     let title: String
     let url: URL
-    var id: String { url.absoluteString }
+    let alternatives: [SportsStream]
+    private let stableID: String?
+    var id: String { stableID ?? url.absoluteString }
+
+    init(title: String, url: URL, alternatives: [SportsStream] = [], stableID: String? = nil) {
+        self.title = title; self.url = url; self.stableID = stableID
+        // Source choices have no nested choices of their own.
+        self.alternatives = alternatives.map { SportsStream(title: $0.title, url: $0.url) }
+    }
+
+    var availableSources: [SportsStream] {
+        var seen = Set<URL>()
+        let current = alternatives.contains { $0.url == url } ? [] : [SportsStream(title: title, url: url)]
+        return (current + alternatives).filter { sportsHTTPSURL($0.url.absoluteString) != nil && seen.insert($0.url).inserted }
+    }
 }
 
 func sportsHTTPSURL(_ value: String) -> URL? {

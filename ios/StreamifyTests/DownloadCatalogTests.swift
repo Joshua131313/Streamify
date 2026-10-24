@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import XCTest
 @testable import Streamify
 
@@ -25,6 +26,8 @@ final class DownloadCatalogTests: XCTestCase {
         XCTAssertEqual(item.bytesWritten, 4096)
         XCTAssertNil(item.catalogKey)
         XCTAssertNil(item.quality)
+        XCTAssertNil(item.posterSource)
+        XCTAssertNil(item.posterFileName)
         let persisted = try JSONDecoder().decode(DownloadItem.self, from: JSONEncoder().encode(item))
         XCTAssertEqual(persisted.fileName, "existing.mp4")
     }
@@ -79,5 +82,64 @@ final class DownloadCatalogTests: XCTestCase {
         XCTAssertEqual(restored.createdAt, item.createdAt)
         XCTAssertTrue(restored.acceptsCallback(taskIdentifier: 42))
         XCTAssertFalse(restored.acceptsCallback(taskIdentifier: 41))
+    }
+
+    func testArtworkMetadataSurvivesRelaunchWithoutChangingVideoIdentity() throws {
+        let id = UUID()
+        let poster = "\(id.uuidString)-artwork-\(UUID().uuidString).jpg"
+        let item = DownloadItem(id: id, title: "Show · S2 E3", source: "https://video.example/file.mp4", fileName: "local.mp4",
+            createdAt: Date(timeIntervalSince1970: 123), status: .completed, catalogKey: "tv:123:2:3", quality: 1080,
+            catalog: CatalogDownloadDescriptor(id: 123, kind: "tv", title: "Show", season: 2, episode: 3, episodeTitle: "Arrival"),
+            posterSource: "https://image.tmdb.org/t/p/w780/art.jpg", posterFileName: poster)
+        let restored = try JSONDecoder().decode(DownloadItem.self, from: JSONEncoder().encode(item))
+        XCTAssertEqual(restored.id, id)
+        XCTAssertEqual(restored.fileName, "local.mp4")
+        XCTAssertEqual(restored.catalog?.episode, 3)
+        XCTAssertEqual(restored.posterSource, item.posterSource)
+        XCTAssertEqual(restored.posterFileName, poster)
+        XCTAssertEqual(restored.posterFileURL?.lastPathComponent, poster)
+    }
+
+    @MainActor
+    func testArtworkIsDownsampledAndRejectsNonImagesAndOversizedResponses() throws {
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 1600, height: 900))
+        let image = renderer.image { context in
+            UIColor.darkGray.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 1600, height: 900))
+        }
+        let data = try XCTUnwrap(image.jpegData(compressionQuality: 0.9))
+        let url = try XCTUnwrap(URL(string: "https://image.example/art.jpg"))
+        func response(_ mime: String = "image/jpeg", status: Int = 200) throws -> HTTPURLResponse {
+            try XCTUnwrap(HTTPURLResponse(url: url, statusCode: status, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": mime]))
+        }
+        let thumbnail = try DownloadArtworkCache.thumbnail(data: data, response: response())
+        let restored = try XCTUnwrap(UIImage(data: thumbnail)?.cgImage)
+        XCTAssertEqual(restored.width, 640)
+        XCTAssertEqual(restored.height, 360)
+        XCTAssertThrowsError(try DownloadArtworkCache.thumbnail(data: data, response: response("text/html")))
+        XCTAssertThrowsError(try DownloadArtworkCache.thumbnail(data: data, response: response(status: 404)))
+        XCTAssertThrowsError(try DownloadArtworkCache.thumbnail(data: Data("not an image".utf8), response: response()))
+        XCTAssertThrowsError(try DownloadArtworkCache.thumbnail(data: Data(repeating: 0, count: DownloadArtworkCache.maximumBytes + 1), response: response()))
+    }
+
+    func testArtworkCleanupCannotDeleteAnotherDownloadOrMetadata() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let id = UUID(), other = UUID()
+        let name = "\(id.uuidString)-artwork-\(UUID().uuidString).jpg"
+        let url = try XCTUnwrap(DownloadArtworkCache.fileURL(fileName: name, itemID: id, directory: directory))
+        try Data([1, 2, 3]).write(to: url)
+        let metadata = directory.appendingPathComponent("downloads.json")
+        try Data("[]".utf8).write(to: metadata)
+        XCTAssertNil(DownloadArtworkCache.fileURL(fileName: name, itemID: other, directory: directory))
+        XCTAssertNil(DownloadArtworkCache.fileURL(fileName: "../\(name)", itemID: id, directory: directory))
+        try DownloadArtworkCache.remove(fileName: "downloads.json", itemID: id, directory: directory)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: metadata.path))
+        try DownloadArtworkCache.remove(fileName: name, itemID: other, directory: directory)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
+        try DownloadArtworkCache.remove(fileName: name, itemID: id, directory: directory)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: metadata.path))
     }
 }

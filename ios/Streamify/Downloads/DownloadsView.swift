@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 struct DownloadsView: View {
     @EnvironmentObject private var downloads: DownloadStore
+    @EnvironmentObject private var settings: SettingsStore
     @Environment(\.dismiss) private var dismiss
     @State private var showAdd = false
     @State private var showImporter = false
@@ -36,6 +37,7 @@ struct DownloadsView: View {
                 Text("Movie and episode downloads depend on source availability. Streaming-only titles, anime, and live sports cannot be saved for offline viewing.").font(.caption).foregroundStyle(AppTheme.muted)
             }.padding(20).padding(.bottom, 24)
         }.background(AppTheme.canvas)
+            .task { downloads.refreshArtwork(token: settings.tmdbToken) }
             .navigationTitle("Downloads").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
             .sheet(isPresented: $showAdd) { NavigationStack { AddDownloadView() } }
@@ -59,49 +61,78 @@ private struct DownloadRow: View {
     let play: () -> Void
     @EnvironmentObject private var downloads: DownloadStore
     @State private var confirmDelete = false
+    @State private var artwork: UIImage?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 13) {
-                Image(systemName: item.status == .completed ? "play.rectangle.fill" : "arrow.down.circle")
-                    .font(.title2).foregroundStyle(item.status == .completed ? AppTheme.accent : AppTheme.muted)
-                    .frame(width: 48, height: 58).background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 10))
-                VStack(alignment: .leading, spacing: 7) {
-                    Text(item.title).font(.subheadline.weight(.semibold)).lineLimit(3)
-                    Text(statusText).font(.caption).foregroundStyle(AppTheme.muted)
-                    if let error = item.error { Text(error).font(.caption).foregroundStyle(AppTheme.accent).fixedSize(horizontal: false, vertical: true) }
-                }.frame(maxWidth: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                Button(action: play) {
+                    HStack(spacing: 12) {
+                        thumbnail
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(item.catalog?.title ?? item.title).font(.subheadline.weight(.semibold)).lineLimit(2)
+                            if let catalog = item.catalog, catalog.kind == MediaKind.tv.rawValue {
+                                Text("S\(catalog.season) · E\(catalog.episode)" + (catalog.episodeTitle.map { " · \($0)" } ?? ""))
+                                    .font(.caption).foregroundStyle(AppTheme.muted).lineLimit(2)
+                            }
+                            Text(statusText).font(.caption.monospacedDigit()).foregroundStyle(AppTheme.muted).lineLimit(2)
+                            if item.status == .downloading {
+                                if let progress = item.progress {
+                                    ProgressView(value: progress).tint(AppTheme.accent)
+                                        .accessibilityLabel("Download progress").accessibilityValue("\(Int(progress * 100)) percent")
+                                } else { ProgressView().tint(AppTheme.foreground).accessibilityLabel("Downloading. Total size unknown") }
+                            }
+                        }.frame(maxWidth: .infinity, alignment: .leading)
+                    }.contentShape(Rectangle())
+                }.buttonStyle(.plain).disabled(item.status != .completed)
+                    .foregroundStyle(AppTheme.foreground)
+                    .accessibilityLabel("Play offline \(item.title)")
+                    .accessibilityIdentifier("download-play-\(item.id)")
                 Menu {
-                    if item.status == .completed { Button("Play", systemImage: "play", action: play) }
+                    if item.status == .completed { Button("Play offline", systemImage: "play.fill", action: play) }
                     if item.status == .downloading { Button("Cancel download", systemImage: "xmark") { downloads.cancel(id: item.id) } }
                     if item.source != nil && (item.status == .cancelled || item.status == .failed) { Button("Retry download", systemImage: "arrow.clockwise") { downloads.retry(id: item.id) } }
                     Button("Delete", systemImage: "trash", role: .destructive) { confirmDelete = true }
-                } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44) }.accessibilityLabel("Actions for \(item.title)")
+                } label: {
+                    Image(systemName: "ellipsis").font(.title3).frame(width: 44, height: 44)
+                }.foregroundStyle(AppTheme.foreground).accessibilityLabel("Actions for \(item.title)")
             }
-            if item.status == .downloading {
-                if let progress = item.progress { ProgressView(value: progress).tint(AppTheme.accent).accessibilityLabel("Download progress").accessibilityValue("\(Int(progress * 100)) percent") }
-                else { ProgressView().tint(AppTheme.accent).accessibilityLabel("Downloading. Total size unknown") }
-                HStack {
-                    Text(byteProgress).font(.caption.monospacedDigit()).foregroundStyle(AppTheme.muted)
-                    Spacer()
-                    Button("Cancel") { downloads.cancel(id: item.id) }.font(.caption.weight(.semibold)).frame(minHeight: 44)
-                }
+            if let error = item.error { Text(error).font(.caption).foregroundStyle(AppTheme.muted).fixedSize(horizontal: false, vertical: true) }
+            if item.source != nil && (item.status == .failed || item.status == .cancelled) {
+                Button { downloads.retry(id: item.id) } label: { Label("Retry download", systemImage: "arrow.clockwise").frame(minHeight: 44) }
+                    .font(.caption.weight(.semibold)).foregroundStyle(AppTheme.foreground)
             }
-            if item.status == .completed {
-                Button(action: play) { Label("Play offline", systemImage: "play.fill").font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 32) }.buttonStyle(.bordered).tint(AppTheme.accent)
-            } else if item.source != nil && (item.status == .failed || item.status == .cancelled) {
-                Button { downloads.retry(id: item.id) } label: { Label("Retry", systemImage: "arrow.clockwise").frame(minHeight: 30) }.buttonStyle(.bordered).tint(AppTheme.accent)
-            }
-        }.padding(17).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 18))
+        }.padding(.vertical, 10).padding(.horizontal, 10).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 12))
+            .accessibilityElement(children: .contain).accessibilityIdentifier("download-card-\(item.id)")
+            .accessibilityValue(artwork == nil ? "Artwork unavailable" : "Artwork saved offline")
+            .task(id: item.posterFileName) { artwork = item.posterFileURL.flatMap { UIImage(contentsOfFile: $0.path) } }
             .confirmationDialog("Delete \(item.title)?", isPresented: $confirmDelete, titleVisibility: .visible) {
                 Button("Delete video", role: .destructive) { downloads.remove(id: item.id) }
             } message: { Text("This removes the saved video from this iPhone.") }
     }
 
+    private var thumbnail: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 6).fill(AppTheme.foreground.opacity(0.06))
+            if let artwork { Image(uiImage: artwork).resizable().scaledToFit().accessibilityHidden(true) }
+            else {
+                VStack(spacing: 5) {
+                    Image(systemName: "film").font(.title3)
+                    Text(item.catalog == nil ? "VIDEO FILE" : "SAVED VIDEO").font(.system(size: 8, weight: .semibold))
+                }.foregroundStyle(AppTheme.muted).accessibilityHidden(true)
+            }
+            if item.status == .completed {
+                Image(systemName: "play.fill").font(.system(size: 15, weight: .bold)).foregroundStyle(.white)
+                    .frame(width: 36, height: 36).background(.black.opacity(0.65), in: Circle())
+                    .overlay { Circle().strokeBorder(.white.opacity(0.8), lineWidth: 1) }.accessibilityHidden(true)
+            }
+        }.frame(width: 112, height: 70).clipShape(RoundedRectangle(cornerRadius: 6)).contentShape(Rectangle())
+    }
+
     private var statusText: String {
         switch item.status {
-        case .downloading: return "Downloading\(item.progress.map { " · \(Int($0 * 100))%" } ?? "")"
-        case .completed: return "Ready offline · \(ByteCountFormatter.string(fromByteCount: item.bytesWritten, countStyle: .file))"
+        case .downloading: return "Downloading\(item.progress.map { " · \(Int($0 * 100))%" } ?? "") · \(byteProgress)"
+        case .completed: return "\(item.quality.map { "\($0)p · " } ?? "")\(ByteCountFormatter.string(fromByteCount: item.bytesWritten, countStyle: .file)) · Downloaded"
         case .cancelled: return "Cancelled"
         case .failed: return "Download unavailable"
         }
@@ -144,31 +175,7 @@ private struct AddDownloadView: View {
 
 private struct OfflineVideoView: View {
     let item: DownloadItem
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.scenePhase) private var scenePhase
-    @State private var player: AVPlayer?
-    @State private var error: String?
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Button { dismiss() } label: { Image(systemName: "xmark").frame(width: 44, height: 44) }.accessibilityLabel("Close video")
-                Text(item.title).font(.headline).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
-            }.padding(.horizontal, 8)
-            if let error { StateMessage(symbol: "exclamationmark.circle", title: "Video unavailable", message: error).padding() }
-            else { VideoPlayer(player: player) }
-        }.background(.black).foregroundStyle(.white).preferredColorScheme(.dark)
-            .task {
-                guard let url = item.fileURL, FileManager.default.fileExists(atPath: url.path) else { error = "The local video is missing. Download or import it again."; return }
-                let asset = AVURLAsset(url: url)
-                do {
-                    guard try await asset.load(.isPlayable) else { error = "This video format cannot be played on this iPhone."; return }
-                    try PlaybackAudioSession.activate()
-                    let created = AVPlayer(playerItem: AVPlayerItem(asset: asset))
-                    player = created
-                    created.play()
-                } catch { self.error = error.localizedDescription }
-            }
-            .onDisappear { player?.pause(); player = nil }
-            .onChange(of: scenePhase) { _, phase in if phase != .active { player?.pause() } }
+        OfflinePlayerView(item: item)
     }
 }

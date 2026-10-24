@@ -84,7 +84,7 @@ struct MediaDownloadSheet: View {
                     }.frame(maxWidth: .infinity, alignment: .leading)
                 }
                 if added {
-                    Label("Added to downloads", systemImage: "checkmark.circle.fill").font(.headline).foregroundStyle(AppTheme.accent)
+                    Label("Added to downloads", systemImage: "checkmark.circle.fill").font(.headline).foregroundStyle(AppTheme.foreground)
                     Text("Your video is downloading. You can follow its progress and play it offline in Downloads.")
                         .font(.subheadline).foregroundStyle(AppTheme.muted)
                     NavigationLink { DownloadsView() } label: { Label("View downloads", systemImage: "arrow.down.circle").frame(maxWidth: .infinity) }
@@ -101,7 +101,7 @@ struct MediaDownloadSheet: View {
                                     }
                                     Spacer()
                                     Image(systemName: quality == value ? "checkmark.circle.fill" : "circle")
-                                        .foregroundStyle(quality == value ? AppTheme.accent : AppTheme.muted)
+                                        .foregroundStyle(quality == value ? AppTheme.foreground : AppTheme.muted)
                                 }.padding(14).streamifyControlSurface()
                             }.buttonStyle(.plain).disabled(resolving)
                                 .accessibilityLabel("\(value)p download quality")

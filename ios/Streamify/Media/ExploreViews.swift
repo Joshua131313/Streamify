@@ -71,7 +71,7 @@ struct CollectionDetailView: View {
             VStack(alignment: .leading, spacing: 24) {
                 CollectionArtwork(collection: collection).frame(height: 230)
                 if let details {
-                    Text("\(details.movies.count) movies · Release order").font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.accent)
+                    Text("\(details.movies.count) movies · Release order").font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.muted)
                     if !details.overview.isEmpty { Text(details.overview).foregroundStyle(AppTheme.muted) }
                     PosterGrid(items: details.movies)
                     if details.movies.isEmpty {

@@ -39,8 +39,15 @@ struct MediaDetailView: View {
                         Text(title.title).font(.largeTitle.bold()).fixedSize(horizontal: false, vertical: true)
                         Text(metadata).font(.subheadline).foregroundStyle(AppTheme.muted)
                         if let genres = details?.genres, !genres.isEmpty {
-                            Text(genres.map(\.name).joined(separator: " · "))
-                                .font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.accent)
+                            DetailTagFlow(spacing: 8) {
+                                ForEach(genres) { genre in
+                                    Text(genre.name).font(.caption.weight(.medium)).foregroundStyle(.white)
+                                        .lineLimit(1).padding(.horizontal, 12).padding(.vertical, 7)
+                                        .background(Color(red: 0.16, green: 0.16, blue: 0.18), in: Capsule())
+                                        .overlay { Capsule().strokeBorder(.white.opacity(0.08), lineWidth: 0.5) }
+                                        .accessibilityIdentifier("detail-genre-\(genre.id)")
+                                }
+                            }.padding(.top, 2).accessibilityIdentifier("detail-genre-bubbles")
                         }
                     }
                     VStack(spacing: 12) {
@@ -194,7 +201,7 @@ struct MediaDetailView: View {
                                 Text(episode.runtime > 0 ? "\(episode.runtime) min" : episode.airDate)
                                     .font(.caption).foregroundStyle(AppTheme.muted)
                                 if previous?.season == season && previous?.episode == episode.number {
-                                    Text("Last opened").font(.caption2.weight(.semibold)).foregroundStyle(AppTheme.accent)
+                                    Text("Last opened").font(.caption2.weight(.semibold)).foregroundStyle(AppTheme.muted)
                                 }
                             }.frame(maxWidth: .infinity, alignment: .leading)
                         }

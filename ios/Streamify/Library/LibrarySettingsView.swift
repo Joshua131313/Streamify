@@ -57,29 +57,9 @@ struct LibraryView: View {
                 if history {
                     let entries = library.history.filter { matches($0.media) }
                     if entries.isEmpty { emptyState }
-                    LazyVStack(spacing: 16) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 260, maximum: 420), spacing: 16)], spacing: 24) {
                         ForEach(entries) { entry in
-                            HStack(spacing: 14) {
-                                MediaDetailLink(media: entry.media) {
-                                    RemoteArtwork(url: entry.media.posterURL).frame(width: 64, height: 96).clipShape(RoundedRectangle(cornerRadius: 9))
-                                }
-                                VStack(alignment: .leading, spacing: 6) {
-                                    MediaDetailLink(media: entry.media) { Text(entry.media.title).font(.subheadline.bold()).foregroundStyle(.primary).lineLimit(2) }
-                                    if entry.media.kind != .movie { Text("S\(entry.season) · E\(entry.episode)").font(.caption).foregroundStyle(AppTheme.muted) }
-                                    Text(entry.watchedAt, style: .date).font(.caption2).foregroundStyle(AppTheme.muted)
-                                    if entry.durationSeconds > 0 {
-                                        ProgressView(value: entry.progress).tint(AppTheme.accent)
-                                        Text(entry.completed ? "Watched" : "\(Int(ceil(max(0, entry.durationSeconds - entry.positionSeconds) / 60))) min left")
-                                            .font(.caption2).foregroundStyle(AppTheme.muted)
-                                    }
-                                }.frame(maxWidth: .infinity, alignment: .leading)
-                                Button { player = entry } label: { Image(systemName: "play.circle.fill").font(.title).frame(width: 44, height: 44) }.accessibilityLabel("Resume \(entry.media.title)")
-                                Menu {
-                                    Button("Remove from history", systemImage: "trash", role: .destructive) { library.removeHistory(entry) }
-                                    Button(library.isSaved(entry.media) ? "Remove from My list" : "Add to My list", systemImage: "bookmark") { library.toggleSaved(entry.media) }
-                                } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44) }.accessibilityLabel("Actions for \(entry.media.title)")
-                            }.padding(14).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 18))
-                                .overlay { RoundedRectangle(cornerRadius: 18).strokeBorder(AppTheme.border, lineWidth: 1) }
+                            WatchHistoryCard(entry: entry, resume: { player = entry })
                         }
                     }
                 } else {
@@ -181,18 +161,25 @@ struct AccountView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                VStack(spacing: 14) {
-                    Image(systemName: "person.crop.circle.fill").font(.system(size: 64)).foregroundStyle(AppTheme.accent)
+                VStack(spacing: 12) {
+                    Image(systemName: "person.crop.circle.fill").font(.system(size: 48)).foregroundStyle(AppTheme.foreground).accessibilityHidden(true)
                     Text("Make yourself at home.").font(.title2.bold())
-                    Text("Your favorites, your teams, your next watch.").foregroundStyle(AppTheme.muted).multilineTextAlignment(.center)
+                    Text("Your favorites, your teams, your next watch.").font(.subheadline).foregroundStyle(AppTheme.muted).multilineTextAlignment(.center)
                     HStack(spacing: 24) {
                         accountCount(library.saved.count, "Saved")
                         accountCount(library.history.count, "Watched")
                         accountCount(library.followedTeams.count, "Teams")
-                    }.padding(.top, 10)
-                }.frame(maxWidth: .infinity).padding(24).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 22))
-                    .overlay { RoundedRectangle(cornerRadius: 22).strokeBorder(AppTheme.border, lineWidth: 1) }
-                StateMessage(symbol: "iphone", title: "Saved on this iPhone", message: "Account sign-in is not configured in this build. Your list, history, teams, and preferences are stored on this device.")
+                    }.padding(.top, 4)
+                    HStack(alignment: .top, spacing: 9) {
+                        Image(systemName: "iphone").font(.subheadline).foregroundStyle(AppTheme.muted)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Saved on this iPhone").font(.caption.weight(.semibold))
+                            Text("Account sign-in is not configured. Your list, history, teams, and preferences stay on this device.")
+                                .font(.caption).foregroundStyle(AppTheme.muted)
+                        }.frame(maxWidth: .infinity, alignment: .leading)
+                    }.padding(.top, 4)
+                }.frame(maxWidth: .infinity).padding(20).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 20))
+                    .overlay { RoundedRectangle(cornerRadius: 20).strokeBorder(AppTheme.border, lineWidth: 0.5) }
                 NavigationLink { PreferencesView() } label: {
                     HStack {
                         Label("Your favorite genres", systemImage: "slider.horizontal.3").font(.headline)

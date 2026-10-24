@@ -32,6 +32,9 @@ struct MediaItem: Identifiable, Hashable, Codable {
     var year: String { String(releaseDate.prefix(4)) }
     var posterURL: URL? { catalogImageURL(posterPath.isEmpty ? backdropPath : posterPath) }
     var backdropURL: URL? { catalogImageURL(backdropPath.isEmpty ? posterPath : backdropPath, size: "w780") }
+    /// Large hero surfaces need the full poster rather than an upscaled rail thumbnail.
+    var heroPosterURL: URL? { catalogImageURL(posterPath.isEmpty ? backdropPath : posterPath, size: "original") }
+    var heroBackdropURL: URL? { catalogImageURL(backdropPath.isEmpty ? posterPath : backdropPath, size: "original") }
 }
 
 func secureURL(_ value: String) -> URL? {
@@ -40,7 +43,7 @@ func secureURL(_ value: String) -> URL? {
     return url
 }
 
-func catalogImageURL(_ path: String, size: String = "w342") -> URL? {
+func catalogImageURL(_ path: String, size: String = "w500") -> URL? {
     guard !path.isEmpty else { return nil }
     if path.hasPrefix("/") { return secureURL("https://image.tmdb.org/t/p/\(size)\(path)") }
     return secureURL(path)

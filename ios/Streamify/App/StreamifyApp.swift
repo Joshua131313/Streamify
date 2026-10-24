@@ -7,6 +7,7 @@ struct StreamifyApp: App {
     @StateObject private var settings: SettingsStore
     @StateObject private var library: LibraryStore
     @StateObject private var downloads = DownloadStore.shared
+    @StateObject private var sportsPlayback = SportsPlaybackSession()
 
     init() {
         #if DEBUG
@@ -25,11 +26,16 @@ struct StreamifyApp: App {
                 .environmentObject(settings)
                 .environmentObject(library)
                 .environmentObject(downloads)
-                .tint(AppTheme.accent)
+                .environmentObject(sportsPlayback)
+                .background { SportsPlaybackHost(session: sportsPlayback).frame(width: 0, height: 0) }
+                .tint(AppTheme.foreground)
                 .preferredColorScheme(settings.appearance == "System" ? nil : settings.appearance == "Light" ? .light : .dark)
                 .onAppear {
                     #if DEBUG
-                    if PreviewFixtures.enabled { PreviewFixtures.seedLibrary(library) }
+                    if PreviewFixtures.enabled {
+                        PreviewFixtures.seedLibrary(library)
+                        PreviewFixtures.seedDownloads(downloads)
+                    }
                     #endif
                 }
         }
@@ -149,12 +155,12 @@ private struct FloatingNavigation: View {
                     VStack(spacing: 1) {
                         ZStack {
                             if tab == .library {
-                                Image(systemName: "person.fill").font(.system(size: 16, weight: .semibold))
+                                Image(systemName: "person.fill").font(.system(size: 15, weight: .medium))
                                     .foregroundStyle(.white).frame(width: 23, height: 23)
                                     .background(AppTheme.accent, in: RoundedRectangle(cornerRadius: 7))
                             } else {
-                                Image(systemName: tab == .home && selected ? "house.fill" : tab.symbol)
-                                    .font(.system(size: 21, weight: selected ? .semibold : .regular))
+                                Image(systemName: tab.symbol)
+                                    .font(.system(size: 21, weight: .light))
                                     .foregroundStyle(.white.opacity(selected ? 1 : 0.55))
                             }
                         }
@@ -192,6 +198,6 @@ private struct FloatingNavigation: View {
         .shadow(color: .black.opacity(0.3), radius: 12, y: 5)
         .animation(selectionAnimation, value: selection)
         .sensoryFeedback(.selection, trigger: selectionFeedback)
-        .padding(.horizontal, 40).padding(.top, 8).padding(.bottom, 6)
+        .padding(.horizontal, 40).padding(.top, 4)
     }
 }

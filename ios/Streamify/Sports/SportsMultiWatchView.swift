@@ -3,9 +3,9 @@ import WebKit
 
 struct SportsMultiWatchView: View {
     @EnvironmentObject private var queue: SportsWatchQueue
+    @EnvironmentObject private var playback: SportsPlaybackSession
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
-    @State private var selected: SportsStream?
     @State private var showPicker = false
     @State private var audibleID: String?
 
@@ -13,10 +13,11 @@ struct SportsMultiWatchView: View {
         SportsWatchLayout {
             ForEach(queue.streams) { stream in
                 SportsWatchTile(stream: stream,
-                    audible: audibleID == stream.id && scenePhase == .active && selected == nil,
-                    active: scenePhase == .active && selected == nil,
+                    audible: audibleID == stream.id && scenePhase == .active && playback.item == nil,
+                    active: scenePhase == .active && playback.item == nil,
                     toggleAudio: { audibleID = audibleID == stream.id ? nil : stream.id },
-                    open: { selected = stream }, remove: { queue.remove(stream) })
+                    selectSource: { queue.selectSource(streamID: stream.id, url: $0) },
+                    open: { playback.play(title: stream.title, url: stream.url, sources: stream.availableSources) }, remove: { queue.remove(stream) })
                     .id(stream.id)
             }
             if queue.streams.isEmpty || queue.streams.count == 3 {
@@ -49,6 +50,11 @@ struct SportsMultiWatchView: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("sports-multiwatch-screen")
         .onAppear { if audibleID == nil { audibleID = queue.streams.first?.id } }
+        .onChange(of: playback.isMinimized) { _, minimized in
+            guard minimized else { return }
+            showPicker = false
+            dismiss()
+        }
         .onChange(of: queue.streams.map(\.id)) { _, ids in
             if let audibleID, !ids.contains(audibleID) { self.audibleID = ids.first }
             if ids.count == 1 { audibleID = ids.first }
@@ -59,7 +65,6 @@ struct SportsMultiWatchView: View {
                 queue.add(stream); showPicker = false
             }.environmentObject(queue) }.presentationDetents([.medium, .large]).presentationDragIndicator(.visible)
         }
-        .fullScreenCover(item: $selected) { stream in ProviderPlayerView(title: stream.title, url: stream.url) }
     }
 }
 
@@ -112,6 +117,7 @@ private struct SportsLiveGamePicker: View {
                         }.padding(14).frame(minHeight: 60).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 14))
                             .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(AppTheme.border, lineWidth: 1) }
                     }.buttonStyle(.plain).disabled(loadingGame != nil || queue.streams.count >= 4)
+                        .accessibilityIdentifier("sports-live-game-\(game.id)")
                 }
             }.padding(20)
         }.background(AppTheme.canvas).foregroundStyle(AppTheme.foreground)
@@ -149,10 +155,11 @@ private struct SportsLiveGamePicker: View {
         streamTask = Task { @MainActor in
             defer { loadingGame = nil }
             do {
-                guard let source = try await SportsService().streams(game).first else { error = "No stream is available for this game yet. Try another game."; return }
+                let sources = try await SportsService().streams(game)
+                guard let source = sources.first else { error = "No stream is available for this game yet. Try another game."; return }
                 try Task.checkCancellation()
-                guard !queue.streams.contains(where: { $0.id == source.id }) else { error = "This game is already playing."; return }
-                choose(SportsStream(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: source.url))
+                guard !queue.streams.contains(where: { stream in stream.availableSources.contains { $0.url == source.url } }) else { error = "This game is already playing."; return }
+                choose(SportsStream(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: source.url, alternatives: sources))
             } catch is CancellationError { }
             catch { if !Task.isCancelled { self.error = error.localizedDescription } }
         }
@@ -164,6 +171,7 @@ private struct SportsWatchTile: View {
     let audible: Bool
     let active: Bool
     let toggleAudio: () -> Void
+    let selectSource: (URL) -> Void
     let open: () -> Void
     let remove: () -> Void
     @State private var revision = 0
@@ -176,16 +184,29 @@ private struct SportsWatchTile: View {
                 Button(action: toggleAudio) { Image(systemName: audible ? "speaker.wave.2.fill" : "speaker.slash.fill").frame(width: 44, height: 44) }
                     .accessibilityLabel(audible ? "Mute \(stream.title)" : "Listen to \(stream.title)")
                 Menu {
+                    Menu {
+                        ForEach(stream.availableSources) { source in
+                            Button { error = nil; selectSource(source.url) } label: {
+                                if source.url == stream.url { Label(source.title, systemImage: "checkmark") }
+                                else { Text(source.title) }
+                            }
+                        }
+                    } label: { Label("Select stream", systemImage: "play.rectangle") }
                     Button("Fullscreen", systemImage: "arrow.up.left.and.arrow.down.right", action: open)
                     Button("Reload", systemImage: "arrow.clockwise") { revision += 1; error = nil }
                     Link(destination: stream.url) { Label("Open in browser", systemImage: "safari") }
-                    Button("Remove", systemImage: "xmark", role: .destructive, action: remove)
-                } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44) }.accessibilityLabel("Options for \(stream.title)")
+                    Button("Remove", systemImage: "xmark", action: remove)
+                } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44) }
+                    .accessibilityLabel("Options for \(stream.title)")
+                    .accessibilityIdentifier("sports-tile-options-\(stream.id)")
             }.buttonStyle(.plain).background(AppTheme.panel)
             if let error { Text(error).font(.caption2).foregroundStyle(AppTheme.muted).padding(8) }
             SportsTileWebView(url: stream.url, revision: revision, audible: audible, active: active, error: $error)
                 .frame(maxWidth: .infinity, maxHeight: .infinity).background(.black)
         }.background(.black).clipShape(RoundedRectangle(cornerRadius: 10)).padding(3)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("sports-watch-tile")
+            .accessibilityValue(stream.availableSources.first { $0.url == stream.url }?.title ?? stream.title)
     }
 }
 

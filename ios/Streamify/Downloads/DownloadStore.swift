@@ -33,6 +33,13 @@ struct DownloadItem: Identifiable, Codable, Sendable {
     var catalogKey: String? = nil
     var quality: Int? = nil
     var catalog: CatalogDownloadDescriptor? = nil
+    /// Kept separately from expiring video links and optional for older metadata.
+    var posterSource: String? = nil
+    var posterFileName: String? = nil
+    var posterFileURL: URL? {
+        guard let posterFileName, let directory = try? DownloadFiles.directory() else { return nil }
+        return DownloadArtworkCache.fileURL(fileName: posterFileName, itemID: id, directory: directory)
+    }
     func acceptsCallback(taskIdentifier: Int) -> Bool {
         status == .downloading && self.taskIdentifier == taskIdentifier
     }
@@ -133,6 +140,8 @@ final class DownloadStore: ObservableObject {
     private var tasks: [UUID: URLSessionDownloadTask] = [:]
     private var resolutions: [UUID: Task<Void, Never>] = [:]
     private var resolutionAttempts: [UUID: UUID] = [:]
+    private var artworkTasks: [UUID: Task<Void, Never>] = [:]
+    private var artworkAttempts: [UUID: UUID] = [:]
     private var lastSave = Date.distantPast
     private lazy var delegate = DownloadSessionDelegate(owner: self)
     private lazy var session: URLSession = {
@@ -197,6 +206,7 @@ final class DownloadStore: ObservableObject {
             season: season, episode: episode, episodeTitle: episodeTitle)
         let episodeName = episodeTitle?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let title = media.kind == .movie ? media.title : "\(media.title) · S\(season) E\(episode)" + (episodeName.isEmpty ? "" : " · \(episodeName)")
+        let posterSource = (media.backdropURL ?? media.posterURL)?.absoluteString
         let id: UUID
         if let index = items.firstIndex(where: { $0.catalogKey == key }) {
             id = items[index].id
@@ -210,6 +220,8 @@ final class DownloadStore: ObservableObject {
             items[index].title = String(title.prefix(240))
             items[index].quality = resolved.quality
             items[index].catalog = descriptor
+            if items[index].posterSource != posterSource { clearArtwork(id: id) }
+            items[index].posterSource = posterSource
             items[index].status = .downloading
             items[index].taskIdentifier = nil
             items[index].bytesWritten = 0
@@ -219,21 +231,23 @@ final class DownloadStore: ObservableObject {
         } else {
             id = UUID()
             let download = DownloadItem(id: id, title: String(title.prefix(240)), source: url.absoluteString,
-                                        createdAt: Date(), status: .downloading, catalogKey: key, quality: resolved.quality, catalog: descriptor)
+                                        createdAt: Date(), status: .downloading, catalogKey: key, quality: resolved.quality, catalog: descriptor, posterSource: posterSource)
             items.insert(download, at: 0)
             start(download)
         }
+        cacheArtwork(id: id)
         save()
         return id
     }
 
     func cancel(id: UUID) {
+        guard let index = items.firstIndex(where: { $0.id == id }), items[index].status == .downloading else { return }
+        clearArtwork(id: id)
         resolutions[id]?.cancel()
         resolutions[id] = nil
         resolutionAttempts[id] = nil
         tasks[id]?.cancel()
         tasks[id] = nil
-        guard let index = items.firstIndex(where: { $0.id == id }), items[index].status == .downloading else { return }
         items[index].status = .cancelled
         items[index].taskIdentifier = nil
         items[index].error = nil
@@ -248,6 +262,7 @@ final class DownloadStore: ObservableObject {
         items[index].bytesWritten = 0
         items[index].expectedBytes = 0
         items[index].error = nil
+        cacheArtwork(id: id)
         if let descriptor = items[index].catalog, let media = descriptor.media {
             // Resolve again on Retry: a saved CDN address may have expired.
             let attempt = UUID()
@@ -287,6 +302,7 @@ final class DownloadStore: ObservableObject {
     }
 
     func remove(id: UUID) {
+        clearArtwork(id: id)
         resolutions[id]?.cancel()
         resolutions[id] = nil
         resolutionAttempts[id] = nil
@@ -298,6 +314,11 @@ final class DownloadStore: ObservableObject {
             do { if FileManager.default.fileExists(atPath: file.path) { try FileManager.default.removeItem(at: file) } }
             catch { storageError = "The local file could not be removed. \(error.localizedDescription)"; return }
         }
+        if let directory = try? DownloadFiles.directory() {
+            let captions = directory.appendingPathComponent("captions-\(id.uuidString).txt")
+            try? FileManager.default.removeItem(at: captions)
+        }
+        UserDefaults.standard.removeObject(forKey: "streamify.ios.offlineSubtitles.\(id.uuidString)")
         items.removeAll { $0.id == id }
         save()
     }
@@ -306,6 +327,70 @@ final class DownloadStore: ObservableObject {
         let item = try await Task.detached(priority: .userInitiated) { try DownloadFiles.importVideo(url) }.value
         items.insert(item, at: 0)
         save()
+    }
+
+    #if DEBUG
+    func installCompletedFixture(_ item: DownloadItem) {
+        guard PreviewFixtures.enabled, item.status == .completed else { return }
+        items.removeAll { $0.id == item.id }
+        items.insert(item, at: 0)
+        save()
+    }
+    #endif
+
+    /// Existing identified catalog downloads can recover artwork without delaying playback.
+    /// Imports and direct links never guess a title's identity from its filename.
+    func refreshArtwork(token: String) {
+        for item in items where item.status != .cancelled { cacheArtwork(id: item.id, token: token) }
+    }
+
+    private func cacheArtwork(id: UUID, token: String = "") {
+        guard artworkTasks[id] == nil, let item = items.first(where: { $0.id == id }), item.status != .cancelled else { return }
+        if let file = item.posterFileURL, FileManager.default.fileExists(atPath: file.path) { return }
+        guard item.posterSource.flatMap(secureURL) != nil || (item.catalog?.media != nil && !token.isEmpty) else { return }
+        let attempt = UUID()
+        artworkAttempts[id] = attempt
+        artworkTasks[id] = Task { @MainActor [weak self] in
+            defer {
+                if self?.artworkAttempts[id] == attempt {
+                    self?.artworkAttempts[id] = nil
+                    self?.artworkTasks[id] = nil
+                }
+            }
+            do {
+                var source = item.posterSource.flatMap(secureURL)
+                if source == nil, let media = item.catalog?.media {
+                    let details = try await TMDBClient(token: token).details(media)
+                    guard details.media.id == media.id, details.media.kind == media.kind else { return }
+                    source = details.media.backdropURL ?? details.media.posterURL
+                }
+                guard let source else { return }
+                let jpeg = try await DownloadArtworkCache.fetch(source)
+                try Task.checkCancellation()
+                guard let self, self.artworkAttempts[id] == attempt,
+                      let index = self.items.firstIndex(where: { $0.id == id }), self.items[index].status != .cancelled,
+                      self.items[index].posterSource == item.posterSource else { return }
+                let name = "\(id.uuidString)-artwork-\(attempt.uuidString).jpg"
+                let directory = try DownloadFiles.directory()
+                guard let destination = DownloadArtworkCache.fileURL(fileName: name, itemID: id, directory: directory) else { return }
+                try jpeg.write(to: destination, options: .atomic)
+                if let old = self.items[index].posterFileName { try? DownloadArtworkCache.remove(fileName: old, itemID: id, directory: directory) }
+                self.items[index].posterSource = source.absoluteString
+                self.items[index].posterFileName = name
+                self.save()
+            } catch { /* Artwork availability never fails an otherwise valid download. */ }
+        }
+    }
+
+    private func clearArtwork(id: UUID) {
+        artworkTasks[id]?.cancel()
+        artworkTasks[id] = nil
+        artworkAttempts[id] = nil
+        guard let index = items.firstIndex(where: { $0.id == id }) else { return }
+        if let name = items[index].posterFileName, let directory = try? DownloadFiles.directory() {
+            try? DownloadArtworkCache.remove(fileName: name, itemID: id, directory: directory)
+        }
+        items[index].posterFileName = nil
     }
 
     func reconnectTasks() {
@@ -353,6 +438,7 @@ final class DownloadStore: ObservableObject {
         items[index].bytesWritten = size
         items[index].expectedBytes = size
         items[index].error = nil
+        cacheArtwork(id: id)
         save()
     }
 

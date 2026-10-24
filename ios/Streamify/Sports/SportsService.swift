@@ -161,7 +161,11 @@ struct SportsService: Sendable {
                                  venue: information.sportsObject("franchise").sportsObject("venue").sportsText("fullName"),
                                  games: (schedule?.sportsObjects("events") ?? []).compactMap { parseGame($0, league: result.league) }.sorted { ($0.date ?? .distantFuture) < ($1.date ?? .distantFuture) },
                                  roster: athletes.enumerated().map { index, player in
-            SportsRosterPlayer(id: player.sportsText("id").isEmpty ? String(index) : player.sportsText("id"), name: player.sportsText("displayName"), number: player.sportsText("jersey"), position: player.sportsObject("position").sportsText("abbreviation"), height: player.sportsText("displayHeight"))
+            let athlete = player.sportsObject("athlete")
+            let photo = [player.sportsObject("headshot").sportsText("href"), player.sportsText("headshot"),
+                         athlete.sportsObject("headshot").sportsText("href"), athlete.sportsText("headshot")]
+                .compactMap(sportsHTTPSURL).first?.absoluteString ?? ""
+            return SportsRosterPlayer(id: player.sportsText("id").isEmpty ? String(index) : player.sportsText("id"), name: player.sportsText("displayName"), number: player.sportsText("jersey"), position: player.sportsObject("position").sportsText("abbreviation"), height: player.sportsText("displayHeight"), photo: photo)
         }, scheduleUnavailable: schedule == nil, rosterUnavailable: roster == nil)
     }
 

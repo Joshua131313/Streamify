@@ -85,7 +85,7 @@ struct HomeView: View {
                 if library.history.contains(where: { !$0.completed }) { ContinueWatchingRail() }
                 Button(action: openSports) {
                     HStack(spacing: 14) {
-                        Image(systemName: "basketball.fill").font(.title2).foregroundStyle(AppTheme.accent)
+                        Image(systemName: "basketball.fill").font(.title2).foregroundStyle(AppTheme.muted)
                         VStack(alignment: .leading, spacing: 4) {
                             Text("The game is on.").font(.headline)
                             Text("Live scores, schedules & streams").font(.caption).foregroundStyle(AppTheme.muted)
@@ -337,7 +337,7 @@ struct FeaturedCarousel: View {
     private func hero(_ media: MediaItem) -> some View {
         ZStack(alignment: .bottomLeading) {
             MediaDetailLink(media: media, onPresentationChanged: { detailsPresented = $0 }) {
-                RemoteArtwork(url: horizontalSizeClass == .regular ? media.backdropURL : media.posterURL)
+                RemoteArtwork(url: horizontalSizeClass == .regular ? media.heroBackdropURL : media.heroPosterURL)
                     .overlay {
                         LinearGradient(stops: [.init(color: .clear, location: 0.45),
                                                .init(color: Color(red: 27 / 255, green: 23 / 255, blue: 32 / 255).opacity(0.7), location: 0.8),
@@ -465,7 +465,7 @@ private struct DiscoveryRail: View {
             }.padding(.horizontal, 16)
             if loading && items.isEmpty { ProgressView().frame(maxWidth: .infinity).padding(24) }
             if let error { InlineError(message: error) { retry += 1 }.padding(.horizontal, 16) }
-            PosterRail(title: "", items: items)
+            MediaExploreRail(identifier: String(describing: mode), items: items)
             if items.isEmpty && !loading && error == nil {
                 Text("No titles found for these filters.").font(.subheadline).foregroundStyle(AppTheme.muted).padding(.horizontal, 16)
             }

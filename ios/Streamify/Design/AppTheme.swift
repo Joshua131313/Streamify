@@ -9,11 +9,11 @@ enum AppTheme {
         ? UIColor(red: 0.043, green: 0.051, blue: 0.063, alpha: 1)
         : UIColor(red: 0.965, green: 0.969, blue: 0.98, alpha: 1) })
     static let panel = Color(uiColor: UIColor { $0.userInterfaceStyle == .dark
-        ? UIColor(red: 0.086, green: 0.102, blue: 0.125, alpha: 1) : .white })
+        ? UIColor(red: 0.10, green: 0.10, blue: 0.12, alpha: 1) : .white })
     static let foreground = Color(uiColor: UIColor { $0.userInterfaceStyle == .dark
         ? UIColor(white: 245.0 / 255, alpha: 1) : UIColor(red: 28.0 / 255, green: 27.0 / 255, blue: 31.0 / 255, alpha: 1) })
     static let muted = Color(uiColor: UIColor { $0.userInterfaceStyle == .dark
-        ? UIColor(red: 155.0 / 255, green: 164.0 / 255, blue: 181.0 / 255, alpha: 1)
+        ? UIColor(red: 166.0 / 255, green: 166.0 / 255, blue: 174.0 / 255, alpha: 1)
         : UIColor(red: 87.0 / 255, green: 97.0 / 255, blue: 114.0 / 255, alpha: 1) })
     static let controlFill = foreground.opacity(0.06)
     static let border = Color.primary.opacity(0.10)
@@ -77,7 +77,7 @@ struct RemoteArtwork: View {
                             image.resizable().aspectRatio(contentMode: contentMode)
                         } else {
                             Rectangle().fill(AppTheme.panel)
-                                .overlay { Image(systemName: "play.rectangle").font(.title).foregroundStyle(.tertiary) }
+                                .overlay { Image(systemName: "photo").font(.system(size: 22, weight: .light)).foregroundStyle(.tertiary) }
                         }
                     }
                     .frame(width: geometry.size.width, height: geometry.size.height)
@@ -103,7 +103,7 @@ struct StateMessage: View {
 
     var body: some View {
         VStack(spacing: 14) {
-            Image(systemName: symbol).font(.system(size: 34, weight: .light)).foregroundStyle(AppTheme.accent)
+            Image(systemName: symbol).font(.system(size: 34, weight: .light)).foregroundStyle(AppTheme.muted)
             Text(title).font(.title3.bold()).multilineTextAlignment(.center)
             Text(message).font(.subheadline).foregroundStyle(AppTheme.muted).multilineTextAlignment(.center)
             if let actionTitle, let action {
@@ -154,8 +154,8 @@ struct PrimaryButtonStyle: ButtonStyle {
         configuration.label.font(.subheadline.bold())
             .padding(.horizontal, 20).frame(minHeight: 48)
             .frame(maxWidth: .infinity)
-            .foregroundStyle(.white)
-            .background(AppTheme.accent.opacity(configuration.isPressed ? 0.7 : 1), in: Capsule())
+            .foregroundStyle(AppTheme.canvas)
+            .background(AppTheme.foreground.opacity(configuration.isPressed ? 0.75 : 1), in: Capsule())
     }
 }
 

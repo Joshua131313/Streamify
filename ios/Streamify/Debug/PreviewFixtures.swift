@@ -26,6 +26,30 @@ enum PreviewFixtures {
         store.record(show, season: 1, episode: 1, positionSeconds: 300, durationSeconds: 2700)
         store.rememberSearch("Horizon")
     }
+    @MainActor private static var seededDownloads = false
+    @MainActor static func seedDownloads(_ store: DownloadStore) {
+        guard enabled, !seededDownloads, let source = Bundle.main.url(forResource: "offline-player", withExtension: "mp4") else { return }
+        do {
+            let id = UUID(uuidString: "00000000-0000-0000-0000-000000000042")!
+            let directory = try DownloadFiles.directory()
+            let fileName = "\(id.uuidString).mp4"
+            let destination = directory.appendingPathComponent(fileName)
+            if !FileManager.default.fileExists(atPath: destination.path) { try FileManager.default.copyItem(at: source, to: destination) }
+            let posterName = "\(id.uuidString)-artwork-00000000-0000-0000-0000-000000000043.jpg"
+            let poster = UIImage(named: "collection-avengers")?.jpegData(compressionQuality: 0.8)
+            if let poster { try poster.write(to: directory.appendingPathComponent(posterName), options: .atomic) }
+            let size = (try destination.resourceValues(forKeys: [.fileSizeKey])).fileSize ?? 0
+            var item = DownloadItem(id: id, title: movie.title, source: nil, fileName: fileName,
+                createdAt: Date(), status: .completed, bytesWritten: Int64(size), expectedBytes: Int64(size))
+            item.quality = 720
+            item.catalog = CatalogDownloadDescriptor(id: movie.id, kind: movie.kind.rawValue, title: movie.title, season: 1, episode: 1, episodeTitle: nil)
+            item.catalogKey = "movie:42"
+            item.posterFileName = poster == nil ? nil : posterName
+            UserDefaults.standard.removeObject(forKey: "streamify.ios.offlinePlayback.\(id.uuidString)")
+            store.installCompletedFixture(item)
+            seededDownloads = true
+        } catch { assertionFailure("Offline UI fixture could not be prepared: \(error)") }
+    }
     private static let synopsis = "An unexpected discovery brings unlikely friends together on a journey beyond the familiar. Every choice changes the story."
     static let movie = MediaItem(id: 42, kind: .movie, title: "The Last Horizon", overview: synopsis,
         posterPath: "/fixture-avengers.jpg", backdropPath: "/fixture-avengers.jpg", rating: 8.4, releaseDate: "2026-07-12", genreIDs: [28, 878])
@@ -34,7 +58,7 @@ enum PreviewFixtures {
     static let anime = MediaItem(id: 44, kind: .anime, title: "Starlight Academy", overview: synopsis,
         posterPath: "https://image.tmdb.org/fixture-harry-potter.jpg", backdropPath: "https://image.tmdb.org/fixture-harry-potter.jpg", rating: 8.6, releaseDate: "2026", genreIDs: [])
     static let playerHTML = """
-    <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;height:100%;background:#090909;color:#fff;font:16px -apple-system;display:grid;place-items:center}main{text-align:center}b{font-size:48px;color:#e91c39}small{color:#aaa}</style></head><body><main><b>▶</b><p>Streamify preview player</p><small>Local UI fixture · no external video loaded</small></main></body></html>
+    <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;height:100%;background:#090909;color:#fff;font:16px -apple-system;display:grid;place-items:center}main{text-align:center}b{font-size:48px;color:#e91c39}small{color:#aaa}#playback-session{font-size:10px;color:#aaa}</style></head><body><main><b>▶</b><p>Streamify preview player</p><small>Local UI fixture · no external video loaded</small><p id="playback-session"></p></main><script>document.getElementById('playback-session').textContent='Playback session '+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);</script></body></html>
     """
     static func trailerHTML(token: String) -> String {
         let data = try! JSONSerialization.data(withJSONObject: ["token": token])
@@ -101,7 +125,19 @@ enum PreviewFixtures {
                 ? ["Page": ["pageInfo": ["hasNextPage": false], "media": [item]] as [String: Any]] : ["Media": item]
             value = ["data": payload]
         } else if host == "site.api.espn.com" { value = sportsJSON(url) }
-        else if host == "streamed.pk" { value = [Any]() }
+        else if host == "streamed.pk" {
+            if path == "/api/matches/all" {
+                value = ["basketball", "american-football", "hockey", "baseball"].map { category in
+                    ["id": "fixture-\(category)", "category": category, "date": 1,
+                     "title": "Boston Harbor at Toronto Towers",
+                     "teams": ["home": ["name": "Toronto Towers"], "away": ["name": "Boston Harbor"]],
+                     "sources": [["source": "alpha", "id": "fixturealpha"], ["source": "bravo", "id": "fixturebravo"]]] as [String: Any]
+                }
+            } else if path.hasPrefix("/api/stream/") {
+                let source = path.contains("/bravo/") ? "bravo" : "alpha"
+                value = [["embedUrl": "https://fixture.streamify.test/\(source)", "streamNo": 1, "language": "English", "hd": true]]
+            } else { value = [Any]() }
+        }
         else if host == "enc-dec.app" { value = ["result": "fixturetoken"] }
         else if host == "api.github.com" { value = [Any]() }
         else if host == "vidlink.pro", path.hasPrefix("/api/") {
@@ -137,12 +173,14 @@ enum PreviewFixtures {
             return ["homeAway": home ? "home" : "away", "team": team(home), "score": home ? "105" : "98", "records": [["summary": "8-3"]], "linescores": scores.map { ["value": $0, "displayValue": String($0)] }]
         }
         let game: [String: Any] = ["id": "\(league)-fixture", "date": date, "competitions": [["date": date, "competitors": [competitor(false), competitor(true)], "status": ["type": ["state": "in", "shortDetail": "4th · 02:18", "description": "In Progress"]], "venue": ["fullName": "Streamify Arena"], "broadcasts": [["names": ["ESPN"]]]]]]
-        if parts.last == "scoreboard" || parts.last == "schedule" { return ["events": [game]] }
+        let final: [String: Any] = ["id": "\(league)-final", "date": date, "competitions": [["date": date, "competitors": [competitor(false), competitor(true)], "status": ["type": ["state": "post", "shortDetail": "Final", "description": "Final"]], "venue": ["fullName": "Streamify Arena"], "broadcasts": [["names": ["ESPN"]]]]]]
+        if parts.last == "scoreboard" || parts.last == "schedule" { return ["events": league == "nba" ? [game, final] : [game]] }
         if parts.last == "summary" {
             func stats(_ home: Bool) -> [String: Any] {
                 ["team": team(home), "statistics": [["name": "fieldGoals", "label": "Field Goals", "displayValue": home ? "41-80" : "39-83"], ["name": "rebounds", "label": "Rebounds", "displayValue": home ? "46" : "41"]]]
             }
-            return ["header": game, "boxscore": ["teams": [stats(false), stats(true)]], "plays": [["text": "Toronto takes the lead with a three point shot."]]]
+            let event = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "event" })?.value ?? ""
+            return ["header": event.hasSuffix("-final") ? final : game, "boxscore": ["teams": [stats(false), stats(true)]], "plays": [["text": "Toronto takes the lead with a three point shot."]]]
         }
         if parts.last == "roster" {
             return ["athletes": [["items": [["id": "1", "displayName": "Jordan Hayes", "jersey": "7", "position": ["abbreviation": "G"], "displayHeight": "6' 3\""], ["id": "2", "displayName": "Sam Rivera", "jersey": "22", "position": ["abbreviation": "F"], "displayHeight": "6' 8\""]]]]]

@@ -19,11 +19,22 @@ private final class NativePlaybackModel: ObservableObject {
     @Published private(set) var loading = false
     @Published private(set) var error: String?
     private var statusObservation: NSKeyValueObservation?
+    private var playbackObservation: NSKeyValueObservation?
     private var failureObserver: NSObjectProtocol?
+    private var endingObserver: NSObjectProtocol?
+    private var timeObserver: Any?
+    private var checkpoint = PlaybackCheckpoint()
+    private var onProgress: ((Double, Double) -> Void)?
+    private var resumeSeconds: Double = 0
+    private var restored = false
+    private var restoring = false
     private var generation = UUID()
 
-    func load(_ url: URL) async {
+    func load(_ url: URL, resumeSeconds: Double = 0, onProgress: ((Double, Double) -> Void)? = nil) async {
         stop()
+        self.resumeSeconds = resumeSeconds
+        self.onProgress = onProgress
+        checkpoint = PlaybackCheckpoint(); restored = false; restoring = false
         let request = UUID()
         generation = request
         loading = true
@@ -47,6 +58,7 @@ private final class NativePlaybackModel: ObservableObject {
                     switch item.status {
                     case .readyToPlay:
                         self.loading = false
+                        self.restoreIfPossible()
                         self.player?.play()
                     case .failed:
                         self.fail(item.error?.localizedDescription ?? "iOS could not load this video. Try another source.")
@@ -55,6 +67,25 @@ private final class NativePlaybackModel: ObservableObject {
                     @unknown default:
                         self.fail("iOS could not start this source. Reload or choose another source.")
                     }
+                }
+            }
+            timeObserver = created.addPeriodicTimeObserver(forInterval: CMTime(seconds: 1, preferredTimescale: 600), queue: .main) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    guard let self, self.generation == request else { return }
+                    self.restoreIfPossible(); self.capture()
+                }
+            }
+            playbackObservation = created.observe(\.timeControlStatus, options: [.new]) { [weak self] observed, _ in
+                guard observed.timeControlStatus == .paused else { return }
+                Task { @MainActor [weak self] in
+                    guard let self, self.generation == request else { return }
+                    self.capture(force: true)
+                }
+            }
+            endingObserver = NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    guard let self, self.generation == request else { return }
+                    self.capture(force: true, ended: true)
                 }
             }
             failureObserver = NotificationCenter.default.addObserver(forName: .AVPlayerItemFailedToPlayToEndTime, object: item, queue: .main) { [weak self] notification in
@@ -72,17 +103,48 @@ private final class NativePlaybackModel: ObservableObject {
         }
     }
 
-    func pause() { player?.pause() }
+    func pause() { capture(force: true); player?.pause() }
     func stop() {
+        capture(force: true)
         generation = UUID()
         statusObservation?.invalidate()
         statusObservation = nil
+        playbackObservation?.invalidate(); playbackObservation = nil
         if let failureObserver { NotificationCenter.default.removeObserver(failureObserver) }
         failureObserver = nil
+        if let endingObserver { NotificationCenter.default.removeObserver(endingObserver) }
+        endingObserver = nil
+        if let timeObserver { player?.removeTimeObserver(timeObserver) }
+        timeObserver = nil
         player?.pause()
         player?.replaceCurrentItem(with: nil)
         player = nil
         loading = false
+        onProgress = nil
+    }
+    private func restoreIfPossible() {
+        guard !restored, !restoring, let player, let item = player.currentItem,
+              item.status == .readyToPlay else { return }
+        let duration = item.duration.seconds
+        guard duration.isFinite, (60...43_200).contains(duration) else { return }
+        restored = true
+        guard resumeSeconds.isFinite, resumeSeconds >= 5, resumeSeconds < duration * 0.95 else { return }
+        restoring = true
+        let request = generation
+        player.seek(to: CMTime(seconds: min(resumeSeconds, duration - 1), preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.generation == request else { return }
+                self.restoring = false
+            }
+        }
+    }
+    private func capture(force: Bool = false, ended: Bool = false) {
+        guard restored, !restoring, let player, let item = player.currentItem else { return }
+        let duration = item.duration.seconds
+        if let sample = checkpoint.sample(position: ended ? duration : player.currentTime().seconds,
+            duration: duration, now: ProcessInfo.processInfo.systemUptime, force: force) {
+            onProgress?(sample.position, sample.duration)
+        }
     }
     private func fail(_ message: String) {
         player?.pause()
@@ -91,6 +153,8 @@ private final class NativePlaybackModel: ObservableObject {
     }
     deinit {
         if let failureObserver { NotificationCenter.default.removeObserver(failureObserver) }
+        if let endingObserver { NotificationCenter.default.removeObserver(endingObserver) }
+        if let timeObserver { player?.removeTimeObserver(timeObserver) }
     }
 }
 
@@ -98,30 +162,78 @@ private final class NativePlaybackModel: ObservableObject {
 struct ProviderPlayerView: View {
     let title: String
     let url: URL
+    var sources: [SportsStream] = []
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @State private var reload = 0
     @State private var direct = false
+    @State private var selectedSourceURL: URL?
+
+    private var effectiveURL: URL { selectedSourceURL ?? url }
+    private var availableSources: [SportsStream] {
+        var seen = Set<URL>()
+        return sources.filter { seen.insert($0.url).inserted }
+    }
+    private var sourceTitle: String {
+        availableSources.first(where: { $0.url == effectiveURL })?.title ?? "Current source"
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
                 Button { dismiss() } label: { Image(systemName: "xmark").frame(width: 44, height: 44) }
                     .accessibilityLabel("Close player")
-                Text(title).font(.headline).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
+                if availableSources.isEmpty {
+                    Text(title).font(.headline).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    Menu {
+                        ForEach(Array(availableSources.enumerated()), id: \.element.id) { index, source in
+                            Button { selectSource(source) } label: {
+                                if source.url == effectiveURL { Label(source.title, systemImage: "checkmark") }
+                                else { Text(source.title) }
+                            }
+                            .accessibilityIdentifier("sports-player-source-option-\(index)")
+                        }
+                    } label: {
+                        HStack(spacing: 10) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(title).font(.headline).lineLimit(1)
+                                Text(sourceTitle).font(.caption).foregroundStyle(.white.opacity(0.65)).lineLimit(1)
+                            }.frame(maxWidth: .infinity, alignment: .leading)
+                            Image(systemName: "chevron.down").font(.caption.weight(.semibold))
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Switch stream source")
+                    .accessibilityValue("\(title), \(sourceTitle)")
+                    .accessibilityIdentifier("sports-player-source-picker")
+                }
                 AirPlayButton().frame(width: 44, height: 44).accessibilityLabel("AirPlay")
             }.padding(.horizontal, 8)
-            ProviderPlaybackSurface(url: url, reload: reload, direct: direct)
+            ProviderPlaybackSurface(url: effectiveURL, reload: reload, direct: direct)
+                .id(effectiveURL)
             HStack(spacing: 16) {
                 Button { reload += 1 } label: { Label("Reload", systemImage: "arrow.clockwise") }
                 Spacer(minLength: 0)
                 Button { direct.toggle() } label: { Label(direct ? "Embed mode" : "Direct mode", systemImage: "rectangle.on.rectangle") }
                 Spacer(minLength: 0)
-                Button { openURL(url) } label: { Image(systemName: "safari").frame(width: 44, height: 44) }
+                Button { openURL(effectiveURL) } label: { Image(systemName: "safari").frame(width: 44, height: 44) }
                     .accessibilityLabel("Open in browser")
             }.font(.caption.weight(.semibold)).padding(.horizontal, 16).frame(minHeight: 54)
         }
         .background(.black).foregroundStyle(.white)
         .preferredColorScheme(.dark)
+        .playerSwipeToDismiss { dismiss() }
+        .onChange(of: url) { _, _ in selectedSourceURL = nil; reload = 0; direct = false }
+    }
+
+    private func selectSource(_ source: SportsStream) {
+        guard source.url != effectiveURL else { return }
+        selectedSourceURL = source.url
+        reload = 0
+        direct = false
     }
 }
 
@@ -131,6 +243,11 @@ struct ProviderPlaybackSurface: View {
     var reload: Int = 0
     var direct = false
     var referer: URL? = nil
+    var resumeSeconds: Double = 0
+    var onProgress: ((Double, Double) -> Void)? = nil
+    /// App-owned sports playback stays mounted for native/WebKit PiP. Other
+    /// presentations retain their existing background-pause behavior.
+    var preservePlaybackOnBackground = false
     @State private var loading = true
     @State private var error: String?
     @StateObject private var nativePlayback = NativePlaybackModel()
@@ -146,12 +263,13 @@ struct ProviderPlaybackSurface: View {
             } else if isVideoFile {
                 VideoPlayer(player: nativePlayback.player)
                     .task(id: "\(url.absoluteString):\(reload)") {
-                        await nativePlayback.load(url)
+                        await nativePlayback.load(url, resumeSeconds: resumeSeconds, onProgress: onProgress)
                     }
                 if nativePlayback.loading { loadingIndicator("Loading video…") }
                 if let error = nativePlayback.error { failureMessage(error) }
             } else {
-                PlayerWebView(url: url, reload: reload, direct: direct, referer: referer, loading: $loading, error: $error)
+                PlayerWebView(url: url, reload: reload, direct: direct, referer: referer,
+                    resumeSeconds: resumeSeconds, onProgress: onProgress, loading: $loading, error: $error)
                 if loading {
                     loadingIndicator("Connecting to source…")
                 }
@@ -162,7 +280,7 @@ struct ProviderPlaybackSurface: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onDisappear { nativePlayback.stop() }
-        .onChange(of: scenePhase) { _, phase in if phase != .active { nativePlayback.pause() } }
+        .onChange(of: scenePhase) { _, phase in if phase != .active && !preservePlaybackOnBackground { nativePlayback.pause() } }
     }
 
     private func loadingIndicator(_ message: String) -> some View {
@@ -198,6 +316,8 @@ private struct PlayerWebView: UIViewRepresentable {
     let reload: Int
     let direct: Bool
     let referer: URL?
+    let resumeSeconds: Double
+    let onProgress: ((Double, Double) -> Void)?
     @Binding var loading: Bool
     @Binding var error: String?
 
@@ -209,7 +329,10 @@ private struct PlayerWebView: UIViewRepresentable {
         configuration.allowsPictureInPictureMediaPlayback = true
         configuration.mediaTypesRequiringUserActionForPlayback = []
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
+        configuration.userContentController.add(context.coordinator, name: "streamifyProgress")
         let webView = WKWebView(frame: .zero, configuration: configuration)
+        context.coordinator.webView = webView
+        context.coordinator.observeLifecycle()
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
         webView.isOpaque = false
@@ -225,6 +348,7 @@ private struct PlayerWebView: UIViewRepresentable {
         guard context.coordinator.key != key else { return }
         context.coordinator.key = key
         context.coordinator.providerHost = url.host?.lowercased() ?? ""
+        context.coordinator.beginSession(webView)
         webView.stopLoading()
         // Defer bindings until after SwiftUI's representable update cycle.
         DispatchQueue.main.async { loading = true; error = nil }
@@ -251,17 +375,75 @@ private struct PlayerWebView: UIViewRepresentable {
         }
     }
     static func dismantleUIView(_ uiView: WKWebView, coordinator: Coordinator) {
+        coordinator.finishSession()
+        uiView.configuration.userContentController.removeScriptMessageHandler(forName: "streamifyProgress")
+        uiView.configuration.userContentController.removeAllUserScripts()
         uiView.stopLoading()
         uiView.navigationDelegate = nil
         uiView.uiDelegate = nil
         uiView.loadHTMLString("", baseURL: nil)
     }
 
-    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
         var parent: PlayerWebView
         var key = ""
         var providerHost = ""
+        weak var webView: WKWebView?
+        private var token = UUID().uuidString
+        private var checkpoint = PlaybackCheckpoint()
+        private var lastMessageAt = -Double.infinity
+        private var lifecycleObservers: [NSObjectProtocol] = []
         init(_ parent: PlayerWebView) { self.parent = parent }
+
+        func observeLifecycle() {
+            for name in [UIApplication.willResignActiveNotification, UIApplication.didEnterBackgroundNotification] {
+                lifecycleObservers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                    Task { @MainActor [weak self] in self?.flush() }
+                })
+            }
+        }
+
+        func beginSession(_ webView: WKWebView) {
+            flush()
+            token = UUID().uuidString
+            checkpoint = PlaybackCheckpoint(); lastMessageAt = -Double.infinity
+            let controller = webView.configuration.userContentController
+            controller.removeAllUserScripts()
+            if parent.onProgress != nil {
+                controller.addUserScript(WKUserScript(source: PlaybackProgressScript.document(token: token, resumeSeconds: parent.resumeSeconds),
+                    injectionTime: .atDocumentEnd, forMainFrameOnly: false))
+            }
+        }
+
+        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            guard parent.onProgress != nil, message.name == "streamifyProgress", message.webView === webView,
+                  message.frameInfo.securityOrigin.`protocol` == "https",
+                  let body = message.body as? [String: Any], body["token"] as? String == token,
+                  let position = body["position"] as? NSNumber, let duration = body["duration"] as? NSNumber else { return }
+            let now = ProcessInfo.processInfo.systemUptime
+            guard now - lastMessageAt >= 0.25 else { return }
+            lastMessageAt = now
+            if let sample = checkpoint.sample(position: position.doubleValue, duration: duration.doubleValue,
+                now: now, force: body["force"] as? Bool == true) {
+                parent.onProgress?(sample.position, sample.duration)
+            }
+        }
+
+        private func flush() {
+            webView?.evaluateJavaScript("window.__streamifyFlushProgress&&window.__streamifyFlushProgress();", completionHandler: nil)
+            if let sample = checkpoint.flush(now: ProcessInfo.processInfo.systemUptime) {
+                parent.onProgress?(sample.position, sample.duration)
+            }
+        }
+
+        func finishSession() {
+            flush()
+            token = UUID().uuidString
+            lifecycleObservers.forEach { NotificationCenter.default.removeObserver($0) }
+            lifecycleObservers.removeAll()
+        }
+
+        deinit { lifecycleObservers.forEach { NotificationCenter.default.removeObserver($0) } }
 
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
             guard let address = navigationAction.request.url else { decisionHandler(.cancel); return }

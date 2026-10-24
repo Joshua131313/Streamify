@@ -150,7 +150,7 @@ func catalogJSON(_ request: URLRequest, session: URLSession = .shared) async thr
 /// AniList IDs stay in a separate namespace from TMDB throughout the app.
 actor AnimeCatalogClient {
     static let shared = AnimeCatalogClient()
-    private let fields = "id idMal title { english romaji } description(asHtml:false) coverImage { large } bannerImage averageScore startDate { year month day } episodes status nextAiringEpisode { episode } duration genres trailer { id site }"
+    private let fields = "id idMal title { english romaji } description(asHtml:false) coverImage { extraLarge large } bannerImage averageScore startDate { year month day } episodes status nextAiringEpisode { episode } duration genres trailer { id site }"
     private var cache: [String: (date: Date, value: CatalogJSON)] = [:]
     private var nextRequestAt = Date.distantPast
 
@@ -222,7 +222,7 @@ actor AnimeCatalogClient {
         let year = json.object("startDate").integer("year")
         return MediaItem(id: json.integer("id"), kind: .anime, title: name,
             overview: json.string("description").replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression),
-            posterPath: json.object("coverImage").string("large"), backdropPath: json.string("bannerImage"),
+            posterPath: json.object("coverImage").string("extraLarge").isEmpty ? json.object("coverImage").string("large") : json.object("coverImage").string("extraLarge"), backdropPath: json.string("bannerImage"),
             rating: json.decimal("averageScore") / 10, releaseDate: year > 0 ? String(year) : "")
     }
 

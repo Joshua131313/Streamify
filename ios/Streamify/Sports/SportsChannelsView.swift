@@ -17,8 +17,8 @@ private struct SportsBroadcaster: Identifiable {
 }
 
 struct SportsChannelsView: View {
+    @EnvironmentObject private var playback: SportsPlaybackSession
     @State private var numbers: [String: String] = [:]
-    @State private var selected: SportsStream?
     private let providers = [
         SportsChannelProvider(id: "ripple", name: "Ripple Plays", base: "https://rippleplays.shop/newhub/stream-", suffix: ".php", initial: "1"),
         SportsChannelProvider(id: "hd", name: "Stream HD 24/7", base: "https://shd247.xyz/source", suffix: ".html", initial: "020"),
@@ -57,15 +57,14 @@ struct SportsChannelsView: View {
                 if let url = sportsHTTPSURL(broadcaster.address) {
                     Link(destination: url) {
                         SportsPanel {
-                            HStack { Text(broadcaster.name).font(.headline); Spacer(); Image(systemName: "arrow.up.right").foregroundStyle(AppTheme.accent) }
+                            HStack { Text(broadcaster.name).font(.headline); Spacer(); Image(systemName: "arrow.up.right").foregroundStyle(AppTheme.foreground) }
                             Text(broadcaster.detail).font(.subheadline).foregroundStyle(AppTheme.muted)
-                            Text(broadcaster.access).font(.caption.weight(.semibold)).foregroundStyle(AppTheme.accent)
+                            Text(broadcaster.access).font(.caption.weight(.semibold)).foregroundStyle(AppTheme.muted)
                         }
                     }.buttonStyle(.plain)
                 }
             }
         }.padding(.horizontal, 20).foregroundStyle(AppTheme.foreground)
-            .fullScreenCover(item: $selected) { stream in ProviderPlayerView(title: stream.title, url: stream.url) }
     }
 
     private func channelField(_ provider: SportsChannelProvider) -> some View {
@@ -80,7 +79,7 @@ struct SportsChannelsView: View {
     private func watchButton(_ provider: SportsChannelProvider) -> some View {
         Button {
             let channel = numbers[provider.id] ?? provider.initial
-            if let url = sportsHTTPSURL(provider.base + channel + provider.suffix) { selected = SportsStream(title: "\(provider.name) · Channel \(channel)", url: url) }
+            if let url = sportsHTTPSURL(provider.base + channel + provider.suffix) { playback.play(title: "\(provider.name) · Channel \(channel)", url: url) }
         } label: {
             Label("Watch", systemImage: "play.fill").font(.subheadline.weight(.semibold))
                 .padding(.horizontal, 18).frame(minHeight: 48).foregroundStyle(Color.black)

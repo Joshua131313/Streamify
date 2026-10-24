@@ -60,13 +60,22 @@ struct MediaPlayerView: View {
             ZStack {
                 Color.black
                 if let url {
-                    ProviderPlaybackSurface(url: url, reload: reload, direct: direct, referer: referer).id(loadID)
+                    let identity = PlaybackIdentity(mediaKey: media.key, season: season, episode: episode)
+                    let session = loadID
+                    let resume = identity.resumeSeconds(from: library.history.first { $0.id == media.key })
+                    ProviderPlaybackSurface(url: url, reload: reload, direct: direct, referer: referer,
+                        resumeSeconds: resume, onProgress: { position, duration in
+                            // A detached old player must never overwrite the newly selected episode.
+                            guard session == loadID, identity.season == season, identity.episode == episode else { return }
+                            library.record(media, season: identity.season, episode: identity.episode,
+                                positionSeconds: position, durationSeconds: duration)
+                        }).id(loadID)
                 } else if let error {
                     VStack(spacing: 16) {
                         Image(systemName: "play.slash").font(.largeTitle)
                         Text("Source unavailable").font(.title3.bold())
                         Text(error).font(.subheadline).multilineTextAlignment(.center).foregroundStyle(.white.opacity(0.7))
-                        Button("Retry") { reload += 1 }.buttonStyle(.borderedProminent).tint(AppTheme.accent)
+                        Button("Retry") { reload += 1 }.buttonStyle(PrimaryButtonStyle())
                     }.padding(28).frame(maxWidth: 440)
                 } else {
                     VStack(spacing: 14) { ProgressView().tint(.white); Text("Finding your source…").font(.subheadline) }
@@ -123,6 +132,7 @@ struct MediaPlayerView: View {
             }.font(.subheadline.weight(.medium)).padding(.horizontal, 16).padding(.bottom, 12)
         }
         .background(.black).foregroundStyle(.white).preferredColorScheme(.dark)
+        .playerSwipeToDismiss { dismiss() }
         .task(id: loadID) { await loadSource() }
         .task {
             do { details = try await settings.client.details(media) } catch { /* Playback can still use the chosen source. */ }
@@ -177,7 +187,7 @@ private struct PlayerEpisodePicker: View {
                 if !seasons.isEmpty {
                     Picker("Season", selection: $season) {
                         ForEach(seasons) { item in Text(item.name).tag(item.number) }
-                    }.tint(AppTheme.accent)
+                    }.tint(AppTheme.foreground)
                 }
                 if loading { ProgressView("Loading episodes…") }
                 if let error {
@@ -194,7 +204,7 @@ private struct PlayerEpisodePicker: View {
                                 if !episode.overview.isEmpty { Text(episode.overview).font(.caption).foregroundStyle(AppTheme.muted).lineLimit(2) }
                             }
                             Spacer()
-                            if selectedSeason == season && selectedEpisode == episode.number { Image(systemName: "play.fill").foregroundStyle(AppTheme.accent) }
+                            if selectedSeason == season && selectedEpisode == episode.number { Image(systemName: "play.fill").foregroundStyle(AppTheme.foreground) }
                         }.frame(minHeight: 44)
                     }.listRowBackground(AppTheme.panel)
                 }

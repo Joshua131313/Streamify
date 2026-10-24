@@ -24,6 +24,31 @@ final class ParityFlowTests: XCTestCase {
         app?.terminate()
     }
 
+    func testExploreGenresPosterOpensItsExactMovieAndReturnsToRail() {
+        let rail = app.scrollViews["home-explore-genre"].firstMatch
+        let poster = rail.buttons["explore-genre-media-movie:45"].firstMatch
+        for _ in 0..<18 {
+            if poster.exists && poster.isHittable && poster.frame.minY > app.frame.minY + 100 && poster.frame.maxY < app.frame.maxY - 110 { break }
+            dragVertically(up: !(poster.exists && poster.frame.minY <= app.frame.minY + 100), in: app.scrollViews["home-catalog"].firstMatch)
+        }
+        XCTAssertTrue(rail.exists, "Explore genres must expose its own carousel instead of matching a duplicate title elsewhere.")
+        XCTAssertTrue(poster.isHittable, "The actual genre poster must accept taps after scrolling Home.")
+        let sourceFrame = poster.frame
+        capture("Explore genres actual poster before tap")
+        // Tap artwork rather than a title label or a generic duplicate media link.
+        poster.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3)).tap()
+        XCTAssertTrue(app.buttons["close-media-details"].waitForExistence(timeout: 8))
+        XCTAssertTrue(element("media-detail-page").exists)
+        XCTAssertTrue(app.buttons["download-movie:45"].waitForExistence(timeout: 8), "The tapped genre poster must open movie:45.")
+        XCTAssertTrue(app.staticTexts["Beyond the City"].firstMatch.exists)
+        capture("Explore genres exact selected movie details")
+        app.buttons["close-media-details"].tap()
+        XCTAssertTrue(wait { poster.exists && poster.isHittable })
+        XCTAssertEqual(poster.frame.minY, sourceFrame.minY, accuracy: 2)
+        XCTAssertTrue(app.buttons["tab-home"].isSelected)
+        capture("Explore genres preserved source position")
+    }
+
     func testHomeHeroProgressPauseSwipeAndFilledSelectors() {
         let progress = app.buttons["hero-main-progress"]
         XCTAssertTrue(progress.waitForExistence(timeout: 15))
@@ -104,6 +129,8 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertGreaterThan(app.buttons["close-media-details"].frame.midX, app.frame.midX, "The secondary close control belongs at the top right.")
         XCTAssertGreaterThanOrEqual(app.buttons["close-media-details"].frame.width, 44)
         XCTAssertTrue(app.buttons["download-movie:42"].waitForExistence(timeout: 8), "The tapped Home hero must open its own movie.")
+        XCTAssertTrue(app.staticTexts["detail-genre-28"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["detail-genre-28"].label, "Action")
         XCTAssertTrue(app.webViews.staticTexts["Playing preview"].waitForExistence(timeout: 8), "The visible detail preview must actually receive the autoplay command.")
         XCTAssertFalse(app.buttons["trailer-mute"].exists, "The autoplay preview must not add a separate controls strip.")
         capture("10 Movie autoplay preview and download action")
@@ -191,6 +218,14 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertEqual(first.frame.width / first.frame.height, 2.0 / 3.0, accuracy: 0.01)
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'History'")).firstMatch.tap()
         XCTAssertTrue(app.buttons["Resume Midnight Dispatch"].waitForExistence(timeout: 5))
+        let historyResume = app.buttons["history-resume-tv:43"]
+        reveal(historyResume)
+        XCTAssertTrue(historyResume.isHittable)
+        XCTAssertEqual(historyResume.frame.width / historyResume.frame.height, 16.0 / 9.0, accuracy: 0.02)
+        let historyProgress = element("history-progress-tv:43")
+        XCTAssertTrue(historyProgress.exists)
+        XCTAssertEqual(historyProgress.value as? String, "11 percent", "History must show the saved playback position, not a fabricated progress value.")
+        XCTAssertTrue(element("history-status-tv:43").label.contains("40 min left"))
         capture("22 Watch history")
         app.buttons["open-downloads"].tap()
         XCTAssertTrue(app.buttons["Add link"].waitForExistence(timeout: 5))
@@ -234,6 +269,64 @@ final class ParityFlowTests: XCTestCase {
         app.buttons.matching(NSPredicate(format: "label CONTAINS 'Explore collection'")).firstMatch.tap()
         XCTAssertTrue(app.staticTexts["3 movies · Release order"].waitForExistence(timeout: 8))
         capture("29 Collection detail and posters")
+    }
+
+    func testSportsMultiLeagueCalendarKeepsSelectionAndPosition() {
+        app.buttons["tab-sports"].tap()
+        let allLeagues = app.buttons["sports-all-leagues-schedule"]
+        reveal(allLeagues)
+        XCTAssertTrue(allLeagues.isHittable)
+        allLeagues.tap()
+        let picker = app.buttons["sports-league-picker"]
+        reveal(picker)
+        XCTAssertTrue(picker.waitForExistence(timeout: 8))
+        XCTAssertEqual(picker.value as? String, "All leagues")
+        picker.tap()
+        XCTAssertTrue(app.buttons["sports-clear-leagues"].waitForExistence(timeout: 5))
+        app.buttons["sports-clear-leagues"].tap()
+        let apply = app.buttons["sports-apply-leagues"]
+        XCTAssertFalse(apply.isEnabled, "An empty league selection must not be applied.")
+        app.buttons["sports-league-option-nfl"].tap()
+        app.buttons["sports-league-option-nba"].tap()
+        reveal(apply)
+        XCTAssertTrue(apply.isEnabled)
+        capture("43 Choose NFL and NBA together")
+        apply.tap()
+        XCTAssertTrue(wait { !self.app.navigationBars["Filter leagues"].exists })
+        XCTAssertEqual(picker.value as? String, "NFL + NBA")
+        let calendar = app.buttons["sports-layout-Calendar"]
+        reveal(calendar)
+        calendar.tap()
+        let tomorrow = app.buttons["sports-date-offset-1"]
+        reveal(tomorrow)
+        XCTAssertTrue(tomorrow.isHittable)
+        let initialY = tomorrow.frame.minY
+        let initialX = tomorrow.frame.minX
+        XCTAssertTrue(element("sports-calendar-league-nfl").exists)
+        XCTAssertTrue(element("sports-calendar-league-nba").exists)
+        XCTAssertFalse(element("sports-calendar-league-nhl").exists)
+        capture("44 NFL and NBA calendar before changing date")
+        tomorrow.tap()
+        XCTAssertTrue(wait { tomorrow.isSelected })
+        XCTAssertTrue(app.staticTexts["No games to show"].waitForExistence(timeout: 12))
+        XCTAssertEqual(tomorrow.frame.minY, initialY, accuracy: 2, "Selecting an empty day must not move the calendar vertically.")
+        XCTAssertEqual(tomorrow.frame.minX, initialX, accuracy: 2)
+        XCTAssertTrue(element("sports-calendar-league-nfl").exists)
+        XCTAssertTrue(element("sports-calendar-league-nba").exists)
+        capture("45 Empty calendar day remains in place")
+        let today = app.buttons["sports-date-offset-0"]
+        XCTAssertTrue(today.isHittable)
+        today.tap()
+        XCTAssertTrue(wait { today.isSelected })
+        XCTAssertTrue(wait { !self.app.staticTexts["No games to show"].exists && !self.element("sports-schedule-loading").exists })
+        XCTAssertEqual(tomorrow.frame.minY, initialY, accuracy: 2, "Restoring a busy day must preserve the calendar position.")
+        let nfl = app.buttons["sports-game-nfl:nfl-fixture"]
+        let nba = app.buttons["sports-game-nba:nba-fixture"]
+        reveal(nfl)
+        XCTAssertTrue(nfl.isHittable, "The same selection must include NFL games.")
+        reveal(nba)
+        XCTAssertTrue(nba.isHittable, "The same selection must include NBA games.")
+        capture("46 Combined NFL and NBA results")
     }
 
     func testSportsScheduleScoringTableRosterChannelsAndMultiWatch() {
@@ -285,15 +378,53 @@ final class ParityFlowTests: XCTestCase {
         game.tap()
         XCTAssertTrue(app.buttons["sports-scoring-tab"].waitForExistence(timeout: 8))
         capture("34 Game center overview")
+        let watchGame = app.buttons["Watch game"]
+        reveal(watchGame)
+        XCTAssertTrue(watchGame.waitForExistence(timeout: 8))
+        watchGame.tap()
+        XCTAssertTrue(app.buttons["sports-player-source-picker"].waitForExistence(timeout: 8))
+        capture("34b Live player source selector")
+        app.buttons["sports-player-source-picker"].tap()
+        XCTAssertTrue(app.buttons["sports-player-source-option-1"].waitForExistence(timeout: 5))
+        app.buttons["sports-player-source-option-1"].tap()
+        XCTAssertTrue(wait { (self.app.buttons["sports-player-source-picker"].value as? String ?? "").contains("bravo") })
+        XCTAssertTrue(app.buttons["Close player"].exists, "Switching sources must keep the same player open.")
+        capture("34c Live player switched source")
+        let leavePlayerStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: 0.4))
+        leavePlayerStart.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.4)))
+        XCTAssertTrue(wait { !self.app.buttons["Close player"].exists })
+        XCTAssertTrue(app.buttons["sports-scoring-tab"].waitForExistence(timeout: 5))
+        reveal(app.buttons["sports-scoring-tab"])
         app.buttons["sports-scoring-tab"].tap()
         XCTAssertTrue(element("sports-scoring-table").waitForExistence(timeout: 8))
         capture("35 Game period scoring table")
+        app.buttons["sports-game-tab-Team stats"].tap()
+        XCTAssertTrue(element("sports-comparison-table").waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts["Field Goals"].exists)
+        capture("35b Team comparison table")
         app.buttons["sports-team-200"].tap()
         XCTAssertTrue(app.buttons["sports-team-roster-tab"].waitForExistence(timeout: 8))
         app.buttons["sports-team-roster-tab"].tap()
         XCTAssertTrue(element("sports-team-roster").waitForExistence(timeout: 8))
         XCTAssertTrue(app.staticTexts["Jordan Hayes"].exists)
+        XCTAssertTrue(app.staticTexts["PLAYER"].exists)
         capture("36 Team roster table")
+        relaunch()
+        app.buttons["tab-sports"].tap()
+        reveal(app.buttons["sports-league-NBA"])
+        app.buttons["sports-league-NBA"].tap()
+        let finalGame = app.buttons["sports-game-nba:nba-final"].firstMatch
+        reveal(finalGame)
+        XCTAssertTrue(finalGame.exists)
+        capture("36b Final score card with winner")
+        finalGame.tap()
+        XCTAssertTrue(app.buttons["sports-scoring-tab"].waitForExistence(timeout: 8))
+        app.buttons["sports-scoring-tab"].tap()
+        XCTAssertTrue(element("sports-scoring-total-200").waitForExistence(timeout: 8))
+        XCTAssertTrue(element("sports-scoring-total-200").label.contains("winner"))
+        XCTAssertEqual(element("sports-scoring-total-200").value as? String, "105")
+        XCTAssertFalse(element("sports-scoring-total-100").label.contains("winner"))
+        capture("36c Final scoring highlights the actual winner")
         relaunch()
         app.buttons["tab-sports"].tap()
         element("sports-league-directory").swipeLeft()
@@ -308,6 +439,30 @@ final class ParityFlowTests: XCTestCase {
         app.buttons["sports-multiwatch-add"].tap()
         XCTAssertTrue(element("sports-live-picker").waitForExistence(timeout: 8))
         capture("39 Live multi-watch picker")
+        let liveChoice = app.buttons["sports-live-game-nba:nba-fixture"]
+        XCTAssertTrue(liveChoice.waitForExistence(timeout: 10))
+        reveal(liveChoice)
+        liveChoice.tap()
+        XCTAssertTrue(wait { !self.app.navigationBars["Add a game"].exists })
+        let tileOptions = app.buttons["Options for BOS vs TOR"]
+        XCTAssertTrue(tileOptions.waitForExistence(timeout: 8))
+        capture("40 Multi-watch playing a local fixture")
+        tileOptions.tap()
+        XCTAssertTrue(app.buttons["Select stream"].waitForExistence(timeout: 5))
+        app.buttons["Select stream"].tap()
+        XCTAssertTrue(app.buttons["bravo 1 · English · HD"].waitForExistence(timeout: 5))
+        app.buttons["bravo 1 · English · HD"].tap()
+        XCTAssertTrue(tileOptions.waitForExistence(timeout: 5), "Changing a tile source must preserve its game and queue slot.")
+        tileOptions.tap()
+        app.buttons["Fullscreen"].tap()
+        XCTAssertTrue(app.buttons["sports-player-source-picker"].waitForExistence(timeout: 8))
+        XCTAssertTrue((app.buttons["sports-player-source-picker"].value as? String ?? "").contains("bravo"), "The tile's selected server must be retained when it expands.")
+        capture("41 Expanded multi-watch retains its chosen server")
+        let leaveExpandedStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: 0.4))
+        leaveExpandedStart.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.4)))
+        XCTAssertTrue(wait { !self.app.buttons["Close player"].exists })
+        XCTAssertTrue(tileOptions.waitForExistence(timeout: 5))
+        capture("42 Swipe exit returns to the same multi-watch tile")
     }
 
     private func openTitle(_ key: String) {

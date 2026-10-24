@@ -51,7 +51,8 @@ struct BrowseView: View {
     var category = false
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var library: LibraryStore
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @ScaledMetric(relativeTo: .caption) private var chipLabelSize: CGFloat = 13
     @StateObject private var model = BrowseModel()
     @State private var kind: MediaKind?
     @State private var query = ""
@@ -70,11 +71,12 @@ struct BrowseView: View {
     }
 
     private var cleanQuery: String { query.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var pageGutter: CGFloat { horizontalSizeClass == .regular ? 20 : 16 }
     private var requestKey: String { "\(kind?.rawValue ?? "all")-\(cleanQuery)-\(genre)-\(animeGenre)-\(provider)-\(topRated)-\(revision)-\(settings.tmdbToken)" }
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 24) {
+            LazyVStack(alignment: .leading, spacing: 20) {
                 if !category {
                     HStack(spacing: 10) {
                         Image(systemName: "magnifyingglass").foregroundStyle(AppTheme.muted)
@@ -89,9 +91,9 @@ struct BrowseView: View {
                             }.buttonStyle(.plain).accessibilityLabel("Clear search")
                         }
                     }.padding(.horizontal, 16).padding(.vertical, 6).frame(minHeight: 56)
-                        .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 16)).padding(.horizontal, 20)
+                        .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 16)).padding(.horizontal, pageGutter)
                     VStack(alignment: .leading, spacing: 12) {
-                        if cleanQuery.isEmpty { SectionHeading(title: "Find your next favorite").padding(.horizontal, 20) }
+                        if cleanQuery.isEmpty { SectionHeading(title: "Find your next favorite").padding(.horizontal, pageGutter) }
                         ScrollView(.horizontal) {
                             HStack(spacing: 10) {
                                 Pill(title: "All", selected: kind == nil) { kind = nil }
@@ -99,15 +101,18 @@ struct BrowseView: View {
                                     Pill(title: value == .tv ? "Series" : value.title, selected: kind == value) { kind = value }
                                 }
                                 NavigationLink { CollectionsView() } label: {
-                                    Text("Collections").font(.subheadline.weight(.medium)).foregroundStyle(AppTheme.muted)
-                                        .padding(.horizontal, 17).frame(minHeight: 44).streamifyControlSurface()
+                                    Text("Collections").font(.system(size: chipLabelSize, weight: .medium)).foregroundStyle(AppTheme.muted)
+                                        .padding(.horizontal, 12).frame(minHeight: 32)
+                                        .background(AppTheme.controlFill, in: RoundedRectangle(cornerRadius: 12))
+                                        .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(AppTheme.border, lineWidth: 1) }
+                                        .frame(minHeight: 44).contentShape(Rectangle())
                                 }.buttonStyle(.plain)
-                            }.padding(.horizontal, 20)
+                            }.padding(.horizontal, pageGutter)
                         }.scrollIndicators(.hidden)
                     }
                 }
                 // TMDB search does not apply discover's filters. AniList search supports genre and sort.
-                if (cleanQuery.isEmpty || kind == .anime) && kind != nil { filters.padding(.horizontal, 20) }
+                if (cleanQuery.isEmpty || kind == .anime) && kind != nil { filters.padding(.horizontal, pageGutter) }
                 if query.isEmpty && !category && !library.recentSearches.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
@@ -116,7 +121,7 @@ struct BrowseView: View {
                             Button("Clear") { library.clearSearches() }
                                 .font(.caption.weight(.semibold)).foregroundStyle(AppTheme.foreground)
                                 .padding(.horizontal, 14).frame(minHeight: 44).streamifyControlSurface()
-                        }.padding(.horizontal, 20)
+                        }.padding(.horizontal, pageGutter)
                         ScrollView(.horizontal) {
                             HStack(spacing: 10) { ForEach(Array(library.recentSearches.prefix(5)), id: \.self) { recent in
                                 Button { query = recent; focused = false } label: {
@@ -125,7 +130,7 @@ struct BrowseView: View {
                                 }.buttonStyle(.plain).foregroundStyle(AppTheme.muted)
                                     .contextMenu { Button("Remove search", role: .destructive) { library.removeSearch(recent) } }
                                     .accessibilityAction(named: Text("Remove search")) { library.removeSearch(recent) }
-                            } }.padding(.horizontal, 20)
+                            } }.padding(.horizontal, pageGutter)
                         }.scrollIndicators(.hidden)
                     }
                 }
@@ -134,7 +139,7 @@ struct BrowseView: View {
                         HStack(spacing: 10) {
                             Pill(title: "Popular", selected: !topRated) { topRated = false }
                             Pill(title: "Top rated", selected: topRated) { topRated = true }
-                        }.padding(.horizontal, 20)
+                        }.padding(.horizontal, pageGutter)
                     }.scrollIndicators(.hidden)
                 }
                 if category && cleanQuery.isEmpty && !model.items.isEmpty {
@@ -144,30 +149,29 @@ struct BrowseView: View {
                 if category || !cleanQuery.isEmpty {
                     SectionHeading(title: cleanQuery.isEmpty ? "Explore \(kind?.title ?? "titles")" : "Search results",
                                    subtitle: cleanQuery.isEmpty ? nil : "\(kind == .anime ? "Anime" : "Movies and series") matching “\(cleanQuery)”")
-                        .padding(.horizontal, 20)
+                        .padding(.horizontal, pageGutter)
                 }
-                PosterGrid(items: model.items).padding(.horizontal, 20)
+                PosterGrid(items: model.items).padding(.horizontal, pageGutter)
                 if model.loading { ProgressView("Loading titles…").frame(maxWidth: .infinity).padding(20) }
                 if let error = model.error {
-                    InlineError(message: error) { if model.items.isEmpty { revision += 1 } else { Task { await load(first: false) } } }.padding(.horizontal, 20)
+                    InlineError(message: error) { if model.items.isEmpty { revision += 1 } else { Task { await load(first: false) } } }.padding(.horizontal, pageGutter)
                 }
                 if !model.loading && model.error == nil && model.items.isEmpty {
-                    StateMessage(symbol: "magnifyingglass", title: "No titles found", message: "Try another search or adjust your filters.").padding(.horizontal, 20)
+                    StateMessage(symbol: "magnifyingglass", title: "No titles found", message: "Try another search or adjust your filters.").padding(.horizontal, pageGutter)
                 }
                 if model.page < model.totalPages && !model.items.isEmpty && model.error == nil {
                     Button("Load more") { Task { await load(first: false) } }
-                        .buttonStyle(SecondaryButtonStyle()).disabled(model.loading).padding(.horizontal, 20)
+                        .buttonStyle(SecondaryButtonStyle()).disabled(model.loading).padding(.horizontal, pageGutter)
                 }
                 Text(kind == .anime ? "Anime catalog by AniList" : "Film and series data by TMDB")
-                    .font(.caption2).foregroundStyle(AppTheme.muted).padding(.horizontal, 20)
+                    .font(.caption2).foregroundStyle(AppTheme.muted).padding(.horizontal, pageGutter)
             }.padding(.top, 12).padding(.bottom, 24)
         }
         .accessibilityIdentifier(category ? "category-catalog-\(kind?.rawValue ?? "all")" : "browse-catalog")
         .scrollDismissesKeyboard(.interactively)
         .background {
             if category {
-                LinearGradient(colors: [categoryTint.opacity(colorScheme == .dark ? 1 : 0.16), AppTheme.canvas], startPoint: .top, endPoint: .center)
-                    .background(AppTheme.canvas).ignoresSafeArea()
+                StreamifyRootBackdrop()
             }
         }
         .task(id: requestKey) {
@@ -193,23 +197,13 @@ struct BrowseView: View {
         .refreshable { await load(first: true) }
     }
 
-    @ViewBuilder
     private var filters: some View {
-        if category {
-            VStack(spacing: 12) {
-                genreMenu.frame(maxWidth: .infinity)
-                if kind != .anime {
-                    ScrollView(.horizontal) { providerMenu }.scrollIndicators(.hidden)
-                }
+        ScrollView(.horizontal) {
+            HStack(spacing: 10) {
+                genreMenu
+                if kind != .anime { providerMenu }
             }
-        } else {
-            ScrollView(.horizontal) {
-                HStack(spacing: 10) {
-                    genreMenu
-                    if kind != .anime { providerMenu }
-                }
-            }.scrollIndicators(.hidden)
-        }
+        }.scrollIndicators(.hidden)
     }
 
     @ViewBuilder
@@ -227,16 +221,8 @@ struct BrowseView: View {
         }
     }
 
-    @ViewBuilder
     private func genreSelectLabel(_ title: String) -> some View {
-        if category {
-            HStack(spacing: 12) {
-                Text(title).font(.subheadline.weight(.semibold))
-                Image(systemName: "chevron.down").font(.caption.weight(.semibold))
-            }
-            .foregroundStyle(AppTheme.foreground).padding(.horizontal, 18).padding(.vertical, 10)
-            .frame(minHeight: 44).background(AppTheme.foreground.opacity(0.16), in: Capsule())
-        } else { StreamifySelectLabel(title: title) }
+        StreamifySelectLabel(title: title)
     }
 
     private var providerMenu: some View {
@@ -244,15 +230,6 @@ struct BrowseView: View {
             Picker("Provider", selection: $provider) { ForEach(providers, id: \.0) { Text($0.1).tag($0.0) } }
         } label: { StreamifySelectLabel(title: providers.first { $0.0 == provider }?.1 ?? "All providers") }
             .buttonStyle(.plain).accessibilityLabel("Provider, \(providers.first { $0.0 == provider }?.1 ?? "All providers")")
-    }
-
-    private var categoryTint: Color {
-        switch kind {
-        case .movie: return Color(red: 35 / 255, green: 53 / 255, blue: 45 / 255)
-        case .tv: return Color(red: 36 / 255, green: 52 / 255, blue: 78 / 255)
-        case .anime: return Color(red: 69 / 255, green: 44 / 255, blue: 78 / 255)
-        case nil: return AppTheme.canvas
-        }
     }
 
     private func load(first: Bool) async {
