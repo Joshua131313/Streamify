@@ -1,7 +1,7 @@
 import SwiftUI
 import WebKit
 
-/// The player stays 240 points high; native controls sit below YouTube's own controls.
+/// An inline muted preview, with the provider's controls inside the video.
 struct TrailerPreview: View {
     let url: URL?
     let poster: URL?
@@ -31,36 +31,11 @@ private struct TrailerPreviewPlayer: View {
     private var shouldPlay: Bool { active && visible && scenePhase == .active }
 
     var body: some View {
-        VStack(spacing: 0) {
-            ZStack {
-                RemoteArtwork(url: poster).accessibilityHidden(true)
-                TrailerWebView(videoID: videoID, active: shouldPlay, model: model)
-            }
-            .frame(height: 240).clipped()
-            HStack(spacing: 12) {
-                Text("Trailer").font(.caption.weight(.semibold)).foregroundStyle(AppTheme.muted)
-                Spacer()
-                if model.state == .ended {
-                    Button {
-                        model.replay += 1
-                    } label: {
-                        Label("Replay", systemImage: "arrow.counterclockwise").font(.subheadline.weight(.medium)).frame(minHeight: 44)
-                    }
-                    .disabled(!shouldPlay).accessibilityIdentifier("trailer-replay")
-                }
-                Button {
-                    model.muted.toggle()
-                } label: {
-                    Image(systemName: model.muted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                        .frame(width: 44, height: 44).contentShape(Rectangle())
-                }
-                .accessibilityLabel(model.muted ? "Unmute trailer" : "Mute trailer")
-                .accessibilityIdentifier("trailer-mute")
-                .disabled(!shouldPlay || !model.state.revealsPlayer)
-            }
-            .buttonStyle(.plain).foregroundStyle(AppTheme.foreground)
-            .padding(.horizontal, 12).background(AppTheme.panel)
+        ZStack {
+            RemoteArtwork(url: poster).accessibilityHidden(true)
+            TrailerWebView(videoID: videoID, active: shouldPlay, model: model)
         }
+        .frame(height: 240).clipped()
         .onAppear { visible = true }
         .onDisappear { visible = false }
     }

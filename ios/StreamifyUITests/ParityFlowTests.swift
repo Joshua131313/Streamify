@@ -104,13 +104,9 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertGreaterThan(app.buttons["close-media-details"].frame.midX, app.frame.midX, "The secondary close control belongs at the top right.")
         XCTAssertGreaterThanOrEqual(app.buttons["close-media-details"].frame.width, 44)
         XCTAssertTrue(app.buttons["download-movie:42"].waitForExistence(timeout: 8), "The tapped Home hero must open its own movie.")
-        XCTAssertTrue(app.buttons["trailer-mute"].waitForExistence(timeout: 10))
-        XCTAssertTrue(wait { self.app.buttons["trailer-mute"].isEnabled })
         XCTAssertTrue(app.webViews.staticTexts["Playing preview"].waitForExistence(timeout: 8), "The visible detail preview must actually receive the autoplay command.")
+        XCTAssertFalse(app.buttons["trailer-mute"].exists, "The autoplay preview must not add a separate controls strip.")
         capture("10 Movie autoplay preview and download action")
-        app.buttons["trailer-mute"].tap()
-        XCTAssertEqual(app.buttons["trailer-mute"].label, "Mute trailer")
-        app.buttons["trailer-mute"].tap()
         let download = app.buttons["download-movie:42"]
         reveal(download)
         download.tap()
@@ -138,7 +134,7 @@ final class ParityFlowTests: XCTestCase {
         capture("14 Cast dismissal preserves movie detail")
         // Reset scroll to the hero, then exercise UIKit's native zoom dismissal gesture.
         for _ in 0..<5 {
-            if !app.buttons["close-media-details"].exists || app.buttons["trailer-mute"].isHittable { break }
+            if !app.buttons["close-media-details"].exists || app.webViews.firstMatch.isHittable { break }
             dragVertically(up: false)
         }
         if app.buttons["close-media-details"].exists {
