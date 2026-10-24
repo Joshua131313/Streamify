@@ -189,6 +189,7 @@ struct RootView: View {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         settingsOpen = false; accountOpen = false; downloadsOpen = false; catalogSearchOpen = false
         quickActionLoading = false; quickActionError = nil; keyboardVisible = false
+        sportsSearchRequest = 0
         libraryPath = []
         navigationRevision &+= 1
         // A deliberate Home Screen destination closes an expanded overlay. An

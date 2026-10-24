@@ -108,6 +108,23 @@ final class QuickActionFlowTests: XCTestCase {
         XCTAssertFalse(app.textFields["browse-search"].exists)
         capture("Widget Sports link dismisses an existing search and opens the schedule")
 
+        app.buttons["focus-sports-search"].tap()
+        XCTAssertTrue(app.textFields["sports-dialog-search"].waitForExistence(timeout: 8))
+        app.buttons["close-sports-search"].tap()
+        XCTAssertTrue(app.buttons["sports-league-picker"].waitForExistence(timeout: 8))
+        app.buttons["tab-home"].tap()
+        XCTAssertTrue(app.buttons["tab-home"].isSelected)
+        app.open(try XCTUnwrap(URL(string: "streamify://sports")))
+        XCTAssertTrue(app.buttons["sports-league-picker"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.buttons["sports-league-picker"].isHittable)
+        XCTAssertTrue(app.buttons["tab-sports"].isSelected)
+        let replayedSearch = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            self.app.textFields["sports-dialog-search"].exists
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [replayedSearch], timeout: 2), .timedOut,
+            "A widget route must not replay an earlier, cancelled sports search request after rebuilding navigation.")
+        capture("Widget Sports link does not replay a previously cancelled sports search")
+
         let watchURL = try XCTUnwrap(URL(string: "streamify://sports/watch?league=nba&event=401020304"))
         app.open(watchURL)
         let source = app.buttons["sports-player-source-picker"]
