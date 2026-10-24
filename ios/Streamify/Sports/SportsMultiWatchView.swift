@@ -187,17 +187,29 @@ private struct SportsWatchTile: View {
                 Menu {
                     Menu {
                         ForEach(stream.availableSources) { source in
-                            Button { error = nil; selectSource(source.url) } label: {
+                            Button {
+                                AppHaptics.tap()
+                                error = nil; selectSource(source.url)
+                            } label: {
                                 if source.url == stream.url { Label(source.title, systemImage: "checkmark") }
                                 else { Text(source.title) }
-                            }
+                            }.buttonStyle(.automatic)
                         }
                     } label: { Label("Select stream", systemImage: "play.rectangle") }
-                    Button("Fullscreen", systemImage: "arrow.up.left.and.arrow.down.right") { open(playbackOrigin) }
-                    Button("Reload", systemImage: "arrow.clockwise") { revision += 1; error = nil }
+                        .buttonStyle(.plain)
+                    Button("Fullscreen", systemImage: "arrow.up.left.and.arrow.down.right") {
+                        AppHaptics.tap(); open(playbackOrigin)
+                    }.buttonStyle(.automatic)
+                    Button("Reload", systemImage: "arrow.clockwise") {
+                        AppHaptics.tap(); revision += 1; error = nil
+                    }.buttonStyle(.automatic)
                     Link(destination: stream.url) { Label("Open in browser", systemImage: "safari") }
-                    Button("Remove", systemImage: "xmark", action: remove)
+                        .buttonStyle(.automatic)
+                    Button("Remove", systemImage: "xmark") {
+                        AppHaptics.tap(); remove()
+                    }.buttonStyle(.automatic)
                 } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44) }
+                    .buttonStyle(.plain)
                     .accessibilityLabel("Options for \(stream.title)")
                     .accessibilityIdentifier("sports-tile-options-\(stream.id)")
             }.buttonStyle(HapticPlainButtonStyle()).background(AppTheme.panel)

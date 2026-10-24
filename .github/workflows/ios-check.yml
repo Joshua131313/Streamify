@@ -5,6 +5,13 @@ on:
   push:
     paths: ['ios/**', '.github/workflows/ios-*.yml']
   workflow_dispatch:
+    inputs:
+      scope:
+        description: Full regression or player interactions after the full baseline
+        type: choice
+        required: true
+        default: full
+        options: [full, player-recheck]
 permissions:
   contents: read
 concurrency:
@@ -43,7 +50,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [playback, controls, screens]
+        suite: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.scope == 'player-recheck' && '["player-recheck"]' || '["playback", "controls", "screens"]') }}
     steps:
       - uses: actions/checkout@v4
       - name: Generate Xcode project
@@ -81,6 +88,9 @@ jobs:
           xcodebuild build-for-testing "${COMMON[@]}"
           # Keep suite assignments explicit so each screen check runs once.
           case "$TEST_SUITE" in
+            player-recheck)
+              SELECTORS=(-only-testing:StreamifyTests -only-testing:StreamifyUITests/SportsPlaybackFlowTests -only-testing:StreamifyUITests/OfflinePlayerFlowTests/testCachedPosterAndActualLocalPlaybackControls -only-testing:StreamifyUITests/ParityFlowTests/testSportsChannelsAndMultiwatchPreserveSelectedServerAndTile)
+              ;;
             playback)
               SELECTORS=(-only-testing:StreamifyTests -only-testing:StreamifyUITests/SportsPlaybackFlowTests -only-testing:StreamifyUITests/DownloadIndicatorFlowTests -only-testing:StreamifyUITests/QuickActionFlowTests -only-testing:StreamifyUITests/SportsChatFlowTests -only-testing:StreamifyUITests/ControlInteractionFlowTests/testSearchFieldAndHeaderPresentFullSearchAndReturnToTheirOriginalContext -only-testing:StreamifyUITests/ControlInteractionFlowTests/testSportsSearchReturnsToItsSelectedLeaguesAndFutureDate)
               ;;
@@ -92,7 +102,8 @@ jobs:
               ;;
             *) exit 2 ;;
           esac
-          # Disjoint suites cover all 49 UI tests; every test runs once.
+          # Normal push/PR/full-dispatch suites cover all 49 UI tests once.
+          # Manual rechecks retain all unit tests and the affected player flows.
           xcodebuild test-without-building "${COMMON[@]}" "${TEST_OPTIONS[@]}" "${SELECTORS[@]}" -resultBundlePath ios/build/Streamify.xcresult
       - name: Export simulator screenshots
         if: always()

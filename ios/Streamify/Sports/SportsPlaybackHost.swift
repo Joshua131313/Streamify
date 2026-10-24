@@ -213,10 +213,14 @@ private struct SportsPlaybackOverlay: View {
                 .accessibilityLabel("Close player").accessibilityIdentifier("sports-player-close")
             Menu {
                 ForEach(Array(item.sources.enumerated()), id: \.element.id) { index, source in
-                    Button { session.selectSource(source) } label: {
+                    Button {
+                        AppHaptics.tap()
+                        session.selectSource(source)
+                    } label: {
                         if source.url == item.url { Label(source.title, systemImage: "checkmark") }
                         else { Text(source.title) }
-                    }.accessibilityIdentifier("sports-player-source-option-\(index)")
+                    }.buttonStyle(.automatic)
+                        .accessibilityIdentifier("sports-player-source-option-\(index)")
                 }
             } label: {
                 HStack(spacing: 10) {
@@ -226,7 +230,7 @@ private struct SportsPlaybackOverlay: View {
                     }.frame(maxWidth: .infinity, alignment: .leading)
                     Image(systemName: "chevron.down").font(.caption.weight(.semibold))
                 }.frame(maxWidth: .infinity, minHeight: 44).contentShape(Rectangle())
-            }.buttonStyle(HapticPlainButtonStyle()).accessibilityLabel("Switch stream source")
+            }.buttonStyle(.plain).accessibilityLabel("Switch stream source")
                 .accessibilityValue("\(item.title), \(session.sourceTitle)").accessibilityIdentifier("sports-player-source-picker")
             AirPlayButton().frame(width: 44, height: 44).accessibilityLabel("AirPlay")
             Button(action: session.requestPictureInPicture) { Image(systemName: "pip.enter").frame(width: 44, height: 44) }
