@@ -13,7 +13,7 @@ final class SportsDaySwipeGateTests: XCTestCase {
         XCTAssertNil(SportsDaySwipeGate.direction(translation: CGPoint(x: -50, y: 0)))
         XCTAssertNil(SportsDaySwipeGate.direction(translation: CGPoint(x: -100, y: 90)))
         XCTAssertNil(SportsDaySwipeGate.direction(translation: CGPoint(x: 20, y: 140)))
-        XCTAssertFalse(SportsDaySwipeGate.horizontal(CGPoint(x: .infinity, y: 0)))
-        XCTAssertFalse(SportsDaySwipeGate.horizontal(CGPoint(x: .nan, y: 0)))
+        XCTAssertFalse(SportsDaySwipeGate.horizontal(CGPoint(x: CGFloat.infinity, y: 0)))
+        XCTAssertFalse(SportsDaySwipeGate.horizontal(CGPoint(x: CGFloat.nan, y: 0)))
     }
 }
