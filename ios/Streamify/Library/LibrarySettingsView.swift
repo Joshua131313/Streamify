@@ -8,6 +8,7 @@ struct LibraryView: View {
     @State private var kind: MediaKind?
     @State private var player: WatchEntry?
     @State private var clearHistory = false
+    @State private var showDownloads = false
 
     private func matches(_ media: MediaItem) -> Bool {
         (kind == nil || media.kind == kind) && (query.isEmpty || media.title.localizedCaseInsensitiveContains(query))
@@ -16,20 +17,41 @@ struct LibraryView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                Picker("Library section", selection: $history) { Text("Saved titles").tag(false); Text("History").tag(true) }.pickerStyle(.segmented)
+                SectionHeading(title: "Made for your downtime", subtitle: "Your saved favorites and everything you’ve started.")
+                Button { showDownloads = true } label: {
+                    Label("View downloads", systemImage: "arrow.down.circle")
+                        .font(.subheadline.weight(.semibold)).padding(.horizontal, 16).frame(minHeight: 48)
+                        .streamifyControlSurface()
+                }.buttonStyle(.plain).foregroundStyle(AppTheme.foreground)
+                Label("Guest library · on this iPhone", systemImage: "iphone").font(.caption).foregroundStyle(AppTheme.muted)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        Pill(title: "Saved · \(library.saved.count)", selected: !history) { history = false }
+                        Pill(title: "History · \(library.history.count)", selected: history) { history = true }
+                    }
+                }
                 HStack {
                     Image(systemName: "magnifyingglass").foregroundStyle(AppTheme.muted)
                     TextField(history ? "Find in history" : "Find in My list", text: $query).autocorrectionDisabled().textInputAutocapitalization(.never)
                     if !query.isEmpty { Button { query = "" } label: { Image(systemName: "xmark.circle.fill") }.accessibilityLabel("Clear search") }
-                }.padding(14).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 14))
+                }.padding(14).streamifyControlSurface(cornerRadius: 14)
                 HStack {
-                    Picker("Type", selection: $kind) {
-                        Text("All titles").tag(MediaKind?.none)
-                        ForEach(MediaKind.allCases) { Text($0.title).tag(Optional($0)) }
-                    }.pickerStyle(.menu).tint(.primary)
+                    Menu {
+                        Button { kind = nil } label: {
+                            if kind == nil { Label("All titles", systemImage: "checkmark") } else { Text("All titles") }
+                        }
+                        ForEach(MediaKind.allCases) { item in
+                            Button { kind = item } label: {
+                                if kind == item { Label(item.title, systemImage: "checkmark") } else { Text(item.title) }
+                            }
+                        }
+                    } label: { StreamifySelectLabel(title: kind?.title ?? "All titles", symbol: "line.3.horizontal.decrease") }
+                        .accessibilityLabel("Filter library by type")
                     Spacer()
                     if history && !library.history.isEmpty {
-                        Button("Clear history", role: .destructive) { clearHistory = true }.font(.caption).frame(minHeight: 44)
+                        Button("Clear history", role: .destructive) { clearHistory = true }
+                            .font(.caption.weight(.semibold)).padding(.horizontal, 12).frame(minHeight: 44)
+                            .streamifyControlSurface().buttonStyle(.plain).foregroundStyle(AppTheme.accent)
                     }
                 }
                 if history {
@@ -38,20 +60,26 @@ struct LibraryView: View {
                     LazyVStack(spacing: 16) {
                         ForEach(entries) { entry in
                             HStack(spacing: 14) {
-                                NavigationLink { MediaDetailView(media: entry.media) } label: {
+                                MediaDetailLink(media: entry.media) {
                                     RemoteArtwork(url: entry.media.posterURL).frame(width: 64, height: 96).clipShape(RoundedRectangle(cornerRadius: 9))
                                 }
                                 VStack(alignment: .leading, spacing: 6) {
-                                    NavigationLink { MediaDetailView(media: entry.media) } label: { Text(entry.media.title).font(.subheadline.bold()).foregroundStyle(.primary).lineLimit(2) }
+                                    MediaDetailLink(media: entry.media) { Text(entry.media.title).font(.subheadline.bold()).foregroundStyle(.primary).lineLimit(2) }
                                     if entry.media.kind != .movie { Text("S\(entry.season) · E\(entry.episode)").font(.caption).foregroundStyle(AppTheme.muted) }
                                     Text(entry.watchedAt, style: .date).font(.caption2).foregroundStyle(AppTheme.muted)
+                                    if entry.durationSeconds > 0 {
+                                        ProgressView(value: entry.progress).tint(AppTheme.accent)
+                                        Text(entry.completed ? "Watched" : "\(Int(ceil(max(0, entry.durationSeconds - entry.positionSeconds) / 60))) min left")
+                                            .font(.caption2).foregroundStyle(AppTheme.muted)
+                                    }
                                 }.frame(maxWidth: .infinity, alignment: .leading)
                                 Button { player = entry } label: { Image(systemName: "play.circle.fill").font(.title).frame(width: 44, height: 44) }.accessibilityLabel("Resume \(entry.media.title)")
                                 Menu {
                                     Button("Remove from history", systemImage: "trash", role: .destructive) { library.removeHistory(entry) }
                                     Button(library.isSaved(entry.media) ? "Remove from My list" : "Add to My list", systemImage: "bookmark") { library.toggleSaved(entry.media) }
-                                } label: { Image(systemName: "ellipsis").frame(width: 34, height: 44) }.accessibilityLabel("Actions for \(entry.media.title)")
-                            }.padding(12).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 16))
+                                } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44) }.accessibilityLabel("Actions for \(entry.media.title)")
+                            }.padding(14).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 18))
+                                .overlay { RoundedRectangle(cornerRadius: 18).strokeBorder(AppTheme.border, lineWidth: 1) }
                         }
                     }
                 } else {
@@ -64,6 +92,8 @@ struct LibraryView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .background(AppTheme.canvas)
+        .foregroundStyle(AppTheme.foreground)
+        .sheet(isPresented: $showDownloads) { NavigationStack { DownloadsView() } }
         .fullScreenCover(item: $player) { MediaPlayerView(media: $0.media, season: $0.season, episode: $0.episode) }
         .confirmationDialog("Clear your watch history on this iPhone?", isPresented: $clearHistory, titleVisibility: .visible) {
             Button("Clear history", role: .destructive) { library.clearHistory() }
@@ -90,38 +120,39 @@ struct SettingsView: View {
         Form {
             Section("Your account") {
                 NavigationLink { AccountView() } label: { Label("Account & preferences", systemImage: "person.crop.circle") }
-            }
+            }.listRowBackground(AppTheme.panel)
             Section("Appearance") {
                 Picker("Theme", selection: $settings.appearance) { ForEach(["Dark", "Light", "System"], id: \.self) { Text($0) } }.pickerStyle(.segmented)
-            }
+            }.listRowBackground(AppTheme.panel)
             Section {
                 HStack {
                     Group {
                         if showToken { TextField("TMDB API key or read access token", text: $token) }
                         else { SecureField("TMDB API key or read access token", text: $token) }
                     }.textInputAutocapitalization(.never).autocorrectionDisabled()
-                    Button { showToken.toggle() } label: { Image(systemName: showToken ? "eye.slash" : "eye") }.accessibilityLabel(showToken ? "Hide token" : "Show token")
+                    Button { showToken.toggle() } label: { Image(systemName: showToken ? "eye.slash" : "eye").frame(width: 44, height: 44) }.accessibilityLabel(showToken ? "Hide token" : "Show token")
                 }
                 Link("Get a TMDB API key", destination: URL(string: "https://www.themoviedb.org/settings/api")!)
                 TextField("Sports backend URL (optional)", text: $api).keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
             } header: { Text("Catalog & connections") } footer: {
                 Text("Your catalog key is stored in the iPhone Keychain. Leave the sports backend empty to use ESPN directly.")
-            }
+            }.listRowBackground(AppTheme.panel)
             Section("Default video provider") {
-                Picker("Provider", selection: $serverID) { ForEach(settings.servers) { Text($0.label).tag($0.id) } }
-            }
-            if let error { Section { Text(error).foregroundStyle(AppTheme.accent) } }
-            if let credentialError = settings.credentialError { Section { Text(credentialError).foregroundStyle(AppTheme.accent) } }
+                Picker("Provider", selection: $serverID) { ForEach(settings.servers) { Text($0.label).tag($0.id) } }.tint(AppTheme.foreground)
+            }.listRowBackground(AppTheme.panel)
+            if let error { Section { Text(error).foregroundStyle(AppTheme.accent) }.listRowBackground(AppTheme.panel) }
+            if let credentialError = settings.credentialError { Section { Text(credentialError).foregroundStyle(AppTheme.accent) }.listRowBackground(AppTheme.panel) }
             Section {
-                Button("Save settings", action: save).frame(maxWidth: .infinity).fontWeight(.semibold).accessibilityIdentifier("save-settings")
-            }
+                Button("Save settings", action: save).buttonStyle(PrimaryButtonStyle()).accessibilityIdentifier("save-settings")
+            }.listRowBackground(AppTheme.panel)
             Section("About Streamify") {
+                NavigationLink { AppUpdatesView() } label: { Label("App updates", systemImage: "arrow.down.app") }
                 LabeledContent("Version", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0")
                 Text("Film and series data by TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB. Anime data by AniList. Sports data by ESPN.").font(.footnote).foregroundStyle(AppTheme.muted)
                 Text("Video is supplied by external services. A source may be unavailable; choose another provider or open it in Safari.").font(.footnote).foregroundStyle(AppTheme.muted)
-            }
+            }.listRowBackground(AppTheme.panel)
         }
-        .scrollContentBackground(.hidden).background(AppTheme.canvas)
+        .scrollContentBackground(.hidden).background(AppTheme.canvas).foregroundStyle(AppTheme.foreground)
         .navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         .onAppear { token = settings.tmdbToken; api = settings.apiBase; serverID = settings.serverID }
@@ -161,22 +192,24 @@ struct AccountView: View {
                         accountCount(library.followedTeams.count, "Teams")
                     }.padding(.top, 10)
                 }.frame(maxWidth: .infinity).padding(24).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 22))
+                    .overlay { RoundedRectangle(cornerRadius: 22).strokeBorder(AppTheme.border, lineWidth: 1) }
                 StateMessage(symbol: "iphone", title: "Saved on this iPhone", message: "Account sign-in is not configured in this build. Your list, history, teams, and preferences are stored on this device.")
                 NavigationLink { PreferencesView() } label: {
                     HStack {
                         Label("Your favorite genres", systemImage: "slider.horizontal.3").font(.headline)
                         Spacer(); Image(systemName: "chevron.right")
                     }.padding(20).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 16))
+                        .overlay { RoundedRectangle(cornerRadius: 16).strokeBorder(AppTheme.border, lineWidth: 1) }
                 }.buttonStyle(.plain)
                 Text("Follow teams from Sports to find their games in the Following filter.").font(.subheadline).foregroundStyle(AppTheme.muted)
             }.padding(20)
         }
-        .background(AppTheme.canvas).navigationTitle("Account").navigationBarTitleDisplayMode(.inline)
+        .background(AppTheme.canvas).foregroundStyle(AppTheme.foreground).navigationTitle("Account").navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
     }
 
     private func accountCount(_ count: Int, _ title: String) -> some View {
-        VStack(spacing: 4) { Text(String(count)).font(.title2.bold()); Text(title).font(.caption).foregroundStyle(AppTheme.muted) }
+        VStack(spacing: 4) { Text(String(count)).font(.title2.bold()); Text(title).font(.caption).foregroundStyle(AppTheme.muted) }.frame(maxWidth: .infinity)
     }
 }
 

@@ -13,7 +13,7 @@ concurrency:
 jobs:
   simulator:
     runs-on: macos-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - name: Generate Xcode project
@@ -27,7 +27,7 @@ jobs:
           echo "IOS_SIMULATOR_ID=$DEVICE_ID" >> "$GITHUB_ENV"
       - name: Build and test native app
         run: |
-          xcodebuild test -project ios/Streamify.xcodeproj -scheme Streamify -configuration Debug -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_ID" -resultBundlePath ios/build/Streamify.xcresult CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY='-'
+          xcodebuild test -project ios/Streamify.xcodeproj -scheme Streamify -configuration Debug -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_ID" -parallel-testing-enabled NO -resultBundlePath ios/build/Streamify.xcresult CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY='-'
       - name: Export simulator screenshots
         if: always()
         continue-on-error: true

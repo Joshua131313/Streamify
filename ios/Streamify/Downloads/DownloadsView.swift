@@ -17,23 +17,23 @@ struct DownloadsView: View {
             LazyVStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Take your favorites with you.").font(.title2.bold())
-                    Text("Save a direct video link or import a video from Files to watch offline.").font(.subheadline).foregroundStyle(AppTheme.muted)
+                    Text("Tap Download on a movie or episode to save it here. You can also add a video link or import from Files.").font(.subheadline).foregroundStyle(AppTheme.muted)
                     HStack(spacing: 12) {
-                        Button { showAdd = true } label: { Label("Add link", systemImage: "link").frame(maxWidth: .infinity, minHeight: 32) }.buttonStyle(.borderedProminent).tint(AppTheme.accent)
-                        Button { showImporter = true } label: { Label("Import", systemImage: "folder").frame(maxWidth: .infinity, minHeight: 32) }.buttonStyle(.bordered)
+                        Button { showAdd = true } label: { Label("Add link", systemImage: "link").frame(maxWidth: .infinity) }.buttonStyle(PrimaryButtonStyle())
+                        Button { showImporter = true } label: { Label("Import", systemImage: "folder").frame(maxWidth: .infinity) }.buttonStyle(SecondaryButtonStyle())
                     }.padding(.top, 8)
                 }
                 if importing { ProgressView("Importing video…").frame(maxWidth: .infinity).padding() }
                 if let error { InlineError(message: error, retry: { self.error = nil; showImporter = true }) }
                 if let storageError = downloads.storageError { Text(storageError).font(.caption).foregroundStyle(AppTheme.accent) }
                 if downloads.items.isEmpty && !importing {
-                    StateMessage(symbol: "arrow.down.circle", title: "Your offline collection", message: "Add a direct HTTPS MP4, M4V, or MOV link, or import a video from Files. Saved videos appear here and play without an internet connection.", actionTitle: "Add video link", action: { showAdd = true })
+                    StateMessage(symbol: "arrow.down.circle", title: "Your offline collection", message: "Open a movie or show, then tap Download below Watch. Choose an episode and quality; your saved videos appear here for offline viewing.", actionTitle: "Add video link", action: { showAdd = true })
                 }
                 ForEach(downloads.items) { item in DownloadRow(item: item, play: { selected = item }) }
                 if !completed.isEmpty {
                     Label("\(completed.count) video\(completed.count == 1 ? "" : "s") ready offline", systemImage: "checkmark.circle").font(.caption).foregroundStyle(AppTheme.muted)
                 }
-                Text("Downloads support direct video files. Embedded movie and sports providers do not expose downloadable files.").font(.caption).foregroundStyle(AppTheme.muted)
+                Text("Movie and episode downloads depend on source availability. Streaming-only titles, anime, and live sports cannot be saved for offline viewing.").font(.caption).foregroundStyle(AppTheme.muted)
             }.padding(20).padding(.bottom, 24)
         }.background(AppTheme.canvas)
             .navigationTitle("Downloads").navigationBarTitleDisplayMode(.inline)
@@ -124,10 +124,10 @@ private struct AddDownloadView: View {
                 TextField("Title (optional)", text: $title)
                 TextField("https://example.com/video.mp4", text: $address, axis: .vertical)
                     .keyboardType(.URL).textContentType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
-            }
+            }.listRowBackground(AppTheme.panel)
             Section {
                 Text("Use a direct HTTPS link to an MP4, M4V, or MOV file. Downloads can continue in the background; iOS manages when transfers run.").font(.footnote).foregroundStyle(AppTheme.muted)
-            }
+            }.listRowBackground(AppTheme.panel)
             if let error { Section { Text(error).foregroundStyle(AppTheme.accent) } }
             Section {
                 Button {
@@ -136,7 +136,8 @@ private struct AddDownloadView: View {
                 } label: { Label("Start download", systemImage: "arrow.down.circle.fill").frame(maxWidth: .infinity, minHeight: 32) }
                     .disabled(address.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-        }.navigationTitle("Add video").navigationBarTitleDisplayMode(.inline)
+        }.scrollContentBackground(.hidden).background(AppTheme.canvas)
+            .navigationTitle("Add video").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
     }
 }

@@ -42,17 +42,12 @@ struct SportsChannelsView: View {
             ForEach(providers) { provider in
                 SportsPanel {
                     Text(provider.name).font(.headline)
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text("Channel").font(.caption).foregroundStyle(AppTheme.muted)
-                            TextField(provider.initial, text: Binding(get: { numbers[provider.id] ?? provider.initial }, set: { numbers[provider.id] = String($0.filter(\.isNumber).prefix(5)) }))
-                                .keyboardType(.numberPad).textFieldStyle(.roundedBorder).accessibilityLabel("\(provider.name) channel number")
+                    ViewThatFits(in: .horizontal) {
+                        HStack(alignment: .bottom, spacing: 12) {
+                            channelField(provider)
+                            watchButton(provider)
                         }
-                        Button {
-                            let channel = numbers[provider.id] ?? provider.initial
-                            if let url = sportsHTTPSURL(provider.base + channel + provider.suffix) { selected = SportsStream(title: "\(provider.name) · Channel \(channel)", url: url) }
-                        } label: { Label("Watch", systemImage: "play.fill").font(.subheadline.weight(.semibold)).frame(minHeight: 28) }
-                            .buttonStyle(.borderedProminent).tint(AppTheme.accent).disabled((numbers[provider.id] ?? provider.initial).isEmpty)
+                        VStack(alignment: .leading, spacing: 12) { channelField(provider); watchButton(provider) }
                     }
                 }
             }
@@ -69,7 +64,28 @@ struct SportsChannelsView: View {
                     }.buttonStyle(.plain)
                 }
             }
-        }.padding(.horizontal, 20)
+        }.padding(.horizontal, 20).foregroundStyle(AppTheme.foreground)
             .fullScreenCover(item: $selected) { stream in ProviderPlayerView(title: stream.title, url: stream.url) }
+    }
+
+    private func channelField(_ provider: SportsChannelProvider) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text("Channel").font(.caption).foregroundStyle(AppTheme.muted)
+            TextField(provider.initial, text: Binding(get: { numbers[provider.id] ?? provider.initial }, set: { numbers[provider.id] = String($0.filter(\.isNumber).prefix(5)) }))
+                .keyboardType(.numberPad).font(.subheadline).padding(.horizontal, 14).frame(minHeight: 48)
+                .streamifyControlSurface().accessibilityLabel("\(provider.name) channel number")
+        }
+    }
+
+    private func watchButton(_ provider: SportsChannelProvider) -> some View {
+        Button {
+            let channel = numbers[provider.id] ?? provider.initial
+            if let url = sportsHTTPSURL(provider.base + channel + provider.suffix) { selected = SportsStream(title: "\(provider.name) · Channel \(channel)", url: url) }
+        } label: {
+            Label("Watch", systemImage: "play.fill").font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 18).frame(minHeight: 48).foregroundStyle(Color.black)
+                .background(Color.white, in: RoundedRectangle(cornerRadius: 12))
+        }.buttonStyle(.plain).disabled((numbers[provider.id] ?? provider.initial).isEmpty)
+            .opacity((numbers[provider.id] ?? provider.initial).isEmpty ? 0.45 : 1)
     }
 }

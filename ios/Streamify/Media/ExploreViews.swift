@@ -12,8 +12,7 @@ struct CollectionsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Text("Your next movie marathon.").font(.title.bold())
-                Text("Explore familiar worlds, one collection at a time.").foregroundStyle(AppTheme.muted)
+                SectionHeading(title: "A whole world to explore", subtitle: "Discover the stories that belong together.")
                 Menu {
                     ForEach(genres, id: \.0) { id, name in
                         Button { genre = id } label: {
@@ -21,11 +20,9 @@ struct CollectionsView: View {
                         }
                     }
                 } label: {
-                    Label(genres.first { $0.0 == genre }?.1 ?? "All genres", systemImage: "line.3.horizontal.decrease")
-                        .font(.subheadline.weight(.semibold)).padding(.horizontal, 16).frame(minHeight: 44)
-                        .background(AppTheme.panel, in: Capsule())
-                }.tint(.primary)
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 155), spacing: 14)], spacing: 14) {
+                    StreamifySelectLabel(title: genres.first { $0.0 == genre }?.1 ?? "All genres", symbol: "line.3.horizontal.decrease")
+                }.tint(AppTheme.foreground).accessibilityLabel("Filter collections by genre")
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 240), spacing: 16)], spacing: 24) {
                     ForEach(collections) { collection in
                         NavigationLink { CollectionDetailView(collection: collection) } label: {
                             CollectionArtwork(collection: collection).frame(height: 180)
@@ -37,8 +34,9 @@ struct CollectionsView: View {
                 }
             }.padding(20)
         }
-        .background(AppTheme.canvas)
+        .background(AppTheme.canvas).foregroundStyle(AppTheme.foreground)
         .navigationTitle("Collections").navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
         .searchable(text: $search, prompt: "Find a collection")
     }
 }
@@ -57,6 +55,7 @@ struct CollectionArtwork: View {
                 }.foregroundStyle(.white).padding(16)
             }
         }.clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay { RoundedRectangle(cornerRadius: 16).strokeBorder(AppTheme.border, lineWidth: 1) }
     }
 }
 
@@ -74,11 +73,7 @@ struct CollectionDetailView: View {
                 if let details {
                     Text("\(details.movies.count) movies · Release order").font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.accent)
                     if !details.overview.isEmpty { Text(details.overview).foregroundStyle(AppTheme.muted) }
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 135), spacing: 14)], alignment: .leading, spacing: 24) {
-                        ForEach(details.movies, id: \.key) { media in
-                            NavigationLink { MediaDetailView(media: media) } label: { ExplorePoster(media: media) }.buttonStyle(.plain)
-                        }
-                    }
+                    PosterGrid(items: details.movies)
                     if details.movies.isEmpty {
                         StateMessage(symbol: "film", title: "No movies yet", message: "Released movies will appear when available in the catalog.")
                     }
@@ -89,7 +84,8 @@ struct CollectionDetailView: View {
                 }
             }.padding(20)
         }
-        .background(AppTheme.canvas).navigationTitle(collection.name).navigationBarTitleDisplayMode(.inline)
+        .background(AppTheme.canvas).foregroundStyle(AppTheme.foreground).navigationTitle(collection.name).navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
         .task(id: "\(collection.id):\(revision):\(settings.tmdbToken)") {
             loading = true; error = nil
             do {
@@ -98,20 +94,6 @@ struct CollectionDetailView: View {
             } catch is CancellationError { return }
             catch { if !Task.isCancelled { self.error = error.localizedDescription } }
             if !Task.isCancelled { loading = false }
-        }
-    }
-}
-
-private struct ExplorePoster: View {
-    let media: MediaItem
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Color.clear.aspectRatio(2 / 3, contentMode: .fit)
-                .overlay { RemoteArtwork(url: media.posterURL) }.clipped()
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            Text(media.title).font(.subheadline.weight(.semibold)).lineLimit(2)
-            Text([media.year, media.kind.singular].filter { !$0.isEmpty }.joined(separator: " · "))
-                .font(.caption).foregroundStyle(AppTheme.muted)
         }
     }
 }
@@ -133,11 +115,13 @@ struct PersonDetailView: View {
                             .clipped().clipShape(RoundedRectangle(cornerRadius: 18))
                         Text(person.name).font(.largeTitle.bold())
                         let facts = [person.birthday, person.birthplace].filter { !$0.isEmpty }.joined(separator: " · ")
-                        if !facts.isEmpty { Text(facts).font(.subheadline).foregroundStyle(AppTheme.accent) }
+                        if !facts.isEmpty { Text(facts).font(.subheadline).foregroundStyle(AppTheme.muted) }
                         Text(person.biography.isEmpty ? "No biography available." : person.biography)
                             .foregroundStyle(AppTheme.muted).lineLimit(expanded ? nil : 12).textSelection(.enabled)
                         if !person.biography.isEmpty {
-                            Button(expanded ? "Read less" : "Read more") { expanded.toggle() }.font(.subheadline.weight(.semibold)).tint(AppTheme.accent)
+                            Button(expanded ? "Read less" : "Read more") { expanded.toggle() }
+                                .font(.subheadline.weight(.semibold)).padding(.horizontal, 16).frame(minHeight: 44)
+                                .streamifyControlSurface().buttonStyle(.plain)
                         }
                     }.padding(.horizontal, 20)
                     if !person.credits.isEmpty { DetailMediaRail(title: "Known for", items: person.credits) }
@@ -148,7 +132,7 @@ struct PersonDetailView: View {
                 }
             }.padding(.vertical, 24)
         }
-        .background(AppTheme.canvas).navigationTitle("Cast profile").navigationBarTitleDisplayMode(.inline)
+        .background(AppTheme.canvas).foregroundStyle(AppTheme.foreground).navigationTitle("Cast profile").navigationBarTitleDisplayMode(.inline)
         .task(id: "\(id):\(revision):\(settings.tmdbToken)") {
             loading = true; error = nil
             do {

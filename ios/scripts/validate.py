@@ -43,6 +43,9 @@ if icon.is_file():
 else:
     errors.append("App icon missing.")
 swift_files = sorted((ios / "Streamify").rglob("*.swift")) + sorted((ios / "StreamifyTests").rglob("*.swift")) + sorted((ios / "StreamifyUITests").rglob("*.swift"))
+for path in swift_files:
+    if b"\x00" in path.read_bytes():
+        errors.append(f"{path.relative_to(ios)}: source contains NUL bytes")
 if args.syntax:
     sys.path.insert(0, str(ios / ".tools"))
     from tree_sitter import Language, Parser

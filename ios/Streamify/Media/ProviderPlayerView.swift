@@ -228,6 +228,12 @@ private struct PlayerWebView: UIViewRepresentable {
         webView.stopLoading()
         // Defer bindings until after SwiftUI's representable update cycle.
         DispatchQueue.main.async { loading = true; error = nil }
+        #if DEBUG
+        if PreviewFixtures.enabled {
+            webView.loadHTMLString(PreviewFixtures.playerHTML, baseURL: url)
+            return
+        }
+        #endif
         if direct {
             var request = URLRequest(url: url)
             if let referer, secureURL(referer.absoluteString) != nil { request.setValue(referer.absoluteString, forHTTPHeaderField: "Referer") }

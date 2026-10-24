@@ -11,13 +11,12 @@ private final class HomeModel: ObservableObject {
     @Published var error: String?
     private var requestID = UUID()
 
-    func load(token: String) async {
+    func load(client: TMDBClient) async {
         let request = UUID(); requestID = request
         loading = true
         error = nil
         defer { if requestID == request { loading = false } }
-        guard !token.isEmpty else { trending = []; movies = []; shows = []; return }
-        let client = TMDBClient(token: token)
+        guard !client.token.isEmpty else { trending = []; movies = []; shows = []; return }
         do {
             async let trendingPage = client.catalog(path: "trending/all/day")
             async let moviePage = client.catalog(path: "movie/top_rated", kind: .movie)
@@ -45,14 +44,14 @@ struct HomeView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 28) {
+            LazyVStack(alignment: .leading, spacing: 20) {
                 ScrollView(.horizontal) {
-                    HStack(spacing: 9) {
+                    HStack(spacing: 8) {
                         categoryLink("Shows", kind: .tv)
                         categoryLink("Movies", kind: .movie)
                         categoryLink("Anime", kind: .anime)
-                        Pill(title: "Live sports", selected: false, action: openSports)
-                    }.padding(.horizontal, 20)
+                        Button(action: openSports) { shortcutLabel("Live sports") }.buttonStyle(.plain)
+                    }.padding(.horizontal, 16)
                 }.scrollIndicators(.hidden)
 
                 if settings.tmdbToken.isEmpty {
@@ -74,16 +73,16 @@ struct HomeView: View {
                             }
                         }
                 }
-                if !library.history.isEmpty { ContinueWatchingRail() }
+                if library.history.contains(where: { !$0.completed }) { ContinueWatchingRail() }
                 Button(action: openSports) {
-                    HStack(spacing: 16) {
-                        Image(systemName: "basketball.fill").font(.title).foregroundStyle(AppTheme.accent)
+                    HStack(spacing: 14) {
+                        Image(systemName: "basketball.fill").font(.title2).foregroundStyle(AppTheme.accent)
                         VStack(alignment: .leading, spacing: 4) {
                             Text("The game is on.").font(.headline)
                             Text("Live scores, schedules & streams").font(.caption).foregroundStyle(AppTheme.muted)
                         }.frame(maxWidth: .infinity, alignment: .leading)
                         Image(systemName: "arrow.right").font(.headline)
-                    }.padding(20).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 18))
+                    }.padding(18).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 16))
                 }.buttonStyle(.plain).padding(.horizontal, 20)
 
                 PosterRail(title: "TOP 10 Today", items: Array(model.trending.prefix(10)), ranked: true)
@@ -97,50 +96,60 @@ struct HomeView: View {
                 }
                 collections
                 Text("Film and series data by TMDB · Anime by AniList")
-                    .font(.caption2).foregroundStyle(AppTheme.muted).padding(.horizontal, 20)
-            }.padding(.top, 16).padding(.bottom, 24)
+                    .font(.caption2).foregroundStyle(AppTheme.muted).padding(.horizontal, 16)
+            }.padding(.top, 4).padding(.bottom, 24)
         }
+        .accessibilityIdentifier("home-catalog")
         .coordinateSpace(name: "home-scroll")
         .simultaneousGesture(DragGesture(minimumDistance: 5).onChanged { _ in interacting = true }.onEnded { _ in interacting = false })
         .onPreferenceChange(HeroPositionKey.self) { frame in
             carouselVisible = frame.maxY > frame.height * 0.7 && frame.minY < 250
         }
-        .background {
-            LinearGradient(colors: [Color.purple.opacity(0.12), AppTheme.canvas], startPoint: .top, endPoint: .center).ignoresSafeArea()
-        }
-        .task(id: settings.tmdbToken + String(retry)) { await model.load(token: settings.tmdbToken) }
-        .refreshable { await model.load(token: settings.tmdbToken) }
+        .background(AppTheme.canvas)
+        .task(id: settings.tmdbToken + String(retry)) { await model.load(client: settings.client) }
+        .refreshable { await model.load(client: settings.client) }
     }
 
     private func categoryLink(_ title: String, kind: MediaKind) -> some View {
         NavigationLink { CategoryView(kind: kind) } label: {
-            Text(title).font(.subheadline.weight(.semibold)).padding(.horizontal, 18).frame(minHeight: 44)
-                .background(Color.primary.opacity(0.09), in: Capsule())
+            shortcutLabel(title)
         }.buttonStyle(.plain)
     }
 
+    private func shortcutLabel(_ title: String) -> some View {
+        Text(title).font(.subheadline.weight(.semibold)).fixedSize(horizontal: true, vertical: false)
+            .padding(.horizontal, 17).padding(.vertical, 10)
+            .foregroundStyle(AppTheme.foreground)
+            .background(AppTheme.foreground.opacity(0.12), in: Capsule())
+            .overlay { Capsule().strokeBorder(AppTheme.foreground.opacity(0.12), lineWidth: 0.5) }
+            .frame(minHeight: 48)
+            .contentShape(Capsule())
+    }
+
     private var collections: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
                 SectionHeading(title: "Collections")
                 NavigationLink { CollectionsView() } label: {
-                    Text("Explore all").font(.caption.weight(.semibold)).fixedSize()
-                    Image(systemName: "arrow.up.right").font(.caption2)
-                }
-            }.padding(.horizontal, 20)
+                    HStack(spacing: 4) {
+                        Text("Explore all").font(.caption2.weight(.medium)).fixedSize()
+                        Image(systemName: "arrow.right").font(.caption2)
+                    }.foregroundStyle(AppTheme.muted).frame(minHeight: 44)
+                }.buttonStyle(.plain)
+            }.padding(.horizontal, 16)
             ScrollView(.horizontal) {
-                HStack(spacing: 12) {
+                HStack(spacing: 10) {
                     ForEach(FilmCollection.bundled.filter(\.featured)) { collection in
                         NavigationLink { CollectionDetailView(collection: collection) } label: {
-                            Image(collection.assetName).resizable().scaledToFill().frame(width: 220, height: 125)
+                            Image(collection.assetName).resizable().scaledToFill().frame(width: 260, height: 180)
                                 .overlay(alignment: .bottomLeading) {
-                                    Text(collection.name).font(.headline).foregroundStyle(.white).padding(14)
+                                    Text(collection.name).font(.title3.bold()).foregroundStyle(.white).padding(20)
                                         .frame(maxWidth: .infinity, alignment: .leading)
-                                        .background(LinearGradient(colors: [.clear, .black.opacity(0.8)], startPoint: .top, endPoint: .bottom))
-                                }.clipShape(RoundedRectangle(cornerRadius: 14))
+                                        .background(LinearGradient(colors: [.clear, .black.opacity(0.9)], startPoint: .top, endPoint: .bottom))
+                                }.clipShape(RoundedRectangle(cornerRadius: 16))
                         }.buttonStyle(.plain)
                     }
-                }.padding(.horizontal, 20)
+                }.padding(.horizontal, 16)
             }.scrollIndicators(.hidden)
         }
     }
@@ -156,45 +165,69 @@ struct FeaturedCarousel: View {
     var visible = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @EnvironmentObject private var library: LibraryStore
+    @ScaledMetric(relativeTo: .title2) private var heroTitleSize: CGFloat = 24
     @State private var index = 0
     @State private var paused = false
     @State private var voiceOver = UIAccessibility.isVoiceOverRunning
     @State private var player: MediaItem?
+    @State private var detailsPresented = false
+    @State private var appeared = false
+    @State private var dragging = false
+    @State private var cycleStartedAt: Date?
+    @State private var settledAfter = Date.distantPast
+    @State private var cycleRevision = 0
+    private let slideDuration: TimeInterval = 6.5
+    private let transitionDuration: TimeInterval = 0.55
 
-    private var running: Bool { visible && !paused && !reduceMotion && !voiceOver && scenePhase == .active && player == nil }
+    private var running: Bool {
+        appeared && visible && !paused && !dragging && !reduceMotion && !voiceOver &&
+        scenePhase == .active && player == nil && !detailsPresented && items.count > 1
+    }
+    private var cycleKey: String { "\(index)-\(running)-\(cycleRevision)-\(items.map(\.key).joined(separator: "|"))" }
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 4) {
             TabView(selection: $index) {
                 ForEach(Array(items.enumerated()), id: \.element.key) { offset, media in
-                    hero(media).padding(.horizontal, 20).tag(offset)
+                    hero(media).tag(offset)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .aspectRatio(0.82, contentMode: .fit).frame(maxHeight: 620)
-            HStack(spacing: 3) {
-                ForEach(items.indices, id: \.self) { offset in
-                    Button { index = offset } label: {
-                        Capsule().fill(index == offset ? Color.primary : Color.primary.opacity(0.25))
-                            .frame(width: index == offset ? 25 : 6, height: 4).frame(width: 38, height: 44)
-                    }.buttonStyle(.plain).accessibilityLabel("Show \(items[offset].title)")
-                        .accessibilityAddTraits(index == offset ? .isSelected : [])
-                }
-                Button { paused.toggle() } label: {
-                    Image(systemName: paused ? "play.fill" : "pause.fill").font(.caption.bold()).frame(width: 44, height: 44)
-                }.buttonStyle(.plain).accessibilityLabel(paused ? "Resume carousel" : "Pause carousel")
-            }.foregroundStyle(AppTheme.muted)
+            .aspectRatio(horizontalSizeClass == .regular ? 16.0 / 9.0 : 0.82, contentMode: .fit)
+            .frame(maxHeight: horizontalSizeClass == .regular ? 320 : 620)
+            .padding(.horizontal, 16)
+            .accessibilityIdentifier("hero-carousel")
+            .simultaneousGesture(DragGesture(minimumDistance: 5)
+                .onChanged { _ in dragging = true }
+                .onEnded { _ in dragging = false; resetCycle(after: transitionDuration) })
+            if items.count > 1 { indicators }
+        }
+        .onAppear { appeared = true }
+        .onDisappear { appeared = false; cycleStartedAt = nil }
+        .onChange(of: index) { _, _ in resetCycle(after: transitionDuration) }
+        .onChange(of: items.map(\.key)) { _, keys in
+            index = min(index, max(0, keys.count - 1))
+            resetCycle()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIAccessibility.voiceOverStatusDidChangeNotification)) { _ in
             voiceOver = UIAccessibility.isVoiceOverRunning
         }
-        .task(id: "\(index)-\(running)") {
-            guard running && items.count > 1 else { return }
+        .task(id: cycleKey) {
+            cycleStartedAt = nil
+            guard running else { return }
             do {
-                try await Task.sleep(for: .seconds(6.5))
+                // A swipe or a programmatic page change finishes before the next timed cycle begins.
+                let settling = settledAfter.timeIntervalSinceNow
+                if settling > 0 { try await Task.sleep(for: .seconds(settling)) }
                 try Task.checkCancellation()
-                withAnimation(.easeInOut(duration: 0.45)) { index = (index + 1) % items.count }
+                guard running else { return }
+                cycleStartedAt = Date()
+                try await Task.sleep(for: .seconds(slideDuration))
+                try Task.checkCancellation()
+                guard running else { return }
+                withAnimation(.easeInOut(duration: transitionDuration)) { index = (index + 1) % items.count }
             } catch { }
         }
         .fullScreenCover(item: $player) { media in
@@ -203,36 +236,99 @@ struct FeaturedCarousel: View {
         }
     }
 
+    private var indicators: some View {
+        // Only this small row redraws on the display timeline; the artwork and feed remain unchanged.
+        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: !running)) { context in
+            let progress = cycleProgress(at: context.date)
+            HStack(spacing: 0) {
+                ForEach(items.indices, id: \.self) { offset in
+                    let selected = offset == index
+                    Button { selectSlide(offset) } label: {
+                        Capsule().fill(AppTheme.muted.opacity(0.3))
+                            .overlay(alignment: .leading) {
+                                if selected {
+                                    GeometryReader { geometry in
+                                        AppTheme.foreground.frame(width: geometry.size.width * (running ? max(0.12, progress) : 1))
+                                    }
+                                }
+                            }
+                            .frame(width: selected ? 28 : 6, height: 4)
+                            .clipShape(Capsule())
+                            .animation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.9), value: selected)
+                            .frame(width: 48, height: 48)
+                    }
+                    .buttonStyle(.plain).accessibilityLabel("Show \(items[offset].title)")
+                    .accessibilityValue(selected ? (running ? "\(Int(progress * 100)) percent, current slide" : "Current slide, automatic playback paused") : "Not selected")
+                    .accessibilityIdentifier(selected ? "hero-main-progress" : "hero-slide-indicator-\(offset)")
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                }
+                if !voiceOver {
+                    Button { paused.toggle() } label: {
+                        Image(systemName: paused ? "play.fill" : "pause.fill")
+                            .font(.body).frame(width: 48, height: 48)
+                    }
+                    .buttonStyle(.plain).accessibilityLabel(paused ? "Resume carousel" : "Pause carousel")
+                    .accessibilityValue(paused ? "Paused" : running ? "Playing" : "Automatic playback paused")
+                    .accessibilityIdentifier("hero-carousel-pause")
+                }
+            }.foregroundStyle(AppTheme.muted)
+        }
+    }
+
+    private func cycleProgress(at date: Date) -> Double {
+        guard let cycleStartedAt, running else { return 0 }
+        return min(1, max(0, date.timeIntervalSince(cycleStartedAt) / slideDuration))
+    }
+
+    private func resetCycle(after delay: TimeInterval = 0) {
+        cycleStartedAt = nil
+        settledAfter = Date().addingTimeInterval(reduceMotion ? 0 : delay)
+        cycleRevision += 1
+    }
+
+    private func selectSlide(_ offset: Int) {
+        guard items.indices.contains(offset) else { return }
+        resetCycle(after: transitionDuration)
+        if reduceMotion { index = offset }
+        else { withAnimation(.easeInOut(duration: transitionDuration)) { index = offset } }
+    }
+
     private func hero(_ media: MediaItem) -> some View {
         ZStack(alignment: .bottomLeading) {
-            RemoteArtwork(url: media.posterURL ?? media.backdropURL)
-            LinearGradient(stops: [.init(color: .clear, location: 0.35), .init(color: .black.opacity(0.28), location: 0.58),
-                                   .init(color: Color(red: 0.10, green: 0.08, blue: 0.12), location: 1)], startPoint: .top, endPoint: .bottom)
-            VStack(alignment: .leading, spacing: 14) {
-                Text(media.title).font(.title.bold()).lineLimit(2)
-                Text([media.year, media.kind.singular, String(format: "★ %.1f", media.rating)].filter { !$0.isEmpty }.joined(separator: "  ·  "))
-                    .font(.subheadline.weight(.medium)).foregroundStyle(.white.opacity(0.8))
-                HStack(spacing: 10) {
-                    Button { player = media } label: {
-                        Label(media.kind == .movie ? "Play movie" : "Play show", systemImage: "play.fill")
-                            .font(.subheadline.bold()).frame(maxWidth: .infinity).frame(minHeight: 48)
-                            .foregroundStyle(.black).background(.white, in: Capsule())
+            MediaDetailLink(media: media, onPresentationChanged: { detailsPresented = $0 }) {
+                RemoteArtwork(url: horizontalSizeClass == .regular ? media.backdropURL : media.posterURL)
+                    .overlay {
+                        LinearGradient(stops: [.init(color: .clear, location: 0.45),
+                                               .init(color: Color(red: 27 / 255, green: 23 / 255, blue: 32 / 255).opacity(0.7), location: 0.8),
+                                               .init(color: Color(red: 27 / 255, green: 23 / 255, blue: 32 / 255), location: 1)], startPoint: .top, endPoint: .bottom)
                     }
+            }.accessibilityLabel("Details for \(media.title)")
+            VStack(alignment: .leading, spacing: 14) {
+                Text(media.title).font(.system(size: heroTitleSize, weight: .bold)).lineLimit(2).allowsHitTesting(false)
+                Text([media.year, media.kind.singular, String(format: "★ %.1f", media.rating)].filter { !$0.isEmpty }.joined(separator: "  ·  "))
+                    .font(.caption.weight(.medium)).foregroundStyle(Color(red: 212 / 255, green: 212 / 255, blue: 216 / 255))
+                    .allowsHitTesting(false)
+                HStack(spacing: 12) {
+                    Button { player = media } label: {
+                        Label("Watch", systemImage: "play.fill")
+                            .font(.subheadline.bold()).frame(maxWidth: .infinity).frame(minHeight: 44)
+                            .foregroundStyle(.black).background(.white, in: Capsule())
+                    }.accessibilityLabel("Watch \(media.title)")
                     Button { library.toggleSaved(media) } label: {
-                        Label("My list", systemImage: library.isSaved(media) ? "checkmark" : "plus")
-                            .font(.subheadline.bold()).frame(maxWidth: .infinity).frame(minHeight: 48)
-                            .background(.white.opacity(0.18), in: Capsule())
+                        Label(library.isSaved(media) ? "Added" : "My list", systemImage: library.isSaved(media) ? "checkmark" : "plus")
+                            .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity).frame(minHeight: 44)
+                            .background(.white.opacity(0.24), in: Capsule())
+                            .overlay { Capsule().strokeBorder(.white.opacity(0.15), lineWidth: 0.7) }
                     }.accessibilityLabel(library.isSaved(media) ? "Remove \(media.title) from My list" : "Save \(media.title)")
-                }.buttonStyle(.plain)
-            }.padding(18).foregroundStyle(.white)
+                }.buttonStyle(.plain).padding(.top, 6)
+            }.padding(14).foregroundStyle(.white)
         }
         .overlay(alignment: .topTrailing) {
-            NavigationLink { MediaDetailView(media: media) } label: {
-                Image(systemName: "info.circle.fill").font(.title3).foregroundStyle(.white).frame(width: 48, height: 48)
-            }.accessibilityLabel("Details for \(media.title)")
+            Image(systemName: "info.circle").font(.title3).foregroundStyle(.white).frame(width: 48, height: 48)
+                .padding(6).allowsHitTesting(false).accessibilityHidden(true)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .overlay { RoundedRectangle(cornerRadius: 20).stroke(.white.opacity(0.18), lineWidth: 1) }
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay { RoundedRectangle(cornerRadius: 16).strokeBorder(.white.opacity(0.16), lineWidth: 1) }
     }
 }
 
@@ -241,8 +337,8 @@ private struct ContinueWatchingRail: View {
     @State private var selected: WatchEntry?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            SectionHeading(title: "Continue watching").padding(.horizontal, 20)
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeading(title: "Continue watching").padding(.horizontal, 16)
             ScrollView(.horizontal) {
                 HStack(alignment: .top, spacing: 12) {
                     ForEach(Array(library.history.filter { !$0.completed }.prefix(12))) { entry in
@@ -250,23 +346,44 @@ private struct ContinueWatchingRail: View {
                             Button { selected = entry } label: {
                                 RemoteArtwork(url: entry.media.backdropURL ?? entry.media.posterURL)
                                     .aspectRatio(16.0 / 9.0, contentMode: .fit)
-                                    .overlay { Image(systemName: "play.circle.fill").font(.largeTitle).foregroundStyle(.white).shadow(radius: 6) }
+                                    .overlay {
+                                        Image(systemName: "play.fill").font(.body)
+                                            .frame(width: 38, height: 38).foregroundStyle(.white)
+                                            .background(.black.opacity(0.65), in: Circle())
+                                            .overlay { Circle().strokeBorder(.white.opacity(0.8), lineWidth: 1) }
+                                    }
+                                    .overlay(alignment: .bottom) {
+                                        if entry.durationSeconds > 0 {
+                                            GeometryReader { geometry in
+                                                ZStack(alignment: .leading) {
+                                                    Color.white.opacity(0.3)
+                                                    AppTheme.accent.frame(width: geometry.size.width * entry.progress)
+                                                }
+                                            }.frame(height: 4)
+                                                .accessibilityLabel("\(Int(entry.progress * 100)) percent watched")
+                                        }
+                                    }
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
                             }.buttonStyle(.plain).accessibilityLabel("Resume \(entry.media.title)")
-                            Text(entry.media.title).font(.caption.bold()).lineLimit(1)
-                            if entry.media.kind != .movie {
-                                Text("Season \(entry.season) · Episode \(entry.episode)").font(.caption2).foregroundStyle(AppTheme.muted)
-                            }
-                        }.frame(width: 210)
+                            Text(entry.media.title).font(.subheadline.weight(.medium)).lineLimit(1)
+                            Text(watchSubtitle(entry)).font(.caption2).foregroundStyle(AppTheme.muted).lineLimit(1)
+                        }.frame(width: 184)
                             .contextMenu {
-                                NavigationLink("Details") { MediaDetailView(media: entry.media) }
+                                MediaDetailLink(media: entry.media) { Text("Details") }
                                 Button("Remove from history", role: .destructive) { library.removeHistory(entry) }
                             }
                     }
-                }.padding(.horizontal, 20)
+                }.padding(.horizontal, 16)
             }.scrollIndicators(.hidden)
         }
         .fullScreenCover(item: $selected) { MediaPlayerView(media: $0.media, season: $0.season, episode: $0.episode) }
+    }
+
+    private func watchSubtitle(_ entry: WatchEntry) -> String {
+        let episode = entry.media.kind == .tv ? "S\(entry.season) · E\(entry.episode) · " : ""
+        guard entry.durationSeconds > 0 else { return episode + "Recently watched" }
+        let minutes = Int(ceil(max(0, entry.durationSeconds - entry.positionSeconds) / 60))
+        return episode + "\(minutes) min left"
     }
 }
 
@@ -289,34 +406,68 @@ private struct DiscoveryRail: View {
     private let genres = [(28, "Action"), (12, "Adventure"), (35, "Comedy"), (18, "Drama"), (14, "Fantasy"), (27, "Horror"), (878, "Sci-Fi")]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 6) {
             ViewThatFits(in: .horizontal) {
-                HStack { SectionHeading(title: title); controls }
-                VStack(alignment: .leading, spacing: 10) { SectionHeading(title: title); controls }
-            }.padding(.horizontal, 20)
+                HStack(spacing: 6) {
+                    SectionHeading(title: title).fixedSize(horizontal: true, vertical: false)
+                    Spacer(minLength: 6)
+                    controls.fixedSize(horizontal: true, vertical: false)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    SectionHeading(title: title)
+                    ScrollView(.horizontal) { controls }.scrollIndicators(.hidden)
+                }
+            }.padding(.horizontal, 16)
             if loading && items.isEmpty { ProgressView().frame(maxWidth: .infinity).padding(24) }
-            if let error { InlineError(message: error) { retry += 1 }.padding(.horizontal, 20) }
+            if let error { InlineError(message: error) { retry += 1 }.padding(.horizontal, 16) }
             PosterRail(title: "", items: items)
             if items.isEmpty && !loading && error == nil {
-                Text("No titles found for these filters.").font(.subheadline).foregroundStyle(AppTheme.muted).padding(.horizontal, 20)
+                Text("No titles found for these filters.").font(.subheadline).foregroundStyle(AppTheme.muted).padding(.horizontal, 16)
             }
         }
         .task(id: "\(settings.tmdbToken)-\(kind.rawValue)-\(provider)-\(genre)-\(library.favoriteGenres)-\(retry)") { await load() }
     }
 
     private var controls: some View {
-        HStack(spacing: 4) {
-            Picker("Media type", selection: $kind) { Text("Movies").tag(MediaKind.movie); Text("Shows").tag(MediaKind.tv) }.fixedSize()
+        HStack(spacing: 6) {
+            Menu {
+                Picker("Media type", selection: $kind) { Text("Movies").tag(MediaKind.movie); Text("Series").tag(MediaKind.tv) }
+            } label: { compactChoiceLabel(kind == .movie ? "Movies" : "Series") }
+                .accessibilityLabel("Media type, \(kind == .movie ? "Movies" : "Series")")
+                .accessibilityIdentifier("home-choice-media-\(mode)")
             if mode == .provider {
-                Picker("Provider", selection: $provider) { ForEach(providers, id: \.0) { Text($0.1).tag($0.0) } }.fixedSize()
+                Menu {
+                    Picker("Provider", selection: $provider) { ForEach(providers, id: \.0) { Text($0.1).tag($0.0) } }
+                } label: { compactChoiceLabel(providers.first { $0.0 == provider }?.1 ?? "Provider") }
+                    .accessibilityLabel("Provider, \(providers.first { $0.0 == provider }?.1 ?? "Choose provider")")
+                    .accessibilityIdentifier("home-choice-provider")
             }
             if mode == .genre {
-                Picker("Genre", selection: $genre) {
-                    ForEach(kind == .movie ? genres : [(10759, "Action"), (35, "Comedy"), (18, "Drama"), (10765, "Sci-Fi")], id: \.0) { Text($0.1).tag($0.0) }
-                }.fixedSize()
+                Menu {
+                    Picker("Genre", selection: $genre) {
+                        ForEach(availableGenres, id: \.0) { Text($0.1).tag($0.0) }
+                    }
+                } label: { compactChoiceLabel(availableGenres.first { $0.0 == genre }?.1 ?? "Genre") }
+                    .accessibilityLabel("Genre, \(availableGenres.first { $0.0 == genre }?.1 ?? "Choose genre")")
+                    .accessibilityIdentifier("home-choice-genre")
             }
-        }.pickerStyle(.menu).font(.caption).tint(AppTheme.muted)
+        }.buttonStyle(.plain).foregroundStyle(AppTheme.foreground)
             .onChange(of: kind) { _, value in if mode == .genre { genre = value == .movie ? 28 : 10759 } }
+    }
+
+    private var availableGenres: [(Int, String)] {
+        kind == .movie ? genres : [(10759, "Action"), (35, "Comedy"), (18, "Drama"), (10765, "Sci-Fi")]
+    }
+
+    private func compactChoiceLabel(_ title: String) -> some View {
+        HStack(spacing: 4) {
+            Text(title).font(.caption2.weight(.medium)).lineLimit(1)
+            Image(systemName: "chevron.down").font(.system(size: 10, weight: .medium)).foregroundStyle(AppTheme.muted)
+        }
+        .padding(.horizontal, 8).padding(.vertical, 7)
+        .background(AppTheme.foreground.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+        .frame(minHeight: 48)
+        .contentShape(Rectangle())
     }
 
     private func load() async {

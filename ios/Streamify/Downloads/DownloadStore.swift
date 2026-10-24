@@ -4,10 +4,23 @@ import UIKit
 
 enum DownloadStatus: String, Codable, Sendable { case downloading, completed, cancelled, failed }
 
+struct CatalogDownloadDescriptor: Codable, Sendable {
+    let id: Int
+    let kind: String
+    let title: String
+    let season: Int
+    let episode: Int
+    let episodeTitle: String?
+    var media: MediaItem? {
+        guard id > 0, let kind = MediaKind(rawValue: kind), kind != .anime else { return nil }
+        return MediaItem(id: id, kind: kind, title: title)
+    }
+}
+
 struct DownloadItem: Identifiable, Codable, Sendable {
     let id: UUID
     var title: String
-    let source: String?
+    var source: String?
     var fileName: String?
     let createdAt: Date
     var status: DownloadStatus
@@ -16,6 +29,10 @@ struct DownloadItem: Identifiable, Codable, Sendable {
     var error: String?
     /// Persisted because URLSession task identifiers survive background relaunches.
     var taskIdentifier: Int?
+    /// Optional fields preserve downloads saved before catalog downloads were added.
+    var catalogKey: String? = nil
+    var quality: Int? = nil
+    var catalog: CatalogDownloadDescriptor? = nil
     func acceptsCallback(taskIdentifier: Int) -> Bool {
         status == .downloading && self.taskIdentifier == taskIdentifier
     }
@@ -27,11 +44,13 @@ struct DownloadItem: Identifiable, Codable, Sendable {
 }
 
 enum DownloadError: LocalizedError {
-    case invalidURL, unsupportedFile, alreadyDownloading, fileUnavailable, invalidResponse, rejected(Int)
+    case invalidURL, unsupportedFile, unsupportedMedia, invalidEpisode, alreadyDownloading, fileUnavailable, invalidResponse, rejected(Int)
     var errorDescription: String? {
         switch self {
         case .invalidURL: return "Enter a valid direct HTTPS video address."
         case .unsupportedFile: return "Choose a direct MP4, M4V, or MOV video file."
+        case .unsupportedMedia: return "Downloads are available for movies and TV episodes."
+        case .invalidEpisode: return "Choose a valid season and episode before downloading."
         case .alreadyDownloading: return "This video is already downloading."
         case .fileUnavailable: return "The video file could not be opened."
         case .invalidResponse: return "This address returned a webpage instead of a video file."
@@ -52,6 +71,40 @@ enum DownloadFiles {
     }
     static func metadata() throws -> URL { try directory().appendingPathComponent("downloads.json") }
     static func isSupported(_ url: URL) -> Bool { ["mp4", "m4v", "mov"].contains(url.pathExtension.lowercased()) }
+    static func manualURL(_ value: String) throws -> URL {
+        guard let url = secureURL(value.trimmingCharacters(in: .whitespacesAndNewlines)) else { throw DownloadError.invalidURL }
+        guard isSupported(url) else { throw DownloadError.unsupportedFile }
+        return url
+    }
+    /// Only the catalog resolver may supply signed URLs without a video suffix.
+    static func resolvedURL(_ value: URL) throws -> URL {
+        guard let url = secureURL(value.absoluteString) else { throw DownloadError.invalidURL }
+        let suffix = url.pathExtension.lowercased()
+        guard !["m3u8", "m3u", "mpd", "html", "htm", "json"].contains(suffix) else { throw DownloadError.unsupportedFile }
+        return url
+    }
+    static func suffix(for url: URL?) -> String {
+        guard let url, isSupported(url) else { return "mp4" }
+        return url.pathExtension.lowercased()
+    }
+    /// Read only a small header; large video files stay on disk throughout validation.
+    static func validateVideo(response: HTTPURLResponse, header: Data) throws {
+        guard (200...299).contains(response.statusCode) else { throw DownloadError.rejected(response.statusCode) }
+        let mime = response.mimeType?.lowercased() ?? ""
+        guard !header.isEmpty, !mime.hasPrefix("text/"), !mime.contains("json"), !mime.contains("html"),
+              !mime.contains("mpegurl"), !mime.contains("dash+xml") else { throw DownloadError.invalidResponse }
+        let prefix = String(decoding: header.prefix(512), as: UTF8.self)
+            .trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "\u{feff}"))).lowercased()
+        guard !prefix.hasPrefix("<"), !prefix.hasPrefix("{"), !prefix.hasPrefix("["), !prefix.hasPrefix("#extm3u") else {
+            throw DownloadError.invalidResponse
+        }
+        let box = header.count >= 8 ? String(data: header.subdata(in: 4..<8), encoding: .ascii) : nil
+        let isVideoHeader = ["ftyp", "moov", "mdat", "wide", "free", "skip", "pnot"].contains(box ?? "")
+        let isVideoMIME = mime.hasPrefix("video/") || ["application/octet-stream", "binary/octet-stream", "application/mp4", ""].contains(mime)
+        guard isVideoMIME && isVideoHeader else {
+            throw DownloadError.invalidResponse
+        }
+    }
     static func importVideo(_ url: URL) throws -> DownloadItem {
         guard isSupported(url) else { throw DownloadError.unsupportedFile }
         let access = url.startAccessingSecurityScopedResource()
@@ -78,6 +131,8 @@ final class DownloadStore: ObservableObject {
     @Published private(set) var storageError: String?
     var backgroundCompletion: (() -> Void)?
     private var tasks: [UUID: URLSessionDownloadTask] = [:]
+    private var resolutions: [UUID: Task<Void, Never>] = [:]
+    private var resolutionAttempts: [UUID: UUID] = [:]
     private var lastSave = Date.distantPast
     private lazy var delegate = DownloadSessionDelegate(owner: self)
     private lazy var session: URLSession = {
@@ -106,8 +161,7 @@ final class DownloadStore: ObservableObject {
     }
 
     func add(url value: String, title: String = "") throws {
-        guard let url = secureURL(value.trimmingCharacters(in: .whitespacesAndNewlines)) else { throw DownloadError.invalidURL }
-        guard DownloadFiles.isSupported(url) else { throw DownloadError.unsupportedFile }
+        let url = try DownloadFiles.manualURL(value)
         guard !items.contains(where: { $0.source == url.absoluteString && $0.status == .downloading }) else { throw DownloadError.alreadyDownloading }
         let name = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let item = DownloadItem(id: UUID(), title: name.isEmpty ? url.deletingPathExtension().lastPathComponent : String(name.prefix(160)), source: url.absoluteString,
@@ -117,7 +171,66 @@ final class DownloadStore: ObservableObject {
         save()
     }
 
+    nonisolated static func catalogKey(media: MediaItem, season: Int = 1, episode: Int = 1) -> String {
+        switch media.kind {
+        case .movie: return "movie:\(media.id)"
+        case .tv: return "tv:\(media.id):\(season):\(episode)"
+        case .anime: return "anime:\(media.id)"
+        }
+    }
+
+    func item(media: MediaItem, season: Int = 1, episode: Int = 1) -> DownloadItem? {
+        let key = Self.catalogKey(media: media, season: season, episode: episode)
+        return items.first { $0.catalogKey == key }
+    }
+
+    @discardableResult
+    func add(resolved: ResolvedMediaDownload, media: MediaItem, season: Int = 1, episode: Int = 1, episodeTitle: String? = nil) throws -> UUID {
+        guard media.kind != .anime, media.id > 0 else { throw DownloadError.unsupportedMedia }
+        guard media.kind == .movie || season > 0 && episode > 0 else { throw DownloadError.invalidEpisode }
+        let key = Self.catalogKey(media: media, season: season, episode: episode)
+        if let existing = items.first(where: { $0.catalogKey == key }), existing.status == .completed || existing.status == .downloading {
+            return existing.id
+        }
+        let url = try DownloadFiles.resolvedURL(resolved.url)
+        let descriptor = CatalogDownloadDescriptor(id: media.id, kind: media.kind.rawValue, title: media.title,
+            season: season, episode: episode, episodeTitle: episodeTitle)
+        let episodeName = episodeTitle?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let title = media.kind == .movie ? media.title : "\(media.title) · S\(season) E\(episode)" + (episodeName.isEmpty ? "" : " · \(episodeName)")
+        let id: UUID
+        if let index = items.firstIndex(where: { $0.catalogKey == key }) {
+            id = items[index].id
+            tasks[id]?.cancel()
+            tasks[id] = nil
+            resolutions[id]?.cancel()
+            resolutions[id] = nil
+            resolutionAttempts[id] = nil
+            // Signed addresses expire; replace the URL instead of retrying the old token.
+            items[index].source = url.absoluteString
+            items[index].title = String(title.prefix(240))
+            items[index].quality = resolved.quality
+            items[index].catalog = descriptor
+            items[index].status = .downloading
+            items[index].taskIdentifier = nil
+            items[index].bytesWritten = 0
+            items[index].expectedBytes = 0
+            items[index].error = nil
+            start(items[index])
+        } else {
+            id = UUID()
+            let download = DownloadItem(id: id, title: String(title.prefix(240)), source: url.absoluteString,
+                                        createdAt: Date(), status: .downloading, catalogKey: key, quality: resolved.quality, catalog: descriptor)
+            items.insert(download, at: 0)
+            start(download)
+        }
+        save()
+        return id
+    }
+
     func cancel(id: UUID) {
+        resolutions[id]?.cancel()
+        resolutions[id] = nil
+        resolutionAttempts[id] = nil
         tasks[id]?.cancel()
         tasks[id] = nil
         guard let index = items.firstIndex(where: { $0.id == id }), items[index].status == .downloading else { return }
@@ -135,11 +248,48 @@ final class DownloadStore: ObservableObject {
         items[index].bytesWritten = 0
         items[index].expectedBytes = 0
         items[index].error = nil
+        if let descriptor = items[index].catalog, let media = descriptor.media {
+            // Resolve again on Retry: a saved CDN address may have expired.
+            let attempt = UUID()
+            let quality = items[index].quality ?? 1080
+            resolutionAttempts[id] = attempt
+            items[index].taskIdentifier = nil
+            resolutions[id] = Task { @MainActor [weak self] in
+                defer {
+                    if self?.resolutionAttempts[id] == attempt {
+                        self?.resolutionAttempts[id] = nil
+                        self?.resolutions[id] = nil
+                    }
+                }
+                do {
+                    let resolved = try await MediaDownloadResolver().resolve(media: media, season: descriptor.season,
+                        episode: descriptor.episode, maximumQuality: quality)
+                    try Task.checkCancellation()
+                    guard let self, self.resolutionAttempts[id] == attempt,
+                          let current = self.items.firstIndex(where: { $0.id == id }), self.items[current].status == .downloading else { return }
+                    self.items[current].source = resolved.url.absoluteString
+                    self.items[current].quality = resolved.quality
+                    self.start(self.items[current]); self.save()
+                } catch is CancellationError { }
+                catch {
+                    guard let self, self.resolutionAttempts[id] == attempt,
+                          let current = self.items.firstIndex(where: { $0.id == id }), self.items[current].status == .downloading else { return }
+                    self.items[current].status = .failed
+                    self.items[current].error = error.localizedDescription
+                    self.save()
+                }
+            }
+            save()
+            return
+        }
         start(items[index])
         save()
     }
 
     func remove(id: UUID) {
+        resolutions[id]?.cancel()
+        resolutions[id] = nil
+        resolutionAttempts[id] = nil
         tasks[id]?.cancel()
         tasks[id] = nil
         if let item = items.first(where: { $0.id == id }), let fileName = item.fileName,
@@ -175,7 +325,7 @@ final class DownloadStore: ObservableObject {
                     self.items[index].taskIdentifier = download.taskIdentifier
                     if task.state == .suspended { task.resume() }
                 }
-                for index in self.items.indices where self.items[index].status == .downloading && !active.contains(self.items[index].id) && self.tasks[self.items[index].id] == nil {
+                for index in self.items.indices where self.items[index].status == .downloading && !active.contains(self.items[index].id) && self.tasks[self.items[index].id] == nil && self.resolutions[self.items[index].id] == nil {
                     self.items[index].status = .failed
                     self.items[index].error = "The download was interrupted. Tap Retry to start again."
                 }
@@ -248,10 +398,11 @@ private final class DownloadSessionDelegate: NSObject, URLSessionDownloadDelegat
         let taskIdentifier = downloadTask.taskIdentifier
         do {
             guard let response = downloadTask.response as? HTTPURLResponse else { throw DownloadError.invalidResponse }
-            guard (200...299).contains(response.statusCode) else { throw DownloadError.rejected(response.statusCode) }
-            let mime = response.mimeType?.lowercased() ?? ""
-            guard !mime.hasPrefix("text/"), !mime.contains("json"), !mime.contains("html") else { throw DownloadError.invalidResponse }
-            let suffix = downloadTask.originalRequest?.url?.pathExtension.lowercased() ?? "mp4"
+            let handle = try FileHandle(forReadingFrom: location)
+            defer { try? handle.close() }
+            let header = try handle.read(upToCount: 1024) ?? Data()
+            try DownloadFiles.validateVideo(response: response, header: header)
+            let suffix = DownloadFiles.suffix(for: downloadTask.originalRequest?.url)
             let fileName = "\(id.uuidString)-\(taskIdentifier).\(suffix)"
             let destination = try DownloadFiles.directory().appendingPathComponent(fileName)
             if FileManager.default.fileExists(atPath: destination.path) { try FileManager.default.removeItem(at: destination) }

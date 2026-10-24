@@ -92,16 +92,20 @@ struct MediaPlayerView: View {
                             }
                         }
                     } label: {
-                        Label(sourceLabel, systemImage: "server.rack").lineLimit(1)
-                            .frame(maxWidth: .infinity, alignment: .leading).frame(minHeight: 44)
-                    }
-                    Button { reload += 1 } label: { Image(systemName: "arrow.clockwise").frame(width: 44, height: 44) }.accessibilityLabel("Reload player")
-                    Button { direct.toggle() } label: { Image(systemName: direct ? "rectangle.inset.filled" : "rectangle.on.rectangle").frame(width: 44, height: 44) }
+                        HStack(spacing: 8) {
+                            Text(sourceLabel).lineLimit(1)
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.down").font(.caption2)
+                        }.padding(.horizontal, 12).frame(maxWidth: .infinity, minHeight: 44).streamifyControlSurface()
+                    }.buttonStyle(.plain)
+                    Button { reload += 1 } label: { Image(systemName: "arrow.clockwise").frame(width: 44, height: 44).streamifyControlSurface() }.accessibilityLabel("Reload player")
+                    Button { direct.toggle() } label: { Image(systemName: direct ? "rectangle.inset.filled" : "rectangle.on.rectangle").frame(width: 44, height: 44).streamifyControlSurface() }
                         .accessibilityLabel(direct ? "Switch to embed mode" : "Switch to direct mode")
                     if let url {
-                        Button { openURL(url) } label: { Image(systemName: "safari").frame(width: 44, height: 44) }.accessibilityLabel("Open source in Safari")
+                        Button { openURL(url) } label: { Image(systemName: "safari").frame(width: 44, height: 44).streamifyControlSurface() }.accessibilityLabel("Open source in Safari")
                     }
                 }
+                MediaDownloadButton(media: media, season: season, episode: episode)
                 if media.kind != .movie {
                     HStack(spacing: 12) {
                         Button { showEpisodes = true } label: {
@@ -192,10 +196,11 @@ private struct PlayerEpisodePicker: View {
                             Spacer()
                             if selectedSeason == season && selectedEpisode == episode.number { Image(systemName: "play.fill").foregroundStyle(AppTheme.accent) }
                         }.frame(minHeight: 44)
-                    }
+                    }.listRowBackground(AppTheme.panel)
                 }
                 if !loading && error == nil && episodes.isEmpty { Text("No episodes are available for this season.").foregroundStyle(AppTheme.muted) }
             }
+            .scrollContentBackground(.hidden).background(AppTheme.canvas)
             .navigationTitle("Episodes").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
             .task(id: "\(season):\(revision)") {

@@ -1,11 +1,23 @@
 import SwiftUI
 
 @main
+@MainActor
 struct StreamifyApp: App {
     @UIApplicationDelegateAdaptor(DownloadAppDelegate.self) private var appDelegate
-    @StateObject private var settings = SettingsStore()
-    @StateObject private var library = LibraryStore()
+    @StateObject private var settings: SettingsStore
+    @StateObject private var library: LibraryStore
     @StateObject private var downloads = DownloadStore.shared
+
+    init() {
+        #if DEBUG
+        if PreviewFixtures.enabled { PreviewFixtures.install() }
+        _settings = StateObject(wrappedValue: SettingsStore(defaults: PreviewFixtures.enabled ? PreviewFixtures.defaults : .standard))
+        _library = StateObject(wrappedValue: LibraryStore(defaults: PreviewFixtures.enabled ? PreviewFixtures.defaults : .standard))
+        #else
+        _settings = StateObject(wrappedValue: SettingsStore())
+        _library = StateObject(wrappedValue: LibraryStore())
+        #endif
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -15,6 +27,11 @@ struct StreamifyApp: App {
                 .environmentObject(downloads)
                 .tint(AppTheme.accent)
                 .preferredColorScheme(settings.appearance == "System" ? nil : settings.appearance == "Light" ? .light : .dark)
+                .onAppear {
+                    #if DEBUG
+                    if PreviewFixtures.enabled { PreviewFixtures.seedLibrary(library) }
+                    #endif
+                }
         }
     }
 }
@@ -30,6 +47,7 @@ enum AppTab: String, CaseIterable {
 }
 
 struct RootView: View {
+    @EnvironmentObject private var downloads: DownloadStore
     @State private var tab: AppTab = .home
     @State private var settingsOpen = false
     @State private var accountOpen = false
@@ -54,27 +72,35 @@ struct RootView: View {
             .navigationTitle(page.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .tabBar)
-            .toolbarBackground(AppTheme.canvas.opacity(0.95), for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Image("streamify-logo").resizable().scaledToFit().frame(width: 26, height: 30).accessibilityHidden(true)
-                }
-                ToolbarItem(placement: .principal) {
-                    Text(page.title).font(.title2.bold()).accessibilityAddTraits(.isHeader)
-                }
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    if page != .search && page != .sports {
-                        Button { tab = .search } label: { Image(systemName: "magnifyingglass") }.accessibilityLabel("Search")
-                    }
-                    Menu {
-                        Button("My list", systemImage: "bookmark") { tab = .library }
-                        Button("Account", systemImage: "person.crop.circle") { accountOpen = true }
-                        Button("Downloads", systemImage: "arrow.down.circle") { downloadsOpen = true }
-                        Button("Settings", systemImage: "gearshape") { settingsOpen = true }
-                    } label: { Image(systemName: "ellipsis").frame(width: 32, height: 44) }.accessibilityLabel("More options")
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
+            .safeAreaInset(edge: .top, spacing: 0) { header(page) }
             .safeAreaInset(edge: .bottom, spacing: 0) { FloatingNavigation(selection: $tab) }
+    }
+
+    private func header(_ page: AppTab) -> some View {
+        HStack(spacing: 0) {
+            Image("streamify-logo").resizable().scaledToFit().frame(width: 30, height: 30).accessibilityHidden(true)
+            Text(page.title).font(.system(size: 24, weight: .bold)).lineLimit(1)
+                .padding(.leading, 10).frame(maxWidth: .infinity, alignment: .leading).accessibilityAddTraits(.isHeader)
+            Button { tab = .search } label: { Image(systemName: "magnifyingglass").frame(width: 44, height: 44) }
+                .accessibilityLabel("Search")
+            Button { downloadsOpen = true } label: {
+                Image(systemName: "arrow.down.circle").frame(width: 44, height: 44)
+                    .overlay(alignment: .topTrailing) {
+                        if downloads.items.contains(where: { $0.status == .downloading }) {
+                            Circle().fill(AppTheme.accent).frame(width: 7, height: 7).padding(8)
+                        }
+                    }
+            }.accessibilityLabel("Downloads").accessibilityIdentifier("open-downloads")
+            Menu {
+                Button("Account", systemImage: "person.crop.circle") { accountOpen = true }
+                Button("Settings", systemImage: "gearshape") { settingsOpen = true }
+            } label: { Image(systemName: "ellipsis").rotationEffect(.degrees(90)).frame(width: 44, height: 44) }
+                .accessibilityLabel("More options")
+        }
+        .font(.system(size: 23)).buttonStyle(.plain).foregroundStyle(AppTheme.foreground)
+        .padding(.leading, 16).padding(.trailing, 8).frame(minHeight: 60)
+        .background(AppTheme.canvas)
     }
 }
 
@@ -83,29 +109,34 @@ private struct FloatingNavigation: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 0) {
             ForEach(AppTab.allCases, id: \.self) { tab in
                 Button {
                     withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) { selection = tab }
                 } label: {
-                    VStack(spacing: 6) {
-                        Image(systemName: tab == selection && tab != .search ? tab.symbol + ".fill" : tab.symbol)
-                            .font(.system(size: 22, weight: .semibold))
-                            .foregroundStyle(tab == selection ? AppTheme.accent : AppTheme.muted)
-                        Text(tab.title).font(.caption2.weight(.semibold))
-                            .foregroundStyle(tab == selection ? Color.primary : AppTheme.muted)
+                    VStack(spacing: 2) {
+                        if tab == .library {
+                            Image(systemName: "person.fill").font(.system(size: 18))
+                                .foregroundStyle(.white).frame(width: 24, height: 24)
+                                .background(AppTheme.accent, in: RoundedRectangle(cornerRadius: 7))
+                        } else {
+                            Image(systemName: tab.symbol).font(.system(size: 24))
+                                .foregroundStyle(AppTheme.foreground.opacity(tab == selection ? 1 : 0.5))
+                        }
+                        Text(tab.title).font(.system(size: 10, weight: tab == selection ? .semibold : .medium))
+                            .foregroundStyle(AppTheme.foreground.opacity(tab == selection ? 1 : 0.5))
                     }
-                    .frame(maxWidth: .infinity).frame(minHeight: 58)
-                    .background(tab == selection ? Color.primary.opacity(0.06) : .clear, in: RoundedRectangle(cornerRadius: 25))
+                    .frame(maxWidth: .infinity).frame(minHeight: 54)
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(tab == selection ? [.isSelected] : [])
                 .accessibilityIdentifier("tab-\(tab.rawValue)")
             }
         }
-        .padding(7)
-        .background(.ultraThinMaterial, in: Capsule())
-        .overlay { Capsule().stroke(AppTheme.border, lineWidth: 1) }
-        .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 6)
+        .padding(.horizontal, 4).padding(.vertical, 2).frame(maxWidth: 400)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 29))
+        .overlay { RoundedRectangle(cornerRadius: 29).stroke(AppTheme.border, lineWidth: 0.5) }
+        .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+        .padding(.horizontal, 40).padding(.top, 8).padding(.bottom, 6)
     }
 }

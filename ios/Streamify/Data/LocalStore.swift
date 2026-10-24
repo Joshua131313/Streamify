@@ -93,6 +93,9 @@ final class LibraryStore: ObservableObject {
 final class SettingsStore: ObservableObject {
     @Published var tmdbToken: String = "" {
         didSet {
+            #if DEBUG
+            if PreviewFixtures.enabled { credentialError = nil; return }
+            #endif
             do { try SecureCredentialStore.set(tmdbToken, for: "tmdbToken"); credentialError = nil }
             catch { credentialError = error.localizedDescription }
         }
@@ -114,6 +117,9 @@ final class SettingsStore: ObservableObject {
         serverID = defaults.string(forKey: "streamify.ios.serverID") ?? "vidy"
         let storedAppearance = defaults.string(forKey: "streamify.ios.appearance") ?? "Dark"
         appearance = ["Dark", "Light", "System"].contains(storedAppearance) ? storedAppearance : "Dark"
+        #if DEBUG
+        if PreviewFixtures.enabled { tmdbToken = PreviewFixtures.token }
+        #endif
     }
 }
 

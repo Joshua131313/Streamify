@@ -4,6 +4,7 @@ struct MediaDetailView: View {
     let media: MediaItem
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var library: LibraryStore
+    @Environment(\.dismiss) private var dismiss
     @State private var details: MediaDetails?
     @State private var error: String?
     @State private var loading = false
@@ -14,14 +15,22 @@ struct MediaDetailView: View {
     @State private var loadingEpisodes = false
     @State private var episodeRevision = 0
     @State private var selection: PlaybackSelection?
+    @State private var selectedCast: CastMember?
+    @State private var previewVisible = true
+    @State private var pageVisible = false
+    @State private var downloadPresented = false
 
     private var title: MediaItem { details?.media ?? media }
     private var previous: WatchEntry? { library.history.first { $0.media.key == media.key } }
 
     var body: some View {
+        GeometryReader { viewport in
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 28) {
                 hero
+                    .background { GeometryReader { geometry in
+                        Color.clear.preference(key: DetailHeroPositionKey.self, value: geometry.frame(in: .named("detail-scroll")))
+                    } }
                 VStack(alignment: .leading, spacing: 20) {
                     VStack(alignment: .leading, spacing: 10) {
                         Text(title.title).font(.largeTitle.bold()).fixedSize(horizontal: false, vertical: true)
@@ -36,19 +45,21 @@ struct MediaDetailView: View {
                             Label(watchTitle, systemImage: "play.fill")
                                 .font(.headline).frame(maxWidth: .infinity).frame(minHeight: 50)
                         }
-                        .buttonStyle(.plain).foregroundStyle(.black).background(.white, in: RoundedRectangle(cornerRadius: 12))
+                        .buttonStyle(.plain).foregroundStyle(.black).background(.white, in: Capsule())
+                        MediaDownloadButton(media: title, season: previous?.season ?? season, episode: previous?.episode ?? 1,
+                            onPresentationChanged: { downloadPresented = $0 })
                         HStack(spacing: 12) {
                             Button { library.toggleSaved(title) } label: {
                                 Label(library.isSaved(title) ? "Saved" : "My list", systemImage: library.isSaved(title) ? "checkmark" : "plus")
                                     .frame(maxWidth: .infinity).frame(minHeight: 48)
                             }
-                            .buttonStyle(.plain).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 12))
+                            .buttonStyle(SecondaryButtonStyle())
                             if let trailer = details?.trailer {
                                 Link(destination: trailer) {
                                     Label("Trailer", systemImage: "play.rectangle")
                                         .frame(maxWidth: .infinity).frame(minHeight: 48)
                                 }
-                                .foregroundStyle(.primary).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 12))
+                                .buttonStyle(SecondaryButtonStyle())
                             }
                         }
                     }
@@ -70,30 +81,49 @@ struct MediaDetailView: View {
             }
             .padding(.bottom, 32)
         }
+        .coordinateSpace(name: "detail-scroll")
+        .onPreferenceChange(DetailHeroPositionKey.self) { frame in
+            let visible = max(0, min(frame.maxY, viewport.size.height) - max(0, frame.minY))
+            previewVisible = frame.height > 0 && visible > frame.height / 2
+        }
+        }
         .background(AppTheme.canvas)
+        .foregroundStyle(AppTheme.foreground)
+        .accessibilityIdentifier("media-detail-page")
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
         .toolbarBackground(AppTheme.canvas.opacity(0.9), for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button { dismiss() } label: { Image(systemName: "xmark").frame(width: 44, height: 44) }
+                    .accessibilityLabel("Close details").accessibilityIdentifier("close-media-details")
+            }
+            ToolbarItem(placement: .principal) {
+                Capsule().fill(AppTheme.muted.opacity(0.5)).frame(width: 34, height: 4).accessibilityHidden(true)
+            }
+        }
+        .accessibilityAction(.escape) { dismiss() }
+        .onAppear { pageVisible = true }
+        .onDisappear { pageVisible = false }
         .task(id: "\(media.key):\(revision):\(settings.tmdbToken)") { await load() }
         .task(id: "\(media.key):\(season):\(episodeRevision):\(settings.tmdbToken)") { await loadEpisodes() }
         .fullScreenCover(item: $selection) { choice in
             MediaPlayerView(media: title, season: choice.season, episode: choice.episode)
         }
+        .sheet(item: $selectedCast) { person in
+            NavigationStack {
+                PersonDetailView(id: person.id)
+                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Close") { selectedCast = nil } } }
+            }
+            .presentationDetents([.medium, .large]).presentationDragIndicator(.visible)
+            .presentationCornerRadius(24).presentationBackground(AppTheme.canvas)
+        }
     }
 
     private var hero: some View {
-        ZStack(alignment: .bottomLeading) {
-            RemoteArtwork(url: title.backdropURL)
-                .frame(height: 240).clipped()
-            LinearGradient(colors: [.clear, AppTheme.canvas], startPoint: .center, endPoint: .bottom)
-            RemoteArtwork(url: title.posterURL)
-                .frame(width: 100, height: 150).clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(.white.opacity(0.12)))
-                .shadow(color: .black.opacity(0.4), radius: 14, y: 8)
-                .padding(.leading, 20).offset(y: 12)
-        }
-        .frame(height: 240)
-        .accessibilityHidden(true)
+        TrailerPreview(url: details?.trailer, poster: title.backdropURL,
+            active: pageVisible && previewVisible && selection == nil && selectedCast == nil && !downloadPresented)
     }
 
     private var metadata: String {
@@ -119,10 +149,8 @@ struct MediaDetailView: View {
                             }
                         }
                     } label: {
-                        Label(media.kind == .anime ? "All episodes" : "Season \(season)", systemImage: "chevron.down")
-                            .font(.subheadline.weight(.medium)).padding(.horizontal, 12).frame(minHeight: 44)
-                            .background(AppTheme.panel, in: Capsule())
-                    }.tint(.primary)
+                        StreamifySelectLabel(title: media.kind == .anime ? "All episodes" : "Season \(season)")
+                    }.buttonStyle(.plain)
                 }
             }
             if loadingEpisodes { ProgressView().frame(maxWidth: .infinity).padding() }
@@ -133,15 +161,16 @@ struct MediaDetailView: View {
                 Text("Episodes for this season will appear when available.").foregroundStyle(AppTheme.muted)
             }
             ForEach(episodes) { episode in
-                Button { play(season: season, episode: episode.number) } label: {
-                    VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 8) {
+                    Button { play(season: season, episode: episode.number) } label: {
                         HStack(spacing: 14) {
                             ZStack {
                                 RemoteArtwork(url: episode.stillURL ?? (media.kind == .anime ? title.backdropURL : nil))
-                                    .frame(width: 118, height: 72).clipped()
+                                    .frame(width: 128, height: 76).clipped()
                                 Image(systemName: "play.fill").font(.body).foregroundStyle(.white)
                                     .padding(10).background(.black.opacity(0.6), in: Circle())
-                            }.clipShape(RoundedRectangle(cornerRadius: 10))
+                            }.clipShape(RoundedRectangle(cornerRadius: 8))
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("\(episode.number). \(episode.title)").font(.subheadline.weight(.semibold)).lineLimit(3)
                                 Text(episode.runtime > 0 ? "\(episode.runtime) min" : episode.airDate)
@@ -151,12 +180,17 @@ struct MediaDetailView: View {
                                 }
                             }.frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        if !episode.overview.isEmpty {
-                            Text(episode.overview).font(.subheadline).foregroundStyle(AppTheme.muted).lineLimit(3)
-                        }
+                        .contentShape(Rectangle())
+                    }.buttonStyle(.plain)
+                    if media.kind == .tv {
+                        MediaDownloadButton(media: title, season: season, episode: episode.number, episodeTitle: episode.title,
+                            compact: true, onPresentationChanged: { downloadPresented = $0 })
                     }
-                    .contentShape(Rectangle())
-                }.buttonStyle(.plain)
+                    }
+                    if !episode.overview.isEmpty {
+                        Text(episode.overview).font(.subheadline).foregroundStyle(AppTheme.muted).lineLimit(4)
+                    }
+                }
                 if episode.number != episodes.last?.number { Divider().overlay(AppTheme.muted.opacity(0.1)) }
             }
         }.padding(.horizontal, 20)
@@ -168,14 +202,14 @@ struct MediaDetailView: View {
             ScrollView(.horizontal) {
                 HStack(alignment: .top, spacing: 12) {
                     ForEach(cast) { person in
-                        NavigationLink { PersonDetailView(id: person.id) } label: {
+                        Button { selectedCast = person } label: {
                             VStack(alignment: .leading, spacing: 8) {
                                 RemoteArtwork(url: person.profileURL).frame(width: 104, height: 136)
                                     .clipped().clipShape(RoundedRectangle(cornerRadius: 12))
                                 Text(person.name).font(.caption.weight(.semibold)).lineLimit(2)
                                 Text(person.character).font(.caption2).foregroundStyle(AppTheme.muted).lineLimit(2)
                             }.frame(width: 104, alignment: .leading)
-                        }.buttonStyle(.plain).disabled(person.id <= 0)
+                        }.buttonStyle(.plain).disabled(person.id <= 0).accessibilityIdentifier("cast-\(person.id)")
                     }
                 }.padding(.horizontal, 20)
             }.scrollIndicators(.hidden)
@@ -214,33 +248,23 @@ private struct PlaybackSelection: Identifiable {
     let episode: Int
 }
 
+private struct DetailHeroPositionKey: PreferenceKey {
+    static var defaultValue: CGRect = .zero
+    static func reduce(value: inout CGRect, nextValue: () -> CGRect) { value = nextValue() }
+}
+
 struct DetailMediaRail: View {
     let title: String
     let items: [MediaItem]
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(title).font(.title2.bold()).padding(.horizontal, 20)
-            ScrollView(.horizontal) {
-                HStack(alignment: .top, spacing: 12) {
-                    ForEach(items, id: \.key) { item in
-                        NavigationLink { MediaDetailView(media: item) } label: { DetailPoster(media: item) }.buttonStyle(.plain)
-                    }
-                }.padding(.horizontal, 20)
-            }.scrollIndicators(.hidden)
-        }
+        PosterRail(title: title, items: items)
     }
 }
 
 struct DetailPoster: View {
     let media: MediaItem
-    var width: CGFloat = 116
+    var width: CGFloat = 112
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            RemoteArtwork(url: media.posterURL).frame(width: width, height: width * 1.5)
-                .clipped().clipShape(RoundedRectangle(cornerRadius: 10))
-            Text(media.title).font(.caption.weight(.semibold)).lineLimit(2)
-            Text([media.year, media.kind.singular].filter { !$0.isEmpty }.joined(separator: " · "))
-                .font(.caption2).foregroundStyle(AppTheme.muted)
-        }.frame(width: width, alignment: .leading)
+        PosterContent(media: media).frame(width: width, alignment: .leading)
     }
 }
