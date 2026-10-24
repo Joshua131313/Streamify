@@ -7,9 +7,11 @@ final class SportsPlaybackFlowTests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
         app = XCUIApplication()
         app.launchArguments = ["--ui-fixtures"]
         if name.contains("testNativeSystemPictureInPicture") { app.launchArguments.append("--ui-native-pip-fixture") }
+        if name.contains("testProviderElementFullscreen") { app.launchArguments.append("--ui-element-fullscreen-fixture") }
         app.launch()
         XCTAssertTrue(app.buttons["tab-home"].waitForExistence(timeout: 15))
     }
@@ -23,6 +25,80 @@ final class SportsPlaybackFlowTests: XCTestCase {
             add(hierarchy)
         }
         app?.terminate()
+        XCUIDevice.shared.orientation = .portrait
+    }
+
+    func testFullscreenExpandsTheSameSelectedSportsDocumentAndReturnsToControls() {
+        app.buttons["tab-sports"].tap()
+        selectNBA()
+        let watch = app.buttons["Watch BOS vs TOR"].firstMatch
+        reveal(watch)
+        XCTAssertTrue(watch.isHittable)
+        watch.tap()
+        let source = app.buttons["sports-player-source-picker"]
+        XCTAssertTrue(source.waitForExistence(timeout: 10))
+        let document = app.webViews.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Playback session '")).firstMatch
+        XCTAssertTrue(document.waitForExistence(timeout: 10))
+        let originalDocument = document.label
+        source.tap()
+        XCTAssertTrue(app.buttons["sports-player-source-option-1"].waitForExistence(timeout: 5))
+        app.buttons["sports-player-source-option-1"].tap()
+        XCTAssertTrue(wait { (source.value as? String ?? "").contains("bravo") })
+        XCTAssertTrue(wait { document.exists && document.label != originalDocument })
+        let selectedDocument = document.label
+        let fullscreen = app.buttons["sports-player-fullscreen"]
+        XCTAssertTrue(fullscreen.isHittable)
+        fullscreen.tap()
+        let exit = app.buttons["sports-player-exit-fullscreen"]
+        XCTAssertTrue(exit.waitForExistence(timeout: 8))
+        XCTAssertTrue(wait { app.frame.width > app.frame.height }, "Fullscreen should request the supported landscape scene")
+        XCTAssertTrue(wait { !source.exists }, "Fullscreen must release the header's video space and hide its controls")
+        XCTAssertTrue(document.waitForExistence(timeout: 5))
+        XCTAssertEqual(document.label, selectedDocument, "Fullscreen must retain the same WKWebView document instead of reconnecting")
+        capture("Sports fullscreen keeps the same bravo document in landscape")
+        exit.tap()
+        XCTAssertTrue(source.waitForExistence(timeout: 8))
+        XCTAssertTrue(wait { app.frame.height > app.frame.width }, "Exit should restore the prior portrait scene")
+        XCTAssertTrue((source.value as? String ?? "").contains("bravo"))
+        XCTAssertEqual(document.label, selectedDocument)
+        XCTAssertTrue(fullscreen.isHittable)
+        XCTAssertFalse(exit.exists)
+        capture("Sports fullscreen exit restores controls without reconnecting the stream")
+        app.buttons["Close player"].tap()
+        XCTAssertTrue(wait { !source.exists })
+    }
+
+    func testProviderElementFullscreenKeepsTheSameDocumentAndExitsNormally() {
+        app.buttons["tab-sports"].tap()
+        selectNBA()
+        let watch = app.buttons["Watch BOS vs TOR"].firstMatch
+        reveal(watch)
+        XCTAssertTrue(watch.isHittable)
+        watch.tap()
+        let source = app.buttons["sports-player-source-picker"]
+        XCTAssertTrue(source.waitForExistence(timeout: 10))
+        let document = app.webViews.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Playback session '")).firstMatch
+        XCTAssertTrue(document.waitForExistence(timeout: 10))
+        let selectedDocument = document.label
+        let sourceValue = source.value as? String
+        let enter = app.webViews.buttons["Enter provider fullscreen"]
+        XCTAssertTrue(enter.waitForExistence(timeout: 8))
+        enter.tap()
+        let active = app.webViews.staticTexts["Provider fullscreen active"]
+        XCTAssertTrue(active.waitForExistence(timeout: 10), "The actual WebKit fullscreenchange event must confirm element fullscreen")
+        XCTAssertEqual(document.label, selectedDocument)
+        capture("Actual provider element fullscreen keeps the same document")
+        let exit = app.webViews.buttons["Exit provider fullscreen"]
+        XCTAssertTrue(exit.isHittable)
+        exit.tap()
+        XCTAssertTrue(app.webViews.staticTexts["Provider inline"].waitForExistence(timeout: 8))
+        XCTAssertTrue(source.waitForExistence(timeout: 8))
+        XCTAssertTrue(source.isHittable)
+        XCTAssertEqual(source.value as? String, sourceValue)
+        XCTAssertEqual(document.label, selectedDocument)
+        capture("Provider element fullscreen exits without losing its document or source")
+        app.buttons["Close player"].tap()
+        XCTAssertTrue(wait { !source.exists })
     }
 
     func testSelectedSportsSourceAndDocumentSurviveBackgroundRoundTrip() {

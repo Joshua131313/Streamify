@@ -59,120 +59,138 @@ struct OfflinePlayerView: View {
         return episodes.first { $0.catalog?.season == catalog.season && $0.catalog?.episode == catalog.episode + 1 }
     }
 
-    var body: some View {
+    private var playerCanvas: some View {
         GeometryReader { geometry in
             ZStack {
                 Color.black.ignoresSafeArea()
                 OfflineVideoSurface(player: model.player, fill: fillPicture, pictureInPicture: pictureInPicture)
                     .ignoresSafeArea().accessibilityHidden(true)
-                Color.clear.contentShape(Rectangle())
-                    .highPriorityGesture(DragGesture(minimumDistance: 12, coordinateSpace: .local)
-                        .updating($edgeGestureActive) { _, active, _ in active = true }
-                        .onChanged { updateEdgeDrag($0, size: geometry.size) }
-                        .onEnded { _ in finishEdgeDrag() })
-                    .gesture(SpatialTapGesture(count: 2).exclusively(before: SpatialTapGesture(count: 1)).onEnded { value in
-                        if locked { revealUnlock(); return }
-                        switch value {
-                        case .first(let tap): skip(tap.location.x < geometry.size.width / 2 ? -10 : 10)
-                        case .second: toggleControls()
-                        }
-                    })
-                    .simultaneousGesture(MagnificationGesture().onChanged { _ in
-                        pinching = true; cancelEdgeDrag()
-                    }.onEnded { scale in
-                        pinching = false
-                        guard !locked else { return }
-                        if scale > 1.12 { fillPicture = true }
-                        if scale < 0.88 { fillPicture = false }
-                    })
-                    .accessibilityLabel("Offline video")
-                    .accessibilityAction(named: "Show playback controls") { if locked { revealUnlock() } else { showControls() } }
-
-                if let error = model.error {
-                    ScrollView {
-                      VStack(spacing: 16) {
-                        Image(systemName: "exclamationmark.circle").font(.largeTitle)
-                        Text("Video unavailable").font(.title3.bold())
-                        Text(error).font(.subheadline).multilineTextAlignment(.center).foregroundStyle(.white.opacity(0.75))
-                        if let suggestion = model.videoError?.recoverySuggestion {
-                            Text(suggestion).font(.caption).multilineTextAlignment(.center).foregroundStyle(.white.opacity(0.65))
-                        }
-                        if current.catalog?.media != nil {
-                            Button { showRecoveryDownload = true } label: {
-                                Label("Choose another download", systemImage: "arrow.down.circle")
-                                    .frame(maxWidth: .infinity, minHeight: 48)
-                                    .background(.white, in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
-                                    .foregroundStyle(.black)
-                            }.accessibilityIdentifier("offline-recover-download")
-                        }
-                        if let file = current.fileURL, FileManager.default.isReadableFile(atPath: file.path) {
-                            ShareLink(item: file, preview: SharePreview(current.title)) {
-                                Label("Open in another app", systemImage: "square.and.arrow.up").frame(minHeight: 44)
-                            }.accessibilityIdentifier("offline-share-video")
-                        }
-                        Button("Close video", action: close).frame(minWidth: 100, minHeight: 44)
-                      }.padding(28).frame(maxWidth: .infinity)
-                    }.frame(maxWidth: 440, maxHeight: max(80, geometry.size.height - 96))
-                        .background(.black.opacity(0.85), in: RoundedRectangle(cornerRadius: 16))
-                        .padding(.horizontal, 20).accessibilityIdentifier("offline-video-error")
-                } else if !model.isReady || model.isBuffering {
-                    ProgressView().tint(.white).scaleEffect(1.3).accessibilityLabel("Loading offline video")
-                }
-
-                if model.error != nil {
-                    VStack {
-                        HStack {
-                            icon("xmark", label: "Exit offline player", id: "offline-close", size: 20, action: close)
-                            Spacer()
-                        }.padding(.horizontal, 12).padding(.top, 6)
-                        Spacer()
-                    }
-                } else if controlsVisible && !locked {
-                    controls(size: geometry.size)
-                        .transition(.opacity)
-                }
-                sideControls(size: geometry.size)
-                if let edgeFeedback, model.error == nil, !locked {
-                    edgeFeedbackView(edgeFeedback)
-                }
-                if importedEnabled && model.error == nil {
-                    VStack {
-                        Spacer()
-                        Text(OfflineSubtitleTrack.text(at: model.position, cues: importedCues))
-                            .font(.system(size: geometry.size.width > 600 ? 22 : 18, weight: .medium))
-                            .multilineTextAlignment(.center).foregroundStyle(.white)
-                            .shadow(color: .black, radius: 2, x: 1, y: 1).shadow(color: .black, radius: 2, x: -1, y: -1)
-                            .padding(.horizontal, 32).padding(.bottom, controlsVisible && !locked ? 118 : 28)
-                    }.allowsHitTesting(false).accessibilityHidden(true)
-                }
-                if locked && unlockVisible && model.error == nil {
-                    VStack {
-                        Spacer()
-                        OfflineHoldUnlockControl(reduceMotion: reduceMotion,
-                            onHold: { hideTask?.cancel() },
-                            onCancel: { if locked { revealUnlock() } },
-                            onUnlock: {
-                                guard locked else { return }
-                                AppHaptics.tap(.primary); unlock()
-                            })
-                            .frame(width: 140, height: 100)
-                    }.padding(.bottom, 20)
-                }
-                if model.finished && !locked && model.error == nil {
-                    finishedOverlay
-                }
-                if scrubbing, controlsVisible, !locked, panel == nil, model.error == nil,
-                   seekPreview.visible, let thumb = seekThumbInWindow {
-                    let origin = geometry.frame(in: .global).origin
-                    OfflineSeekPreviewBubble(model: seekPreview)
-                        .position(
-                            x: OfflineSeekPreviewMath.center(thumbX: thumb.midX - origin.x, viewportWidth: geometry.size.width),
-                            y: max(78.5, thumb.minY - origin.y - 78.5))
-                }
+                videoInteractions(size: geometry.size)
+                playbackAvailability(size: geometry.size)
+                transportOverlays(size: geometry.size)
+                seekPreviewOverlay(in: geometry)
             }
             .foregroundStyle(.white).tint(.white).buttonStyle(HapticPlainButtonStyle())
             .accessibilityElement(children: .contain).accessibilityIdentifier("offline-player")
         }
+    }
+
+    private func videoInteractions(size: CGSize) -> some View {
+        Color.clear.contentShape(Rectangle())
+            .highPriorityGesture(DragGesture(minimumDistance: 12, coordinateSpace: .local)
+                .updating($edgeGestureActive) { _, active, _ in active = true }
+                .onChanged { updateEdgeDrag($0, size: size) }
+                .onEnded { _ in finishEdgeDrag() })
+            .gesture(SpatialTapGesture(count: 2).exclusively(before: SpatialTapGesture(count: 1)).onEnded { value in
+                if locked { revealUnlock(); return }
+                switch value {
+                case .first(let tap): skip(tap.location.x < size.width / 2 ? -10 : 10)
+                case .second: toggleControls()
+                }
+            })
+            .simultaneousGesture(MagnificationGesture().onChanged { _ in
+                pinching = true; cancelEdgeDrag()
+            }.onEnded { scale in
+                pinching = false
+                guard !locked else { return }
+                if scale > 1.12 { fillPicture = true }
+                if scale < 0.88 { fillPicture = false }
+            })
+            .accessibilityLabel("Offline video")
+            .accessibilityAction(named: "Show playback controls") { if locked { revealUnlock() } else { showControls() } }
+    }
+
+    @ViewBuilder private func playbackAvailability(size: CGSize) -> some View {
+        if let error = model.error {
+            ScrollView {
+              VStack(spacing: 16) {
+                Image(systemName: "exclamationmark.circle").font(.largeTitle)
+                Text("Video unavailable").font(.title3.bold())
+                Text(error).font(.subheadline).multilineTextAlignment(.center).foregroundStyle(.white.opacity(0.75))
+                if let suggestion = model.videoError?.recoverySuggestion {
+                    Text(suggestion).font(.caption).multilineTextAlignment(.center).foregroundStyle(.white.opacity(0.65))
+                }
+                if current.catalog?.media != nil {
+                    Button { showRecoveryDownload = true } label: {
+                        Label("Choose another download", systemImage: "arrow.down.circle")
+                            .frame(maxWidth: .infinity, minHeight: 48)
+                            .background(.white, in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
+                            .foregroundStyle(.black)
+                    }.accessibilityIdentifier("offline-recover-download")
+                }
+                if let file = current.fileURL, FileManager.default.isReadableFile(atPath: file.path) {
+                    ShareLink(item: file, preview: SharePreview(current.title)) {
+                        Label("Open in another app", systemImage: "square.and.arrow.up").frame(minHeight: 44)
+                    }.accessibilityIdentifier("offline-share-video")
+                }
+                Button("Close video", action: close).frame(minWidth: 100, minHeight: 44)
+              }.padding(28).frame(maxWidth: .infinity)
+            }.frame(maxWidth: 440, maxHeight: max(80, size.height - 96))
+                .background(.black.opacity(0.85), in: RoundedRectangle(cornerRadius: 16))
+                .padding(.horizontal, 20).accessibilityIdentifier("offline-video-error")
+        } else if !model.isReady || model.isBuffering {
+            ProgressView().tint(.white).scaleEffect(1.3).accessibilityLabel("Loading offline video")
+        }
+    }
+
+    @ViewBuilder private func transportOverlays(size: CGSize) -> some View {
+        if model.error != nil {
+            VStack {
+                HStack {
+                    icon("xmark", label: "Exit offline player", id: "offline-close", size: 20, action: close)
+                    Spacer()
+                }.padding(.horizontal, 12).padding(.top, 6)
+                Spacer()
+            }
+        } else if controlsVisible && !locked {
+            controls(size: size)
+                .transition(.opacity)
+        }
+        sideControls(size: size)
+        if let edgeFeedback, model.error == nil, !locked {
+            edgeFeedbackView(edgeFeedback)
+        }
+        if importedEnabled && model.error == nil {
+            VStack {
+                Spacer()
+                Text(OfflineSubtitleTrack.text(at: model.position, cues: importedCues))
+                    .font(.system(size: size.width > 600 ? 22 : 18, weight: .medium))
+                    .multilineTextAlignment(.center).foregroundStyle(.white)
+                    .shadow(color: .black, radius: 2, x: 1, y: 1).shadow(color: .black, radius: 2, x: -1, y: -1)
+                    .padding(.horizontal, 32).padding(.bottom, controlsVisible && !locked ? 118 : 28)
+            }.allowsHitTesting(false).accessibilityHidden(true)
+        }
+        if locked && unlockVisible && model.error == nil {
+            VStack {
+                Spacer()
+                OfflineHoldUnlockControl(reduceMotion: reduceMotion,
+                    onHold: { hideTask?.cancel() },
+                    onCancel: { if locked { revealUnlock() } },
+                    onUnlock: {
+                        guard locked else { return }
+                        AppHaptics.tap(.primary); unlock()
+                    })
+                    .frame(width: 140, height: 100)
+            }.padding(.bottom, 20)
+        }
+        if model.finished && !locked && model.error == nil {
+            finishedOverlay
+        }
+    }
+
+    @ViewBuilder private func seekPreviewOverlay(in geometry: GeometryProxy) -> some View {
+        if scrubbing, controlsVisible, !locked, panel == nil, model.error == nil,
+           seekPreview.visible, let thumb = seekThumbInWindow {
+            let origin = geometry.frame(in: .global).origin
+            OfflineSeekPreviewBubble(model: seekPreview)
+                .position(
+                    x: OfflineSeekPreviewMath.center(thumbX: thumb.midX - origin.x, viewportWidth: geometry.size.width),
+                    y: max(78.5, thumb.minY - origin.y - 78.5))
+        }
+    }
+
+    private var lifecyclePlayer: some View {
+        playerCanvas
         .background(.black).preferredColorScheme(.dark).statusBarHidden().persistentSystemOverlays(.hidden)
         .task(id: current.id) {
             let item = current
@@ -204,6 +222,10 @@ struct OfflinePlayerView: View {
             model.teardown()
             if let originalBrightness { UIScreen.main.brightness = originalBrightness }
         }
+    }
+
+    private var observedPlayer: some View {
+        lifecyclePlayer
         .onChange(of: scenePhase) { _, phase in
             if phase != .active {
                 hideTask?.cancel(); cancelEdgeDrag(); pinching = false; unlockVisible = false
@@ -224,6 +246,10 @@ struct OfflinePlayerView: View {
         .onChange(of: model.error) { _, error in if error != nil { scrubbing = false; seekPreview.hide() } }
         .onChange(of: showSubtitleImporter) { _, _ in cancelEdgeDrag() }
         .onChange(of: brightness) { _, value in UIScreen.main.brightness = CGFloat(value) }
+    }
+
+    private var presentedPlayer: some View {
+        observedPlayer
         .sheet(item: $panel, onDismiss: showControls) { selected in
             panelContent(selected).preferredColorScheme(.dark).presentationDetents([.medium, .large])
         }
@@ -235,6 +261,10 @@ struct OfflinePlayerView: View {
                 }.preferredColorScheme(.dark)
             }
         }
+    }
+
+    var body: some View {
+        presentedPlayer
         .fileImporter(isPresented: $showSubtitleImporter,
             allowedContentTypes: [UTType(filenameExtension: "srt") ?? .plainText, UTType(filenameExtension: "vtt") ?? .plainText]) { result in
             let itemID = current.id

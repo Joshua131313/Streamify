@@ -2,6 +2,32 @@ import XCTest
 @testable import Streamify
 
 final class SportsPlaybackSessionTests: XCTestCase {
+    @MainActor func testFullscreenKeepsTheSameStreamAndNativePiPOwner() {
+        let source = SportsStream(title: "Bravo", url: URL(string: "https://example.com/bravo.mp4")!)
+        let session = SportsPlaybackSession()
+        session.play(title: "Game", url: source.url, sources: [source])
+        let identity = session.item?.id, owner = UUID()
+        session.pictureInPicture.attach(owner: owner, capability: .available, request: {}, stop: {})
+        session.toggleVideoFullscreen()
+        XCTAssertTrue(session.isVideoFullscreen)
+        XCTAssertEqual(session.item?.id, identity)
+        XCTAssertEqual(session.item?.url, source.url)
+        XCTAssertTrue(session.pictureInPicture.owns(owner: owner), "Fullscreen must not replace the actual PiP/player driver")
+        XCTAssertEqual(session.reload, 0)
+        session.pictureInPicture.didStart(owner: owner)
+        session.toggleVideoFullscreen()
+        XCTAssertTrue(session.isVideoFullscreen, "Hidden app chrome cannot change while system PiP is active")
+        session.pictureInPicture.didStop(owner: owner, restoring: true)
+        XCTAssertTrue(session.isExpanded)
+        XCTAssertTrue(session.isVideoFullscreen)
+        XCTAssertTrue(session.pictureInPicture.owns(owner: owner))
+        session.toggleVideoFullscreen()
+        XCTAssertFalse(session.isVideoFullscreen)
+        XCTAssertEqual(session.item?.id, identity)
+        session.close()
+        XCTAssertFalse(session.isVideoFullscreen)
+    }
+
     @MainActor func testOnlyConfirmedSystemPiPHidesPlayerAndRestoreKeepsSource() {
         let first = SportsStream(title: "Alpha", url: URL(string: "https://example.com/alpha")!)
         let second = SportsStream(title: "Bravo", url: URL(string: "https://example.com/bravo")!)

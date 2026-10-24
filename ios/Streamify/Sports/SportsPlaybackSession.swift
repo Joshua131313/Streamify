@@ -19,6 +19,7 @@ final class SportsPlaybackSession: ObservableObject {
     @Published private(set) var presentation: SportsPlaybackPresentation = .expanded
     @Published private(set) var reload = 0
     @Published private(set) var direct = false
+    @Published private(set) var isVideoFullscreen = false
     @Published private(set) var safeAreaInsets = UIEdgeInsets.zero
     let pictureInPicture = SportsSystemPiP()
 
@@ -45,7 +46,7 @@ final class SportsPlaybackSession: ObservableObject {
         if item?.url == url, item?.title == title { expand(); return }
         pictureInPicture.reset()
         item = SportsPlaybackItem(id: UUID(), title: title, url: url, sources: choices)
-        reload = 0; direct = false; presentation = .expanded
+        reload = 0; direct = false; isVideoFullscreen = false; presentation = .expanded
     }
 
     func selectSource(_ source: SportsStream) {
@@ -58,6 +59,10 @@ final class SportsPlaybackSession: ObservableObject {
     }
     func reloadCurrent() { guard item != nil else { return }; pictureInPicture.reset(); reload += 1 }
     func toggleDirect() { guard item != nil else { return }; pictureInPicture.reset(); direct.toggle() }
+    func toggleVideoFullscreen() {
+        guard isExpanded else { return }
+        isVideoFullscreen.toggle()
+    }
     func requestPictureInPicture() { guard item != nil else { return }; pictureInPicture.request() }
     func expand() {
         guard item != nil else { return }
@@ -67,7 +72,7 @@ final class SportsPlaybackSession: ObservableObject {
     func close() {
         pictureInPicture.reset()
         item = nil
-        reload = 0; direct = false; presentation = .expanded
+        reload = 0; direct = false; isVideoFullscreen = false; presentation = .expanded
     }
     func updateSafeArea(_ value: UIEdgeInsets) { if safeAreaInsets != value { safeAreaInsets = value } }
 }

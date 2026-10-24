@@ -103,7 +103,10 @@ struct RootView: View {
         }
         // One backdrop also fills the status bar and home-indicator area.
         .background { StreamifyRootBackdrop() }
-        .sheet(isPresented: $settingsOpen) { NavigationStack { SettingsView() } }
+        .sheet(isPresented: $settingsOpen) {
+            NavigationStack { SettingsView() }
+                .preferredColorScheme(settings.appearance == "System" ? nil : settings.appearance == "Light" ? .light : .dark)
+        }
         .sheet(isPresented: $accountOpen) { NavigationStack { AccountView() } }
         .sheet(isPresented: $downloadsOpen) { NavigationStack { DownloadsView() } }
         .sheet(isPresented: $catalogSearchOpen) { CatalogSearchDialog() }

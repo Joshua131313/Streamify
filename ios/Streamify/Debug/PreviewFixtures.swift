@@ -84,9 +84,17 @@ enum PreviewFixtures {
         posterPath: "/fixture-matrix.jpg", backdropPath: "/fixture-matrix.jpg", rating: 8.1, releaseDate: "2026-03-08", genreIDs: [18])
     static let anime = MediaItem(id: 44, kind: .anime, title: "Starlight Academy", overview: synopsis,
         posterPath: "https://image.tmdb.org/fixture-harry-potter.jpg", backdropPath: "https://image.tmdb.org/fixture-harry-potter.jpg", rating: 8.6, releaseDate: "2026", genreIDs: [])
-    static let playerHTML = """
-    <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;height:100%;background:#090909;color:#fff;font:16px -apple-system;display:grid;place-items:center}main{text-align:center}b{font-size:48px;color:#e91c39}small{color:#aaa}#playback-session{font-size:10px;color:#aaa}</style></head><body><main><b>▶</b><p>Streamify preview player</p><small>Local UI fixture · no external video loaded</small><p id="playback-session"></p></main><script>document.getElementById('playback-session').textContent='Playback session '+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);</script></body></html>
-    """
+    static var playerHTML: String {
+        let controls = ProcessInfo.processInfo.arguments.contains("--ui-element-fullscreen-fixture") ? """
+        <button onclick="document.querySelector('main').requestFullscreen().catch(()=>document.getElementById('fullscreen-state').textContent='Fullscreen failed')">Enter provider fullscreen</button>
+        <button onclick="document.exitFullscreen()">Exit provider fullscreen</button>
+        <p id="fullscreen-state" role="status">Provider inline</p>
+        <script>document.addEventListener('fullscreenchange',()=>document.getElementById('fullscreen-state').textContent=document.fullscreenElement?'Provider fullscreen active':'Provider inline');</script>
+        """ : ""
+        return """
+        <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;height:100%;background:#090909;color:#fff;font:16px -apple-system;display:grid;place-items:center}main{text-align:center}main:fullscreen{display:grid;place-content:center;box-sizing:border-box;width:100%;height:100%;background:#090909}button{min-height:44px;margin:8px;border:0;border-radius:10px;padding:8px 16px}b{font-size:48px;color:#e91c39}small{color:#aaa}#playback-session{font-size:10px;color:#aaa}</style></head><body><main><b>▶</b><p>Streamify preview player</p><small>Local UI fixture · no external video loaded</small><p id="playback-session"></p>\(controls)</main><script>document.getElementById('playback-session').textContent='Playback session '+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);</script></body></html>
+        """
+    }
     static func trailerHTML(token: String) -> String {
         let data = try! JSONSerialization.data(withJSONObject: ["token": token])
         let config = String(decoding: data, as: UTF8.self).replacingOccurrences(of: "<", with: "\\u003c")

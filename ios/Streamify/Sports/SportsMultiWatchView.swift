@@ -200,7 +200,7 @@ private struct SportsWatchTile: View {
                     .accessibilityLabel("Options for \(stream.title)")
                     .accessibilityIdentifier("sports-tile-options-\(stream.id)")
             }.buttonStyle(HapticPlainButtonStyle()).background(AppTheme.panel)
-            if let error { Text(error).font(.caption2).foregroundStyle(AppTheme.muted).padding(8) }
+            if let error { Text(error).font(.caption2).foregroundStyle(.white.opacity(0.75)).padding(8) }
             SportsTileWebView(url: stream.url, revision: revision, audible: audible, active: active, error: $error)
                 .frame(maxWidth: .infinity, maxHeight: .infinity).background(.black)
         }.background(.black).clipShape(RoundedRectangle(cornerRadius: 10)).padding(3)
@@ -220,6 +220,7 @@ private struct SportsTileWebView: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
+        configuration.preferences.isElementFullscreenEnabled = true
         configuration.allowsInlineMediaPlayback = true
         configuration.allowsPictureInPictureMediaPlayback = true
         configuration.mediaTypesRequiringUserActionForPlayback = []
