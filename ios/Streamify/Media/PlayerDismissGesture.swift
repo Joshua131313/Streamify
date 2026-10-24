@@ -3,8 +3,7 @@ import UIKit
 
 enum PlayerDismissGate {
     static func canStart(at point: CGPoint, in bounds: CGRect) -> Bool {
-        guard bounds.width > 0, bounds.height > 0, bounds.contains(point) else { return false }
-        return point.x >= bounds.maxX - min(32, bounds.width) || point.y <= bounds.minY + min(110, bounds.height)
+        bounds.width > 0 && bounds.height > 0 && bounds.contains(point)
     }
     static func isLeftward(_ movement: CGPoint) -> Bool {
         movement.x < 0 && abs(movement.x) > abs(movement.y) * 1.6
@@ -29,8 +28,8 @@ private final class PlayerDismissPanMarker: UIView {
     override func didMoveToWindow() { super.didMoveToWindow(); moved?() }
 }
 
-/// A window observer receives WKWebView touches; its marker limits dismissal
-/// to this player's header/right edge and excludes presentations above it.
+/// A window observer receives WKWebView touches across the player's canvas.
+/// The marker excludes other screens and presentations above this player.
 @MainActor
 private struct PlayerDismissPanObserver: UIViewRepresentable {
     let action: () -> Void
@@ -61,7 +60,7 @@ private struct PlayerDismissPanObserver: UIViewRepresentable {
             let recognizer = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
             recognizer.delegate = self
             recognizer.maximumNumberOfTouches = 1
-            recognizer.cancelsTouchesInView = false
+            recognizer.cancelsTouchesInView = true
             recognizer.delaysTouchesBegan = false
             recognizer.delaysTouchesEnded = false
             return recognizer
@@ -86,6 +85,13 @@ private struct PlayerDismissPanObserver: UIViewRepresentable {
                   !window.isHidden, window.alpha > 0.01,
                   PlayerDismissGate.canStart(at: touch.location(in: marker), in: marker.bounds),
                   sharesPlayerPresentation(touch.view, marker: marker) else { return false }
+            var controlAncestor = touch.view
+            while let view = controlAncestor {
+                if view is UIControl || view is UITextView || view is UISearchBar ||
+                    view is UIPickerView || view is UIDatePicker { return false }
+                if view === window { break }
+                controlAncestor = view.superview
+            }
             var ancestor: UIView? = marker
             while let view = ancestor {
                 if view.isHidden || view.alpha < 0.01 { return false }

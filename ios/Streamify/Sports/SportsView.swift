@@ -92,17 +92,12 @@ struct SportsView: View {
                 if channels {
                     SportsChannelsView()
                 } else {
+                    scheduleHeading
                     if home {
                         scheduleStatus
                         sportsHome
                     } else {
                         VStack(alignment: .leading, spacing: 16) {
-                            HStack {
-                                Text(Calendar.current.isDateInToday(day) ? "Today’s games" : day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
-                                    .font(.subheadline.weight(.semibold))
-                                Spacer()
-                                Text(filter.rawValue).font(.caption).foregroundStyle(AppTheme.muted)
-                            }.padding(.horizontal, 20)
                             scheduleStatus
                             gameList.opacity(loading ? 0 : 1).allowsHitTesting(!loading)
                             if !loading && error == nil && filteredGames.isEmpty {
@@ -177,6 +172,36 @@ struct SportsView: View {
                 showLeaguePicker = false
             }
         }
+    }
+
+    private var scheduleHeading: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(filter == .final ? "Final results" : Calendar.current.isDateInToday(day) ? "Today’s games" : day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
+                    .font(.subheadline.weight(.semibold))
+                if filter == .upcoming || filter == .following {
+                    Text(filter.rawValue).font(.caption2).foregroundStyle(AppTheme.muted)
+                }
+            }
+            Spacer(minLength: 8)
+            Button {
+                filter = filter == .live ? .all : .live
+                home = false
+                if filter == .live { selectDay(today) }
+            } label: {
+                HStack(spacing: 6) {
+                    Circle().fill(AppTheme.accent).frame(width: 5, height: 5)
+                    Text("Live").font(.caption.weight(.semibold))
+                }.padding(.horizontal, 12).frame(height: 30)
+                    .foregroundStyle(filter == .live ? AppTheme.canvas : AppTheme.foreground)
+                    .background(filter == .live ? AppTheme.foreground : AppTheme.controlFill, in: Capsule())
+                    .overlay { Capsule().strokeBorder(filter == .live ? .clear : AppTheme.border, lineWidth: 0.7) }
+                    .frame(minHeight: 44).contentShape(Rectangle())
+            }.buttonStyle(.plain).accessibilityLabel("Live games")
+                .accessibilityValue(filter == .live ? "On" : "Off")
+                .accessibilityAddTraits(filter == .live ? .isSelected : [])
+                .accessibilityIdentifier("sports-quick-live")
+        }.padding(.horizontal, 20)
     }
 
     @ViewBuilder private var scheduleStatus: some View {

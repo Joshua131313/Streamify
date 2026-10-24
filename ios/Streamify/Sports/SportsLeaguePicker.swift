@@ -7,7 +7,7 @@ struct SportsLeaguePicker: View {
     let apply: (Set<SportsLeague>) -> Void
 
     init(selected: Set<SportsLeague>, apply: @escaping (Set<SportsLeague>) -> Void) {
-        _draft = State(initialValue: selected)
+        _draft = State(initialValue: selected == Set(SportsLeague.allCases) ? [] : selected)
         self.apply = apply
     }
 
@@ -15,14 +15,10 @@ struct SportsLeaguePicker: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    Text("Choose one or more leagues for games and calendar dots.")
+                    Text("Choose leagues to filter games and calendar dots. Leave everything unchecked to show all leagues.")
                         .font(.subheadline).foregroundStyle(AppTheme.muted)
-                    HStack(spacing: 12) {
-                        Button("Select all") { draft = Set(SportsLeague.allCases) }
-                            .accessibilityIdentifier("sports-select-all-leagues")
-                        Button("Clear") { draft.removeAll() }
-                            .accessibilityIdentifier("sports-clear-leagues")
-                    }.buttonStyle(SecondaryButtonStyle())
+                    Button("Show all leagues") { draft.removeAll() }
+                        .buttonStyle(SecondaryButtonStyle()).accessibilityIdentifier("sports-clear-leagues")
                     VStack(spacing: 8) {
                         ForEach(SportsLeague.allCases) { league in
                             Button {
@@ -45,10 +41,9 @@ struct SportsLeaguePicker: View {
                                 .accessibilityIdentifier("sports-league-option-\(league.rawValue)")
                         }
                     }
-                    if draft.isEmpty { Text("Choose at least one league.").font(.caption).foregroundStyle(AppTheme.muted) }
-                    Button { guard !draft.isEmpty else { return }; apply(draft) } label: {
+                    Button { apply(draft.isEmpty ? Set(SportsLeague.allCases) : draft) } label: {
                         Text("Apply filters").frame(maxWidth: .infinity, minHeight: 44)
-                    }.buttonStyle(PrimaryButtonStyle()).disabled(draft.isEmpty)
+                    }.buttonStyle(PrimaryButtonStyle())
                         .accessibilityIdentifier("sports-apply-leagues")
                 }.padding(20)
             }.background(AppTheme.canvas).foregroundStyle(AppTheme.foreground)

@@ -326,7 +326,10 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["sports-clear-leagues"].waitForExistence(timeout: 5))
         app.buttons["sports-clear-leagues"].tap()
         let apply = app.buttons["sports-apply-leagues"]
-        XCTAssertFalse(apply.isEnabled, "An empty league selection must not be applied.")
+        XCTAssertTrue(apply.isEnabled, "Unchecked leagues mean all leagues, so Apply must remain available.")
+        for league in ["nfl", "nba", "college-football", "wnba", "nhl", "mlb"] {
+            XCTAssertFalse(app.buttons["sports-league-option-\(league)"].isSelected, "All leagues must start unchecked.")
+        }
         app.buttons["sports-league-option-nfl"].tap()
         app.buttons["sports-league-option-nba"].tap()
         reveal(apply)
@@ -367,6 +370,37 @@ final class ParityFlowTests: XCTestCase {
         reveal(nba)
         XCTAssertTrue(nba.isHittable, "The same selection must include NBA games.")
         capture("46 Combined NFL and NBA results")
+        scrollSportsToTop()
+        picker.tap()
+        app.buttons["sports-clear-leagues"].tap()
+        reveal(apply)
+        apply.tap()
+        XCTAssertTrue(wait { picker.value as? String == "All leagues" })
+        capture("46b Clearing league choices restores all leagues")
+    }
+
+    func testQuickLiveTogglePrioritizesLiveGamesAndRetainsOtherFilters() {
+        app.buttons["tab-sports"].tap()
+        selectSportsLeagues(["nba"])
+        let live = app.buttons["sports-quick-live"]
+        XCTAssertTrue(live.waitForExistence(timeout: 5))
+        XCTAssertFalse(live.isSelected)
+        live.tap()
+        XCTAssertTrue(wait { live.isSelected })
+        XCTAssertTrue((app.buttons["sports-filter-picker"].value as? String ?? "").contains("Live"))
+        XCTAssertTrue(app.buttons["sports-game-nba:nba-fixture"].waitForExistence(timeout: 8))
+        XCTAssertFalse(app.buttons["sports-game-nba:nba-final"].exists)
+        capture("Live games one-tap quick filter")
+        live.tap()
+        XCTAssertTrue(wait { !live.isSelected })
+        XCTAssertTrue(app.buttons["sports-game-nba:nba-final"].waitForExistence(timeout: 8))
+        app.buttons["sports-filter-picker"].tap()
+        app.buttons["sports-filter-Final"].tap()
+        app.buttons["sports-filter-done"].tap()
+        XCTAssertFalse(live.isSelected)
+        XCTAssertTrue(app.buttons["sports-game-nba:nba-final"].waitForExistence(timeout: 8))
+        XCTAssertFalse(app.buttons["sports-game-nba:nba-fixture"].exists)
+        capture("Final results remain available from the filter sheet")
     }
 
     func testCollegeFootballLeagueOpensItsGameAndAvailableStream() {
@@ -457,8 +491,8 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertTrue(wait { (self.app.buttons["sports-player-source-picker"].value as? String ?? "").contains("bravo") })
         XCTAssertTrue(app.buttons["Close player"].exists, "Switching sources must keep the same player open.")
         capture("34c Live player switched source")
-        let leavePlayerStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: 0.4))
-        leavePlayerStart.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.4)))
+        let leavePlayerStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.45))
+        leavePlayerStart.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.12, dy: 0.45)))
         XCTAssertTrue(wait { !self.app.buttons["Close player"].exists })
         XCTAssertTrue(app.buttons["sports-scoring-tab"].waitForExistence(timeout: 5))
         reveal(app.buttons["sports-scoring-tab"])
@@ -525,8 +559,8 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["sports-player-source-picker"].waitForExistence(timeout: 8))
         XCTAssertTrue((app.buttons["sports-player-source-picker"].value as? String ?? "").contains("bravo"), "The tile's selected server must be retained when it expands.")
         capture("41 Expanded multi-watch retains its chosen server")
-        let leaveExpandedStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: 0.4))
-        leaveExpandedStart.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.4)))
+        let leaveExpandedStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.45))
+        leaveExpandedStart.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.12, dy: 0.45)))
         XCTAssertTrue(wait { !self.app.buttons["Close player"].exists })
         XCTAssertTrue(tileOptions.waitForExistence(timeout: 5))
         capture("42 Swipe exit returns to the same multi-watch tile")

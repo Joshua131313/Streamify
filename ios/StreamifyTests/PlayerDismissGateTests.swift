@@ -2,12 +2,12 @@ import XCTest
 @testable import Streamify
 
 final class PlayerDismissGateTests: XCTestCase {
-    func testOnlyPlayerHeaderAndRightEdgeCanStart() {
+    func testAnyPointInsidePlayerCanvasCanStart() {
         let bounds = CGRect(x: 0, y: 0, width: 400, height: 800)
         XCTAssertTrue(PlayerDismissGate.canStart(at: CGPoint(x: 200, y: 90), in: bounds))
         XCTAssertTrue(PlayerDismissGate.canStart(at: CGPoint(x: 380, y: 500), in: bounds))
-        XCTAssertFalse(PlayerDismissGate.canStart(at: CGPoint(x: 200, y: 500), in: bounds), "Interior video scrubbing must not arm dismissal.")
-        XCTAssertFalse(PlayerDismissGate.canStart(at: CGPoint(x: 20, y: 500), in: bounds))
+        XCTAssertTrue(PlayerDismissGate.canStart(at: CGPoint(x: 200, y: 500), in: bounds), "A deliberate swipe across the video must be able to dismiss the player.")
+        XCTAssertTrue(PlayerDismissGate.canStart(at: CGPoint(x: 20, y: 500), in: bounds))
         XCTAssertFalse(PlayerDismissGate.canStart(at: CGPoint(x: 420, y: 80), in: bounds))
         XCTAssertFalse(PlayerDismissGate.canStart(at: .zero, in: .zero))
     }
