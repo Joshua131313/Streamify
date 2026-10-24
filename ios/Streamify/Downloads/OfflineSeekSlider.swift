@@ -37,7 +37,7 @@ struct OfflineSeekSlider: UIViewRepresentable {
             let bounded = value.isFinite ? min(Double(slider.maximumValue), max(0, value)) : 0
             if abs(Double(slider.value) - bounded) > 0.01 { slider.setValue(Float(bounded), animated: false) }
         }
-        slider.accessibilityValue = "\(OfflineSeekPreviewMath.timestamp(Double(slider.value))) of \(OfflineSeekPreviewMath.timestamp(duration))"
+        slider.updateAccessibilityValue(duration: duration)
     }
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: OfflineTrackingSlider, context: Context) -> CGSize? {
         CGSize(width: max(44, proposal.width ?? 200), height: 44)
@@ -64,7 +64,7 @@ struct OfflineSeekSlider: UIViewRepresentable {
         }
         @objc func changed(_ slider: OfflineTrackingSlider) {
             parent.value = Double(slider.value)
-            slider.accessibilityValue = "\(OfflineSeekPreviewMath.timestamp(Double(slider.value))) of \(OfflineSeekPreviewMath.timestamp(parent.duration))"
+            slider.updateAccessibilityValue(duration: parent.duration)
             if slider.isTracking || editing { reportThumb(slider) }
             else { parent.onCommit(Double(slider.value)) }
         }
@@ -115,6 +115,20 @@ final class OfflineTrackingSlider: UISlider {
     var onBegin: ((OfflineTrackingSlider) -> Void)?
     var onFinish: ((OfflineTrackingSlider, Bool) -> Void)?
     var onLayout: ((OfflineTrackingSlider) -> Void)?
+    private var usesNativeAccessibilityPercentage: Bool {
+        #if DEBUG
+        PreviewFixtures.enabled && ProcessInfo.processInfo.arguments.contains("--ui-native-slider-accessibility")
+        #else
+        false
+        #endif
+    }
+    func updateAccessibilityValue(duration: Double) {
+        // XCTest's native normalized adjustment reads UISlider's percentage.
+        // This dedicated fixture leaves that system value intact, with the
+        // actual time still available in its diagnostic label below.
+        accessibilityValue = usesNativeAccessibilityPercentage ? nil
+            : "\(OfflineSeekPreviewMath.timestamp(Double(value))) of \(OfflineSeekPreviewMath.timestamp(duration))"
+    }
     override var accessibilityLabel: String? {
         get {
             let label = super.accessibilityLabel ?? "Playback progress"
@@ -127,7 +141,10 @@ final class OfflineTrackingSlider: UISlider {
                 let thumb = thumbRect(forBounds: bounds, trackRect: track, value: value)
                 let first = thumbRect(forBounds: bounds, trackRect: track, value: minimumValue)
                 let last = thumbRect(forBounds: bounds, trackRect: track, value: maximumValue)
-                return "\(label); fixture-thumb:\(thumb.midX),\(thumb.midY); fixture-range:\(first.midX),\(last.midX)"
+                let geometry = "\(label); fixture-thumb:\(thumb.midX),\(thumb.midY); fixture-range:\(first.midX),\(last.midX)"
+                return usesNativeAccessibilityPercentage
+                    ? "\(geometry); fixture-position:\(OfflineSeekPreviewMath.timestamp(Double(value))) of \(OfflineSeekPreviewMath.timestamp(Double(maximumValue)))"
+                    : geometry
             }
             #endif
             return label

@@ -84,6 +84,7 @@ struct ProfileChooserView: View {
         }
         .scrollIndicators(.hidden)
         .scrollBounceBehavior(.basedOnSize)
+        .accessibilityIdentifier("profile-chooser-scroll")
     }
 
     private func chooserContent(avatarSize: CGFloat, tileWidth: CGFloat) -> some View {
@@ -279,6 +280,7 @@ private struct ProfileEditorView: View {
                 }.padding(24).frame(maxWidth: 580).frame(maxWidth: .infinity)
             }
             .scrollDismissesKeyboard(.interactively)
+            .accessibilityIdentifier("profile-editor-scroll")
             .background(AppTheme.canvas).foregroundStyle(AppTheme.foreground)
             .navigationTitle(profile == nil ? "Add profile" : "Edit profile")
             .navigationBarTitleDisplayMode(.inline)

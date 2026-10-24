@@ -93,18 +93,20 @@ jobs:
               ;;
             *) exit 2 ;;
           esac
-          # After a completed full run, a marked repair commit reruns the
-          # affected flows. Ordinary pushes retain all 46 UI tests above.
+          # Build34 provides full-suite coverage. Marked repairs rerun its
+          # remaining gesture-driver failures; ordinary pushes retain all 46 UI
+          # tests above. No production seek, lock, profile or sports behavior is
+          # bypassed by these tests.
           if [[ "$FOCUSED_FIXES" == "true" ]]; then
             case "$TEST_SUITE" in
               playback)
-                SELECTORS=(-only-testing:StreamifyTests -only-testing:StreamifyUITests/DownloadIndicatorFlowTests -only-testing:StreamifyUITests/SportsChatFlowTests -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testSportsFullscreenUsesTheProvidersOwnControlAndKeepsItsDocument -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testProviderElementFullscreenKeepsTheSameDocumentAndExitsNormally -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testProviderNativeVideoFullscreenPresentsAboveTheSportsWindowAndKeepsItsSource -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testSwipeDownSportsPlayerCancelsWithoutReloadingThenReturnsToItsGameCard)
+                SELECTORS=(-only-testing:StreamifyTests)
                 ;;
               controls)
-                SELECTORS=(-only-testing:StreamifyUITests/CardInteractionFlowTests -only-testing:StreamifyUITests/OfflinePlayerFlowTests -only-testing:StreamifyUITests/ProfileFlowTests -only-testing:StreamifyUITests/NavigationTests)
+                SELECTORS=(-only-testing:StreamifyUITests/OfflinePlayerFlowTests -only-testing:StreamifyUITests/ProfileFlowTests)
                 ;;
               screens)
-                SELECTORS=(-only-testing:StreamifyUITests/ParityFlowTests/testExploreGenresPosterOpensItsExactMovieAndReturnsToRail -only-testing:StreamifyUITests/ParityFlowTests/testMovieTrailerDownloadQualityCastSheetAndDragReturn -only-testing:StreamifyUITests/ParityFlowTests/testShowEpisodeDownloadsAndPlayerEpisodePicker -only-testing:StreamifyUITests/ParityFlowTests/testScheduleDaySwipesKeepToolbarAndRootTabStationary -only-testing:StreamifyUITests/ParityFlowTests/testQuickLiveTogglePrioritizesLiveGamesAndRetainsOtherFilters -only-testing:StreamifyUITests/ParityFlowTests/testCollegeFootballLeagueOpensItsGameAndAvailableStream)
+                SELECTORS=(-only-testing:StreamifyUITests/ParityFlowTests/testSportsScheduleScoringTableRosterChannelsAndMultiWatch)
                 ;;
             esac
           fi

@@ -210,14 +210,25 @@ final class ProfileFlowTests: XCTestCase {
     private func reveal(_ target: XCUIElement) {
         for _ in 0..<8 {
             if target.exists && target.isHittable { return }
+            let editor = app.scrollViews["profile-editor-scroll"]
+            let scroll = editor.exists ? editor : app.scrollViews["profile-chooser-scroll"]
+            XCTAssertTrue(scroll.exists, "The active profile surface must expose its real scroll view.")
+            let viewport = scroll.frame.intersection(app.frame)
+            let navigationBar = app.navigationBars.firstMatch
+            let chromeBottom = editor.exists && navigationBar.exists ? navigationBar.frame.maxY : viewport.minY
+            let upperEdge = max(viewport.minY + 18, chromeBottom + 12)
             let keyboard = app.keyboards.firstMatch
-            let bottom = keyboard.exists ? keyboard.frame.minY : app.frame.maxY
-            let upward = !target.exists || target.frame.midY > app.frame.midY
-            let lower = max(app.frame.minY + 170, bottom - 28)
-            let upper = max(app.frame.minY + 130, lower - 230)
+            // Keyboard predictions sit above the XCUI Keyboard frame. Keep the
+            // drag inside the visible form, away from that accessory and the
+            // right scroll indicator / landscape safe-area strip.
+            let lowerEdge = min(viewport.maxY - 24, keyboard.exists ? keyboard.frame.minY - 64 : viewport.maxY - 24)
+            XCTAssertGreaterThan(lowerEdge - upperEdge, 30)
+            let lower = upperEdge + (lowerEdge - upperEdge) * 0.86
+            let upper = upperEdge + (lowerEdge - upperEdge) * 0.16
+            let upward = !target.exists || target.frame.midY > (upperEdge + lowerEdge) / 2
             let origin = app.coordinate(withNormalizedOffset: .zero)
-            let start = origin.withOffset(CGVector(dx: app.frame.width - 8, dy: upward ? lower : upper))
-            let end = origin.withOffset(CGVector(dx: app.frame.width - 8, dy: upward ? upper : lower))
+            let start = origin.withOffset(CGVector(dx: viewport.midX, dy: upward ? lower : upper))
+            let end = origin.withOffset(CGVector(dx: viewport.midX, dy: upward ? upper : lower))
             start.press(forDuration: 0.05, thenDragTo: end)
         }
         XCTAssertTrue(target.isHittable, "The profile control must remain reachable by scrolling.")

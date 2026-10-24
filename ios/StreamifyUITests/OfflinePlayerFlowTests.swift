@@ -10,7 +10,7 @@ final class OfflinePlayerFlowTests: XCTestCase {
         app = XCUIApplication()
         app.launchArguments = ["--ui-fixtures"]
         if name.contains("testCachedPosterAndActualLocalPlaybackControls") {
-            app.launchArguments.append("--ui-stable-offline-controls")
+            app.launchArguments += ["--ui-stable-offline-controls", "--ui-native-slider-accessibility"]
         }
         XCUIDevice.shared.orientation = .portrait
         app.launch()
@@ -42,16 +42,23 @@ final class OfflinePlayerFlowTests: XCTestCase {
         XCTAssertTrue(wait { play.label == "Play" })
         XCTAssertFalse(app.navigationBars["Downloads"].isHittable, "The offline player must cover the Downloads navigation header; covered controllers may remain in the accessibility tree.")
         let progress = app.sliders["offline-progress"]
-        let beforeSeek = progress.value as? String
+        let beforeSeek = progressTimestamp(progress)
         app.buttons["offline-forward-10"].tap()
-        XCTAssertTrue(wait { (progress.value as? String) != beforeSeek }, "Skip must move the real local video's timestamp.")
+        XCTAssertTrue(wait { self.progressTimestamp(progress) != beforeSeek }, "Skip must move the real local video's timestamp.")
         capture("44 Full-canvas offline controls and real seek")
         XCTAssertGreaterThanOrEqual(progress.frame.height, 44)
-        dragProgressThumb(progress, to: 0.3)
+        dragProgressThumbForPreview(progress, to: 0.7)
+        let nativeValue = progress.value as? String ?? ""
+        XCTAssertFalse(nativeValue.isEmpty)
+        XCTAssertFalse(nativeValue.contains(" of "), "The dedicated fixture must preserve UISlider's native numeric accessibility value for XCTest's normalized adjustment.")
+        XCTContext.runActivity(named: "Native normalized seek to 0.3; native value=\(nativeValue); actual time=\(progressTimestamp(progress)); \(progress.label)") { _ in
+            progress.adjust(toNormalizedSliderPosition: 0.3)
+        }
         XCTAssertTrue(wait {
-            let value = progress.value as? String ?? ""
+            let value = self.progressTimestamp(progress)
             return value.contains(" of 10:00") && (170...190).contains(self.seconds(value))
-        }, "The native adjustable slider must commit a real seek near three minutes in the ten-minute local fixture; actual value: \(progress.value as? String ?? "missing").")
+        }, "The native adjustable slider must commit a real seek near three minutes in the ten-minute local fixture; actual value: \(progressTimestamp(progress)).")
+        XCTContext.runActivity(named: "Native normalized seek result: \(progressTimestamp(progress)); native value=\(progress.value as? String ?? "missing")") { _ in }
         XCTAssertEqual(play.label, "Play", "Seeking while paused must preserve the paused playback state.")
         XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "offline-seek-preview").firstMatch.exists,
             "A completed accessibility seek must not leave a held-thumb preview visible.")
@@ -83,7 +90,7 @@ final class OfflinePlayerFlowTests: XCTestCase {
         revealControls(for: play)
         play.tap()
         XCTAssertTrue(wait { play.label == "Play" })
-        XCTAssertTrue(wait { self.seconds(progress.value as? String ?? "") >= 9 }, "Reopening the same downloaded file must resume its saved timestamp.")
+        XCTAssertTrue(wait { self.seconds(self.progressTimestamp(progress)) >= 9 }, "Reopening the same downloaded file must resume its saved timestamp.")
         capture("46 Reopened offline video resumes its saved progress")
         app.buttons["offline-close"].tap()
     }
@@ -155,10 +162,12 @@ final class OfflinePlayerFlowTests: XCTestCase {
         XCTAssertFalse(play.exists, "A locked player's edge swipe must not expose playback controls.")
         XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "offline-edge-feedback").firstMatch.exists,
             "Brightness and volume feedback must not be activated while playback controls are locked.")
-        // A locked-canvas gesture may reveal the unlock affordance; it must never
-        // adjust brightness or bypass the same hold interaction used on Android.
-        if !unlock.exists { app.otherElements["Offline video"].firstMatch.tap() }
-        XCTAssertTrue(unlock.waitForExistence(timeout: 3))
+        // The unlock affordance has its own three-second inactivity timer. Let
+        // that real timer finish before re-revealing it; an existence snapshot
+        // just before its deadline cannot guarantee a subsequent hold is safe.
+        XCTAssertTrue(wait { !unlock.exists }, "The locked player must hide its temporary unlock affordance through the normal timer.")
+        app.otherElements["Offline video"].firstMatch.tap()
+        XCTAssertTrue(unlock.waitForExistence(timeout: 2))
         unlock.press(forDuration: 1.15)
         XCTAssertTrue(play.waitForExistence(timeout: 5))
         XCTAssertEqual(brightnessPercent(brightness), portraitBrightness, "A locked edge swipe must leave the actual brightness unchanged.")
@@ -173,7 +182,7 @@ final class OfflinePlayerFlowTests: XCTestCase {
         start.press(forDuration: 0.05, thenDragTo: finish)
     }
 
-    private func dragProgressThumb(_ progress: XCUIElement, to fraction: Double) {
+    private func dragProgressThumbForPreview(_ progress: XCUIElement, to fraction: Double) {
         func geometry(_ prefix: String, label: String) -> [Double] {
             guard let field = label.components(separatedBy: "; ").first(where: { $0.hasPrefix(prefix) }) else { return [] }
             return field.dropFirst(prefix.count).split(separator: ",").compactMap { Double($0) }
@@ -185,45 +194,29 @@ final class OfflinePlayerFlowTests: XCTestCase {
             XCTFail("The fixture must expose the presented native slider's actual thumb and track geometry: \(label)")
             return
         }
-        func drag(from nativeThumb: [Double], to targetX: Double) {
-            let origin = progress.coordinate(withNormalizedOffset: .zero)
-            let start = origin.withOffset(CGVector(dx: nativeThumb[0], dy: nativeThumb[1]))
-            let end = origin.withOffset(CGVector(dx: targetX, dy: nativeThumb[1]))
+        let initialValue = progressTimestamp(progress)
+        let origin = progress.coordinate(withNormalizedOffset: .zero)
+        let start = origin.withOffset(CGVector(dx: thumb[0], dy: thumb[1]))
+        let targetX = range[0] + (range[1] - range[0]) * fraction
+        let end = origin.withOffset(CGVector(dx: targetX, dy: thumb[1]))
+        // Keep a real held-thumb drag for the decoded preview and its recorded
+        // position. Precise time selection below uses UIKit's native adjustable
+        // control rather than an estimate of iOS26's expanded tracking thumb.
+        XCTContext.runActivity(named: "Physical native thumb drag for decoded preview; value=\(initialValue); frame=\(progress.frame); \(label)") { _ in
             start.press(forDuration: 0.15, thenDragTo: end)
         }
-        let initialValue = progress.value as? String ?? ""
-        let initialSeconds = Double(seconds(initialValue))
-        let duration = Double(seconds(initialValue.components(separatedBy: " of ").last ?? ""))
-        let targetSeconds = duration * fraction
-        // Calibrate well away from the target, so the second physical movement
-        // clears the native expanded thumb's drag threshold instead of being a
-        // tiny, ignored correction within its press area.
-        let calibrationFraction = fraction <= 0.5 ? 0.7 : 0.2
-        let firstTargetX = range[0] + (range[1] - range[0]) * calibrationFraction
-        XCTContext.runActivity(named: "First real native seek calibration toward \(calibrationFraction); desired=\(targetSeconds); value=\(initialValue); frame=\(progress.frame); \(label)") { _ in
-            drag(from: thumb, to: firstTargetX)
+        XCTAssertTrue(wait { self.progressTimestamp(progress) != initialValue }, "The physical drag must commit a real timestamp change.")
+        XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "offline-seek-preview").firstMatch.exists,
+            "Releasing the real thumb must dismiss its decoded preview.")
+        XCTContext.runActivity(named: "Physical native thumb result: \(progressTimestamp(progress)); \(progress.label)") { _ in }
+    }
+
+    private func progressTimestamp(_ progress: XCUIElement) -> String {
+        let prefix = "fixture-position:"
+        if let field = progress.label.components(separatedBy: "; ").first(where: { $0.hasPrefix(prefix) }) {
+            return String(field.dropFirst(prefix.count))
         }
-        XCTAssertTrue(wait { (progress.value as? String) != initialValue }, "The first physical drag must commit a real timestamp change.")
-        let firstValue = progress.value as? String ?? ""
-        let committedSeconds = Double(seconds(firstValue))
-        let firstDelta = committedSeconds - initialSeconds
-        let physicalDelta = firstTargetX - thumb[0]
-        // iOS26 expands its native thumb while tracking. Its collapsed public
-        // thumbRect endpoints do not predict that held movement precisely.
-        // Calibrate once from the actual committed timestamp, then regrab the
-        // real presented thumb; never assign player state or weaken the result.
-        if abs(committedSeconds - targetSeconds) > 10, abs(firstDelta) > 1, abs(physicalDelta) > 1 {
-            let currentLabel = progress.label
-            let currentThumb = geometry("fixture-thumb:", label: currentLabel)
-            guard currentThumb.count == 2 else { XCTFail("Missing presented thumb after seek: \(currentLabel)"); return }
-            let correction = (targetSeconds - committedSeconds) * physicalDelta / firstDelta
-            let correctedTargetX = min(range[1], max(range[0], currentThumb[0] + correction))
-            XCTContext.runActivity(named: "One calibrated real drag; committed=\(firstValue); physicalDelta=\(physicalDelta); secondsDelta=\(firstDelta); targetX=\(correctedTargetX); \(currentLabel)") { _ in
-                drag(from: currentThumb, to: correctedTargetX)
-            }
-            XCTAssertTrue(wait { (progress.value as? String) != firstValue }, "The one correction drag must commit another actual timestamp change.")
-        }
-        XCTContext.runActivity(named: "Real native seek result: \(progress.value as? String ?? "missing"); \(progress.label)") { _ in }
+        return progress.value as? String ?? ""
     }
 
     private func brightnessPercent(_ slider: XCUIElement) -> Int {

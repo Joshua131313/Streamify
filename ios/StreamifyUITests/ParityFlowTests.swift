@@ -647,9 +647,12 @@ final class ParityFlowTests: XCTestCase {
         capture("41 Expanded multi-watch retains its chosen server")
         let leaveExpandedStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.45))
         leaveExpandedStart.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.12, dy: 0.45)))
+        XCTAssertTrue(app.buttons["Close player"].isHittable, "Horizontal interaction must preserve the expanded multi-watch stream.")
+        XCTAssertTrue((app.buttons["sports-player-source-picker"].value as? String ?? "").contains("bravo"))
+        app.buttons["Close player"].tap()
         XCTAssertTrue(wait { !self.app.buttons["Close player"].exists })
         XCTAssertTrue(tileOptions.waitForExistence(timeout: 5))
-        capture("42 Swipe exit returns to the same multi-watch tile")
+        capture("42 Closing the expanded player returns to the same multi-watch tile")
     }
 
     private func openTitle(_ key: String) {
