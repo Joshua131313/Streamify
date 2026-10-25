@@ -1,8 +1,88 @@
 import XCTest
 import Combine
+import WebKit
 @testable import Streamify
 
 final class SportsPlaybackSessionTests: XCTestCase {
+    @MainActor func testOnlyAConfirmedMissingVideoFrameClearsRetainedFullscreenOwnership() {
+        XCTAssertFalse(SportsWebPiPBridge.confirmsMissingVideo(.success(true)))
+        XCTAssertTrue(SportsWebPiPBridge.confirmsMissingVideo(.success(false)))
+        XCTAssertTrue(SportsWebPiPBridge.confirmsMissingVideo(.success(NSNull())))
+        XCTAssertTrue(SportsWebPiPBridge.confirmsMissingVideo(.failure(NSError(domain: WKError.errorDomain,
+            code: WKError.Code.javaScriptInvalidFrameTarget.rawValue))))
+        XCTAssertFalse(SportsWebPiPBridge.confirmsMissingVideo(.failure(NSError(domain: WKError.errorDomain,
+            code: WKError.Code.javaScriptExceptionOccurred.rawValue))),
+            "A transient script failure does not prove that WebKit returned or destroyed the fullscreen video.")
+        XCTAssertFalse(SportsWebPiPBridge.confirmsMissingVideo(.failure(NSError(domain: NSURLErrorDomain,
+            code: NSURLErrorTimedOut))), "Background suspension or time passing must never raise the black app window.")
+    }
+
+    @MainActor func testPiPRestoreWaitsForProviderToReturnTheVideoBeforeRaisingAppWindow() {
+        let source = SportsStream(title: "Bravo", url: URL(string: "https://example.com/bravo")!)
+        let session = SportsPlaybackSession(), owner = UUID()
+        session.play(title: "Game", url: source.url, sources: [source])
+        let identity = session.item?.id
+        session.pictureInPicture.attach(owner: owner, capability: .available, request: {}, stop: {})
+        var focus = SportsPlaybackWindowFocus()
+        XCTAssertEqual(focus.transition(expanded: session.isExpanded, providerFullscreen: false), .player)
+
+        session.pictureInPicture.reportProviderFullscreen(true, owner: owner)
+        XCTAssertEqual(focus.transition(expanded: session.isExpanded, providerFullscreen: true), .provider)
+        session.pictureInPicture.didStart(owner: owner)
+        XCTAssertEqual(focus.transition(expanded: session.isExpanded, providerFullscreen: true), .application)
+
+        // PiP can stop before WebKit moves its WKWebView back from the fullscreen
+        // window. Raising our player now would show only its black placeholder.
+        session.pictureInPicture.didStop(owner: owner, restoring: true)
+        XCTAssertTrue(session.isExpanded)
+        XCTAssertEqual(focus.transition(expanded: session.isExpanded,
+            providerFullscreen: session.pictureInPicture.providerOwnsFullscreen), .provider)
+        XCTAssertNil(focus.transition(expanded: true, providerFullscreen: true))
+
+        session.pictureInPicture.reportProviderFullscreen(false, owner: owner)
+        XCTAssertEqual(focus.transition(expanded: session.isExpanded,
+            providerFullscreen: session.pictureInPicture.providerOwnsFullscreen), .player)
+        XCTAssertNil(focus.transition(expanded: true, providerFullscreen: false))
+        XCTAssertEqual(session.item?.id, identity)
+        XCTAssertEqual(session.item?.url, source.url)
+        XCTAssertEqual(session.reload, 0, "A presentation handoff must retain the existing provider document.")
+        XCTAssertTrue(session.pictureInPicture.owns(owner: owner))
+
+        // The inverse ordering is valid too: returning the video to its parent
+        // while PiP is still active must keep the app player out of the way.
+        session.pictureInPicture.reportProviderFullscreen(true, owner: owner)
+        XCTAssertEqual(focus.transition(expanded: true, providerFullscreen: true), .provider)
+        session.pictureInPicture.didStart(owner: owner)
+        XCTAssertEqual(focus.transition(expanded: session.isExpanded, providerFullscreen: true), .application)
+        session.pictureInPicture.reportProviderFullscreen(false, owner: owner)
+        XCTAssertNil(focus.transition(expanded: session.isExpanded, providerFullscreen: false))
+        session.pictureInPicture.didStop(owner: owner, restoring: true)
+        XCTAssertEqual(focus.transition(expanded: session.isExpanded, providerFullscreen: false), .player)
+        XCTAssertEqual(session.item?.id, identity)
+        XCTAssertEqual(session.item?.url, source.url)
+        XCTAssertEqual(session.reload, 0)
+    }
+
+    @MainActor func testFullscreenOwnerIgnoresStaleDriversAndRepeatedVideoSnapshots() {
+        let pictureInPicture = SportsSystemPiP(), owner = UUID()
+        pictureInPicture.attach(owner: owner, capability: .available, request: {}, stop: {})
+        var invalidations = 0
+        let observation = pictureInPicture.objectWillChange.sink { invalidations += 1 }
+        defer { observation.cancel() }
+        pictureInPicture.reportProviderFullscreen(true, owner: owner)
+        XCTAssertTrue(pictureInPicture.providerOwnsFullscreen)
+        XCTAssertEqual(invalidations, 1)
+        for _ in 0..<10 { pictureInPicture.reportProviderFullscreen(true, owner: owner) }
+        pictureInPicture.reportProviderFullscreen(false, owner: UUID())
+        XCTAssertEqual(invalidations, 1)
+        XCTAssertTrue(pictureInPicture.providerOwnsFullscreen)
+
+        pictureInPicture.reset()
+        pictureInPicture.reportProviderFullscreen(true, owner: owner)
+        XCTAssertFalse(pictureInPicture.providerOwnsFullscreen,
+            "An old fullscreen frame cannot cover or alter the next selected stream.")
+    }
+
     @MainActor func testUnchangedPiPCapabilityHeartbeatsDoNotInvalidatePlayerChrome() {
         let pictureInPicture = SportsSystemPiP(), owner = UUID()
         pictureInPicture.attach(owner: owner, capability: .unavailable, request: {}, stop: {})

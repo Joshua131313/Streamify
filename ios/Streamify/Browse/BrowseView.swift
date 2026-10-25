@@ -10,16 +10,66 @@ final class BrowseModel: ObservableObject {
     @Published var page = 0
     @Published var totalPages = 1
     private var generation = UUID()
+    private struct Request: Hashable {
+        let token: String
+        let kind: MediaKind?
+        let query: String
+        let genre: Int
+        let animeGenre: String
+        let provider: Int
+        let topRated: Bool
+        let includeAnime: Bool
+    }
+    private struct Snapshot {
+        let items: [MediaItem]
+        let page: Int
+        let totalPages: Int
+        let loadedAt: Date
+        let firstPageKeys: Set<String>
+    }
+    private var activeRequest: Request?
+    private var loadedAt: Date?
+    private var snapshots: [Request: Snapshot] = [:]
+    private var firstPageKeys = Set<String>()
 
-    func reset() { generation = UUID(); items = []; page = 0; totalPages = 1; error = nil; loading = false }
+    func reset() {
+        remember()
+        generation = UUID(); activeRequest = nil; loadedAt = nil
+        items = []; page = 0; totalPages = 1; error = nil; loading = false; firstPageKeys = []
+    }
 
-    func load(client: TMDBClient, kind: MediaKind?, query: String, genre: Int, animeGenre: String, provider: Int, topRated: Bool, first: Bool, includeAnimeSearch: Bool = false) async {
-        if first { reset() }
-        guard !loading, page < totalPages else { return }
+    private func remember() {
+        guard let activeRequest, let loadedAt else { return }
+        guard items.count <= 400 else { snapshots[activeRequest] = nil; return }
+        snapshots[activeRequest] = Snapshot(items: items, page: page, totalPages: totalPages, loadedAt: loadedAt, firstPageKeys: firstPageKeys)
+        if snapshots.count > 20, let oldest = snapshots.min(by: { $0.value.loadedAt < $1.value.loadedAt })?.key { snapshots[oldest] = nil }
+    }
+
+    func load(client: TMDBClient, kind: MediaKind?, query: String, genre: Int, animeGenre: String, provider: Int, topRated: Bool, first: Bool, includeAnimeSearch: Bool = false, forceReload: Bool = false, debounce: Bool = false) async {
+        let identity = Request(token: client.token, kind: kind, query: query, genre: genre,
+            animeGenre: animeGenre, provider: provider, topRated: topRated, includeAnime: includeAnimeSearch)
+        if identity != activeRequest {
+            remember()
+            // Credentials partition the shared network cache. Remove this
+            // view's old credentials too so they cannot reappear after settings change.
+            if let activeRequest, activeRequest.token != identity.token { snapshots.removeAll() }
+            generation = UUID(); activeRequest = identity; error = nil; loading = false
+            let restored = snapshots[identity].flatMap { Date().timeIntervalSince($0.loadedAt) < 1800 ? $0 : nil }
+            items = restored?.items ?? []; page = restored?.page ?? 0; totalPages = restored?.totalPages ?? 1
+            loadedAt = restored?.loadedAt
+            firstPageKeys = restored?.firstPageKeys ?? []
+        }
+        if first, !forceReload, error == nil, let loadedAt, Date().timeIntervalSince(loadedAt) < 300 { return }
+        if first && loading { generation = UUID(); loading = false }
+        guard !loading, first || page < totalPages else { return }
         let request = generation
         loading = true; error = nil
         defer { if request == generation { loading = false } }
         do {
+            if debounce && first && !query.isEmpty && items.isEmpty { try await Task.sleep(for: .milliseconds(350)) }
+            try Task.checkCancellation()
+            let client = client.reloading(forceReload)
+            let nextPage = first ? 1 : page + 1
             let resolved = kind ?? .movie
             var params: [String: String] = [:]
             let path: String
@@ -37,8 +87,8 @@ final class BrowseModel: ObservableObject {
             let response: MediaPage
             var partialError: String?
             if includeAnimeSearch, kind == nil, !query.isEmpty {
-                async let catalog = searchResult(client: client, path: path, kind: nil, page: page + 1, query: query)
-                async let anime = searchResult(client: client, path: path, kind: .anime, page: page + 1, query: query)
+                async let catalog = searchResult(client: client, path: path, kind: nil, page: nextPage, query: query)
+                async let anime = searchResult(client: client, path: path, kind: .anime, page: nextPage, query: query)
                 let results = await [catalog, anime]
                 let pages = results.compactMap { try? $0.get() }
                 guard !pages.isEmpty else { throw results.compactMap { result -> Error? in if case .failure(let error) = result { return error }; return nil }.first ?? CatalogError.invalidResponse }
@@ -48,16 +98,29 @@ final class BrowseModel: ObservableObject {
                     }.first ?? "Retry to search all sources."
                     partialError = "Some catalog results are unavailable. \(reason)"
                 }
-                response = MediaPage(items: pages.flatMap(\.items), page: page + 1, totalPages: pages.map(\.totalPages).max() ?? 1)
+                response = MediaPage(items: pages.flatMap(\.items), page: nextPage, totalPages: pages.map(\.totalPages).max() ?? 1)
             } else {
-                response = try await client.catalog(path: path, kind: kind, page: page + 1, query: query, parameters: params)
+                response = try await client.catalog(path: path, kind: kind, page: nextPage, query: query, parameters: params)
             }
             try Task.checkCancellation()
             guard request == generation else { return }
-            var seen = Set(items.map(\.key))
-            items.append(contentsOf: response.items.filter { seen.insert($0.key).inserted })
-            page = response.page; totalPages = response.totalPages
+            if first {
+                // A background refresh of page one must not remove pages the
+                // user already loaded or collapse their scroll position.
+                let tail = !forceReload && page > 1 ? items.filter { !firstPageKeys.contains($0.key) } : []
+                var seen = Set<String>()
+                items = (response.items + tail).filter { seen.insert($0.key).inserted }
+                firstPageKeys = Set(response.items.map(\.key))
+                page = tail.isEmpty ? response.page : min(page, response.totalPages)
+            } else {
+                var seen = Set(items.map(\.key))
+                items.append(contentsOf: response.items.filter { seen.insert($0.key).inserted })
+                page = response.page
+            }
+            totalPages = response.totalPages
             error = partialError
+            loadedAt = Date()
+            remember()
         } catch is CancellationError { }
         catch { if request == generation && !Task.isCancelled { self.error = error.localizedDescription } }
     }
@@ -85,6 +148,8 @@ struct BrowseView: View {
     @State private var topRated = false
     @State private var revision = 0
     @State private var showSearch = false
+    @State private var loadedGenreKey = ""
+    @State private var handledRevision = 0
     @Namespace private var searchTransition
     private let providers = [(0, "All providers"), (8, "Netflix"), (9, "Prime Video"), (337, "Disney+"), (350, "Apple TV"), (15, "Hulu"), (531, "Paramount+")]
     private let animeGenres = ["Action", "Adventure", "Comedy", "Drama", "Fantasy", "Romance", "Sci-Fi", "Sports", "Thriller"]
@@ -173,13 +238,17 @@ struct BrowseView: View {
             }
         }
         .task(id: requestKey) {
-            model.reset()
-            do { try await Task.sleep(for: .milliseconds(cleanQuery.isEmpty ? 0 : 350)); try Task.checkCancellation() }
-            catch { return }
-            await load(first: true)
+            let reload = revision != handledRevision
+            handledRevision = revision
+            await load(first: true, forceReload: reload)
         }
         .task(id: "\(kind?.rawValue ?? "all"):\(settings.tmdbToken)") {
-            genre = 0; provider = 0; animeGenre = ""
+            let key = "\(kind?.rawValue ?? "all"):\(settings.tmdbToken)"
+            guard key != loadedGenreKey || model.genres.isEmpty else { return }
+            if key != loadedGenreKey {
+                loadedGenreKey = key
+                genre = 0; provider = 0; animeGenre = ""
+            }
             guard let kind, kind != .anime else { model.genres = []; return }
             model.genres = []
             do {
@@ -193,7 +262,7 @@ struct BrowseView: View {
         .streamifySearchPresentation(isPresented: $showSearch, sourceID: "catalog-search-field", in: searchTransition) {
             CatalogSearchDialog(initialKind: kind)
         }
-        .refreshable { await load(first: true) }
+        .refreshable { await load(first: true, forceReload: true) }
     }
 
     private var filters: some View {
@@ -231,9 +300,10 @@ struct BrowseView: View {
             .buttonStyle(HapticPlainButtonStyle()).accessibilityLabel("Provider, \(providers.first { $0.0 == provider }?.1 ?? "All providers")")
     }
 
-    private func load(first: Bool) async {
+    private func load(first: Bool, forceReload: Bool = false) async {
         await model.load(client: settings.client, kind: kind, query: cleanQuery, genre: genre,
-                         animeGenre: animeGenre, provider: provider, topRated: topRated, first: first)
+                         animeGenre: animeGenre, provider: provider, topRated: topRated, first: first,
+                         forceReload: forceReload, debounce: true)
     }
 }
 

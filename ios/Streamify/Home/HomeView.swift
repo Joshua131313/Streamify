@@ -10,14 +10,21 @@ private final class HomeModel: ObservableObject {
     @Published var loading = false
     @Published var error: String?
     private var requestID = UUID()
+    private var loadedToken: String?
+    private var loadedAt: Date?
 
-    func load(client: TMDBClient) async {
+    func load(client: TMDBClient, forceReload: Bool = false) async {
+        if loadedToken != client.token {
+            trending = []; movies = []; shows = []; loadedAt = nil; loadedToken = client.token
+        }
+        if !forceReload, error == nil, let loadedAt, Date().timeIntervalSince(loadedAt) < 300 { return }
         let request = UUID(); requestID = request
         loading = true
         error = nil
         defer { if requestID == request { loading = false } }
         guard !client.token.isEmpty else { trending = []; movies = []; shows = []; return }
         do {
+            let client = client.reloading(forceReload)
             async let trendingPage = client.catalog(path: "trending/all/day")
             async let moviePage = client.catalog(path: "movie/top_rated", kind: .movie)
             async let showPage = client.catalog(path: "tv/popular", kind: .tv)
@@ -27,6 +34,7 @@ private final class HomeModel: ObservableObject {
             trending = pages.0.items
             movies = pages.1.items
             shows = pages.2.items
+            loadedAt = Date()
         } catch is CancellationError { }
         catch { if requestID == request && !Task.isCancelled { self.error = error.localizedDescription } }
     }
@@ -39,6 +47,7 @@ struct HomeView: View {
     @EnvironmentObject private var library: LibraryStore
     @StateObject private var model = HomeModel()
     @State private var retry = 0
+    @State private var handledRetry = 0
     @State private var carouselFrame: CGRect = .null
     @State private var viewportFrame: CGRect = .null
     @State private var scrollMoving = false
@@ -133,8 +142,11 @@ struct HomeView: View {
                 scrollMoving = false
             } catch { }
         }
-        .task(id: settings.tmdbToken + String(retry)) { await model.load(client: settings.client) }
-        .refreshable { await model.load(client: settings.client) }
+        .task(id: settings.tmdbToken + String(retry)) {
+            let reload = retry != handledRetry; handledRetry = retry
+            await model.load(client: settings.client, forceReload: reload)
+        }
+        .refreshable { await model.load(client: settings.client, forceReload: true) }
     }
 
     private func categoryLink(_ title: String, kind: MediaKind) -> some View {

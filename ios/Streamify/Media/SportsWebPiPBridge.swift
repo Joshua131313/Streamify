@@ -1,5 +1,6 @@
 import Foundation
 import WebKit
+import UIKit
 
 /// Uses Apple's HTMLVideoElement presentation-mode API in the actual frame
 /// containing the video, including cross-origin provider iframes.
@@ -12,6 +13,11 @@ final class SportsWebPiPBridge: NSObject, WKScriptMessageHandler {
     private var owner = UUID()
     private var frames: [String: VideoFrame] = [:]
     private var activeVideoID: String?
+    private var fullscreenVideoIDs = Set<String>()
+    private var refreshingFrames = Set<String>()
+    private var elementFullscreen = false
+    private var fullscreenObservation: NSKeyValueObservation?
+    private var foregroundObserver: NSObjectProtocol?
     private struct VideoFrame {
         let frame: WKFrameInfo
         let capable: Bool
@@ -23,30 +29,50 @@ final class SportsWebPiPBridge: NSObject, WKScriptMessageHandler {
         self.webView = webView; self.pictureInPicture = pictureInPicture
         super.init()
         webView.configuration.userContentController.add(self, contentWorld: Self.world, name: Self.name)
+        // During element fullscreen WebKit moves the WKWebView into a separate
+        // window, leaving a placeholder behind. DOM PiP and native fullscreen
+        // callbacks can arrive in either order on foreground restoration.
+        fullscreenObservation = webView.observe(\.fullscreenState, options: [.initial, .new]) { [weak self] observed, _ in
+            Task { @MainActor [weak self, weak observed] in
+                guard let self, let observed, self.webView === observed else { return }
+                self.elementFullscreen = observed.fullscreenState != .notInFullscreen
+                self.publishFullscreen()
+            }
+        }
+        foregroundObserver = NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification,
+            object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor [weak self] in self?.refreshPresentation() }
+            }
     }
     func begin() {
         pictureInPicture?.detach(owner: owner)
-        owner = UUID(); frames.removeAll(); activeVideoID = nil
+        owner = UUID(); frames.removeAll(); activeVideoID = nil; fullscreenVideoIDs.removeAll(); refreshingFrames.removeAll()
         let requestOwner = owner
         pictureInPicture?.attach(owner: owner, capability: .checking,
             request: { [weak self] in guard let self, self.owner == requestOwner else { return }; self.request() },
             stop: { [weak self] in guard let self, self.owner == requestOwner else { return }; self.stop() })
+        elementFullscreen = webView.map { $0.fullscreenState != .notInFullscreen } ?? false
+        publishFullscreen()
         let script = WKUserScript(source: Self.script(token: owner.uuidString), injectionTime: .atDocumentEnd,
             forMainFrameOnly: false, in: Self.world)
         webView?.configuration.userContentController.addUserScript(script)
     }
     func loaded() { refreshCapability() }
     func terminated() {
-        frames.removeAll(); activeVideoID = nil
+        frames.removeAll(); activeVideoID = nil; fullscreenVideoIDs.removeAll(); refreshingFrames.removeAll(); elementFullscreen = false
+        publishFullscreen()
         // A dead web content process cannot send a final DOM mode event.
         // Return to the retained error/reload screen instead of trapping it offscreen.
         pictureInPicture?.didStop(owner: owner, restoring: true)
         pictureInPicture?.reportCapability(.unavailable, owner: owner)
     }
     func finish() {
+        fullscreenObservation?.invalidate(); fullscreenObservation = nil
+        if let foregroundObserver { NotificationCenter.default.removeObserver(foregroundObserver) }
+        foregroundObserver = nil
         pictureInPicture?.detach(owner: owner)
         webView?.configuration.userContentController.removeScriptMessageHandler(forName: Self.name, contentWorld: Self.world)
-        frames.removeAll(); activeVideoID = nil; owner = UUID()
+        frames.removeAll(); activeVideoID = nil; fullscreenVideoIDs.removeAll(); refreshingFrames.removeAll(); owner = UUID()
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
@@ -61,6 +87,8 @@ final class SportsWebPiPBridge: NSObject, WKScriptMessageHandler {
         let area = (body["area"] as? NSNumber)?.doubleValue ?? 0
         let playing = body["paused"] as? Bool == false
         let active = body["active"] as? Bool == true
+        let fullscreen = body["fullscreen"] as? Bool == true
+        if fullscreen { fullscreenVideoIDs.insert(id) } else { fullscreenVideoIDs.remove(id) }
         let capable = body["capable"] as? Bool == true && area.isFinite && area > 3200
         frames[id] = VideoFrame(frame: message.frameInfo, capable: capable,
             score: min(max(0, area), 10_000_000) + (playing ? 100_000_000 : 0), seenAt: ProcessInfo.processInfo.systemUptime)
@@ -68,17 +96,53 @@ final class SportsWebPiPBridge: NSObject, WKScriptMessageHandler {
         if active {
             activeVideoID = id
             pictureInPicture?.didStart(owner: owner)
-        } else if activeVideoID == id, body["kind"] as? String == "mode" {
-            activeVideoID = nil
-            // Restoring leaves the video playing inline. Closing the system
-            // window pauses it; explicit app Restore also marks its intent.
-            pictureInPicture?.didStop(owner: owner, restoring: playing)
+            publishFullscreen()
+        } else {
+            publishFullscreen()
+            if activeVideoID == id {
+                activeVideoID = nil
+                // Restoring leaves the video playing inline. Closing the system
+                // window pauses it; explicit app Restore also marks its intent.
+                // A foreground snapshot is authoritative too: a mode event/timer
+                // may have been suspended while iOS moved the video out of PiP.
+                pictureInPicture?.didStop(owner: owner, restoring: playing || fullscreen || elementFullscreen)
+            }
         }
+    }
+    private func publishFullscreen() {
+        pictureInPicture?.reportProviderFullscreen(elementFullscreen || !fullscreenVideoIDs.isEmpty, owner: owner)
+    }
+    private func refreshPresentation() {
+        guard let webView else { return }
+        elementFullscreen = webView.fullscreenState != .notInFullscreen
+        publishFullscreen()
+        // Refresh known video frames, including cross-origin provider iframes.
+        // This reads presentation state only; it never reloads, seeks or plays.
+        for (id, video) in frames { refreshFrame(id, frame: video.frame) }
     }
     private func refreshCapability() {
         let now = ProcessInfo.processInfo.systemUptime
-        frames = frames.filter { $0.key == activeVideoID || now - $0.value.seenAt < 3 }
+        // A suspended document does not emit heartbeats. Keep its known
+        // fullscreen ownership until an actual snapshot or invalid-frame result
+        // confirms its return/removal; age alone must never raise our window.
+        let staleFullscreen = frames.filter { fullscreenVideoIDs.contains($0.key) && now - $0.value.seenAt >= 3 }
+        frames = frames.filter { $0.key == activeVideoID || fullscreenVideoIDs.contains($0.key) || now - $0.value.seenAt < 3 }
+        if UIApplication.shared.applicationState == .active {
+            for (id, video) in staleFullscreen { refreshFrame(id, frame: video.frame) }
+        }
         pictureInPicture?.reportCapability(frames.values.contains(where: \.capable) ? .available : .unavailable, owner: owner)
+    }
+    private func refreshFrame(_ id: String, frame: WKFrameInfo) {
+        guard refreshingFrames.insert(id).inserted else { return }
+        evaluate("refresh", id: id, frame: frame, reportFailure: false)
+    }
+    static func confirmsMissingVideo(_ result: Result<Any, Error>) -> Bool {
+        switch result {
+        case .success(let value): return value as? Bool != true
+        case .failure(let error):
+            let error = error as NSError
+            return error.domain == WKError.errorDomain && error.code == WKError.Code.javaScriptInvalidFrameTarget.rawValue
+        }
     }
     private func request() {
         refreshCapability()
@@ -97,6 +161,14 @@ final class SportsWebPiPBridge: NSObject, WKScriptMessageHandler {
         webView?.evaluateJavaScript("window.__streamifySportsPiP && window.__streamifySportsPiP.\(action)(\(encoded))",
             in: frame, in: Self.world) { [weak self] result in
                 guard let self, self.owner == requestOwner else { return }
+                if action == "refresh" {
+                    self.refreshingFrames.remove(id)
+                    if Self.confirmsMissingVideo(result) {
+                        self.frames.removeValue(forKey: id)
+                        self.fullscreenVideoIDs.remove(id)
+                        self.publishFullscreen()
+                    }
+                }
                 if reportFailure {
                     guard case .success(let value) = result, value as? Bool == true else {
                         self.pictureInPicture?.failed("This provider rejected iOS Picture in Picture. Start its video first or choose another source.", owner: requestOwner)
@@ -116,12 +188,13 @@ final class SportsWebPiPBridge: NSObject, WKScriptMessageHandler {
             ((typeof v.webkitSetPresentationMode==='function'&&v.webkitSupportsPresentationMode&&v.webkitSupportsPresentationMode('picture-in-picture'))||
              (document.pictureInPictureEnabled&&typeof v.requestPictureInPicture==='function'));}catch(e){return false;}}
           function send(v,kind){var r=v.getBoundingClientRect();try{window.webkit.messageHandlers.streamifySportsPiP.postMessage({
-            token:token,kind:kind,id:ids.get(v),active:active(v),paused:v.paused,capable:v.isConnected&&supports(v),area:Math.max(0,r.width*r.height)});}catch(e){}}
-          function mode(v){setTimeout(function(){send(v,'mode');},80);}
+            token:token,kind:kind,id:ids.get(v),active:active(v),fullscreen:v.isConnected&&(v.webkitPresentationMode==='fullscreen'||v.webkitDisplayingFullscreen===true),
+            paused:v.paused,capable:v.isConnected&&supports(v),area:Math.max(0,r.width*r.height)});}catch(e){}}
+          function mode(v){send(v,'mode');}
           function scan(){document.querySelectorAll('video').forEach(function(v){
             if(!ids.has(v)&&nodes.size<64){var id=prefix+'-'+(++seq);ids.set(v,id);nodes.set(id,v);
               ['loadedmetadata','canplay','play','pause','resize','emptied'].forEach(function(e){v.addEventListener(e,function(){send(v,'snapshot');});});
-              ['webkitpresentationmodechanged','enterpictureinpicture','leavepictureinpicture'].forEach(function(e){v.addEventListener(e,function(){mode(v);});});}
+              ['webkitpresentationmodechanged','webkitbeginfullscreen','webkitendfullscreen','enterpictureinpicture','leavepictureinpicture'].forEach(function(e){v.addEventListener(e,function(){mode(v);});});}
             if(ids.has(v))send(v,'snapshot');
           });nodes.forEach(function(v,id){if(!v.isConnected&&!active(v)){send(v,'snapshot');nodes.delete(id);}});}
           window.__streamifySportsPiP={request:function(id){var v=nodes.get(id);if(!v||!supports(v))return false;
@@ -129,9 +202,12 @@ final class SportsWebPiPBridge: NSObject, WKScriptMessageHandler {
               else v.requestPictureInPicture().catch(function(){try{window.webkit.messageHandlers.streamifySportsPiP.postMessage({token:token,kind:'error'});}catch(e){}});
               return true;}catch(e){return false;}},
             stop:function(id){var v=nodes.get(id);if(!v)return false;try{if(typeof v.webkitSetPresentationMode==='function')v.webkitSetPresentationMode('inline');
-              else if(document.pictureInPictureElement===v)document.exitPictureInPicture();return true;}catch(e){return false;}}};
+              else if(document.pictureInPictureElement===v)document.exitPictureInPicture();return true;}catch(e){return false;}},
+            refresh:function(id){var v=nodes.get(id);if(!v)return false;send(v,'snapshot');return true;}};
           new MutationObserver(scan).observe(document,{childList:true,subtree:true});
-          document.addEventListener('DOMContentLoaded',scan);scan();setInterval(scan,1000);
+          document.addEventListener('DOMContentLoaded',scan);
+          document.addEventListener('visibilitychange',function(){if(!document.hidden)scan();});
+          window.addEventListener('pageshow',scan);scan();setInterval(scan,1000);
         })();
         """
     }

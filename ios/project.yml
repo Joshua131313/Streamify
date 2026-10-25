@@ -61,6 +61,7 @@ targets:
           - Info.plist
       - path: Streamify/Sports/SportsModels.swift
       - path: Streamify/Sports/SportsService.swift
+      - path: Streamify/Data/ResponseMemoryCache.swift
       - path: Streamify/Sports/SportsWidgetPolicy.swift
     settings:
       base:

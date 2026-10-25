@@ -52,16 +52,24 @@ struct SportsService: Sendable {
     var session: URLSession = .shared
     var calendar: Calendar = .current
     var now: @Sendable () -> Date = { Date() }
+    var forceReload = false
 
     private func json(_ value: String) async throws -> Any {
         guard let url = sportsHTTPSURL(value) else { throw SportsServiceError.invalidURL }
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)
         request.timeoutInterval = 20
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        let (data, response) = try await session.data(for: request)
+        let prepared = request
+        let lifetime: TimeInterval = url.path.hasSuffix("/teams") || url.path.hasSuffix("/roster") ? 3600 : 30
+        let data = try await ResponseMemoryCache.shared.data(key: ResponseMemoryCache.key(for: prepared, session: session),
+            lifetime: lifetime, reload: forceReload) {
+                let (data, response) = try await session.data(for: prepared)
+                guard let http = response as? HTTPURLResponse else { throw SportsServiceError.invalidResponse }
+                guard (200...299).contains(http.statusCode) else { throw SportsServiceError.unavailable(http.statusCode) }
+                _ = try JSONSerialization.jsonObject(with: data)
+                return data
+            }
         try Task.checkCancellation()
-        guard let http = response as? HTTPURLResponse else { throw SportsServiceError.invalidResponse }
-        guard (200...299).contains(http.statusCode) else { throw SportsServiceError.unavailable(http.statusCode) }
         return try JSONSerialization.jsonObject(with: data)
     }
 

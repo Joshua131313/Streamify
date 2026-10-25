@@ -12,6 +12,7 @@ struct CatalogSearchDialog: View {
     @State private var revision = 0
     @State private var waiting = false
     @State private var hasFocused = false
+    @State private var handledRevision = 0
     @State private var selected: MediaItem?
     @FocusState private var focused: Bool
     @Namespace private var transition
@@ -39,7 +40,7 @@ struct CatalogSearchDialog: View {
                         if cleanQuery.isEmpty { recentSearches }
                         else {
                             SectionHeading(title: "Search results", subtitle: "Matching “\(cleanQuery)”")
-                            if waiting || model.loading && model.items.isEmpty {
+                            if (waiting || model.loading) && model.items.isEmpty {
                                 ProgressView("Searching titles…").frame(maxWidth: .infinity).padding(.vertical, 28)
                                     .accessibilityIdentifier("catalog-search-loading")
                             }
@@ -76,13 +77,12 @@ struct CatalogSearchDialog: View {
             }
             .task(id: requestKey) {
                 let request = requestKey
-                model.reset()
-                guard !cleanQuery.isEmpty else { waiting = false; return }
+                guard !cleanQuery.isEmpty else { model.reset(); waiting = false; return }
                 waiting = true
                 defer { if request == requestKey { waiting = false } }
-                do { try await Task.sleep(for: .milliseconds(350)); try Task.checkCancellation() }
-                catch { return }
-                await load(first: true)
+                let reload = revision != handledRevision
+                handledRevision = revision
+                await load(first: true, forceReload: reload)
             }
             .onChange(of: focused) { _, value in if !value { library.rememberSearch(cleanQuery) } }
             .onDisappear { library.rememberSearch(cleanQuery) }
@@ -154,8 +154,8 @@ struct CatalogSearchDialog: View {
             .buttonStyle(HapticPlainButtonStyle()).accessibilityIdentifier("media-link-\(media.key)")
     }
 
-    private func load(first: Bool) async {
+    private func load(first: Bool, forceReload: Bool = false) async {
         guard !cleanQuery.isEmpty else { return }
-        await model.load(client: settings.client, kind: kind, query: cleanQuery, genre: 0, animeGenre: "", provider: 0, topRated: false, first: first, includeAnimeSearch: true)
+        await model.load(client: settings.client, kind: kind, query: cleanQuery, genre: 0, animeGenre: "", provider: 0, topRated: false, first: first, includeAnimeSearch: true, forceReload: forceReload, debounce: true)
     }
 }

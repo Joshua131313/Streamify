@@ -8,6 +8,7 @@ struct SportsSearchDialog: View {
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var queue: SportsWatchQueue
     @EnvironmentObject private var playback: SportsPlaybackSession
+    @EnvironmentObject private var profiles: ProfileStore
     @FocusState private var focused: Bool
     @State private var query = ""
     @State private var search = ""
@@ -35,7 +36,7 @@ struct SportsSearchDialog: View {
         #endif
         return .standard
     }
-    private let recentsKey = "streamify.ios.sportsSearch.recents"
+    private var recentsKey: String { "streamify.ios.sportsSearch.recents.\(profiles.activeProfile?.id.uuidString ?? "guest")" }
     private var words: [String] { search.split(whereSeparator: \.isWhitespace).map(String.init) }
     private func matches(_ text: String) -> Bool {
         words.allSatisfy { text.range(of: $0, options: [.caseInsensitive, .diacriticInsensitive]) != nil }
@@ -87,7 +88,7 @@ struct SportsSearchDialog: View {
                 hasFocused = true
                 focused = true
             }
-            .task(id: revision) {
+            .task(id: "\(revision)|\(settings.apiBase)") {
                 let request = revision
                 async let teamLoad: Void = loadTeams(request: request)
                 async let gameLoad: Void = loadGames(request: request)
@@ -226,7 +227,7 @@ struct SportsSearchDialog: View {
         gameError = nil
         defer { if request == revision && !Task.isCancelled { gamesLoading = false } }
         do {
-            let result = try await SportsService(backend: settings.apiBase).schedule(leagues: SportsLeague.allCases, day: day)
+            let result = try await SportsService(backend: settings.apiBase, forceReload: request > 0).schedule(leagues: SportsLeague.allCases, day: day)
             try Task.checkCancellation()
             guard request == revision else { return }
             games = result.games
@@ -248,7 +249,7 @@ struct SportsSearchDialog: View {
         defer { if request == revision && !Task.isCancelled { teamsLoading = false } }
         let loaded = await withTaskGroup(of: TeamLoad.self, returning: [TeamLoad].self) { group in
             for league in SportsLeague.allCases {
-                group.addTask { TeamLoad(league: league, teams: try? await SportsService().teams(league: league)) }
+                group.addTask { TeamLoad(league: league, teams: try? await SportsService(forceReload: request > 0).teams(league: league)) }
             }
             var values: [TeamLoad] = []
             for await value in group { values.append(value) }

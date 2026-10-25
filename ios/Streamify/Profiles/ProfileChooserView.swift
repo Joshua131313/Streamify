@@ -10,7 +10,7 @@ struct ProfileChooserView: View {
     @EnvironmentObject private var settings: SettingsStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @ScaledMetric(relativeTo: .body) private var preferredAvatarSize: CGFloat = 104
+    @ScaledMetric(relativeTo: .body) private var preferredAvatarSize: CGFloat = 76
     @State private var editing = false
     @State private var editor: ProfileEditorTarget?
     @State private var featured: MediaItem?
@@ -49,12 +49,16 @@ struct ProfileChooserView: View {
     }
 
     private var header: some View {
-        HStack(spacing: 9) {
-            Image("streamify-logo").resizable().scaledToFit().frame(width: 30, height: 34)
-                .accessibilityHidden(true)
-            Text("STREAMIFY").font(.system(size: 16, weight: .bold, design: .rounded)).tracking(2)
-            Spacer(minLength: 12)
+        ZStack {
+            HStack(spacing: 6) {
+                Image("streamify-logo").resizable().scaledToFit().frame(width: 22, height: 25)
+                    .accessibilityHidden(true)
+                Text("STREAMIFY").font(.system(size: 11, weight: .semibold)).tracking(2)
+            }
+            .shadow(color: .black.opacity(0.5), radius: 8, y: 2)
             if isSwitching, let onCancel {
+                HStack {
+                    Spacer()
                 Button(action: onCancel) {
                     Image(systemName: "xmark").font(.system(size: 13, weight: .semibold))
                         .frame(width: 44, height: 44)
@@ -63,24 +67,35 @@ struct ProfileChooserView: View {
                 .buttonStyle(HapticPlainButtonStyle())
                 .accessibilityLabel("Cancel switching profiles")
                 .accessibilityIdentifier("profile-switch-cancel")
+                }
             }
         }
-        .frame(height: 48).padding(.horizontal, 24).padding(.vertical, 10)
+        .frame(height: 44).padding(.horizontal, 20).padding(.vertical, 4)
     }
 
     private func profileScroll(size: CGSize) -> some View {
-        let width = max(1, min(size.width - 40, 600))
+        let width = max(1, min(size.width - 56, 460))
         let tileWidth = max(1, (width - CGFloat(columnCount - 1) * 18) / CGFloat(columnCount))
         let avatarSize = min(tileWidth, preferredAvatarSize)
         return ScrollView {
             VStack(spacing: 0) {
-                Spacer(minLength: size.width > size.height ? 16 : 72)
+                Spacer(minLength: size.width > size.height ? 16 : max(80, size.height * 0.28))
+                featuredTitle
+                    .padding(.horizontal, 28)
+                    .padding(.bottom, size.width > size.height ? 20 : 32)
                 chooserContent(avatarSize: avatarSize, tileWidth: tileWidth)
-                    .frame(width: width)
+                    .padding(.top, 20)
                     .padding(.bottom, 28)
+                    .frame(maxWidth: .infinity)
+                    .background {
+                        ProfilePanelShape()
+                            .fill(LinearGradient(colors: [Color(red: 0.17, green: 0.14, blue: 0.14).opacity(0.5),
+                                Color(red: 0.17, green: 0.14, blue: 0.14)], startPoint: .top, endPoint: .bottom))
+                            .ignoresSafeArea(edges: .bottom)
+                    }
             }
             .frame(maxWidth: .infinity)
-            .frame(minHeight: max(0, size.height - 68))
+            .frame(minHeight: max(0, size.height - 52))
         }
         .scrollIndicators(.hidden)
         .scrollBounceBehavior(.basedOnSize)
@@ -88,26 +103,29 @@ struct ProfileChooserView: View {
     }
 
     private func chooserContent(avatarSize: CGFloat, tileWidth: CGFloat) -> some View {
-        VStack(spacing: 26) {
-            VStack(spacing: 8) {
+        VStack(spacing: 22) {
                 Text(editing ? "Edit profiles" : "Choose your profile")
-                    .font(.title.weight(.bold)).multilineTextAlignment(.center)
+                    .font(.body).foregroundStyle(.white.opacity(0.86)).multilineTextAlignment(.center)
                     .accessibilityAddTraits(.isHeader)
-                Text(editing ? "Make each profile your own." : "Your list. Your history. Your next watch.")
-                    .font(.subheadline).foregroundStyle(.white.opacity(0.68)).multilineTextAlignment(.center)
-            }
             profileGrid(avatarSize: avatarSize, tileWidth: tileWidth)
-            Button { editing.toggle() } label: {
-                Label(editing ? "Done" : "Edit profiles", systemImage: editing ? "checkmark" : "pencil")
-            }
-            .buttonStyle(SecondaryButtonStyle()).frame(maxWidth: 210)
-            .accessibilityIdentifier("profile-manage")
-            Text("Profiles on this iPhone").font(.caption2).foregroundStyle(.white.opacity(0.45))
         }
     }
 
+    private var featuredTitle: some View {
+        VStack(spacing: 9) {
+            Text(featured == nil ? "FEATURED COLLECTION" : "FEATURED ON STREAMIFY")
+                .font(.caption2.weight(.medium)).tracking(2)
+                .foregroundStyle(Color(red: 0.91, green: 0.83, blue: 0.73))
+            Text(featured?.title ?? "The Hobbit")
+                .font(.system(.largeTitle, design: .serif).weight(.medium))
+                .multilineTextAlignment(.center).lineLimit(3)
+                .shadow(color: .black.opacity(0.65), radius: 12, y: 2)
+        }
+        .accessibilityHidden(true)
+    }
+
     private func profileGrid(avatarSize: CGFloat, tileWidth: CGFloat) -> some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.fixed(tileWidth), spacing: 18, alignment: .top), count: columnCount), spacing: 24) {
+        LazyVGrid(columns: Array(repeating: GridItem(.fixed(tileWidth), spacing: 18, alignment: .top), count: columnCount), spacing: 22) {
             ForEach(store.profiles) { profile in
                 ProfileChoiceTile(profile: profile, size: avatarSize, editing: editing,
                     selected: store.activeProfile?.id == profile.id) {
@@ -119,10 +137,8 @@ struct ProfileChooserView: View {
                 Button { editor = ProfileEditorTarget(profile: nil) } label: {
                     VStack(spacing: 10) {
                         RoundedRectangle(cornerRadius: avatarSize * 0.2, style: .continuous)
-                            .fill(.white.opacity(0.065))
+                            .fill(.white.opacity(0.09))
                             .overlay {
-                                RoundedRectangle(cornerRadius: avatarSize * 0.2, style: .continuous)
-                                    .strokeBorder(.white.opacity(0.28), style: StrokeStyle(lineWidth: 1, dash: [5, 5]))
                                 Image(systemName: "plus").font(.system(size: avatarSize * 0.28, weight: .light))
                             }
                             .frame(width: avatarSize, height: avatarSize)
@@ -132,17 +148,45 @@ struct ProfileChooserView: View {
                 .buttonStyle(HapticCardButtonStyle(cornerRadius: 18))
                 .accessibilityLabel("Add profile").accessibilityIdentifier("profile-add")
             }
+            Button { editing.toggle() } label: {
+                VStack(spacing: 10) {
+                    RoundedRectangle(cornerRadius: avatarSize * 0.2, style: .continuous)
+                        .fill(Color(red: 0.31, green: 0.25, blue: 0.26))
+                        .overlay {
+                            Image(systemName: editing ? "checkmark" : "pencil")
+                                .font(.system(size: avatarSize * 0.35, weight: .light))
+                        }
+                        .frame(width: avatarSize, height: avatarSize)
+                    Text(editing ? "Done" : "Edit").font(.subheadline.weight(.medium))
+                        .frame(minHeight: 22, alignment: .top)
+                }.frame(maxWidth: .infinity, alignment: .top)
+            }
+            .buttonStyle(HapticCardButtonStyle(cornerRadius: 16))
+            .accessibilityLabel(editing ? "Done editing profiles" : "Edit profiles")
+            .accessibilityIdentifier("profile-manage")
         }
     }
 
     @MainActor private func loadArtwork() async {
-        featured = nil
         guard !settings.tmdbToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         do {
             let page = try await settings.client.catalog(path: "trending/all/day")
             try Task.checkCancellation()
-            featured = page.items.first { !$0.backdropPath.isEmpty } ?? page.items.first { !$0.posterPath.isEmpty }
+            featured = page.items.first { !$0.posterPath.isEmpty }
         } catch { /* Bundled artwork remains visible; profiles never wait for a catalog. */ }
+    }
+}
+
+private struct ProfilePanelShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY + 16))
+        path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY + 16),
+                          control: CGPoint(x: rect.midX, y: rect.minY - 16))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.closeSubpath()
+        return path
     }
 }
 
@@ -156,22 +200,25 @@ private struct ProfileCinematicBackdrop: View {
     let size: CGSize
     var body: some View {
         ZStack {
-            Color(red: 0.035, green: 0.04, blue: 0.055)
-            Image("collection-lord-of-the-rings").resizable().scaledToFill()
-                .frame(width: size.width, height: size.height).clipped()
-            if let url = media?.heroBackdropURL {
+            Color(red: 0.105, green: 0.09, blue: 0.095)
+            Image("collection-hobbit").resizable().scaledToFill()
+                .frame(width: size.width, height: size.height * 0.8, alignment: .top).clipped()
+                .frame(maxHeight: .infinity, alignment: .top)
+            if let url = size.width > size.height ? media?.heroBackdropURL : media?.heroPosterURL {
                 AsyncImage(url: url) { phase in
                     if let image = phase.image {
-                        image.resizable().scaledToFill().frame(width: size.width, height: size.height).clipped()
+                        image.resizable().scaledToFill()
+                            .frame(width: size.width, height: size.height * 0.8, alignment: .top).clipped()
+                            .frame(maxHeight: .infinity, alignment: .top)
                     }
                 }
             }
-            LinearGradient(stops: [.init(color: .black.opacity(0.25), location: 0),
-                .init(color: .black.opacity(0.36), location: 0.28),
-                .init(color: .black.opacity(0.84), location: 0.58),
-                .init(color: Color(red: 0.035, green: 0.04, blue: 0.055), location: 1)],
+            LinearGradient(stops: [.init(color: .black.opacity(0.22), location: 0),
+                .init(color: .clear, location: 0.18),
+                .init(color: .clear, location: 0.36),
+                .init(color: Color(red: 0.105, green: 0.09, blue: 0.095).opacity(0.65), location: 0.55),
+                .init(color: Color(red: 0.105, green: 0.09, blue: 0.095), location: 0.78)],
                 startPoint: .top, endPoint: .bottom)
-            LinearGradient(colors: [.black.opacity(0.25), .clear, .black.opacity(0.22)], startPoint: .leading, endPoint: .trailing)
         }
         .frame(width: size.width, height: size.height).clipped()
         .allowsHitTesting(false).accessibilityHidden(true)
@@ -217,34 +264,16 @@ private struct ProfileChoiceTile: View {
     }
 }
 
-/// Custom SF-symbol avatar compositions; no third-party profile graphics.
+/// Original 3D artwork, bundled so profile selection also works offline.
 struct ProfileAvatarView: View {
     let avatar: ProfileAvatar
     let size: CGFloat
     var body: some View {
-        RoundedRectangle(cornerRadius: size * 0.2, style: .continuous)
-            .fill(LinearGradient(colors: [palette.top, palette.bottom], startPoint: .topLeading, endPoint: .bottomTrailing))
-            .overlay(alignment: .topLeading) {
-                Circle().fill(.white.opacity(0.13)).frame(width: size * 0.75, height: size * 0.75)
-                    .offset(x: -size * 0.25, y: -size * 0.3)
-            }
-            .overlay {
-                Image(systemName: palette.symbol).font(.system(size: size * 0.45, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.94)).shadow(color: .black.opacity(0.12), radius: 2, y: 2)
-            }
+        Image(avatar.artworkName).resizable().scaledToFill()
             .frame(width: size, height: size)
             .clipShape(RoundedRectangle(cornerRadius: size * 0.2, style: .continuous))
+            .shadow(color: .black.opacity(0.2), radius: 5, y: 3)
             .accessibilityHidden(true)
-    }
-    private var palette: (top: Color, bottom: Color, symbol: String) {
-        switch avatar {
-        case .crimson: return (Color(red: 0.72, green: 0.22, blue: 0.3), Color(red: 0.38, green: 0.08, blue: 0.17), "cat.fill")
-        case .ocean: return (Color(red: 0.22, green: 0.57, blue: 0.76), Color(red: 0.06, green: 0.24, blue: 0.43), "fish.fill")
-        case .forest: return (Color(red: 0.32, green: 0.59, blue: 0.43), Color(red: 0.1, green: 0.28, blue: 0.23), "tortoise.fill")
-        case .violet: return (Color(red: 0.56, green: 0.4, blue: 0.76), Color(red: 0.25, green: 0.15, blue: 0.43), "bird.fill")
-        case .gold: return (Color(red: 0.78, green: 0.55, blue: 0.22), Color(red: 0.47, green: 0.28, blue: 0.08), "hare.fill")
-        case .slate: return (Color(red: 0.42, green: 0.5, blue: 0.6), Color(red: 0.2, green: 0.26, blue: 0.35), "dog.fill")
-        }
     }
 }
 
@@ -328,7 +357,7 @@ private struct ProfileEditorView: View {
                             }
                     }
                     .buttonStyle(HapticPlainButtonStyle())
-                    .accessibilityLabel("\(candidate.rawValue.capitalized) avatar")
+                    .accessibilityLabel("\(candidate.title) avatar")
                     .accessibilityAddTraits(avatar == candidate ? .isSelected : [])
                     .accessibilityIdentifier("profile-avatar-\(candidate.rawValue)")
                 }

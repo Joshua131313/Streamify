@@ -51,6 +51,10 @@ struct SportsView: View {
     @State private var handledSearchRequest = 0
     @State private var games: [SportsGame] = []
     @State private var loading = true
+    @State private var loadedScheduleKey: String?
+    @State private var loadedBackend: String?
+    @State private var scheduleRequest = UUID()
+    @State private var manualReload = false
     @State private var error: String?
     @State private var partial = false
     @State private var selectedGame: SportsGame?
@@ -76,8 +80,10 @@ struct SportsView: View {
     private var leagueTitle: String { allLeagues ? "All leagues" : leagues.map(\.title).joined(separator: ", ") }
     private var liveAvailable: Bool { Calendar.current.isDate(day, inSameDayAs: today) }
     private var requestKey: String { "\(leagues.map(\.rawValue).joined(separator: ","))-\(day.timeIntervalSince1970)-\(revision)-\(scenePhase == .active)-\(settings.apiBase)-\(channels)" }
+    private var scheduleKey: String { "\(settings.apiBase)|\(Calendar.current.timeZone.identifier)|\(day.timeIntervalSince1970)|\(leagues.map(\.rawValue).joined(separator: ","))" }
     private var filteredGames: [SportsGame] {
         games.filter { game in
+            guard selectedLeagues.contains(game.league) else { return false }
             let status: Bool
             switch filter {
             case .all: status = true
@@ -111,7 +117,7 @@ struct SportsView: View {
                     } else {
                         scheduleDayContent
                     }
-                    Text("Scores refresh every minute. Times are local. Scores and schedules by ESPN.").font(.caption).foregroundStyle(AppTheme.muted).padding(.horizontal, 20)
+                    Text("Scores refresh every 30 seconds. Times are local. Scores and schedules by ESPN.").font(.caption).foregroundStyle(AppTheme.muted).padding(.horizontal, 20)
                 }
             }.padding(.top, 14).padding(.bottom, 110)
         }
@@ -135,7 +141,7 @@ struct SportsView: View {
             handledSearchRequest = searchRequest
             showSportsSearch = true
         }
-        .refreshable { await loadSchedule() }
+        .refreshable { await loadSchedule(forceReload: true) }
         .task(id: daySwipeSerial) {
             guard dayTransitioning else { return }
             do { try await Task.sleep(for: .milliseconds(240)); try Task.checkCancellation() }
@@ -144,11 +150,10 @@ struct SportsView: View {
         }
         .task(id: requestKey) {
             guard scenePhase == .active, !channels else { return }
-            error = nil
-            partial = false
             repeat {
-                await loadSchedule()
-                do { try await Task.sleep(for: .seconds(60)) } catch { return }
+                let reload = manualReload; manualReload = false
+                await loadSchedule(forceReload: reload)
+                do { try await Task.sleep(for: .seconds(30)) } catch { return }
             } while !Task.isCancelled
         }
         .task(id: "\(showCalendar)-\(scenePhase == .active)-\(today.timeIntervalSince1970)") {
@@ -259,7 +264,7 @@ struct SportsView: View {
             ProgressView("Loading games…").frame(maxWidth: .infinity).frame(height: 44)
                 .accessibilityIdentifier("sports-schedule-loading")
         }
-        if let error { StateMessage(symbol: "wifi.exclamationmark", title: "Schedule unavailable", message: error, actionTitle: "Retry", action: { if daySwipeScope.permitsProtectedAction { revision += 1 } }).sportsDaySwipeExcluded(daySwipeScope) }
+        if let error { StateMessage(symbol: "wifi.exclamationmark", title: games.isEmpty ? "Schedule unavailable" : "Couldn’t refresh scores", message: error, actionTitle: "Retry", action: { if daySwipeScope.permitsProtectedAction { manualReload = true; revision += 1 } }).sportsDaySwipeExcluded(daySwipeScope) }
         if partial { Label("Some feeds are unavailable. Showing the games that loaded.", systemImage: "exclamationmark.circle").font(.footnote).foregroundStyle(AppTheme.muted).padding(.horizontal, 20) }
     }
 
@@ -316,7 +321,7 @@ struct SportsView: View {
                 Button { showMultiWatch = true } label: { Label("Multi-watch · \(queue.streams.count)/4", systemImage: "rectangle.split.2x2") }
                     .accessibilityIdentifier("sports-multi-watch")
                 Divider()
-                Button { revision += 1 } label: { Label("Refresh scores", systemImage: "arrow.clockwise") }
+                Button { manualReload = true; revision += 1 } label: { Label("Refresh scores", systemImage: "arrow.clockwise") }
                     .disabled(loading || channels).accessibilityIdentifier("sports-refresh")
             } label: {
                 Image(systemName: "ellipsis").font(.system(size: 17, weight: .semibold))
@@ -572,21 +577,29 @@ struct SportsView: View {
         }
     }
 
-    private func loadSchedule() async {
+    private func loadSchedule(forceReload: Bool = false) async {
         refreshCurrentDay()
         guard !channels else { return }
         let requestedKey = requestKey
-        loading = true
-        defer { if requestedKey == requestKey { loading = false } }
+        let identity = scheduleKey
+        let request = UUID(); scheduleRequest = request
+        if loadedBackend != settings.apiBase {
+            games = []; loadedScheduleKey = nil; loadedBackend = settings.apiBase
+        }
+        // Switching tabs or returning from search keeps the current scorecards
+        // visible and tappable while live data refreshes in the background.
+        loading = games.isEmpty && loadedScheduleKey != identity
+        defer { if scheduleRequest == request { loading = false } }
         do {
-            let result = try await SportsService(backend: settings.apiBase).schedule(leagues: leagues, day: day)
+            let result = try await SportsService(backend: settings.apiBase, forceReload: forceReload).schedule(leagues: leagues, day: day)
             try Task.checkCancellation()
-            guard requestedKey == requestKey else { return }
+            guard requestedKey == requestKey, scheduleRequest == request else { return }
             games = result.games
+            loadedScheduleKey = identity
             partial = result.partial
             error = nil
         } catch is CancellationError { }
-        catch { if !Task.isCancelled && requestedKey == requestKey { self.error = error.localizedDescription } }
+        catch { if !Task.isCancelled && requestedKey == requestKey && scheduleRequest == request { self.error = error.localizedDescription } }
     }
 
     private func loadCalendarMarkers() async {

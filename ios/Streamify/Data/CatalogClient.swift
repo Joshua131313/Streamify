@@ -21,16 +21,19 @@ enum CatalogError: LocalizedError {
 struct TMDBClient {
     let token: String
     private let session: URLSession
+    private let forceReload: Bool
 
-    init(token: String, session: URLSession = .shared) {
-        self.token = token; self.session = session
+    init(token: String, session: URLSession = .shared, forceReload: Bool = false) {
+        self.token = token; self.session = session; self.forceReload = forceReload
     }
+
+    func reloading(_ enabled: Bool = true) -> TMDBClient { TMDBClient(token: token, session: session, forceReload: enabled) }
 
     func catalog(path: String, kind: MediaKind? = nil, page: Int = 1, query: String = "",
                  parameters: [String: String] = [:]) async throws -> MediaPage {
         if kind == .anime {
             return try await AnimeCatalogClient.shared.catalog(page: page, search: query,
-                topRated: path.contains("top_rated"), genre: parameters["genre"])
+                topRated: path.contains("top_rated"), genre: parameters["genre"], forceReload: forceReload)
         }
         var parameters = parameters
         parameters["page"] = String(max(1, min(500, page)))
@@ -135,7 +138,19 @@ struct TMDBClient {
         var request = URLRequest(url: url, cachePolicy: .useProtocolCachePolicy, timeoutInterval: 25)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if bearer { request.setValue("Bearer \(cleanToken)", forHTTPHeaderField: "Authorization") }
-        return try await catalogJSON(request, session: session)
+        if forceReload { request.cachePolicy = .reloadIgnoringLocalCacheData }
+        let prepared = request
+        let data = try await ResponseMemoryCache.shared.data(key: ResponseMemoryCache.key(for: prepared, session: session),
+            lifetime: path.hasPrefix("genre/") ? 3600 : 300, reload: forceReload) {
+                let (data, response) = try await session.data(for: prepared)
+                guard let http = response as? HTTPURLResponse else { throw CatalogError.invalidResponse }
+                guard (200..<300).contains(http.statusCode) else { throw CatalogError.http(http.statusCode) }
+                guard (try JSONSerialization.jsonObject(with: data)) is CatalogJSON else { throw CatalogError.invalidResponse }
+                return data
+            }
+        try Task.checkCancellation()
+        guard let json = try JSONSerialization.jsonObject(with: data) as? CatalogJSON else { throw CatalogError.invalidResponse }
+        return json
     }
 
     static func media(_ json: CatalogJSON, kind: MediaKind? = nil) -> MediaItem? {
@@ -173,14 +188,14 @@ func catalogJSON(_ request: URLRequest, session: URLSession = .shared) async thr
 actor AnimeCatalogClient {
     static let shared = AnimeCatalogClient()
     private let fields = "id idMal title { english romaji } description(asHtml:false) coverImage { extraLarge large } bannerImage averageScore startDate { year month day } episodes status nextAiringEpisode { episode } duration genres trailer { id site }"
-    private var cache: [String: (date: Date, value: CatalogJSON)] = [:]
+    private let responses = ResponseMemoryCache(entryLimit: 80, byteLimit: 8 * 1024 * 1024)
     private var nextRequestAt = Date.distantPast
 
-    func catalog(page: Int, search: String, topRated: Bool, genre: String?) async throws -> MediaPage {
+    func catalog(page: Int, search: String, topRated: Bool, genre: String?, forceReload: Bool = false) async throws -> MediaPage {
         let sort = topRated ? "SCORE_DESC" : "POPULARITY_DESC"
         let query = "query($page:Int,$search:String,$genre:String){Page(page:$page,perPage:24){pageInfo{hasNextPage} media(type:ANIME,isAdult:false,search:$search,genre:$genre,sort:\(sort)){\(fields)}}}"
         let data = try await request(query: query, variables: ["page": max(1, page), "search": search.isEmpty ? NSNull() : search as Any,
-            "genre": genre.map { $0 as Any } ?? NSNull()]).object("Page")
+            "genre": genre.map { $0 as Any } ?? NSNull()], forceReload: forceReload).object("Page")
         let hasNext = data.object("pageInfo")["hasNextPage"] as? Bool ?? false
         return MediaPage(items: data.objects("media").compactMap(Self.media), page: max(1, page), totalPages: max(1, page) + (hasNext ? 1 : 0))
     }
@@ -216,10 +231,18 @@ actor AnimeCatalogClient {
         try await request(query: "query($id:Int){Media(id:$id,type:ANIME,isAdult:false){\(fields)}}", variables: ["id": id]).object("Media")
     }
 
-    private func request(query: String, variables: CatalogJSON) async throws -> CatalogJSON {
+    private func request(query: String, variables: CatalogJSON, forceReload: Bool = false) async throws -> CatalogJSON {
         let body = try JSONSerialization.data(withJSONObject: ["query": query, "variables": variables], options: .sortedKeys)
         let cacheKey = body.base64EncodedString()
-        if let entry = cache[cacheKey], Date().timeIntervalSince(entry.date) < 300 { return entry.value }
+        let data = try await responses.data(key: cacheKey, lifetime: 300, reload: forceReload) {
+            try await self.fetch(body: body)
+        }
+        try Task.checkCancellation()
+        guard let json = try JSONSerialization.jsonObject(with: data) as? CatalogJSON else { throw CatalogError.invalidResponse }
+        return json.object("data")
+    }
+
+    private func fetch(body: Data) async throws -> Data {
         let delay = max(0, nextRequestAt.timeIntervalSinceNow)
         nextRequestAt = max(Date(), nextRequestAt).addingTimeInterval(2.1)
         if delay > 0 { try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) }
@@ -228,12 +251,12 @@ actor AnimeCatalogClient {
         request.httpMethod = "POST"; request.httpBody = body
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        let json = try await catalogJSON(request)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw CatalogError.invalidResponse }
+        guard (200..<300).contains(http.statusCode) else { throw CatalogError.http(http.statusCode) }
+        guard let json = try JSONSerialization.jsonObject(with: data) as? CatalogJSON else { throw CatalogError.invalidResponse }
         guard json["errors"] == nil else { throw CatalogError.service("The anime catalog could not complete this request. Please retry.") }
-        let data = json.object("data")
-        guard !data.isEmpty else { throw CatalogError.invalidResponse }
-        if cache.count >= 80 { cache.removeAll(keepingCapacity: true) }
-        cache[cacheKey] = (Date(), data)
+        guard !json.object("data").isEmpty else { throw CatalogError.invalidResponse }
         return data
     }
 

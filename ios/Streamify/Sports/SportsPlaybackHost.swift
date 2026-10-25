@@ -2,6 +2,21 @@ import SwiftUI
 import UIKit
 import Combine
 
+/// Fullscreen is an actual WebKit-owned window, not just a different player size.
+/// Remember its ownership so PiP restoration cannot raise our empty placeholder
+/// above it, and acquire app focus only after WebKit returns the inline surface.
+struct SportsPlaybackWindowFocus {
+    enum Target: Equatable { case application, player, provider }
+    private(set) var target: Target = .application
+
+    mutating func transition(expanded: Bool, providerFullscreen: Bool) -> Target? {
+        let next: Target = expanded ? (providerFullscreen ? .provider : .player) : .application
+        guard next != target else { return nil }
+        target = next
+        return next
+    }
+}
+
 /// This window retains one full-size source while AVKit/WebKit owns system PiP.
 struct SportsPlaybackHost: UIViewRepresentable {
     let session: SportsPlaybackSession
@@ -21,7 +36,7 @@ struct SportsPlaybackHost: UIViewRepresentable {
         private let session: SportsPlaybackSession
         private var window: SportsPlaybackWindow?
         private weak var applicationWindow: UIWindow?
-        private var showingExpandedPlayer = false
+        private var focus = SportsPlaybackWindowFocus()
         private var observation: AnyCancellable?
         init(session: SportsPlaybackSession) { self.session = session }
         func attach(to applicationWindow: UIWindow) {
@@ -37,11 +52,12 @@ struct SportsPlaybackHost: UIViewRepresentable {
             window.backgroundColor = .clear
             window.isHidden = session.item == nil
             self.window = window
-            observation = session.$item.combineLatest(session.$presentation).receive(on: RunLoop.main)
-                .sink { [weak self, weak window] item, mode in
+            observation = session.$item.combineLatest(session.$presentation, session.pictureInPicture.$providerOwnsFullscreen)
+                .receive(on: RunLoop.main)
+                .sink { [weak self, weak window] item, mode, providerFullscreen in
                     guard let self, let window else { return }
                     guard item != nil else {
-                        self.updateWindowFocus(expanded: false, window: window)
+                        self.updateWindowFocus(expanded: false, providerFullscreen: false, window: window)
                         window.isHidden = true
                         window.rootViewController = nil
                         return
@@ -59,7 +75,7 @@ struct SportsPlaybackHost: UIViewRepresentable {
                     // preserves its view, size, player and WebKit document.
                     window.isHidden = false
                     window.alpha = mode == .expanded ? 1 : 0
-                    self.updateWindowFocus(expanded: mode == .expanded, window: window)
+                    self.updateWindowFocus(expanded: mode == .expanded, providerFullscreen: providerFullscreen, window: window)
                     window.rootViewController?.view.accessibilityElementsHidden = mode != .expanded
                     window.rootViewController?.view.accessibilityViewIsModal = mode == .expanded
                 }
@@ -67,21 +83,24 @@ struct SportsPlaybackHost: UIViewRepresentable {
         func detach() {
             observation?.cancel(); observation = nil
             if let window {
-                updateWindowFocus(expanded: false, window: window)
+                updateWindowFocus(expanded: false, providerFullscreen: false, window: window)
             }
             window?.isHidden = true; window?.rootViewController = nil; window = nil
             applicationWindow = nil
         }
-        private func updateWindowFocus(expanded: Bool, window: UIWindow) {
-            guard showingExpandedPlayer != expanded else { return }
-            showingExpandedPlayer = expanded
-            if expanded {
-                // Only acquire focus on an actual presentation transition. Source,
-                // safe-area and chrome updates must not cover WebKit fullscreen
-                // or steal focus from its controls while it owns presentation.
+        private func updateWindowFocus(expanded: Bool, providerFullscreen: Bool, window: UIWindow) {
+            guard let target = focus.transition(expanded: expanded, providerFullscreen: providerFullscreen) else { return }
+            switch target {
+            case .player:
                 window.makeKeyAndVisible()
-            } else if let applicationWindow, !applicationWindow.isHidden {
-                applicationWindow.makeKey()
+                window.rootViewController?.view.setNeedsLayout()
+                window.rootViewController?.view.layoutIfNeeded()
+            case .application:
+                if let applicationWindow, !applicationWindow.isHidden { applicationWindow.makeKey() }
+            case .provider:
+                // WebKit owns the actual video and its controls until its
+                // fullscreen-state observer confirms that it has returned.
+                break
             }
         }
     }

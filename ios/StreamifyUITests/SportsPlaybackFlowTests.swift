@@ -164,6 +164,50 @@ final class SportsPlaybackFlowTests: XCTestCase {
         closeAndVerifySportsDoesNotReopen(source)
     }
 
+    func testProviderElementFullscreenBackgroundRestoreKeepsTheVideoSurfaceInteractive() {
+        let source = openSportsPlayerOnBravo()
+        let selectedDocument = playbackDocument.label
+        let selectedSource = source.value as? String
+        XCTAssertTrue(app.webViews.staticTexts["Bundled H264 video ready"].waitForExistence(timeout: 12))
+        app.webViews.buttons["Enter provider fullscreen"].tap()
+        XCTAssertTrue(wait { self.providerFullscreenWindow() != nil })
+        backgroundAndReturn()
+
+        // On a PiP-capable device the system may retain its floating window
+        // when the app icon is opened. Use the app's explicit restore action;
+        // a simulator without PiP still exercises the real fullscreen handoff.
+        let restore = app.buttons["sports-pip-restore"]
+        if restore.exists && restore.isHittable { restore.tap() }
+        XCTAssertTrue(wait(timeout: 5) {
+            if let window = self.providerFullscreenWindow() {
+                return window.webViews.buttons["Exit provider fullscreen"].firstMatch.isHittable
+            }
+            return source.isHittable && self.app.webViews.buttons["Enter provider fullscreen"].isHittable
+        }, "Returning must expose the retained video controls promptly, not the app window's black fullscreen placeholder.")
+        XCTAssertEqual(playbackDocument.label, selectedDocument, "Background/PiP restoration must not reconnect the selected stream.")
+        if let window = providerFullscreenWindow() {
+            XCTAssertTrue(fillsScreen(window.frame))
+            window.webViews.buttons["Exit provider fullscreen"].firstMatch.tap()
+        }
+        XCTAssertTrue(app.webViews.staticTexts["Provider inline"].waitForExistence(timeout: 8))
+        XCTAssertTrue(wait { source.isHittable })
+        XCTAssertEqual(source.value as? String, selectedSource)
+        XCTAssertEqual(playbackDocument.label, selectedDocument)
+
+        // A real second entry/exit catches a stale black window that merely
+        // happens to expose accessibility elements behind it on iOS 26.
+        app.webViews.buttons["Enter provider fullscreen"].tap()
+        XCTAssertTrue(wait { self.providerFullscreenWindow() != nil })
+        guard let window = providerFullscreenWindow() else { return }
+        let exit = window.webViews.buttons["Exit provider fullscreen"].firstMatch
+        XCTAssertTrue(exit.isHittable)
+        capture("Provider video remains interactive after fullscreen background restoration")
+        exit.tap()
+        XCTAssertTrue(app.webViews.staticTexts["Provider inline"].waitForExistence(timeout: 8))
+        XCTAssertEqual(playbackDocument.label, selectedDocument)
+        closeAndVerifySportsDoesNotReopen(source)
+    }
+
     func testSwipeDownSportsPlayerCancelsWithoutReloadingThenReturnsToItsGameCard() {
         let source = openSportsPlayerOnBravo()
         XCTAssertTrue(app.webViews.staticTexts["Bundled H264 video ready"].waitForExistence(timeout: 12))

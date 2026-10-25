@@ -4,7 +4,18 @@ import Combine
 enum ProfileAvatar: String, Codable, CaseIterable, Identifiable {
     case crimson, ocean, forest, violet, gold, slate
     var id: String { rawValue }
-    var title: String { rawValue.capitalized }
+    var title: String {
+        switch self {
+        case .crimson: return "Crimson"
+        case .ocean: return "Dragon"
+        case .forest: return "Panda"
+        case .violet: return "Astronaut"
+        case .gold: return "Fox"
+        case .slate: return "Robot"
+        }
+    }
+    // Persisted color IDs stay unchanged so existing profiles retain their avatar.
+    var artworkName: String { "profile-avatar-\(rawValue)" }
 }
 
 struct AppProfile: Identifiable, Codable, Equatable {

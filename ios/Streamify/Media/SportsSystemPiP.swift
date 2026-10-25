@@ -10,6 +10,9 @@ final class SportsSystemPiP: ObservableObject {
     @Published private(set) var capability: SportsPiPCapability = .checking
     @Published private(set) var isActive = false
     @Published private(set) var isRequesting = false
+    /// WebKit can keep the video in its own fullscreen window while PiP stops.
+    /// The app's black player window must not cover that retained surface.
+    @Published private(set) var providerOwnsFullscreen = false
     @Published var message: String?
     var onStateChange: ((Bool, Bool) -> Void)?
     private var owner: UUID?
@@ -29,6 +32,10 @@ final class SportsSystemPiP: ObservableObject {
         // rebuilds the observed player chrome, including an open source menu.
         guard self.owner == owner, capability != value else { return }
         capability = value
+    }
+    func reportProviderFullscreen(_ value: Bool, owner: UUID) {
+        guard self.owner == owner, providerOwnsFullscreen != value else { return }
+        providerOwnsFullscreen = value
     }
     func request() {
         guard !isActive, !isRequesting else { return }
@@ -77,6 +84,7 @@ final class SportsSystemPiP: ObservableObject {
         let stop = stopAction
         owner = nil; requestAction = nil; stopAction = nil
         capability = .checking; isActive = false; isRequesting = false; restoreRequested = false; message = nil
+        providerOwnsFullscreen = false
         stop?()
     }
 }
