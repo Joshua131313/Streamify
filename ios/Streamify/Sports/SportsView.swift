@@ -588,7 +588,9 @@ struct SportsView: View {
         }
         // Switching tabs or returning from search keeps the current scorecards
         // visible and tappable while live data refreshes in the background.
-        loading = games.isEmpty && loadedScheduleKey != identity
+        // A new league selection may have no matching retained cards yet.
+        // Keep its loading state until that selection has a real result.
+        loading = filteredGames.isEmpty && loadedScheduleKey != identity
         defer { if scheduleRequest == request { loading = false } }
         do {
             let result = try await SportsService(backend: settings.apiBase, forceReload: forceReload).schedule(leagues: leagues, day: day)
