@@ -31,6 +31,12 @@ final class ProfileFlowTests: XCTestCase {
     func testChooserSelectionAndSwitchingKeepActualSavedTitlesInTheirOwnProfile() {
         capture("Profiles first launch cinematic chooser")
         choose("My profile")
+        openSettings()
+        let themes = app.segmentedControls.firstMatch
+        XCTAssertTrue(themes.buttons["Dark"].isSelected)
+        themes.buttons["Light"].tap()
+        XCTAssertTrue(wait { themes.buttons["Light"].isSelected })
+        app.buttons["Done"].tap()
         app.buttons["tab-library"].tap()
         XCTAssertTrue(app.buttons["Saved · 3"].waitForExistence(timeout: 6), "Existing fixture favorites belong to the original profile.")
 
@@ -38,6 +44,10 @@ final class ProfileFlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["profile-switch-cancel"].isHittable)
         addProfile(name: "Alex", avatar: "ocean")
         choose("Alex")
+        XCTAssertEqual(app.buttons["tab-library"].value as? String, "Profile: Alex, Dragon avatar")
+        openSettings()
+        XCTAssertTrue(themes.buttons["Dark"].isSelected, "A new profile must not inherit another viewer’s appearance preference.")
+        app.buttons["Done"].tap()
         app.buttons["tab-library"].tap()
         XCTAssertTrue(app.buttons["Saved · 0"].waitForExistence(timeout: 6), "Creating a profile must not seed it with someone else's saved list.")
         XCTAssertTrue(app.buttons["History · 0"].exists)
@@ -66,6 +76,10 @@ final class ProfileFlowTests: XCTestCase {
 
         openSwitcher()
         choose("My profile")
+        XCTAssertEqual(app.buttons["tab-library"].value as? String, "Profile: My profile, Crimson avatar")
+        openSettings()
+        XCTAssertTrue(themes.buttons["Light"].isSelected, "Switching back must restore this profile’s appearance.")
+        app.buttons["Done"].tap()
         app.buttons["tab-library"].tap()
         XCTAssertTrue(app.buttons["Saved · 3"].waitForExistence(timeout: 6))
         XCTAssertTrue(app.buttons["History · 2"].exists)
@@ -182,6 +196,12 @@ final class ProfileFlowTests: XCTestCase {
         app.buttons["Switch profiles"].tap()
         XCTAssertTrue(element("profile-chooser").waitForExistence(timeout: 6))
         XCTAssertFalse(app.buttons["tab-home"].exists)
+    }
+    private func openSettings() {
+        app.buttons["More options"].tap()
+        XCTAssertTrue(app.buttons["Settings"].waitForExistence(timeout: 4))
+        app.buttons["Settings"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
     }
     private func addProfile(name: String, avatar: String) {
         reveal(app.buttons["profile-add"])

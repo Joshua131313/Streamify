@@ -4,17 +4,17 @@ import SwiftUI
 @MainActor
 struct StreamifyApp: App {
     @UIApplicationDelegateAdaptor(DownloadAppDelegate.self) private var appDelegate
-    @StateObject private var settings: SettingsStore
     @StateObject private var profiles: ProfileStore
+    @StateObject private var account: AccountSession
     @StateObject private var downloads = DownloadStore.shared
     @StateObject private var sportsPlayback = SportsPlaybackSession()
     @StateObject private var quickActions = AppQuickActionRouter.shared
 
     init() {
         SportsChatBootstrap.configure()
+        _account = StateObject(wrappedValue: AccountSession())
         #if DEBUG
         if PreviewFixtures.enabled { PreviewFixtures.install() }
-        _settings = StateObject(wrappedValue: SettingsStore(defaults: PreviewFixtures.enabled ? PreviewFixtures.defaults : .standard))
         let profileStore = ProfileStore(defaults: PreviewFixtures.enabled ? PreviewFixtures.defaults : .standard,
             chooseOnLaunch: !PreviewFixtures.enabled || ProcessInfo.processInfo.arguments.contains("--ui-profile-chooser"))
         if PreviewFixtures.enabled { PreviewFixtures.seedLibrary(profileStore.library) }
@@ -27,7 +27,6 @@ struct StreamifyApp: App {
             }
         }
         #else
-        _settings = StateObject(wrappedValue: SettingsStore())
         _profiles = StateObject(wrappedValue: ProfileStore())
         #endif
     }
@@ -36,15 +35,15 @@ struct StreamifyApp: App {
         WindowGroup {
             ProfileAppGate()
                 .buttonStyle(HapticAutomaticButtonStyle())
-                .environmentObject(settings)
+                .environmentObject(profiles.settings)
                 .environmentObject(profiles)
+                .environmentObject(account)
                 .environmentObject(profiles.library)
                 .environmentObject(downloads)
                 .environmentObject(sportsPlayback)
                 .environmentObject(quickActions)
                 .background { SportsPlaybackHost(session: sportsPlayback).frame(width: 0, height: 0) }
                 .tint(AppTheme.foreground)
-                .preferredColorScheme(profiles.requiresSelection ? .dark : settings.appearance == "System" ? nil : settings.appearance == "Light" ? .light : .dark)
                 .onOpenURL { quickActions.enqueue(url: $0) }
                 .onAppear {
                     #if DEBUG
@@ -60,22 +59,48 @@ struct StreamifyApp: App {
 @MainActor
 private struct ProfileAppGate: View {
     @EnvironmentObject private var profiles: ProfileStore
+    @EnvironmentObject private var settings: SettingsStore
+    @EnvironmentObject private var account: AccountSession
     @EnvironmentObject private var sportsPlayback: SportsPlaybackSession
     @State private var hasEnteredApp = false
 
     var body: some View {
         Group {
-            if profiles.requiresSelection {
+            if !account.isResolved || profiles.ownerUID != account.identity?.uid || !profiles.canEditProfiles {
+                loadingProfiles
+            } else if profiles.requiresSelection {
                 ProfileChooserView(isSwitching: hasEnteredApp,
                     onCancel: hasEnteredApp ? { profiles.cancelSwitch() } : nil)
             } else {
-                RootView().id(profiles.activeProfile?.id)
+                RootView().id(profiles.contextID)
                     .onAppear { hasEnteredApp = true }
             }
         }
+        .preferredColorScheme(profiles.requiresSelection ? .dark : settings.appearance == "System" ? nil : settings.appearance == "Light" ? .light : .dark)
+        .task(id: account.identity?.uid) { await profiles.setAccount(account.identity) }
         .onChange(of: profiles.requiresSelection) { _, choosing in
             if choosing { sportsPlayback.close() }
         }
+    }
+
+    private var loadingProfiles: some View {
+        VStack(spacing: 18) {
+            Image("streamify-logo").resizable().scaledToFit().frame(width: 64, height: 64)
+            if !account.isResolved || profiles.ownerUID != account.identity?.uid || profiles.syncStatus == .loading || profiles.syncStatus == .syncing {
+                ProgressView("Opening your profiles…").tint(AppTheme.foreground)
+            } else {
+                Text(profiles.syncStatus.title).font(.subheadline).multilineTextAlignment(.center)
+                Button("Try again") { Task { await profiles.retrySync() } }
+                    .buttonStyle(PrimaryButtonStyle())
+            }
+            if account.isResolved, account.identity != nil {
+                Button("Use guest profiles") { Task { await account.signOut() } }
+                    .buttonStyle(SecondaryButtonStyle()).disabled(account.isWorking)
+                if let error = account.error { Text(error).font(.caption).foregroundStyle(AppTheme.muted) }
+            }
+        }.padding(24).frame(maxWidth: 360)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .foregroundStyle(AppTheme.foreground).background(AppTheme.canvas.ignoresSafeArea())
     }
 }
 
@@ -317,6 +342,7 @@ struct RootView: View {
 
 private struct FloatingNavigation: View {
     @Binding var selection: AppTab
+    @EnvironmentObject private var profiles: ProfileStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
     @Namespace private var selectedTabAnimation
@@ -339,9 +365,7 @@ private struct FloatingNavigation: View {
                     VStack(spacing: 1) {
                         ZStack {
                             if tab == .library {
-                                Image(systemName: "person.fill").font(.system(size: 15, weight: .medium))
-                                    .foregroundStyle(.white).frame(width: 23, height: 23)
-                                    .background(AppTheme.accent, in: RoundedRectangle(cornerRadius: 7))
+                                ProfileAvatarView(avatar: profiles.activeProfile?.avatar ?? .crimson, size: 23)
                             } else {
                                 Image(systemName: tab.symbol)
                                     .font(.system(size: 21, weight: .light))
@@ -369,6 +393,7 @@ private struct FloatingNavigation: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(tab.title)
+                .accessibilityValue(tab == .library ? "Profile: \(profiles.activeProfile?.name ?? "My profile"), \(profiles.activeProfile?.avatar.title ?? "Crimson") avatar" : "")
                 .accessibilityAddTraits(selected ? [.isSelected] : [])
                 .accessibilityIdentifier("tab-\(tab.rawValue)")
             }

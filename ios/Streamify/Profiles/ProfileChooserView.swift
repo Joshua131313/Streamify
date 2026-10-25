@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The chooser stays usable with no catalog key or network connection. Artwork
-/// is decorative; profile selection and editing use only the local store.
+/// is decorative; profile selection and editing persist locally before syncing.
 @MainActor
 struct ProfileChooserView: View {
     var isSwitching = false
@@ -233,7 +233,7 @@ private struct ProfileChoiceTile: View {
     let action: () -> Void
     var body: some View {
         Button {
-            AppHaptics.tap()
+            AppHaptics.tap(editing ? .selection : .primary)
             action()
         } label: {
             VStack(spacing: 10) {

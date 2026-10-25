@@ -80,6 +80,11 @@ struct CatalogSearchDialog: View {
                 guard !cleanQuery.isEmpty else { model.reset(); waiting = false; return }
                 waiting = true
                 defer { if request == requestKey { waiting = false } }
+                // Leave the text field's editing transaction alone during a
+                // typing burst. Restoring/publishing cached grids before this
+                // pause can interrupt UIKit's pending text input.
+                do { try await Task.sleep(for: .milliseconds(350)); try Task.checkCancellation() }
+                catch { return }
                 let reload = revision != handledRevision
                 handledRevision = revision
                 await load(first: true, forceReload: reload)
@@ -105,11 +110,10 @@ struct CatalogSearchDialog: View {
                 .font(.subheadline).focused($focused).textInputAutocapitalization(.never).autocorrectionDisabled().submitLabel(.search)
                 .accessibilityIdentifier("browse-search")
                 .onSubmit { library.rememberSearch(cleanQuery); focused = false }
-            if !query.isEmpty {
-                Button { query = ""; focused = true } label: { Image(systemName: "xmark.circle.fill").frame(width: 44, height: 44) }
-                    .buttonStyle(HapticPlainButtonStyle()).foregroundStyle(AppTheme.muted).accessibilityLabel("Clear search").accessibilityIdentifier("clear-catalog-search")
-            }
-        }.padding(.leading, 14).padding(.trailing, query.isEmpty ? 14 : 0).frame(minHeight: 52).streamifyControlSurface()
+            Button { query = ""; focused = true } label: { Image(systemName: "xmark.circle.fill").frame(width: 44, height: 44) }
+                .buttonStyle(HapticPlainButtonStyle()).foregroundStyle(AppTheme.muted).accessibilityLabel("Clear search").accessibilityIdentifier("clear-catalog-search")
+                .opacity(query.isEmpty ? 0 : 1).disabled(query.isEmpty).accessibilityHidden(query.isEmpty)
+        }.padding(.leading, 14).frame(minHeight: 52).streamifyControlSurface()
     }
 
     private func typeFilter(_ title: String, kind value: MediaKind?) -> some View {
@@ -156,6 +160,6 @@ struct CatalogSearchDialog: View {
 
     private func load(first: Bool, forceReload: Bool = false) async {
         guard !cleanQuery.isEmpty else { return }
-        await model.load(client: settings.client, kind: kind, query: cleanQuery, genre: 0, animeGenre: "", provider: 0, topRated: false, first: first, includeAnimeSearch: true, forceReload: forceReload, debounce: true)
+        await model.load(client: settings.client, kind: kind, query: cleanQuery, genre: 0, animeGenre: "", provider: 0, topRated: false, first: first, includeAnimeSearch: true, forceReload: forceReload)
     }
 }

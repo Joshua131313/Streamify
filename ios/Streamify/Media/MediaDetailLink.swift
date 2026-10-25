@@ -44,7 +44,8 @@ struct MediaDetailLink<Label: View>: View {
 
     @ViewBuilder private func styled<Content: View>(_ content: Content) -> some View {
         if let cardCornerRadius {
-            content.buttonStyle(CardPressedButtonStyle(cornerRadius: cardCornerRadius))
+            content.buttonStyle(CardPressedButtonStyle(cornerRadius: cardCornerRadius,
+                preservesContextMenuSource: includesCardMenu))
                 .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: cardCornerRadius))
         } else { content.buttonStyle(HapticPlainButtonStyle()) }
     }

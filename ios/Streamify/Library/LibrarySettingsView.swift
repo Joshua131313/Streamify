@@ -99,6 +99,7 @@ struct LibraryView: View {
 @MainActor
 struct SettingsView: View {
     @EnvironmentObject private var settings: SettingsStore
+    @EnvironmentObject private var profiles: ProfileStore
     @Environment(\.dismiss) private var dismiss
     @State private var token = ""
     @State private var api = ""
@@ -112,7 +113,7 @@ struct SettingsView: View {
                 NavigationLink { AccountView() } label: { Label("Account & preferences", systemImage: "person.crop.circle") }
             }.listRowBackground(AppTheme.panel)
             Section("Appearance") {
-                Picker("Theme", selection: $settings.appearance) { ForEach(["Dark", "Light", "System"], id: \.self) { Text($0) } }.pickerStyle(.segmented)
+                Picker("Theme", selection: $settings.appearance) { ForEach(["Dark", "Light", "System"], id: \.self) { Text($0) } }.pickerStyle(.segmented).disabled(!profiles.canEditProfiles)
             }.listRowBackground(AppTheme.panel)
             Section {
                 HStack {
@@ -128,7 +129,7 @@ struct SettingsView: View {
                 Text("Your catalog key is stored in the iPhone Keychain. Leave the sports backend empty to use ESPN directly.")
             }.listRowBackground(AppTheme.panel)
             Section("Default video provider") {
-                Picker("Provider", selection: $serverID) { ForEach(settings.servers) { Text($0.label).tag($0.id) } }.tint(AppTheme.foreground)
+                Picker("Provider", selection: $serverID) { ForEach(settings.servers) { Text($0.label).tag($0.id) } }.tint(AppTheme.foreground).disabled(!profiles.canEditProfiles)
             }.listRowBackground(AppTheme.panel)
             if let error { Section { Text(error).foregroundStyle(AppTheme.accent) }.listRowBackground(AppTheme.panel) }
             if let credentialError = settings.credentialError { Section { Text(credentialError).foregroundStyle(AppTheme.accent) }.listRowBackground(AppTheme.panel) }
@@ -160,7 +161,7 @@ struct SettingsView: View {
         settings.tmdbToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
         guard settings.credentialError == nil else { return }
         settings.apiBase = trimmed.hasSuffix("/") ? String(trimmed.dropLast()) : trimmed
-        settings.serverID = serverID
+        if profiles.canEditProfiles { settings.serverID = serverID }
         dismiss()
     }
 }
@@ -169,7 +170,12 @@ struct SettingsView: View {
 struct AccountView: View {
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var profiles: ProfileStore
+    @EnvironmentObject private var account: AccountSession
     @Environment(\.dismiss) private var dismiss
+    @State private var email = ""
+    @State private var password = ""
+    @State private var registering = false
+    @State private var confirmReload = false
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
@@ -186,8 +192,8 @@ struct AccountView: View {
                     HStack(alignment: .top, spacing: 9) {
                         Image(systemName: "iphone").font(.subheadline).foregroundStyle(AppTheme.muted)
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Saved on this iPhone").font(.caption.weight(.semibold))
-                            Text("Your list, history, teams, and preferences belong to this profile and stay on this iPhone.")
+                            Text(account.identity == nil ? "Saved on this iPhone" : "Your account, your profiles").font(.caption.weight(.semibold))
+                            Text(account.identity == nil ? "Sign in to sync profiles, appearance, video provider, favorite genres, and followed teams." : "Profiles, appearance, video provider, favorite genres, and followed teams sync with your account. Your list, history, and downloads stay on this iPhone.")
                                 .font(.caption).foregroundStyle(AppTheme.muted)
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }.padding(.top, 4)
@@ -196,18 +202,82 @@ struct AccountView: View {
                 Button { profiles.showChooser() } label: {
                     Label("Switch profiles", systemImage: "person.2").frame(maxWidth: .infinity)
                 }.buttonStyle(SecondaryButtonStyle()).accessibilityIdentifier("switch-profiles")
+                accountAccess
                 NavigationLink { PreferencesView() } label: {
                     HStack {
                         Label("Your favorite genres", systemImage: "slider.horizontal.3").font(.headline)
                         Spacer(); Image(systemName: "chevron.right")
                     }.padding(20).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 16))
                         .overlay { RoundedRectangle(cornerRadius: 16).strokeBorder(AppTheme.border, lineWidth: 1) }
-                }.buttonStyle(HapticPlainButtonStyle())
+                }.buttonStyle(HapticPlainButtonStyle()).disabled(!profiles.canEditProfiles)
                 Text("Follow teams from Sports to find their games in the Following filter.").font(.subheadline).foregroundStyle(AppTheme.muted)
             }.padding(20)
         }
         .background(AppTheme.canvas).foregroundStyle(AppTheme.foreground).navigationTitle("Account").navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+        .scrollDismissesKeyboard(.interactively)
+        .onDisappear { password = "" }
+        .confirmationDialog("Reload account profiles?", isPresented: $confirmReload, titleVisibility: .visible) {
+            Button("Reload account profiles") { Task { await profiles.reloadCloudProfiles() } }
+        } message: { Text("This replaces pending profile preferences with the account’s saved version. A local recovery copy is kept; your saved list and watch history stay on this iPhone.") }
+    }
+
+    @ViewBuilder private var accountAccess: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if let identity = account.identity {
+                Label(identity.email ?? "Signed in", systemImage: "person.crop.circle.badge.checkmark")
+                    .font(.headline).accessibilityIdentifier("account-email-label")
+                Text(profiles.syncStatus.title).font(.subheadline).foregroundStyle(AppTheme.muted)
+                    .accessibilityIdentifier("account-sync-status")
+                switch profiles.syncStatus {
+                case .failed, .pending:
+                    Button("Retry sync") { Task { await profiles.retrySync() } }
+                        .buttonStyle(SecondaryButtonStyle()).accessibilityIdentifier("account-sync-retry")
+                case .conflict:
+                    Button("Reload account profiles") { confirmReload = true }.buttonStyle(SecondaryButtonStyle())
+                case .loading, .syncing:
+                    ProgressView().tint(AppTheme.foreground)
+                default: EmptyView()
+                }
+                Button("Sign out") { Task { await account.signOut() } }
+                    .buttonStyle(SecondaryButtonStyle()).disabled(account.isWorking)
+                    .accessibilityIdentifier("account-sign-out")
+                Text("Signing out returns to your separate guest profiles. Any pending account changes remain saved for your next sign-in.")
+                    .font(.caption).foregroundStyle(AppTheme.muted)
+            } else {
+                Text(registering ? "Create your account" : "Sign in to Streamify").font(.headline)
+                TextField("Email address", text: $email)
+                    .textContentType(.username).keyboardType(.emailAddress).autocorrectionDisabled().textInputAutocapitalization(.never)
+                    .padding(14).streamifyControlSurface().accessibilityIdentifier("account-email")
+                SecureField("Password", text: $password)
+                    .textContentType(registering ? .newPassword : .password)
+                    .padding(14).streamifyControlSurface().accessibilityIdentifier("account-password")
+                Button {
+                    Task {
+                        let enteredPassword = password
+                        password = ""
+                        if registering { await account.register(email: email, password: enteredPassword) }
+                        else { await account.signIn(email: email, password: enteredPassword) }
+                    }
+                } label: {
+                    HStack { if account.isWorking { ProgressView().tint(.black) }; Text(registering ? "Create account" : "Sign in") }.frame(maxWidth: .infinity)
+                }.buttonStyle(PrimaryButtonStyle()).disabled(account.isWorking).accessibilityIdentifier("account-submit")
+                HStack {
+                    Button(registering ? "Already have an account?" : "Create account") { registering.toggle(); password = "" }
+                        .accessibilityIdentifier("account-mode")
+                    Spacer()
+                    if !registering {
+                        Button("Forgot password?") { Task { await account.resetPassword(email: email) } }
+                            .accessibilityIdentifier("account-reset-password")
+                    }
+                }.font(.caption.weight(.semibold)).buttonStyle(HapticPlainButtonStyle()).disabled(account.isWorking)
+                Text("Use your Streamify account email and password. Existing account profiles load first; a new account copies these guest profiles while keeping the originals here.")
+                    .font(.caption).foregroundStyle(AppTheme.muted)
+            }
+            if let error = account.error { Text(error).font(.subheadline).foregroundStyle(AppTheme.accent).accessibilityIdentifier("account-auth-error") }
+            if let message = account.message { Text(message).font(.subheadline).foregroundStyle(AppTheme.muted).accessibilityIdentifier("account-auth-message") }
+        }.padding(20).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 20))
+            .overlay { RoundedRectangle(cornerRadius: 20).strokeBorder(AppTheme.border, lineWidth: 0.5) }
     }
 
     private func accountCount(_ count: Int, _ title: String) -> some View {
@@ -218,6 +288,7 @@ struct AccountView: View {
 @MainActor
 struct PreferencesView: View {
     @EnvironmentObject private var library: LibraryStore
+    @EnvironmentObject private var profiles: ProfileStore
     private let genres = [(28,"Action"),(12,"Adventure"),(16,"Animation"),(35,"Comedy"),(80,"Crime"),(99,"Documentary"),(18,"Drama"),(10751,"Family"),(14,"Fantasy"),(27,"Horror"),(9648,"Mystery"),(10749,"Romance"),(878,"Sci-Fi"),(53,"Thriller")]
     var body: some View {
         ScrollView {
@@ -225,7 +296,7 @@ struct PreferencesView: View {
                 SectionHeading(title: "What do you love?", subtitle: "Choose a few genres to shape your For you recommendations.")
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 135))], spacing: 12) {
                     ForEach(genres, id: \.0) { genre in
-                        Pill(title: genre.1, selected: library.favoriteGenres.contains(genre.0)) { library.setGenre(genre.0) }
+                        Pill(title: genre.1, selected: library.favoriteGenres.contains(genre.0)) { library.setGenre(genre.0) }.disabled(!profiles.canEditProfiles)
                     }
                 }
             }.padding(20)

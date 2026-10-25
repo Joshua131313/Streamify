@@ -37,6 +37,18 @@ struct SportsTeam: Identifiable, Hashable, Sendable {
     func key(in league: SportsLeague) -> String { "\(league.rawValue):\(id)" }
 }
 
+/// A snapshot from the live feed, never inferred from the most recent scorer.
+/// Football progress runs from the offense's own goal (0) to its opponent's (1).
+/// It describes field position, not an inferred left/right stadium direction.
+struct SportsLiveSituation: Hashable, Sendable {
+    var period: Int? = nil
+    var clock: String? = nil
+    var possessionTeamID: String? = nil
+    var downDistance: String? = nil
+    var fieldPosition: String? = nil
+    var fieldProgress: Double? = nil
+}
+
 struct SportsGame: Identifiable, Hashable, Sendable {
     let eventID: String
     let league: SportsLeague
@@ -48,9 +60,14 @@ struct SportsGame: Identifiable, Hashable, Sendable {
     let venue: String
     let broadcasts: String
     let link: String
+    var liveSituation: SportsLiveSituation? = nil
     var id: String { "\(league.rawValue):\(eventID)" }
     var isLive: Bool { state == "in" }
     var isFinal: Bool { state == "post" }
+    var possessionTeam: SportsTeam? {
+        guard isLive, let id = liveSituation?.possessionTeamID else { return nil }
+        return [away, home].first { $0.id == id }
+    }
     private var finalScores: (away: Double, home: Double)? {
         let detail = status.lowercased()
         guard isFinal, !["cancel", "postpon", "suspend", "no contest", "abandon"].contains(where: detail.contains),

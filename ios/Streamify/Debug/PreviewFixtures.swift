@@ -262,15 +262,20 @@ enum PreviewFixtures {
             let scores = home ? [28, 25, 26, 26] : [24, 23, 25, 26]
             return ["homeAway": home ? "home" : "away", "team": team(home), "score": home ? "105" : "98", "records": [["summary": "8-3"]], "linescores": scores.map { ["value": $0, "displayValue": String($0)] }]
         }
-        let game: [String: Any] = ["id": "\(league)-fixture", "date": date, "competitions": [["date": date, "competitors": [competitor(false), competitor(true)], "status": ["type": ["state": "in", "shortDetail": "4th · 02:18", "description": "In Progress"]], "venue": ["fullName": "Streamify Arena"], "broadcasts": [["names": ["ESPN"]]]]]]
+        let football = ["nfl", "college-football"].contains(league)
+        let situation: [String: Any] = football
+            ? ["possession": "100", "shortDownDistanceText": "3rd & 3", "possessionText": "BOS 46", "yardLine": 46]
+            : ["possession": "100"]
+        let game: [String: Any] = ["id": "\(league)-fixture", "date": date, "competitions": [["date": date, "competitors": [competitor(false), competitor(true)], "status": ["period": 4, "displayClock": "2:18", "type": ["state": "in", "shortDetail": "4th · 02:18", "description": "In Progress"]], "situation": situation, "venue": ["fullName": "Streamify Arena"], "broadcasts": [["names": ["ESPN"]]]]]]
         let final: [String: Any] = ["id": "\(league)-final", "date": date, "competitions": [["date": date, "competitors": [competitor(false), competitor(true)], "status": ["type": ["state": "post", "shortDetail": "Final", "description": "Final"]], "venue": ["fullName": "Streamify Arena"], "broadcasts": [["names": ["ESPN"]]]]]]
-        if parts.last == "scoreboard" || parts.last == "schedule" { return ["events": league == "nba" ? [game, final] : [game]] }
+        let pregame: [String: Any] = ["id": "\(league)-pregame", "date": date, "competitions": [["date": date, "competitors": [competitor(false), competitor(true)], "status": ["type": ["state": "pre", "shortDetail": "Scheduled", "description": "Scheduled"]], "venue": ["fullName": "Streamify Arena"], "broadcasts": [["names": ["ESPN"]]]]]]
+        if parts.last == "scoreboard" || parts.last == "schedule" { return ["events": league == "nba" ? [game, final, pregame] : [game]] }
         if parts.last == "summary" {
             func stats(_ home: Bool) -> [String: Any] {
                 ["team": team(home), "statistics": [["name": "fieldGoals", "label": "Field Goals", "displayValue": home ? "41-80" : "39-83"], ["name": "rebounds", "label": "Rebounds", "displayValue": home ? "46" : "41"]]]
             }
             let event = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "event" })?.value ?? ""
-            var header = event.hasSuffix("-final") ? final : game
+            var header = event.hasSuffix("-final") ? final : event.hasSuffix("-pregame") ? pregame : game
             if SportsService.validEventID(event) { header["id"] = event }
             return ["header": header, "boxscore": ["teams": [stats(false), stats(true)]], "plays": [["text": "Toronto takes the lead with a three point shot."]]]
         }

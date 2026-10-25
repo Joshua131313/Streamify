@@ -454,15 +454,11 @@ final class SportsPlaybackFlowTests: XCTestCase {
     }
 
     private func selectNBA() {
-        let picker = app.buttons["sports-league-picker"]
-        XCTAssertTrue(picker.waitForExistence(timeout: 8))
-        picker.tap()
-        app.buttons["sports-clear-leagues"].tap()
-        app.buttons["sports-league-option-nba"].tap()
-        let apply = app.buttons["sports-apply-leagues"]
-        reveal(apply)
-        apply.tap()
-        XCTAssertTrue(wait { picker.value as? String == "NBA" })
+        let option = app.buttons["sports-league-option-nba"]
+        XCTAssertTrue(option.waitForExistence(timeout: 8))
+        option.tap()
+        XCTAssertTrue(wait { option.isSelected })
+        XCTAssertTrue(app.buttons["sports-quick-live"].isSelected)
     }
 
     private func backgroundAndReturn() {

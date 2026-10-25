@@ -9,7 +9,9 @@ final class LibraryStore: ObservableObject {
     @Published private(set) var history: [WatchEntry] = []
     @Published private(set) var recentSearches: [String] = []
     @Published private(set) var followedTeams: [String] = []
-    @Published var favoriteGenres: [Int] = [] { didSet { persist() } }
+    @Published var favoriteGenres: [Int] = [] { didSet { persist(); preferencesChanged() } }
+    var onPreferencesChange: (() -> Void)?
+    private var applyingPreferences = false
     private let defaults: UserDefaults
     private let storageKey: String
     private var storageEnabled = true
@@ -78,6 +80,17 @@ final class LibraryStore: ObservableObject {
         if followedTeams.contains(key) { followedTeams.removeAll { $0 == key } }
         else { followedTeams.append(key) }
         persist()
+        preferencesChanged()
+    }
+    func applyPreferences(genres: [Int], teams: [String]) {
+        applyingPreferences = true
+        favoriteGenres = genres
+        followedTeams = teams
+        persist()
+        applyingPreferences = false
+    }
+    private func preferencesChanged() {
+        if storageEnabled && !applyingPreferences { onPreferencesChange?() }
     }
     func setGenre(_ id: Int) {
         if favoriteGenres.contains(id) { favoriteGenres.removeAll { $0 == id } }
@@ -107,25 +120,61 @@ final class SettingsStore: ObservableObject {
         }
     }
     @Published var apiBase: String = "" { didSet { defaults.set(apiBase, forKey: "streamify.ios.apiBase") } }
-    @Published var serverID: String = "vidy" { didSet { defaults.set(serverID, forKey: "streamify.ios.serverID") } }
-    @Published var appearance: String = "Dark" { didSet { defaults.set(appearance, forKey: "streamify.ios.appearance") } }
+    @Published var serverID: String = "vidy" { didSet { persistPreferences() } }
+    @Published var appearance: String = "Dark" { didSet { persistPreferences() } }
     @Published private(set) var credentialError: String?
+    var onPreferencesChange: (() -> Void)?
     private let defaults: UserDefaults
+    private let profileKey: String?
+    private var storageEnabled = true
+    private var applyingPreferences = false
+    private struct Preferences: Codable { let appearance: String; let serverID: String }
 
     var client: TMDBClient { TMDBClient(token: tmdbToken) }
     var servers: [MediaServer] { MediaServer.bundled }
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, profileKey: String? = nil, migrateLegacy: Bool = false) {
         self.defaults = defaults
+        self.profileKey = profileKey
         do { tmdbToken = try SecureCredentialStore.get("tmdbToken") ?? "" }
         catch { credentialError = error.localizedDescription }
         apiBase = defaults.string(forKey: "streamify.ios.apiBase") ?? ""
-        serverID = defaults.string(forKey: "streamify.ios.serverID") ?? "vidy"
-        let storedAppearance = defaults.string(forKey: "streamify.ios.appearance") ?? "Dark"
+        let stored = profileKey.flatMap { defaults.data(forKey: $0) }.flatMap { try? JSONDecoder().decode(Preferences.self, from: $0) }
+        serverID = stored?.serverID ?? ((profileKey == nil || migrateLegacy) ? defaults.string(forKey: "streamify.ios.serverID") : nil) ?? "vidy"
+        let storedAppearance = stored?.appearance ?? ((profileKey == nil || migrateLegacy) ? defaults.string(forKey: "streamify.ios.appearance") : nil) ?? "Dark"
         appearance = ["Dark", "Light", "System"].contains(storedAppearance) ? storedAppearance : "Dark"
         #if DEBUG
         if PreviewFixtures.enabled { tmdbToken = PreviewFixtures.token }
         #endif
+        persistPreferences()
+    }
+    func applyPreferences(appearance: String, serverID: String) {
+        applyingPreferences = true
+        self.appearance = appearance
+        self.serverID = serverID
+        applyingPreferences = false
+    }
+    func refreshDeviceConfiguration() {
+        apiBase = defaults.string(forKey: "streamify.ios.apiBase") ?? ""
+        #if DEBUG
+        if PreviewFixtures.enabled { return }
+        #endif
+        do { tmdbToken = try SecureCredentialStore.get("tmdbToken") ?? "" }
+        catch { credentialError = error.localizedDescription }
+    }
+    func discardProfilePreferences() {
+        storageEnabled = false
+        if let profileKey { defaults.removeObject(forKey: profileKey) }
+    }
+    private func persistPreferences() {
+        guard storageEnabled else { return }
+        if let profileKey {
+            if let data = try? JSONEncoder().encode(Preferences(appearance: appearance, serverID: serverID)) { defaults.set(data, forKey: profileKey) }
+        } else {
+            defaults.set(serverID, forKey: "streamify.ios.serverID")
+            defaults.set(appearance, forKey: "streamify.ios.appearance")
+        }
+        if !applyingPreferences { onPreferencesChange?() }
     }
 }
 

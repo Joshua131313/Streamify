@@ -111,7 +111,8 @@ private struct DownloadSeriesRow: View {
 
     var body: some View {
         Button { AppHaptics.tap(); open() } label: { rowLabel }
-            .buttonStyle(CardPressedButtonStyle(cornerRadius: 6)).foregroundStyle(AppTheme.foreground)
+            .buttonStyle(CardPressedButtonStyle(cornerRadius: 6, preservesContextMenuSource: true))
+            .foregroundStyle(AppTheme.foreground)
             .accessibilityLabel("\(series.title), \(summary), View episodes")
             .accessibilityValue(series.active.isEmpty ? "" : series.progress.map { "\(Int($0 * 100)) percent" } ?? "Downloading. Total size unknown")
             .accessibilityIdentifier("download-series-\(series.id)")
@@ -292,7 +293,8 @@ private struct DownloadRow: View {
         // One native Button owns activation and the completed-file context menu.
         // A primitive style would insert a second Button inside that interaction.
         Button { AppHaptics.tap(); play() } label: { primaryLabel }
-            .buttonStyle(CardPressedButtonStyle(cornerRadius: 6)).disabled(item.status != .completed)
+            .buttonStyle(CardPressedButtonStyle(cornerRadius: 6, preservesContextMenuSource: item.status == .completed))
+            .disabled(item.status != .completed)
             .foregroundStyle(AppTheme.foreground)
             .accessibilityLabel(item.status == .completed ? "Play offline \(item.title)" : item.title)
             .accessibilityIdentifier("download-play-\(item.id)")

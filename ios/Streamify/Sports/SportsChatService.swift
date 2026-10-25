@@ -158,9 +158,10 @@ final class SportsChatSubscription {
         let db = try database()
         try Task.checkCancellation()
         let auth = Auth.auth()
-        let user: User
-        if let current = auth.currentUser { user = current }
-        else { user = try await auth.signInAnonymously().user }
+        let user: User = try await AccountAuthGate.perform {
+            if let current = auth.currentUser { return current }
+            return try await auth.signInAnonymously().user
+        }
         try Task.checkCancellation()
         let uid = user.uid
         let displayName = (user.displayName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)

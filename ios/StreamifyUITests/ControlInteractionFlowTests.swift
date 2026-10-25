@@ -213,54 +213,54 @@ final class ControlInteractionFlowTests: XCTestCase {
         capture("Controls favorite genre retained and restored")
     }
 
-    func testSportsDraftCancelUpcomingFollowingAndTodayReset() {
+    func testSportsSingleLeagueTabsFollowingAndTodayReset() {
         app.buttons["tab-sports"].tap()
         let leagues = app.buttons["sports-league-picker"]
         XCTAssertTrue(leagues.waitForExistence(timeout: 8))
-        leagues.tap()
-        app.buttons["sports-clear-leagues"].tap()
-        app.buttons["sports-league-option-nba"].tap()
-        capture("Controls sports draft league selection")
-        app.buttons["Cancel"].tap()
-        XCTAssertEqual(leagues.value as? String, "All leagues", "Cancelling must discard the draft selection.")
-        leagues.tap()
-        app.buttons["sports-clear-leagues"].tap()
-        app.buttons["sports-league-option-nba"].tap()
-        reveal(app.buttons["sports-apply-leagues"])
-        app.buttons["sports-apply-leagues"].tap()
-        XCTAssertTrue(wait { leagues.value as? String == "NBA" })
-        for filter in ["Upcoming", "Following", "All games"] {
-            app.buttons["sports-filter-picker"].tap()
-            let option = app.buttons["sports-filter-\(filter)"]
-            XCTAssertTrue(option.waitForExistence(timeout: 5))
-            option.tap()
-            XCTAssertTrue(option.isSelected)
-            capture("Controls sports \(filter) selected in filter sheet")
-            app.buttons["sports-filter-done"].tap()
-            XCTAssertTrue(wait { (self.app.buttons["sports-filter-picker"].value as? String ?? "").contains(filter) })
-            if filter == "Upcoming" {
-                XCTAssertTrue(app.staticTexts["No games to show"].waitForExistence(timeout: 10))
-                XCTAssertFalse(app.buttons["sports-game-nba:nba-fixture"].exists)
-            } else if filter == "Following" {
-                XCTAssertTrue(app.staticTexts["No followed teams playing"].waitForExistence(timeout: 10))
-            } else {
-                XCTAssertTrue(app.buttons["sports-game-nba:nba-fixture"].waitForExistence(timeout: 10))
-            }
-            capture("Controls sports \(filter) applied result")
-        }
+        let live = app.buttons["sports-quick-live"]
+        XCTAssertTrue(live.isSelected, "Live must be the initial status.")
+        let nba = app.buttons["sports-league-option-nba"]
+        let nfl = app.buttons["sports-league-option-nfl"]
+        nfl.tap()
+        XCTAssertTrue(wait { nfl.isSelected })
+        nba.tap()
+        XCTAssertTrue(wait { nba.isSelected && !nfl.isSelected })
+        XCTAssertEqual(leagues.value as? String, "NBA")
+        XCTAssertTrue(app.buttons["sports-game-nba:nba-fixture"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["sports-game-nfl:nfl-fixture"].exists)
+        capture("Compact league rail restricts games to one selected league")
+
+        app.buttons["sports-filter-Pregame"].tap()
+        XCTAssertTrue(app.buttons["sports-filter-Pregame"].isSelected)
+        XCTAssertTrue(app.buttons["sports-game-nba:nba-pregame"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["sports-game-nba:nba-fixture"].exists)
+        app.buttons["sports-filter-Final"].tap()
+        XCTAssertTrue(app.buttons["sports-game-nba:nba-final"].waitForExistence(timeout: 10))
+        XCTAssertFalse(live.isSelected)
+        live.tap()
+        XCTAssertTrue(app.buttons["sports-game-nba:nba-fixture"].waitForExistence(timeout: 10))
+        app.buttons["sports-followed-teams"].tap()
+        XCTAssertTrue(app.buttons["sports-followed-teams"].isSelected)
+        XCTAssertFalse(nba.isSelected)
+        XCTAssertTrue(live.isSelected, "Followed teams and Live must work together.")
+        XCTAssertTrue(app.staticTexts["No followed teams playing"].waitForExistence(timeout: 10))
+        capture("Followed teams scope combines with the selected status tab")
+        nba.tap()
+        XCTAssertFalse(app.buttons["sports-followed-teams"].isSelected)
+
         app.buttons["sports-date-picker"].tap()
         let tomorrow = app.buttons["sports-date-offset-1"]
         XCTAssertTrue(tomorrow.waitForExistence(timeout: 5))
         tomorrow.tap()
         XCTAssertTrue(wait { tomorrow.isSelected })
-        capture("Controls sports calendar tomorrow selected")
         app.navigationBars["Game calendar"].buttons["Today"].tap()
         XCTAssertTrue(wait { self.app.buttons["sports-date-offset-0"].isSelected })
         XCTAssertFalse(tomorrow.isSelected)
         app.buttons["sports-calendar-done"].tap()
         XCTAssertTrue(app.buttons["sports-game-nba:nba-fixture"].waitForExistence(timeout: 10))
+        XCTAssertTrue(live.isSelected)
         XCTAssertEqual(leagues.value as? String, "NBA")
-        capture("Controls sports Today reset preserves NBA")
+        capture("Calendar Today reset preserves the league and restores Live")
     }
 
     func testSearchFieldAndHeaderPresentFullSearchAndReturnToTheirOriginalContext() {
@@ -308,10 +308,7 @@ final class ControlInteractionFlowTests: XCTestCase {
         app.buttons["tab-sports"].tap()
         let leagues = app.buttons["sports-league-picker"]
         XCTAssertTrue(leagues.waitForExistence(timeout: 8))
-        leagues.tap()
-        app.buttons["sports-clear-leagues"].tap()
         app.buttons["sports-league-option-nba"].tap()
-        app.buttons["sports-apply-leagues"].tap()
         XCTAssertTrue(wait { leagues.value as? String == "NBA" })
         let date = app.buttons["sports-date-picker"]
         date.tap()
