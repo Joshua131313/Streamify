@@ -263,11 +263,16 @@ struct AccountView: View {
                     HStack { if account.isWorking { ProgressView().tint(.black) }; Text(registering ? "Create account" : "Sign in") }.frame(maxWidth: .infinity)
                 }.buttonStyle(PrimaryButtonStyle()).disabled(account.isWorking).accessibilityIdentifier("account-submit")
                 HStack {
-                    Button(registering ? "Already have an account?" : "Create account") { registering.toggle(); password = "" }
+                    Button { registering.toggle(); password = "" } label: {
+                        Text(registering ? "Already have an account?" : "Create account")
+                            .frame(minHeight: 44).contentShape(Rectangle())
+                    }
                         .accessibilityIdentifier("account-mode")
                     Spacer()
                     if !registering {
-                        Button("Forgot password?") { Task { await account.resetPassword(email: email) } }
+                        Button { Task { await account.resetPassword(email: email) } } label: {
+                            Text("Forgot password?").frame(minHeight: 44).contentShape(Rectangle())
+                        }
                             .accessibilityIdentifier("account-reset-password")
                     }
                 }.font(.caption.weight(.semibold)).buttonStyle(HapticPlainButtonStyle()).disabled(account.isWorking)

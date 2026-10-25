@@ -277,9 +277,7 @@ private struct DownloadRow: View {
     private var row: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
-                if item.status == .completed {
-                    primaryButton.contextMenu { downloadActions } preview: { contextPreview }
-                } else { primaryButton }
+                primaryButton
                 trailingControl
             }
             if let error = item.error {
@@ -290,15 +288,28 @@ private struct DownloadRow: View {
     }
 
     private var primaryButton: some View {
-        // One native Button owns activation and the completed-file context menu.
-        // A primitive style would insert a second Button inside that interaction.
-        Button { AppHaptics.tap(); play() } label: { primaryLabel }
+        primaryControl
             .buttonStyle(CardPressedButtonStyle(cornerRadius: 6, preservesContextMenuSource: item.status == .completed))
             .disabled(item.status != .completed)
             .foregroundStyle(AppTheme.foreground)
             .accessibilityLabel(item.status == .completed ? "Play offline \(item.title)" : item.title)
             .accessibilityIdentifier("download-play-\(item.id)")
-            .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 6))
+    }
+
+    @ViewBuilder private var primaryControl: some View {
+        if item.status == .completed {
+            // Menu owns both gestures: a quick tap plays this file, while a hold
+            // opens its actions. A separate contextMenu on a List-row Button can
+            // let the primary action fire when the held touch is released.
+            Menu { downloadActions } label: { primaryLabel } primaryAction: {
+                AppHaptics.tap()
+                play()
+            }
+            .menuIndicator(.hidden)
+            .menuOrder(.fixed)
+        } else {
+            Button {} label: { primaryLabel }
+        }
     }
 
     private var primaryLabel: some View {
@@ -326,8 +337,8 @@ private struct DownloadRow: View {
     }
 
     @ViewBuilder private func withTransferContextMenu<Content: View>(_ content: Content) -> some View {
-        // Disabled transfer buttons need a row menu. Completed rows have none on
-        // their ancestor, leaving a single native menu on the actual play Button.
+        // Disabled transfers need a row context menu. Completed rows use their
+        // primary-action Menu and must not also inherit an ancestor context menu.
         if item.status == .completed { content }
         else {
             content.contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 6))

@@ -111,6 +111,16 @@ final class CardInteractionFlowTests: XCTestCase {
         XCTAssertTrue(card.exists)
         XCTAssertTrue(playFile.isHittable, "Playing from the hold menu must preserve the same completed download.")
         XCTAssertFalse(app.buttons["Delete video"].exists)
+
+        // The same control must retain immediate playback on a normal tap after
+        // both cancelling its menu and playing through a menu action.
+        playFile.tap()
+        XCTAssertTrue(play.waitForExistence(timeout: 10))
+        XCTAssertTrue(wait { play.isEnabled && play.label == "Pause" })
+        XCTAssertFalse(menuButton("Play offline").exists, "A normal tap must play the file instead of opening its actions.")
+        app.buttons["offline-close"].tap()
+        XCTAssertTrue(app.navigationBars["Downloads"].waitForExistence(timeout: 5))
+        XCTAssertTrue(card.exists)
     }
 
     private func element(_ identifier: String) -> XCUIElement {

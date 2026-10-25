@@ -74,6 +74,20 @@ final class SportsLiveSituationTests: XCTestCase {
         XCTAssertNil(game.liveSituation?.downDistance)
     }
 
+    func testOnlyFootballAndBasketballExposeBallPossessionWhileOtherSportsKeepClock() throws {
+        let event = Self.event(situation: ["possession": "19"])
+        for league in [SportsLeague.nhl, .mlb] {
+            let game = try XCTUnwrap(SportsService().parseGame(event, league: league))
+            XCTAssertNil(game.possessionTeam, "\(league.title) must not render a basketball possession marker.")
+            XCTAssertEqual(game.liveSituation?.period, 4)
+            XCTAssertEqual(game.liveSituation?.clock, "9:26")
+        }
+        for league in [SportsLeague.nfl, .ncaaf, .nba, .wnba] {
+            let game = try XCTUnwrap(SportsService().parseGame(event, league: league))
+            XCTAssertEqual(game.possessionTeam?.id, "19")
+        }
+    }
+
     func testLiveSnapshotCannotAttachAnotherMatchupOrReviveFinal() throws {
         let service = SportsService()
         let live = try XCTUnwrap(service.parseGame(Self.event(situation: ["possession": "19"]), league: .nfl))

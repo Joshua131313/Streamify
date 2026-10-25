@@ -7,11 +7,11 @@ on:
   workflow_dispatch:
     inputs:
       scope:
-        description: Full regression or player interactions after the full baseline
+        description: Full regression or focused verification after the full baseline
         type: choice
         required: true
         default: full
-        options: [full, player-recheck]
+        options: [full, player-recheck, polish-recheck]
 permissions:
   contents: read
 concurrency:
@@ -50,7 +50,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.scope == 'player-recheck' && '["player-recheck"]' || '["playback", "controls", "screens"]') }}
+        suite: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.scope == 'player-recheck' && '["player-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'polish-recheck' && '["polish-recheck"]' || '["playback", "controls", "screens"]') }}
     steps:
       - uses: actions/checkout@v4
       - name: Generate Xcode project
@@ -88,6 +88,9 @@ jobs:
           xcodebuild build-for-testing "${COMMON[@]}"
           # Keep suite assignments explicit so each screen check runs once.
           case "$TEST_SUITE" in
+            polish-recheck)
+              SELECTORS=(-only-testing:StreamifyTests -only-testing:StreamifyUITests/AccountFlowTests -only-testing:StreamifyUITests/CardInteractionFlowTests -only-testing:StreamifyUITests/ParityFlowTests/testLivePregameFinalTabsKeepLeagueAndFutureDatePolicy -only-testing:StreamifyUITests/ParityFlowTests/testCollegeFootballLeagueOpensItsGameAndAvailableStream -only-testing:StreamifyUITests/ControlInteractionFlowTests/testSportsSingleLeagueTabsFollowingAndTodayReset)
+              ;;
             player-recheck)
               SELECTORS=(-only-testing:StreamifyTests -only-testing:StreamifyUITests/SportsPlaybackFlowTests -only-testing:StreamifyUITests/OfflinePlayerFlowTests/testCachedPosterAndActualLocalPlaybackControls -only-testing:StreamifyUITests/ParityFlowTests/testSportsChannelsAndMultiwatchPreserveSelectedServerAndTile)
               ;;
@@ -103,7 +106,7 @@ jobs:
             *) exit 2 ;;
           esac
           # Normal push/PR/full-dispatch suites cover every UI test class once.
-          # Manual rechecks retain all unit tests and the affected player flows.
+          # Manual rechecks retain all unit tests and the affected UI flows.
           xcodebuild test-without-building "${COMMON[@]}" "${TEST_OPTIONS[@]}" "${SELECTORS[@]}" -resultBundlePath ios/build/Streamify.xcresult
       - name: Export simulator screenshots
         if: always()

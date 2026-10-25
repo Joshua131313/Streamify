@@ -65,7 +65,8 @@ struct SportsGame: Identifiable, Hashable, Sendable {
     var isLive: Bool { state == "in" }
     var isFinal: Bool { state == "post" }
     var possessionTeam: SportsTeam? {
-        guard isLive, let id = liveSituation?.possessionTeamID else { return nil }
+        guard isLive, [SportsLeague.nfl, .ncaaf, .nba, .wnba].contains(league),
+              let id = liveSituation?.possessionTeamID else { return nil }
         return [away, home].first { $0.id == id }
     }
     private var finalScores: (away: Double, home: Double)? {

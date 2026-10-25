@@ -43,7 +43,10 @@ final class AccountFlowTests: XCTestCase {
         let email = app.textFields["account-email"]
         reveal(email)
         email.tap()
-        email.typeText("local-review@example.invalid")
+        // A single bulk typing event lost characters on the cold iOS simulator.
+        // Send individual key events, retaining the exact full-value assertion.
+        for character in "local-review@example.invalid" { email.typeText(String(character)) }
+        XCTAssertEqual(email.value as? String, "local-review@example.invalid")
         let password = app.secureTextFields["account-password"]
         reveal(password)
         XCTAssertTrue(password.exists, "Passwords must use the native secure input.")
@@ -77,9 +80,22 @@ final class AccountFlowTests: XCTestCase {
     private func reveal(_ target: XCUIElement) {
         for _ in 0..<15 {
             if target.exists && target.isHittable { return }
-            let up = !(target.exists && target.frame.maxY < app.frame.midY)
-            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: up ? 0.78 : 0.28))
-            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: up ? 0.28 : 0.78))
+            let bounds = app.frame
+            let top = bounds.minY + bounds.height * 0.2
+            let keyboard = app.keyboards.firstMatch
+            let bottom = keyboard.exists
+                ? min(bounds.maxY - 24, keyboard.frame.minY - 20)
+                : bounds.minY + bounds.height * 0.85
+            XCTAssertGreaterThan(bottom - top, 44, "The account sheet must leave a scrollable viewport above the keyboard.")
+            guard bottom - top > 44 else { return }
+            // Start inside the visible scroll content, never on the keyboard.
+            // The previous 78%-of-screen start was below the keyboard's top.
+            let low = bottom - 20
+            let high = top + 20
+            let up = !(target.exists && target.frame.maxY < (top + bottom) / 2)
+            let origin = app.coordinate(withNormalizedOffset: .zero)
+            let start = origin.withOffset(CGVector(dx: bounds.width * 0.95, dy: (up ? low : high) - bounds.minY))
+            let end = origin.withOffset(CGVector(dx: bounds.width * 0.95, dy: (up ? high : low) - bounds.minY))
             start.press(forDuration: 0.05, thenDragTo: end)
         }
         XCTAssertTrue(target.isHittable, "The account control must be reachable with the keyboard present.")

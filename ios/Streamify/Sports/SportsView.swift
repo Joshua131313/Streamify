@@ -309,7 +309,7 @@ struct SportsView: View {
             HStack(spacing: 4) {
                 if item == .live { Circle().fill(enabled ? SportsLiveTint.color : AppTheme.muted).frame(width: 4, height: 4) }
                 Text(item.rawValue).font(.caption.weight(selected ? .semibold : .medium)).lineLimit(1)
-            }.padding(.horizontal, 7).frame(minHeight: 44)
+            }.padding(.horizontal, 7).frame(minWidth: 44, minHeight: 44)
                 .foregroundStyle(selected ? AppTheme.foreground : AppTheme.muted)
                 .overlay(alignment: .bottom) { Rectangle().fill(selected ? AppTheme.foreground : .clear).frame(height: 2) }
                 .contentShape(Rectangle())
@@ -338,7 +338,7 @@ struct SportsView: View {
                 .disabled(loading || channels).accessibilityIdentifier("sports-refresh")
         } label: {
             Image(systemName: "ellipsis").font(.system(size: 16, weight: .medium))
-                .frame(width: 36, height: 44).contentShape(Rectangle())
+                .frame(width: 44, height: 44).contentShape(Rectangle())
         }.buttonStyle(HapticPlainButtonStyle()).accessibilityLabel("More sports options").accessibilityIdentifier("sports-menu")
     }
 
