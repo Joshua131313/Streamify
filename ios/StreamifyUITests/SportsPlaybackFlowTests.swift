@@ -507,13 +507,12 @@ final class SportsPlaybackFlowTests: XCTestCase {
     }
 
     private func providerFullscreenWindow() -> XCUIElement? {
-        // XCTest reports the covered sports header as hittable on iOS 26.
-        // Identify WebKit's actual presentation window instead of relying on
-        // hit-testing a different, covered window.
-        app.windows.allElementsBoundByIndex.first { window in
-            !window.buttons["sports-player-source-picker"].exists &&
-                window.webViews.staticTexts["Provider fullscreen active"].firstMatch.exists
-        }
+        // iOS can expose the retained web document under multiple windows.
+        // Repeatedly querying absent covered-header controls is slow enough to
+        // exhaust the polling deadline. Identify the positive DOM status in one
+        // snapshot; callers also verify viewport growth and working HTML controls.
+        let window = app.windows.containing(.staticText, identifier: "Provider fullscreen active").firstMatch
+        return window.exists ? window : nil
     }
 
     private var nativeVideoFullscreenWindow: XCUIElement {
