@@ -177,6 +177,8 @@ struct AccountView: View {
     @State private var password = ""
     @State private var registering = false
     @State private var confirmReload = false
+    private enum AccountField: Hashable { case email, password }
+    @FocusState private var focusedField: AccountField?
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
@@ -259,18 +261,14 @@ struct AccountView: View {
                 }
                 TextField("Email address", text: $email)
                     .textContentType(.username).keyboardType(.emailAddress).autocorrectionDisabled().textInputAutocapitalization(.never)
+                    .focused($focusedField, equals: .email).submitLabel(.next)
+                    .onSubmit { focusedField = .password }
                     .padding(14).streamifyControlSurface().accessibilityIdentifier("account-email")
                 SecureField("Password", text: $password)
                     .textContentType(registering ? .newPassword : .password)
+                    .focused($focusedField, equals: .password).submitLabel(.go).onSubmit(submitAccount)
                     .padding(14).streamifyControlSurface().accessibilityIdentifier("account-password")
-                Button {
-                    Task {
-                        let enteredPassword = password
-                        password = ""
-                        if registering { await account.register(email: email, password: enteredPassword) }
-                        else { await account.signIn(email: email, password: enteredPassword) }
-                    }
-                } label: {
+                Button(action: submitAccount) {
                     HStack { if account.isWorking { ProgressView().tint(.black) }; Text(registering ? "Create account" : "Sign in") }.frame(maxWidth: .infinity)
                 }.buttonStyle(PrimaryButtonStyle()).disabled(account.isWorking).accessibilityIdentifier("account-submit")
                 HStack {
@@ -299,6 +297,14 @@ struct AccountView: View {
     private func accountCount(_ count: Int, _ title: String) -> some View {
         VStack(spacing: 4) { Text(String(count)).font(.title2.bold()); Text(title).font(.caption).foregroundStyle(AppTheme.muted) }.frame(maxWidth: .infinity)
     }
+    private func submitAccount() {
+        let enteredPassword = password, enteredEmail = email, createAccount = registering
+        password = ""; focusedField = nil
+        Task {
+            if createAccount { await account.register(email: enteredEmail, password: enteredPassword) }
+            else { await account.signIn(email: enteredEmail, password: enteredPassword) }
+        }
+    }
 }
 
 @MainActor
@@ -322,15 +328,16 @@ struct PreferencesView: View {
                         Button { library.setGenre(genre.0) } label: {
                             HStack(spacing: 10) {
                                 Image(systemName: symbol(for: genre.0)).font(.system(size: 18, weight: .regular)).frame(width: 24)
-                                Text(genre.1).font(.subheadline.weight(.medium)).lineLimit(2).multilineTextAlignment(.leading)
+                                Text(genre.1).font(.subheadline.weight(.medium)).lineLimit(1).minimumScaleFactor(0.85).multilineTextAlignment(.leading)
                                     .frame(maxWidth: .infinity, alignment: .leading)
-                                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                                    .font(.system(size: 17, weight: .regular)).opacity(selected ? 1 : 0.25)
                             }
                             .padding(.horizontal, 14).frame(maxWidth: .infinity, minHeight: tileHeight, alignment: .leading)
                             .foregroundStyle(AppTheme.foreground)
                             .background(selected ? AppTheme.foreground.opacity(0.10) : AppTheme.panel, in: RoundedRectangle(cornerRadius: 14))
                             .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(selected ? AppTheme.foreground.opacity(0.5) : AppTheme.border, lineWidth: selected ? 1.2 : 0.7) }
+                            .overlay(alignment: .topTrailing) {
+                                if selected { Image(systemName: "checkmark.circle.fill").font(.system(size: 13)).padding(7).accessibilityHidden(true) }
+                            }
                             .contentShape(RoundedRectangle(cornerRadius: 14))
                         }.buttonStyle(HapticPlainButtonStyle()).disabled(!profiles.canEditProfiles)
                             .accessibilityLabel(genre.1).accessibilityAddTraits(selected ? .isSelected : [])
@@ -345,7 +352,7 @@ struct PreferencesView: View {
     private func symbol(for id: Int) -> String {
         switch id {
         case 28: "bolt"; case 12: "map"; case 16: "sparkles"; case 35: "face.smiling"
-        case 80: "fingerprint"; case 99: "camera"; case 18: "theatermasks"; case 10751: "person.2"
+        case 80: "touchid"; case 99: "camera"; case 18: "theatermasks"; case 10751: "person.2"
         case 14: "wand.and.stars"; case 27: "moon"; case 9648: "magnifyingglass"; case 10749: "heart"
         case 878: "globe.americas"; default: "film"
         }

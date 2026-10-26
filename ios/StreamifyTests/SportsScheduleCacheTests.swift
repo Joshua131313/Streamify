@@ -22,7 +22,8 @@ import XCTest
             XCTAssertTrue(result.fresh)
             XCTAssertEqual(result.games.map(\.id), schedule.games.filter { $0.league == league }.map(\.id))
         }
-        let stale = try XCTUnwrap(cache.snapshot(leagues: [.nfl], day: day, backend: "a", calendar: calendar, now: day.addingTimeInterval(31)))
+        XCTAssertTrue(try XCTUnwrap(cache.snapshot(leagues: [.nba], day: day, backend: "a", calendar: calendar, now: day.addingTimeInterval(60))).fresh)
+        let stale = try XCTUnwrap(cache.snapshot(leagues: [.nfl], day: day, backend: "a", calendar: calendar, now: day.addingTimeInterval(121)))
         XCTAssertFalse(stale.fresh)
         XCTAssertEqual(stale.games.count, 1, "Stale cards remain visible during a background refresh.")
     }

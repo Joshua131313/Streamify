@@ -20,6 +20,7 @@ final class AccountCacheFlowTests: XCTestCase {
             } else {
                 let email = app.textFields["account-email"]; reveal(email); email.tap()
                 for character in "review@example.invalid" { email.typeText(String(character)) }
+                email.typeText("\n")
                 let password = app.secureTextFields["account-password"]; reveal(password); password.tap(); password.typeText("local-password")
                 let submit = app.buttons["account-submit"]; reveal(submit); submit.tap()
             }
@@ -78,7 +79,9 @@ final class AccountCacheFlowTests: XCTestCase {
         capture("Continue Watching poster fallback and metadata repair")
         app.buttons["tab-library"].tap()
         app.buttons["History · 2"].tap()
-        XCTAssertTrue(app.staticTexts["Midnight Dispatch"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["history-resume-tv:43"].waitForExistence(timeout: 5))
+        XCTAssertEqual(element("history-progress-tv:43").value as? String, "11 percent")
+        XCTAssertTrue(app.staticTexts["history-status-tv:43"].label.contains("40 min left"))
         capture("History preserves titles and playback after artwork repair")
     }
     private func launch(_ extra: [String]) {
@@ -104,11 +107,12 @@ final class AccountCacheFlowTests: XCTestCase {
             if target.exists && target.isHittable { return }
             let origin = app.coordinate(withNormalizedOffset: .zero), frame = app.frame
             let keyboard = app.keyboards.firstMatch
-            let bottom = keyboard.exists ? keyboard.frame.minY - 30 : frame.height * 0.82
+            // Autofill's 44pt accessory is outside XCUI's Keyboard frame.
+            let bottom = keyboard.exists ? keyboard.frame.minY - 80 : frame.height * 0.82
             let top = frame.height * 0.22
             let up = !(target.exists && target.frame.maxY < (top + bottom) / 2)
-            origin.withOffset(CGVector(dx: frame.width * 0.95, dy: up ? bottom : top)).press(forDuration: 0.05,
-                thenDragTo: origin.withOffset(CGVector(dx: frame.width * 0.95, dy: up ? top : bottom)))
+            origin.withOffset(CGVector(dx: frame.width * 0.88, dy: up ? bottom : top)).press(forDuration: 0.05,
+                thenDragTo: origin.withOffset(CGVector(dx: frame.width * 0.88, dy: up ? top : bottom)))
         }
         XCTAssertTrue(target.isHittable)
     }

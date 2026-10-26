@@ -23,7 +23,9 @@ import Combine
         guard cached.count == leagues.count else { return nil }
         return Snapshot(games: cached.flatMap(\.games).sorted { ($0.date ?? .distantFuture) < ($1.date ?? .distantFuture) },
                         partial: cached.contains { $0.partial },
-                        fresh: cached.allSatisfy { now.timeIntervalSince($0.fetchedAt) >= 0 && now.timeIntervalSince($0.fetchedAt) < 30 })
+                        // Navigation reuses recent schedules for two minutes.
+                        // Active score polling still explicitly refreshes every 30s.
+                        fresh: cached.allSatisfy { now.timeIntervalSince($0.fetchedAt) >= 0 && now.timeIntervalSince($0.fetchedAt) < 120 })
     }
 
     func store(_ schedule: SportsSchedule, leagues: [SportsLeague], day: Date, backend: String,
