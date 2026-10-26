@@ -435,6 +435,17 @@ final class ParityFlowTests: XCTestCase {
         capture("Live returns future Followed teams to Today without resetting the scope")
     }
 
+    func testFootballFieldMirrorsPossessionForNFLAndCollegeFootball() {
+        app.buttons["tab-sports"].tap()
+        for (league, direction) in [("nfl", "right"), ("college-football", "left")] {
+            selectSportsLeagues([league])
+            let field = element("sports-field-\(league):\(league)-fixture")
+            XCTAssertTrue(field.waitForExistence(timeout: 8))
+            XCTAssertTrue((field.value as? String ?? "").contains("advancing \(direction)"))
+            capture("\(league) field advances \(direction) with possession")
+        }
+    }
+
     func testCollegeFootballLeagueOpensItsGameAndAvailableStream() {
         app.buttons["tab-sports"].tap()
         selectSportsLeagues(["college-football"])

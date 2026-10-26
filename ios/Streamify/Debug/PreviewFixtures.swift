@@ -264,7 +264,7 @@ enum PreviewFixtures {
         }
         let football = ["nfl", "college-football"].contains(league)
         let situation: [String: Any] = football
-            ? ["possession": "100", "shortDownDistanceText": "3rd & 3", "possessionText": "BOS 46", "yardLine": 46]
+            ? ["possession": league == "college-football" ? "200" : "100", "shortDownDistanceText": "3rd & 3", "possessionText": "BOS 46", "yardLine": 46]
             : league == "mlb" ? ["onFirst": true, "onSecond": false, "onThird": true, "balls": 2, "strikes": 1, "outs": 1]
             : ["possession": "100"]
         let liveStatus: [String: Any] = league == "mlb"

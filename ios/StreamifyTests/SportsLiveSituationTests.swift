@@ -3,6 +3,32 @@ import XCTest
 @testable import Streamify
 
 final class SportsLiveSituationTests: XCTestCase {
+    func testFootballFieldFlipsWithPossessionAndPreservesThePhysicalYardLine() throws {
+        for league in [SportsLeague.nfl, .ncaaf] {
+            let away = try XCTUnwrap(SportsService().parseGame(Self.event(situation: [
+                "possession": "19", "possessionText": "NYG 27"
+            ]), league: league)?.footballFieldPosition)
+            let home = try XCTUnwrap(SportsService().parseGame(Self.event(situation: [
+                "possession": "34", "possessionText": "NYG 27"
+            ]), league: league)?.footballFieldPosition)
+            XCTAssertTrue(away.advancesRight)
+            XCTAssertFalse(home.advancesRight)
+            XCTAssertEqual(away.ballPosition, 0.27, accuracy: 0.0001)
+            XCTAssertEqual(home.ballPosition, away.ballPosition, accuracy: 0.0001)
+            XCTAssertEqual(away.fillStart, 0)
+            XCTAssertEqual(home.fillStart, home.ballPosition)
+            XCTAssertEqual(home.fillStart + home.progress, 1, accuracy: 0.0001)
+            for id in ["19", "34"] {
+                let midfield = try XCTUnwrap(SportsService().parseGame(Self.event(situation: [
+                    "possession": id, "possessionText": "50"
+                ]), league: league)?.footballFieldPosition)
+                XCTAssertEqual(midfield.ballPosition, 0.5)
+            }
+            XCTAssertNil(SportsService().parseGame(Self.event(situation: ["possessionText": "NYG 27"]), league: league)?.footballFieldPosition)
+        }
+        XCTAssertNil(SportsService().parseGame(Self.event(situation: ["possession": "19"]), league: .nba)?.footballFieldPosition)
+    }
+
     func testFootballProgressUsesOffenseAndExplicitFieldSideRatherThanRawYardLine() throws {
         let service = SportsService()
         let awayBall = try XCTUnwrap(service.parseGame(Self.event(situation: [

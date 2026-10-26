@@ -100,8 +100,8 @@ jobs:
               ;;
             football-polish-recheck)
               SELECTORS=(
-                -only-testing:StreamifyUITests/ParityFlowTests/testCollegeFootballLeagueOpensItsGameAndAvailableStream
-                -only-testing:StreamifyUITests/CardInteractionFlowTests/testSportsTeamHoldsKeepIndependentFollowActionsAndTapOpensExactTeam
+                -only-testing:StreamifyTests/SportsLiveSituationTests
+                -only-testing:StreamifyUITests/ParityFlowTests/testFootballFieldMirrorsPossessionForNFLAndCollegeFootball
               )
               ;;
             native-fullscreen-recheck)

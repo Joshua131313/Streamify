@@ -51,6 +51,15 @@ struct SportsLiveSituation: Hashable, Sendable {
     var baseball: SportsBaseballSituation? = nil
 }
 
+/// Stable card ends: the away team advances right; the home team advances left.
+/// The feed's offense-relative distance stays the same when the field is mirrored.
+struct SportsFootballFieldPosition {
+    let progress: Double
+    let advancesRight: Bool
+    var ballPosition: Double { advancesRight ? progress : 1 - progress }
+    var fillStart: Double { advancesRight ? 0 : ballPosition }
+}
+
 enum SportsInningHalf: String, Hashable, Sendable {
     case top = "Top", bottom = "Bottom", middle = "Middle", end = "End"
 }
@@ -87,6 +96,11 @@ struct SportsGame: Identifiable, Hashable, Sendable {
         guard isLive, ["football", "basketball"].contains(league.sport),
               let id = liveSituation?.possessionTeamID else { return nil }
         return [away, home].first { $0.id == id }
+    }
+    var footballFieldPosition: SportsFootballFieldPosition? {
+        guard league.sport == "football", let team = possessionTeam,
+              let progress = liveSituation?.fieldProgress, progress.isFinite else { return nil }
+        return SportsFootballFieldPosition(progress: min(1, max(0, progress)), advancesRight: team.id == away.id)
     }
     private var finalScores: (away: Double, home: Double)? {
         let detail = status.lowercased()

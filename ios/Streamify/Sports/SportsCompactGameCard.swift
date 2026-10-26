@@ -7,8 +7,8 @@ enum SportsLiveTint {
         : UIColor(red: 0.08, green: 0.44, blue: 0.25, alpha: 1) })
 }
 
-/// Field position is offense-relative: own goal on the left, opponent goal on
-/// the right. Missing feed values never imply possession or a fabricated spot.
+/// The field mirrors with possession while keeping both teams' ends fixed.
+/// Missing feed values never imply possession or a fabricated spot.
 struct SportsLiveSituationView: View {
     let game: SportsGame
     private var football: Bool { game.league.sport == "football" }
@@ -26,12 +26,12 @@ struct SportsLiveSituationView: View {
                                 Spacer(minLength: 0)
                             }.font(.system(size: 11)).lineLimit(1)
                         }
-                        if let progress = situation.fieldProgress, progress.isFinite {
-                            SportsFootballField(progress: min(1, max(0, progress)),
+                        if let position = game.footballFieldPosition {
+                            SportsFootballField(position: position,
                                 offense: SportsTeamPalette.color(game.possessionTeam, fallback: AppTheme.foreground.opacity(0.30)))
                                 .accessibilityElement(children: .ignore)
                                 .accessibilityLabel("Football field position")
-                                .accessibilityValue("\(teamLabel.map { "\($0) possession. " } ?? "")\(Int((min(1, max(0, progress)) * 100).rounded())) yards from the offense’s goal line, advancing right")
+                                .accessibilityValue("\(teamLabel.map { "\($0) possession. " } ?? "")\(Int((position.progress * 100).rounded())) yards from the offense’s goal line, advancing \(position.advancesRight ? "right" : "left")")
                                 .accessibilityIdentifier("sports-field-\(game.id)")
                         }
                     }.accessibilityElement(children: .contain)
@@ -56,26 +56,29 @@ private enum SportsTeamPalette {
 }
 
 private struct SportsFootballField: View {
-    let progress: Double
+    let position: SportsFootballFieldPosition
     let offense: Color
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 3) {
                 ZStack(alignment: .leading) {
                     Rectangle().fill(AppTheme.foreground.opacity(0.08))
-                    Rectangle().fill(offense).frame(width: geometry.size.width * progress)
+                    Rectangle().fill(offense).frame(width: geometry.size.width * position.progress)
+                        .offset(x: geometry.size.width * position.fillStart)
                     ForEach(1..<10, id: \.self) { yard in
-                        Rectangle().fill((Double(yard) / 10 <= progress ? Color.white : AppTheme.foreground).opacity(yard == 5 ? 0.8 : 0.55))
+                        let fraction = Double(yard) / 10
+                        let filled = position.advancesRight ? fraction <= position.ballPosition : fraction >= position.ballPosition
+                        Rectangle().fill((filled ? Color.white : AppTheme.foreground).opacity(yard == 5 ? 0.8 : 0.55))
                             .frame(width: 1, height: yard == 5 ? 12 : 8)
                             .offset(x: geometry.size.width * CGFloat(yard) / 10)
                     }
                     Rectangle().fill(.white).frame(width: 2)
                         .shadow(color: .black.opacity(0.5), radius: 1)
-                        .offset(x: min(max(0, geometry.size.width * progress - 1), max(0, geometry.size.width - 2)))
-                    Image(systemName: "arrow.right").font(.system(size: 10, weight: .bold))
+                        .offset(x: min(max(0, geometry.size.width * position.ballPosition - 1), max(0, geometry.size.width - 2)))
+                    Image(systemName: position.advancesRight ? "arrow.right" : "arrow.left").font(.system(size: 10, weight: .bold))
                         .foregroundStyle(.white).shadow(color: .black.opacity(0.8), radius: 1)
                         .frame(width: 12, height: 10)
-                        .offset(x: min(max(2, geometry.size.width * progress - 16), max(2, geometry.size.width - 14)))
+                        .offset(x: min(max(2, geometry.size.width * position.ballPosition + (position.advancesRight ? -16 : 4)), max(2, geometry.size.width - 14)))
                 }.frame(height: 14).clipShape(RoundedRectangle(cornerRadius: 3))
                 ZStack {
                     ForEach(0...10, id: \.self) { yard in
@@ -86,6 +89,7 @@ private struct SportsFootballField: View {
                 }.frame(height: 10)
             }
         }.frame(height: 27).padding(.vertical, 3)
+            .environment(\.layoutDirection, .leftToRight)
     }
 }
 
