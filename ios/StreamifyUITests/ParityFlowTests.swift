@@ -13,6 +13,33 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["tab-home"].waitForExistence(timeout: 15))
     }
 
+    func testBasketballPossessionIconSitsImmediatelyBeforeTheCorrectScoreForBothLeagues() {
+        app.buttons["tab-sports"].tap()
+        for league in ["nba", "wnba"] {
+            selectSportsLeagues([league])
+            let ball = element("sports-ball-\(league):\(league)-fixture-100")
+            XCTAssertTrue(ball.waitForExistence(timeout: 8))
+            XCTAssertFalse(element("sports-ball-\(league):\(league)-fixture-200").exists)
+            let team = app.buttons["sports-card-team-\(league):\(league)-fixture-100"]
+            XCTAssertGreaterThanOrEqual(ball.frame.width, 14)
+            XCTAssertGreaterThan(ball.frame.midX, team.frame.midX)
+            capture("\(league.uppercased()) possession basketball beside the away score")
+        }
+    }
+
+    func testGameCenterWatchActionUsesACompactButtonWithAnAccessibleTapTarget() {
+        app.buttons["tab-sports"].tap()
+        selectSportsLeagues(["nba"])
+        let game = app.buttons["sports-game-nba:nba-fixture"]
+        XCTAssertTrue(game.waitForExistence(timeout: 8))
+        game.tap()
+        let watch = app.buttons["sports-center-watch"]
+        XCTAssertTrue(watch.waitForExistence(timeout: 10))
+        XCTAssertLessThan(watch.frame.width, 150)
+        XCTAssertEqual(watch.frame.height, 44, accuracy: 2)
+        capture("Game center with a compact Watch action")
+    }
+
     override func tearDownWithError() throws {
         if (testRun?.failureCount ?? 0) > 0, let app {
             capture("FAILURE current screen")

@@ -11,7 +11,7 @@ on:
         type: choice
         required: true
         default: full
-        options: [full, player-recheck, polish-recheck, sports-refinement, refinement-recheck, live-today-recheck, player-scene-recheck, profile-activation-recheck, native-fullscreen-recheck, football-polish-recheck, profile-picker-recheck, account-cache-recheck, cache-retap-recheck, provider-control-recheck]
+        options: [full, player-recheck, polish-recheck, sports-refinement, refinement-recheck, live-today-recheck, player-scene-recheck, profile-activation-recheck, native-fullscreen-recheck, football-polish-recheck, profile-picker-recheck, account-cache-recheck, cache-retap-recheck, provider-control-recheck, possession-widget-recheck]
 permissions:
   contents: read
 concurrency:
@@ -51,7 +51,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.scope == 'provider-control-recheck' && '["provider-control"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'cache-retap-recheck' && '["cache-retap"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'account-cache-recheck' && '["account-home", "cache-artwork"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'profile-picker-recheck' && '["profile-picker-recheck", "multiview-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'football-polish-recheck' && '["football-polish-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'native-fullscreen-recheck' && '["native-fullscreen-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'profile-activation-recheck' && '["profile-activation-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'player-scene-recheck' && '["scene-selector", "scene-restoration"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'live-today-recheck' && '["live-today-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'refinement-recheck' && '["profile-recheck", "game-center-recheck", "selector-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'sports-refinement' && '["sports-cards", "sports-player", "profiles-downloads"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'player-recheck' && '["player-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'polish-recheck' && '["polish-recheck"]' || '["playback", "controls", "screens"]') }}
+        suite: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.scope == 'possession-widget-recheck' && '["possession-widget"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'provider-control-recheck' && '["provider-control"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'cache-retap-recheck' && '["cache-retap"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'account-cache-recheck' && '["account-home", "cache-artwork"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'profile-picker-recheck' && '["profile-picker-recheck", "multiview-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'football-polish-recheck' && '["football-polish-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'native-fullscreen-recheck' && '["native-fullscreen-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'profile-activation-recheck' && '["profile-activation-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'player-scene-recheck' && '["scene-selector", "scene-restoration"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'live-today-recheck' && '["live-today-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'refinement-recheck' && '["profile-recheck", "game-center-recheck", "selector-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'sports-refinement' && '["sports-cards", "sports-player", "profiles-downloads"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'player-recheck' && '["player-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'polish-recheck' && '["polish-recheck"]' || '["playback", "controls", "screens"]') }}
     steps:
       - uses: actions/checkout@v4
       - name: Generate Xcode project
@@ -89,6 +89,15 @@ jobs:
           xcodebuild build-for-testing "${COMMON[@]}"
           # Keep suite assignments explicit so each screen check runs once.
           case "$TEST_SUITE" in
+            possession-widget)
+              SELECTORS=(
+                -only-testing:StreamifyTests/SportsLiveSituationTests
+                -only-testing:StreamifyTests/SportsWidgetPolicyTests
+                -only-testing:StreamifyUITests/ParityFlowTests/testBasketballPossessionIconSitsImmediatelyBeforeTheCorrectScoreForBothLeagues
+                -only-testing:StreamifyUITests/ParityFlowTests/testGameCenterWatchActionUsesACompactButtonWithAnAccessibleTapTarget
+                -only-testing:StreamifyUITests/ParityFlowTests/testLivePregameFinalTabsKeepLeagueAndFutureDatePolicy
+              )
+              ;;
             provider-control)
               SELECTORS=(-only-testing:StreamifyUITests/SportsPlaybackFlowTests/testSportsFullscreenUsesTheProvidersOwnControlAndKeepsItsDocument)
               ;;

@@ -38,7 +38,9 @@ These results describe **1.0.0**, not the current 1.1.2 changes. Version 1.1.0 b
 
 After installing the updated build, open Streamify once. Touch and hold an empty area of the iPhone Home Screen, choose **Edit → Add Widget**, search for **Streamify Live Games**, and add its small, medium, or large size. The small widget opens its displayed game; medium and large widgets provide individual **Watch** links. Streamify checks the game's current status and available sources when a link opens. With no live games or unavailable scores, the widget opens Sports instead.
 
-The widget shows when scores were last updated. It requests a refresh about every ten minutes; iOS controls the actual schedule, so this is not a continuously updating scoreboard. After fifteen minutes without a new timeline, old scores are replaced by an update message. Open Sports for current scores and streams.
+The widget shows when scores were last updated. Its refresh button fetches new scores without opening Streamify, including when the widget displays an error or stale state. It requests automatic refresh about every ten minutes; iOS controls the actual schedule, so this is not a continuously updating scoreboard. After fifteen minutes without a new timeline, old scores are replaced by an update message.
+
+NBA and WNBA cards place a 14pt basketball immediately before the possessing team's score. When the summary omits possession, the app also checks the explicit ESPN core situation. Missing, conflicting or unsupported data remains unknown; the last scorer is never substituted for the current possession.
 
 Touch and hold the Streamify app icon for **My Downloads**, **My Favorites**, or **Sports**. These shortcuts open the corresponding section directly, including when the app is closed.
 

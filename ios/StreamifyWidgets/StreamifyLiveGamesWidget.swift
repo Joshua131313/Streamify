@@ -1,6 +1,21 @@
 import SwiftUI
 import WidgetKit
 import UIKit
+import AppIntents
+
+/// Widget button intents trigger a new timeline when they finish. The provider
+/// uses an ephemeral session, so this fetches scores rather than reopening the app.
+struct RefreshLiveGamesIntent: AppIntent {
+    static var title: LocalizedStringResource = "Refresh live scores"
+    static var description = IntentDescription("Check for the latest Streamify game scores.")
+    static var openAppWhenRun: Bool = false
+    static var isDiscoverable: Bool = false
+
+    func perform() async throws -> some IntentResult {
+        WidgetCenter.shared.reloadTimelines(ofKind: SportsWidgetPolicy.kind)
+        return .result()
+    }
+}
 
 @main
 struct StreamifyLiveGamesWidget: Widget {
@@ -65,6 +80,16 @@ private struct LiveGamesWidgetView: View {
                 Circle().fill(Color(red: 0.96, green: 0.23, blue: 0.30)).frame(width: 4, height: 4)
                 Text("\(entry.liveCount) live").font(.system(size: 10, weight: .medium)).foregroundStyle(.secondary)
             }
+            Button(intent: RefreshLiveGamesIntent()) {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 12, weight: .semibold))
+                    .frame(width: 30, height: 30)
+                    .background(Color.primary.opacity(0.07), in: Circle())
+            }.buttonStyle(.plain)
+                .accessibilityLabel("Refresh live scores")
+                .accessibilityHint("Fetches updated scores without opening Streamify")
+                .accessibilityIdentifier("widget-refresh-scores")
+                .invalidatableContent()
         }
     }
 

@@ -146,7 +146,10 @@ struct SportsService: Sendable {
         let clock = league == .mlb || rawClock.range(of: #"^(?:[0-9]{1,2}:[0-5][0-9](?:\.[0-9]{1,2})?|[0-9]{1,2}(?:\.[0-9]{1,2})?)$"#, options: .regularExpression) == nil ? nil : rawClock
         let possessionObject = raw.sportsObject("possession")
         let possessionCandidates = [raw.sportsText("possession"), possessionObject.sportsText("id"),
-            possessionObject.sportsObject("team").sportsText("id"), raw.sportsText("possessionTeamId"), raw.sportsText("competitorPossessionTeamID")]
+            possessionObject.sportsObject("team").sportsText("id"), raw.sportsText("possessionTeamId"),
+            raw.sportsText("possessionTeamID"), raw.sportsText("competitorPossessionTeamID"),
+            possessionReference(possessionObject.sportsText("$ref"), league: league) ?? "",
+            possessionReference(possessionObject.sportsObject("team").sportsText("$ref"), league: league) ?? ""]
         let validPossession = Set(possessionCandidates.filter { !$0.isEmpty && ($0 == home.id || $0 == away.id) })
         let possession = ["football", "basketball"].contains(league.sport) && validPossession.count == 1 ? validPossession.first : nil
         var result = SportsLiveSituation(period: period, clock: clock, possessionTeamID: possession)
@@ -179,6 +182,16 @@ struct SportsService: Sendable {
     private static func explicitBool(_ raw: Any?) -> Bool? {
         guard let number = raw as? NSNumber, CFGetTypeID(number) == CFBooleanGetTypeID() else { return nil }
         return number.boolValue
+    }
+
+    private static func possessionReference(_ value: String, league: SportsLeague) -> String? {
+        guard let url = URL(string: value), let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme),
+              url.host?.lowercased() == "sports.core.api.espn.com", url.user == nil, url.password == nil,
+              url.port == nil, url.fragment == nil else { return nil }
+        let parts = url.path.split(separator: "/").map(String.init)
+        guard parts.count == 7, Array(parts.prefix(6)) == ["v2", "sports", league.sport, "leagues", league.rawValue, "teams"],
+              validEventID(parts[6]) else { return nil }
+        return parts[6]
     }
     private static func count(_ raw: Any?, range: ClosedRange<Int>) -> Int? {
         guard explicitBool(raw) == nil else { return nil }
@@ -376,6 +389,15 @@ struct SportsService: Sendable {
         var situation = response.sportsObject("situation")
         guard var fresh = parseGame(header, league: game.league, situationOverride: situation),
               fresh.eventID == game.eventID, fresh.home.id == game.home.id, fresh.away.id == game.away.id else { return nil }
+        if fresh.isLive, game.league.sport == "basketball", fresh.possessionTeam == nil, Self.validEventID(game.eventID) {
+            // Some feeds expose the explicit possession only on the core
+            // situation. A last play's team is never treated as possession.
+            let url = "https://sports.core.api.espn.com/v2/sports/basketball/leagues/\(game.league.rawValue)/events/\(game.eventID)/competitions/\(game.eventID)/situation"
+            if let core = try? await object(url), !Task.isCancelled {
+                situation.merge(core) { _, current in current }
+                fresh = parseGame(header, league: game.league, situationOverride: situation) ?? fresh
+            }
+        }
         if fresh.isLive, game.league == .mlb, fresh.liveSituation?.baseball?.hasBaseData != true, Self.validEventID(game.eventID) {
             let url = "https://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/events/\(game.eventID)/competitions/\(game.eventID)/situation"
             if let core = try? await object(url), !Task.isCancelled {

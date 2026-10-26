@@ -3,6 +3,43 @@ import XCTest
 @testable import Streamify
 
 final class SportsLiveSituationTests: XCTestCase {
+    func testNBAPossessionAndWNBAPossessionAcceptExplicitCoreTeamReferencesOnly() throws {
+        for league in [SportsLeague.nba, .wnba] {
+            let base = "https://sports.core.api.espn.com/v2/sports/basketball/leagues/\(league.rawValue)/teams/"
+            for situation: [String: Any] in [
+                ["possession": ["$ref": base + "19?lang=en&region=us"]],
+                ["possession": ["team": ["$ref": base + "34"]]],
+                ["possessionTeamID": "19"]
+            ] {
+                XCTAssertNotNil(SportsService().parseGame(Self.event(situation: situation), league: league)?.possessionTeam)
+            }
+            for reference in [base + "999", base.replacingOccurrences(of: "espn.com", with: "example.com") + "19",
+                              base.replacingOccurrences(of: league.rawValue, with: "other-league") + "19", base + "19/roster"] {
+                XCTAssertNil(SportsService().parseGame(Self.event(situation: ["possession": ["$ref": reference]]), league: league)?.possessionTeam)
+            }
+            let conflict = ["possession": ["$ref": base + "19"], "possessionTeamID": "34"] as [String: Any]
+            XCTAssertNil(SportsService().parseGame(Self.event(situation: conflict), league: league)?.possessionTeam)
+        }
+    }
+
+    func testBasketballCoreFallbackEnrichesBothLeaguesAndNeverInventsMissingPossession() async throws {
+        for league in [SportsLeague.nba, .wnba] {
+            var event = Self.event(); event["id"] = "401908044"
+            let fixture = try LiveSituationFixture(event: event, coreSituation: [
+                "possession": ["$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/\(league.rawValue)/teams/19?lang=en"]
+            ])
+            defer { fixture.session.invalidateAndCancel() }
+            let referenceDate = try XCTUnwrap(SportsService.parseDate("2026-10-25T20:10:00Z"))
+            let service = SportsService(session: fixture.session, now: { referenceDate })
+            let game = try XCTUnwrap(service.parseGame(event, league: league))
+            let enriched = await service.enrichLiveGames([game], day: game.date!)
+            XCTAssertEqual(enriched.first?.possessionTeam?.id, "19")
+            XCTAssertEqual(fixture.calls, 3)
+            _ = await service.enrichLiveGames([game], day: game.date!)
+            XCTAssertEqual(fixture.calls, 3, "Repeated enrichment should reuse the live-response cache.")
+        }
+    }
+
     func testFootballFieldFlipsWithPossessionAndPreservesThePhysicalYardLine() throws {
         for league in [SportsLeague.nfl, .ncaaf] {
             let away = try XCTUnwrap(SportsService().parseGame(Self.event(situation: [

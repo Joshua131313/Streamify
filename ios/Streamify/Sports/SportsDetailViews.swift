@@ -91,7 +91,8 @@ struct SportsGameView: View {
                                 HStack(spacing: 4) {
                                     if current.possessionTeam?.id == team.id {
                                         Image(systemName: current.league.sport == "football" ? "football.fill" : "basketball.fill")
-                                            .font(.caption2).accessibilityLabel("Possession")
+                                            .font(.system(size: 14)).frame(width: 18, height: 18)
+                                            .accessibilityLabel("\(team.name) in possession")
                                     }
                                     Text(current.state == "pre" || team.score.isEmpty ? "—" : team.score)
                                         .font(.system(size: 28, weight: .bold, design: .rounded).monospacedDigit()).lineLimit(1).minimumScaleFactor(0.7)
@@ -121,7 +122,16 @@ struct SportsGameView: View {
             SportsPlaybackOriginCard { origin in
                 HStack(spacing: 10) {
                     if current.canWatch, let first = streams.first {
-                        Button { play(first, origin: origin) } label: { HStack { Text("Watch game"); Spacer(); Image(systemName: "play.fill") } }.buttonStyle(PrimaryButtonStyle())
+                        Button { play(first, origin: origin) } label: {
+                            HStack(spacing: 7) {
+                                Text("Watch")
+                                Image(systemName: "play.fill").font(.system(size: 11))
+                            }.font(.subheadline.weight(.semibold)).padding(.horizontal, 14).frame(height: 36)
+                                .foregroundStyle(AppTheme.canvas)
+                                .background(AppTheme.foreground, in: RoundedRectangle(cornerRadius: 10))
+                                .frame(minHeight: 44).contentShape(Rectangle())
+                        }.buttonStyle(HapticPlainButtonStyle())
+                            .accessibilityLabel("Watch game").accessibilityIdentifier("sports-center-watch")
                     } else if current.canWatch && streamsLoading {
                         HStack { ProgressView(); Text("Finding streams…").font(.subheadline) }.frame(maxWidth: .infinity, minHeight: 44)
                     } else {
@@ -132,7 +142,11 @@ struct SportsGameView: View {
                         guard let first = streams.first else { return }
                         queue.add(SportsStream(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: first.url, alternatives: streams))
                         showMultiWatch = true
-                    } label: { Image(systemName: "rectangle.split.2x2").font(.subheadline.weight(.semibold)).frame(width: 48, height: 48).streamifyControlSurface() }
+                    } label: {
+                        Image(systemName: "rectangle.split.2x2").font(.subheadline.weight(.semibold))
+                            .frame(width: 40, height: 36).streamifyControlSurface()
+                            .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
+                    }
                         .buttonStyle(HapticPlainButtonStyle()).disabled(streams.isEmpty || queue.streams.count >= 4)
                         .accessibilityLabel("Add to multi-watch")
                 }

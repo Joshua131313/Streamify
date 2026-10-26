@@ -884,8 +884,8 @@ struct SportsGameCard: View {
         return HStack(spacing: 6) {
             if game.possessionTeam?.id == team.id {
                 Image(systemName: game.league.sport == "football" ? "football.fill" : "basketball.fill")
-                    .font(.system(size: 10)).foregroundStyle(AppTheme.foreground)
-                    .accessibilityLabel("In possession")
+                    .font(.system(size: 14)).frame(width: 18, height: 18).foregroundStyle(AppTheme.foreground)
+                    .accessibilityLabel("\(team.name) in possession")
                     .accessibilityIdentifier("sports-ball-\(game.id)-\(team.id)")
             }
             Text(team.score.isEmpty ? "—" : team.score)
