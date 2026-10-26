@@ -190,14 +190,12 @@ final class SportsPlaybackFlowTests: XCTestCase {
             let entered = app.webViews.staticTexts["Video fullscreen, entries \(cycle), exits \(cycle - 1)"].firstMatch
             XCTAssertTrue(entered.waitForExistence(timeout: 12),
                 "The real webkitbeginfullscreen event must confirm native video entry")
-            XCTAssertTrue(wait { self.nativeVideoFullscreenWindow() != nil },
+            let fullscreenWindow = nativeVideoFullscreenWindow
+            XCTAssertTrue(fullscreenWindow.waitForExistence(timeout: 8),
                 "WebKit's real AVKit video window must appear above the sports window")
-            guard let fullscreenWindow = nativeVideoFullscreenWindow() else {
-                XCTFail("The native fullscreen window disappeared before its exit could be exercised")
-                return
-            }
             XCTAssertTrue(fillsScreen(fullscreenWindow.frame), "Native fullscreen must fill the actual device viewport")
-            XCTAssertFalse(fullscreenWindow.buttons["sports-player-source-picker"].exists)
+            XCTAssertEqual(fullscreenWindow.buttons.matching(identifier: "sports-player-source-picker").count, 0)
+            XCTAssertEqual(fullscreenWindow.webViews.count, 0, "This must be the native video window, not the HTML provider surface")
             let exit = nativeVideoFullscreenExit(in: fullscreenWindow)
             // AVKit hides transport controls automatically. Reveal them before
             // waiting for their accessibility nodes, not after a failed wait.
@@ -490,11 +488,12 @@ final class SportsPlaybackFlowTests: XCTestCase {
         }
     }
 
-    private func nativeVideoFullscreenWindow() -> XCUIElement? {
-        app.windows.allElementsBoundByIndex.first { window in
-            !window.buttons["sports-player-source-picker"].exists &&
-                window.webViews.count == 0 && window.otherElements["Media"].firstMatch.exists
-        }
+    private var nativeVideoFullscreenWindow: XCUIElement {
+        // Query the positive native Media descendant in one snapshot. Scanning
+        // every window and waiting for absent app controls can exhaust the
+        // polling deadline even while AVKit is visibly presenting its video.
+        // The caller separately verifies size and absence of WebView/app chrome.
+        app.windows.containing(.other, identifier: "Media").firstMatch
     }
 
     private func fillsScreen(_ frame: CGRect) -> Bool {
