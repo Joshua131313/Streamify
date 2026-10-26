@@ -576,6 +576,15 @@ final class ParityFlowTests: XCTestCase {
         let scoreboard = element("sports-game-scoreboard")
         XCTAssertTrue(scoreboard.waitForExistence(timeout: 5))
         XCTAssertLessThan(scoreboard.frame.height, 280, "The game summary must leave room for watching and scoring without a large duplicate heading.")
+        XCTAssertTrue(app.buttons["sports-team-100"].isHittable)
+        XCTAssertTrue(app.buttons["sports-team-200"].isHittable)
+        let followHome = app.buttons["sports-game-follow-200"]
+        XCTAssertTrue(followHome.isHittable, "The scoreboard container must preserve its independent team and Follow buttons.")
+        followHome.tap()
+        XCTAssertTrue(wait { followHome.label == "Unfollow Toronto Towers" })
+        XCTAssertFalse(app.buttons["sports-team-roster-tab"].exists, "Following must not open the team page.")
+        followHome.tap()
+        XCTAssertTrue(wait { followHome.label == "Follow Toronto Towers" })
         capture("34 Game center overview")
         let watchGame = app.buttons["Watch game"]
         XCTAssertTrue(watchGame.waitForExistence(timeout: 8))

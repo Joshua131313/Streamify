@@ -90,12 +90,13 @@ struct SportsGameView: View {
                                 }.frame(maxWidth: .infinity, alignment: .leading)
                                 HStack(spacing: 4) {
                                     if current.possessionTeam?.id == team.id {
-                                        Image(systemName: current.league.sport == "football" ? "american.football.fill" : "basketball.fill")
+                                        Image(systemName: current.league.sport == "football" ? "football.fill" : "basketball.fill")
                                             .font(.caption2).accessibilityLabel("Possession")
                                     }
                                     Text(current.state == "pre" || team.score.isEmpty ? "—" : team.score)
                                         .font(.system(size: 28, weight: .bold, design: .rounded).monospacedDigit()).lineLimit(1).minimumScaleFactor(0.7)
-                                    if current.winner?.id == team.id { Image(systemName: "arrowtriangle.left.fill").font(.system(size: 7)).accessibilityHidden(true) }
+                                    Image(systemName: "arrowtriangle.left.fill").font(.system(size: 7)).frame(width: 7)
+                                        .opacity(current.winner?.id == team.id ? 1 : 0).accessibilityHidden(true)
                                 }.frame(minWidth: 48, alignment: .trailing)
                             }.frame(minHeight: 62).contentShape(Rectangle())
                         }.buttonStyle(HapticPlainButtonStyle()).accessibilityIdentifier("sports-team-\(team.id)")
@@ -111,6 +112,7 @@ struct SportsGameView: View {
                 .font(.caption2).foregroundStyle(AppTheme.muted).lineLimit(2)
         }.padding(14).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 16))
             .overlay { RoundedRectangle(cornerRadius: 16).strokeBorder(AppTheme.border, lineWidth: 0.5) }
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("sports-game-scoreboard")
     }
 
@@ -181,6 +183,7 @@ struct SportsGameView: View {
     private func followButton(_ team: SportsTeam) -> some View {
         let following = library.followedTeams.contains(team.key(in: game.league))
         return Button { library.toggleTeam(team.key(in: game.league)) } label: { Image(systemName: following ? "star.fill" : "star").foregroundStyle(following ? Color.yellow : AppTheme.muted).frame(width: 44, height: 44) }.buttonStyle(HapticPlainButtonStyle()).accessibilityLabel("\(following ? "Unfollow" : "Follow") \(team.name)")
+            .accessibilityIdentifier("sports-game-follow-\(team.id)")
     }
 
     @ViewBuilder private func statTable(_ rows: [SportsStatRow], title: String) -> some View {

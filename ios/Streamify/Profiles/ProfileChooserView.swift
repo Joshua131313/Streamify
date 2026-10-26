@@ -254,10 +254,9 @@ private struct ProfileChoiceTile: View {
                 Text(profile.name).font(.subheadline.weight(.medium)).lineLimit(2)
                     .multilineTextAlignment(.center).frame(minHeight: 22, alignment: .top)
             }.frame(maxWidth: .infinity, alignment: .top)
+                .contentShape(Rectangle())
         }
         .buttonStyle(CardPressedButtonStyle(cornerRadius: 18))
-        .accessibilityElement(children: .ignore)
-        .accessibilityAddTraits(.isButton)
         .accessibilityLabel(editing ? "Edit \(profile.name)" : profile.name)
         .accessibilityHint(editing ? "Change this profile’s name or avatar." : "Open this profile.")
         .accessibilityAddTraits(selected ? .isSelected : [])

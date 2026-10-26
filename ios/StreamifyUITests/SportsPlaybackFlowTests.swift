@@ -35,7 +35,7 @@ final class SportsPlaybackFlowTests: XCTestCase {
         let game = app.buttons["sports-player-game-picker"]
         XCTAssertTrue(game.exists)
         XCTAssertTrue((game.value as? String ?? "").hasPrefix("NBA,"))
-        XCTAssertEqual(app.webViews.count, 1)
+        assertSinglePlaybackSurface()
         game.tap()
         let football = app.buttons["sports-player-game-option-nfl:nfl-fixture"]
         XCTAssertTrue(football.waitForExistence(timeout: 8))
@@ -46,7 +46,7 @@ final class SportsPlaybackFlowTests: XCTestCase {
         XCTAssertTrue(wait { (game.value as? String ?? "").hasPrefix("NFL,") })
         XCTAssertTrue(wait { (source.value as? String ?? "").contains("alpha") })
         XCTAssertTrue(playbackDocument.waitForExistence(timeout: 10))
-        XCTAssertEqual(app.webViews.count, 1, "Switching games must retain one provider surface.")
+        assertSinglePlaybackSurface()
 
         source.tap()
         app.buttons["sports-player-source-option-1"].tap()
@@ -61,7 +61,7 @@ final class SportsPlaybackFlowTests: XCTestCase {
         basketball.tap()
         XCTAssertTrue(wait { (game.value as? String ?? "").hasPrefix("NBA,") })
         XCTAssertTrue((source.value as? String ?? "").contains("bravo"), "Returning to NBA restores its previous server.")
-        XCTAssertEqual(app.webViews.count, 1)
+        assertSinglePlaybackSurface()
         XCTAssertEqual(playbackDocument.label, sharedChannelDocument,
             "When game entries share a channel, changing metadata must not reload its document.")
         XCTAssertEqual(pip.value as? String, "Unavailable",
@@ -82,7 +82,7 @@ final class SportsPlaybackFlowTests: XCTestCase {
         XCTAssertTrue(wait { self.playbackDocument.exists && self.playbackDocument.label != document })
         XCTAssertTrue((game.value as? String ?? "").hasPrefix("NBA,"))
         XCTAssertTrue((source.value as? String ?? "").contains("bravo"))
-        XCTAssertEqual(app.webViews.count, 1)
+        assertSinglePlaybackSurface()
         closeAndVerifySportsDoesNotReopen(source)
     }
 
@@ -434,6 +434,18 @@ final class SportsPlaybackFlowTests: XCTestCase {
 
     private var playbackDocument: XCUIElement {
         app.webViews.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Playback session '")).firstMatch
+    }
+
+    private func assertSinglePlaybackSurface(file: StaticString = #filePath, line: UInt = #line) {
+        // iOS 26 exposes a WKWebView as three nested WebView accessibility
+        // wrappers. Count its document leaf, not those ancestor wrappers. A
+        // second provider surface would have another leaf and fixture marker.
+        let documents = app.webViews.allElementsBoundByIndex.filter {
+            $0.descendants(matching: .webView).count == 0
+        }
+        XCTAssertEqual(documents.count, 1, "Only one provider document may be mounted.", file: file, line: line)
+        let markers = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Playback session '"))
+        XCTAssertEqual(markers.count, 1, "Only one fixture playback session may be mounted.", file: file, line: line)
     }
 
     /// Switch before fullscreen so a document reconnect cannot pass by silently
