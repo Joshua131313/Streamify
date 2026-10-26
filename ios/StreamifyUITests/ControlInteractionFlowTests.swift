@@ -198,15 +198,15 @@ final class ControlInteractionFlowTests: XCTestCase {
         let preferences = app.buttons["Your favorite genres"]
         reveal(preferences)
         preferences.tap()
-        XCTAssertTrue(app.navigationBars["Preferences"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Favorite genres"].waitForExistence(timeout: 5))
         let comedy = app.buttons["Comedy"]
         let initiallySelected = comedy.isSelected
         comedy.tap()
         XCTAssertTrue(wait { comedy.isSelected != initiallySelected })
         capture("Controls favorite genre selected")
-        app.navigationBars["Preferences"].buttons.firstMatch.tap()
+        app.navigationBars["Favorite genres"].buttons.firstMatch.tap()
         preferences.tap()
-        XCTAssertTrue(app.navigationBars["Preferences"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Favorite genres"].waitForExistence(timeout: 5))
         XCTAssertEqual(comedy.isSelected, !initiallySelected)
         comedy.tap()
         XCTAssertTrue(wait { comedy.isSelected == initiallySelected })

@@ -561,6 +561,12 @@ struct SportsView: View {
     }
 
     private func chooseLeague(_ value: SportsLeague?, showHome: Bool = false) {
+        // All/Followed and repeated taps use the same fetched dataset. They
+        // must not invalidate an in-flight load whose task key did not change.
+        if value == selectedLeague {
+            followedTeamsOnly = false; home = showHome; channels = false
+            return
+        }
         daySwipeScope.invalidateRequests()
         scheduleRequest = UUID()
         let cached = scheduleCache.snapshot(leagues: value.map { [$0] } ?? SportsLeague.allCases, day: day, backend: settings.apiBase)

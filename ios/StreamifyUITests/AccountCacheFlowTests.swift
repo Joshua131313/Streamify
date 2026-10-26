@@ -57,7 +57,7 @@ final class AccountCacheFlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["sports-game-nfl:nfl-fixture"].waitForExistence(timeout: 10))
         let original = metric("requests"), loading = metric("loading")
         XCTAssertGreaterThan(original, 0)
-        for league in ["nba", "nfl", "college-football", "nba", "nfl"] {
+        for league in ["nba", "nfl", "nfl", "college-football", "nba", "nfl"] {
             let button = app.buttons["sports-league-option-\(league)"]
             XCTAssertTrue(button.isHittable); button.tap()
             XCTAssertTrue(app.buttons["sports-game-\(league):\(league)-fixture"].waitForExistence(timeout: 3))
