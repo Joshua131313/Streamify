@@ -4,6 +4,135 @@ import WebKit
 @testable import Streamify
 
 final class SportsPlaybackSessionTests: XCTestCase {
+    @MainActor func testLiveGameSwitchKeepsPlayerIdentityAndRemembersEachGamesServer() async {
+        let nba = playbackGame("nba-live", league: .nba)
+        let nfl = playbackGame("nfl-live", league: .nfl)
+        let final = playbackGame("nba-final", league: .nba, state: "post")
+        let pregame = playbackGame("nba-next", league: .nba, state: "pre")
+        let alpha = SportsStream(title: "Alpha", url: URL(string: "https://example.com/nba-a")!)
+        let bravo = SportsStream(title: "Bravo", url: URL(string: "https://example.com/nba-b")!)
+        let football = SportsStream(title: "Football", url: URL(string: "https://example.com/nfl-a")!)
+        var requested: [String] = []
+        let session = SportsPlaybackSession(loadSchedule: { _ in
+            SportsSchedule(games: [nba, nfl, final, pregame, nba], failedLeagues: [], partial: false)
+        }, loadStreams: { _, game in
+            requested.append(game.id)
+            return game.id == nba.id ? [alpha, bravo] : [football]
+        })
+        let origin = SportsPlaybackOrigin()
+        session.play(title: "BOS vs TOR", url: alpha.url, sources: [alpha, bravo], origin: origin, game: nba)
+        let identity = session.item?.id
+        session.selectSource(bravo)
+        let owner = UUID()
+        session.pictureInPicture.attach(owner: owner, capability: .available, request: {}, stop: {})
+        await session.refreshLiveGames()
+        XCTAssertEqual(Set(session.liveGames.map(\.id)), Set([nba.id, nfl.id]))
+        XCTAssertTrue(session.pictureInPicture.owns(owner: owner), "Refreshing choices cannot reset the playing video or PiP driver.")
+        XCTAssertEqual(session.item?.url, bravo.url)
+
+        await session.selectGame(final)
+        XCTAssertTrue(requested.isEmpty, "Final and scheduled games are not switchable live choices.")
+        await session.selectGame(nfl)
+        XCTAssertEqual(session.item?.id, identity, "A game switch must reuse the single playback surface.")
+        XCTAssertEqual(session.item?.game?.id, nfl.id)
+        XCTAssertEqual(session.item?.sources, [football])
+        XCTAssertEqual(session.item?.url, football.url)
+        XCTAssertNil(session.origin, "A different game cannot animate back to the original matchup's card.")
+        session.selectSource(bravo)
+        XCTAssertEqual(session.item?.url, football.url, "A previous game's stream must not appear in the current server list.")
+
+        await session.selectGame(nba)
+        XCTAssertEqual(session.item?.id, identity)
+        XCTAssertEqual(session.item?.url, bravo.url, "Returning restores this game's chosen server when it is still available.")
+        XCTAssertEqual(session.sourceTitle, "Bravo")
+        XCTAssertEqual(requested, [nfl.id, nba.id])
+    }
+
+    @MainActor func testChangingGameMetadataForTheSameChannelPreservesPiPAndDocumentKey() async {
+        let first = playbackGame("first", league: .nba), next = playbackGame("next", league: .nfl)
+        let channel = SportsStream(title: "Shared channel", url: URL(string: "https://example.com/channel")!)
+        let session = SportsPlaybackSession(loadSchedule: { _ in
+            SportsSchedule(games: [first, next], failedLeagues: [], partial: false)
+        }, loadStreams: { _, _ in [channel] })
+        session.play(title: "NBA game", url: channel.url, sources: [channel], game: first)
+        await session.refreshLiveGames()
+        let identity = session.item?.id, owner = UUID()
+        var requests = 0
+        session.pictureInPicture.attach(owner: owner, capability: .available, request: { requests += 1 }, stop: {})
+        await session.selectGame(next)
+        XCTAssertEqual(session.item?.game?.id, next.id)
+        XCTAssertEqual(session.item?.id, identity)
+        XCTAssertEqual(session.item?.url, channel.url)
+        XCTAssertEqual(session.reload, 0)
+        XCTAssertFalse(session.direct)
+        XCTAssertTrue(session.pictureInPicture.owns(owner: owner),
+            "Unchanged WebKit keys do not reattach their bridge, so metadata-only switching must retain its owner.")
+        session.requestPictureInPicture()
+        XCTAssertEqual(requests, 1)
+
+        session.toggleDirect()
+        let directOwner = UUID()
+        session.pictureInPicture.attach(owner: directOwner, capability: .available, request: {}, stop: {})
+        await session.selectGame(first)
+        XCTAssertFalse(session.direct)
+        XCTAssertFalse(session.pictureInPicture.owns(owner: directOwner),
+            "Changing the playback mode changes the document key and must retire the old driver.")
+    }
+
+    @MainActor func testUnavailableGameStreamsLeaveCurrentPlaybackUntouched() async {
+        let first = playbackGame("first", league: .nba), next = playbackGame("next", league: .nfl)
+        let source = SportsStream(title: "Bravo", url: URL(string: "https://example.com/bravo")!)
+        let session = SportsPlaybackSession(loadSchedule: { _ in
+            SportsSchedule(games: [first, next], failedLeagues: [], partial: false)
+        }, loadStreams: { _, _ in [] })
+        session.play(title: "Current game", url: source.url, sources: [source], game: first)
+        let identity = session.item?.id, owner = UUID()
+        session.pictureInPicture.attach(owner: owner, capability: .available, request: {}, stop: {})
+        await session.refreshLiveGames()
+        await session.selectGame(next)
+        XCTAssertEqual(session.item?.id, identity)
+        XCTAssertEqual(session.item?.game?.id, first.id)
+        XCTAssertEqual(session.item?.url, source.url)
+        XCTAssertTrue(session.pictureInPicture.owns(owner: owner))
+        XCTAssertNotNil(session.gameSelectionError)
+        XCTAssertNil(session.switchingGameID)
+    }
+
+    @MainActor func testLateGameSourceResponseCannotReopenOrReplaceAnotherSession() async {
+        let first = playbackGame("first", league: .nba), next = playbackGame("next", league: .nfl)
+        let source = SportsStream(title: "Original", url: URL(string: "https://example.com/original")!)
+        let late = SportsStream(title: "Late", url: URL(string: "https://example.com/late")!)
+        let started = expectation(description: "The selected game's source request began")
+        var pending: CheckedContinuation<[SportsStream], Never>?
+        let session = SportsPlaybackSession(loadSchedule: { _ in
+            SportsSchedule(games: [first, next], failedLeagues: [], partial: false)
+        }, loadStreams: { _, _ in
+            await withCheckedContinuation { continuation in pending = continuation; started.fulfill() }
+        })
+        session.play(title: "First game", url: source.url, sources: [source], game: first)
+        await session.refreshLiveGames()
+        let switching = Task { await session.selectGame(next) }
+        await fulfillment(of: [started], timeout: 2)
+        session.close()
+        session.play(title: "New channel", url: source.url, sources: [source])
+        let newIdentity = session.item?.id
+        pending?.resume(returning: [late])
+        await switching.value
+        XCTAssertEqual(session.item?.id, newIdentity)
+        XCTAssertEqual(session.item?.title, "New channel")
+        XCTAssertEqual(session.item?.url, source.url)
+        XCTAssertNil(session.item?.game)
+        XCTAssertNil(session.switchingGameID)
+        XCTAssertNil(session.gameSelectionError)
+    }
+
+    private func playbackGame(_ id: String, league: SportsLeague, state: String = "in") -> SportsGame {
+        SportsGame(eventID: id, league: league, date: Date(), state: state, status: "Q3",
+            home: SportsTeam(id: "home", name: "Toronto", abbreviation: "TOR", logo: ""),
+            away: SportsTeam(id: "away", name: "Boston", abbreviation: "BOS", logo: ""),
+            venue: "", broadcasts: "", link: "")
+    }
+
     @MainActor func testOnlyAConfirmedMissingVideoFrameClearsRetainedFullscreenOwnership() {
         XCTAssertFalse(SportsWebPiPBridge.confirmsMissingVideo(.success(true)))
         XCTAssertTrue(SportsWebPiPBridge.confirmsMissingVideo(.success(false)))

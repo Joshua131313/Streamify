@@ -33,6 +33,7 @@ struct SportsTeam: Identifiable, Hashable, Sendable {
     var score = ""
     var record = ""
     var streamNames: [String] = []
+    var primaryColorHex: String? = nil
     var logoURL: URL? { sportsHTTPSURL(logo) }
     func key(in league: SportsLeague) -> String { "\(league.rawValue):\(id)" }
 }
@@ -47,6 +48,24 @@ struct SportsLiveSituation: Hashable, Sendable {
     var downDistance: String? = nil
     var fieldPosition: String? = nil
     var fieldProgress: Double? = nil
+    var baseball: SportsBaseballSituation? = nil
+}
+
+enum SportsInningHalf: String, Hashable, Sendable {
+    case top = "Top", bottom = "Bottom", middle = "Middle", end = "End"
+}
+
+struct SportsBaseballSituation: Hashable, Sendable {
+    // Missing feed data is not an empty base. The UI must preserve that distinction.
+    var firstOccupied: Bool? = nil
+    var secondOccupied: Bool? = nil
+    var thirdOccupied: Bool? = nil
+    var balls: Int? = nil
+    var strikes: Int? = nil
+    var outs: Int? = nil
+    var inning: Int? = nil
+    var half: SportsInningHalf? = nil
+    var hasBaseData: Bool { firstOccupied != nil || secondOccupied != nil || thirdOccupied != nil }
 }
 
 struct SportsGame: Identifiable, Hashable, Sendable {
@@ -65,7 +84,7 @@ struct SportsGame: Identifiable, Hashable, Sendable {
     var isLive: Bool { state == "in" }
     var isFinal: Bool { state == "post" }
     var possessionTeam: SportsTeam? {
-        guard isLive, [SportsLeague.nfl, .ncaaf, .nba, .wnba].contains(league),
+        guard isLive, ["football", "basketball"].contains(league.sport),
               let id = liveSituation?.possessionTeamID else { return nil }
         return [away, home].first { $0.id == id }
     }
@@ -127,6 +146,7 @@ struct SportsStatRow: Identifiable {
     let label: String
     let away: String
     let home: String
+    var period: Int? = nil
 }
 
 struct SportsGameCenter {

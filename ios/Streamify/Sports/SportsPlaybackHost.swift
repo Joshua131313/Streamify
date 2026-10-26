@@ -20,14 +20,17 @@ struct SportsPlaybackWindowFocus {
 /// This window retains one full-size source while AVKit/WebKit owns system PiP.
 struct SportsPlaybackHost: UIViewRepresentable {
     let session: SportsPlaybackSession
+    var apiBase: String = ""
     func makeCoordinator() -> Coordinator { Coordinator(session: session) }
     func makeUIView(context: Context) -> SportsPlaybackAttachment {
+        session.configureBackend(apiBase)
         let view = SportsPlaybackAttachment()
         view.isUserInteractionEnabled = false
         view.attach = { [weak coordinator = context.coordinator] window in coordinator?.attach(to: window) }
         return view
     }
     func updateUIView(_ view: SportsPlaybackAttachment, context: Context) {
+        session.configureBackend(apiBase)
         if let window = view.window { context.coordinator.attach(to: window) }
     }
     static func dismantleUIView(_ view: SportsPlaybackAttachment, coordinator: Coordinator) { coordinator.detach() }
@@ -165,6 +168,17 @@ private struct SportsPlaybackOverlay: View {
         .onChange(of: session.item?.url) { _, _ in resetDismissal() }
         .onChange(of: session.presentation) { _, _ in resetDismissal() }
         .onChange(of: scenePhase) { _, phase in if phase != .active { resetDismissal() } }
+        .task(id: "\(session.item?.id.uuidString ?? "")-\(scenePhase == .active)-\(session.isExpanded)") {
+            guard scenePhase == .active, session.isExpanded else { return }
+            repeat {
+                await session.refreshLiveGames()
+                do { try await Task.sleep(for: .seconds(30)) } catch { return }
+            } while !Task.isCancelled
+        }
+        .alert("Couldn’t switch game", isPresented: Binding(get: { session.gameSelectionError != nil },
+            set: { if !$0 { session.gameSelectionError = nil } })) {
+                Button("OK") { session.gameSelectionError = nil }
+        } message: { Text(session.gameSelectionError ?? "Your current stream is still playing.") }
         .alert("Picture in Picture", isPresented: Binding(get: { pictureInPicture.message != nil }, set: { if !$0 { pictureInPicture.message = nil } })) {
             Button("OK") { pictureInPicture.message = nil }
         } message: { Text(pictureInPicture.message ?? "This source could not start iOS Picture in Picture.") }
@@ -205,8 +219,8 @@ private struct SportsPlaybackOverlay: View {
     }
     private func playerCanvas(_ item: SportsPlaybackItem, size: CGSize) -> some View {
         VStack(spacing: 0) {
-            header(item).padding(.top, session.safeAreaInsets.top)
-                .frame(height: 60 + session.safeAreaInsets.top)
+            header(item, landscape: size.width > size.height).padding(.top, session.safeAreaInsets.top)
+                .frame(height: (size.width > size.height ? 60 : 108) + session.safeAreaInsets.top)
             ProviderPlaybackSurface(url: item.url, reload: session.reload, direct: session.direct,
                 preservePlaybackOnBackground: true, preferProviderControlsFullscreen: true, systemPiP: pictureInPicture)
                 .id(item.id)
@@ -226,45 +240,113 @@ private struct SportsPlaybackOverlay: View {
         }
         .background(.black)
     }
-    private func header(_ item: SportsPlaybackItem) -> some View {
-        HStack(spacing: 8) {
-            Button(action: session.close) { Image(systemName: "xmark").frame(width: 44, height: 44) }
-                .accessibilityLabel("Close player").accessibilityIdentifier("sports-player-close")
-            Menu {
-                ForEach(Array(item.sources.enumerated()), id: \.element.id) { index, source in
-                    Button {
-                        AppHaptics.tap()
-                        session.selectSource(source)
-                    } label: {
-                        if source.url == item.url { Label(source.title, systemImage: "checkmark") }
-                        else { Text(source.title) }
-                    }.buttonStyle(.automatic)
-                        .accessibilityIdentifier("sports-player-source-option-\(index)")
+    private func header(_ item: SportsPlaybackItem, landscape: Bool) -> some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 8) {
+                Button(action: session.close) { Image(systemName: "xmark").frame(width: 44, height: 44) }
+                    .accessibilityLabel("Close player").accessibilityIdentifier("sports-player-close")
+                gamePicker(item)
+                if landscape { sourcePicker(item); presentationButtons }
+            }
+            if !landscape {
+                HStack(spacing: 8) { sourcePicker(item); presentationButtons }
+            }
+        }.padding(.horizontal, max(12, session.safeAreaInsets.left))
+            .buttonStyle(HapticPlainButtonStyle())
+    }
+
+    private func gamePicker(_ item: SportsPlaybackItem) -> some View {
+        Menu {
+            if let current = item.game, !session.liveGames.contains(where: { $0.id == current.id }) {
+                Label("Watching · \(current.league.title) · \(item.title)", systemImage: "checkmark")
+            }
+            ForEach(SportsLeague.allCases) { league in
+                let games = session.liveGames.filter { $0.league == league }
+                if !games.isEmpty {
+                    Section(league.title) {
+                        ForEach(games) { game in
+                            Button {
+                                AppHaptics.tap()
+                                Task { await session.selectGame(game) }
+                            } label: {
+                                let name = "\(game.away.name) vs \(game.home.name)"
+                                if item.game?.id == game.id { Label(name, systemImage: "checkmark") }
+                                else { Text(name) }
+                            }.accessibilityIdentifier("sports-player-game-option-\(game.id)")
+                        }
+                    }
                 }
-            } label: {
-                HStack(spacing: 10) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(item.title).font(.headline).lineLimit(1)
-                        Text(session.sourceTitle).font(.caption).foregroundStyle(.white.opacity(0.65)).lineLimit(1)
-                    }.frame(maxWidth: .infinity, alignment: .leading)
-                    Image(systemName: "chevron.down").font(.caption.weight(.semibold))
-                }.frame(maxWidth: .infinity, minHeight: 44).contentShape(Rectangle())
-            }.buttonStyle(.plain).accessibilityLabel("Switch stream source")
-                .accessibilityValue("\(item.title), \(session.sourceTitle)").accessibilityIdentifier("sports-player-source-picker")
+            }
+            if session.liveGames.isEmpty {
+                Text(session.gamesLoading ? "Finding live games…" : "No other live games right now")
+            }
+            if let error = session.gamesError { Text(error) }
+            Button {
+                AppHaptics.tap()
+                Task { await session.refreshLiveGames(forceReload: true) }
+            } label: { Label("Refresh live games", systemImage: "arrow.clockwise") }
+        } label: {
+            pickerLabel(caption: session.switchingGameID == nil ? "Game" : "Finding streams…",
+                title: item.game.map { "\($0.league.title) · \(item.title)" } ?? item.title)
+        }.buttonStyle(.plain).disabled(session.switchingGameID != nil)
+            .accessibilityLabel("Switch live game")
+            .accessibilityValue(item.game.map { "\($0.league.title), \($0.away.name) vs \($0.home.name)" } ?? item.title)
+            .accessibilityIdentifier("sports-player-game-picker")
+    }
+
+    private func sourcePicker(_ item: SportsPlaybackItem) -> some View {
+        Menu {
+            ForEach(Array(item.sources.enumerated()), id: \.element.id) { index, source in
+                Button {
+                    AppHaptics.tap()
+                    session.selectSource(source)
+                } label: {
+                    if source.url == item.url { Label(source.title, systemImage: "checkmark") }
+                    else { Text(source.title) }
+                }.accessibilityIdentifier("sports-player-source-option-\(index)")
+            }
+        } label: { pickerLabel(caption: "Stream", title: session.sourceTitle) }
+            .buttonStyle(.plain).disabled(session.switchingGameID != nil)
+            .accessibilityLabel("Switch stream source")
+            .accessibilityValue("\(item.title), \(session.sourceTitle)")
+            .accessibilityIdentifier("sports-player-source-picker")
+    }
+
+    private func pickerLabel(caption: String, title: String) -> some View {
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(caption).font(.caption2).foregroundStyle(.white.opacity(0.6))
+                Text(title).font(.subheadline.weight(.semibold)).lineLimit(1)
+            }.frame(maxWidth: .infinity, alignment: .leading)
+            Image(systemName: "chevron.down").font(.caption.weight(.semibold))
+        }.padding(.horizontal, 12).frame(maxWidth: .infinity, minHeight: 44)
+            .background(.white.opacity(0.09), in: RoundedRectangle(cornerRadius: 12))
+            .contentShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var presentationButtons: some View {
+        Group {
             AirPlayButton().frame(width: 44, height: 44).accessibilityLabel("AirPlay")
             Button(action: session.requestPictureInPicture) { Image(systemName: "pip.enter").frame(width: 44, height: 44) }
                 .accessibilityLabel("Picture in Picture")
                 .accessibilityValue(pictureInPicture.isRequesting ? "Starting" : pictureInPicture.capability.rawValue)
                 .accessibilityIdentifier("sports-player-pip")
-        }.padding(.horizontal, max(8, session.safeAreaInsets.left)).buttonStyle(HapticPlainButtonStyle())
+        }
     }
     private func footer(_ item: SportsPlaybackItem) -> some View {
-        HStack(spacing: 16) {
-            Button(action: session.reloadCurrent) { Label("Reload", systemImage: "arrow.clockwise").frame(minHeight: 44) }
-            Spacer(minLength: 0)
-            Button(action: session.toggleDirect) { Label(session.direct ? "Embed mode" : "Direct mode", systemImage: "rectangle.on.rectangle").frame(minHeight: 44) }
-            Spacer(minLength: 0)
-            Button { openURL(item.url) } label: { Image(systemName: "safari").frame(width: 44, height: 44) }.accessibilityLabel("Open in browser")
-        }.font(.caption.weight(.semibold)).padding(.horizontal, max(16, session.safeAreaInsets.left)).buttonStyle(HapticPlainButtonStyle())
+        HStack(spacing: 8) {
+            Button(action: session.reloadCurrent) { utilityLabel("Reload", symbol: "arrow.clockwise") }
+                .accessibilityIdentifier("sports-player-reload")
+            Button(action: session.toggleDirect) { utilityLabel(session.direct ? "Embed mode" : "Direct mode", symbol: "rectangle.on.rectangle") }
+                .accessibilityIdentifier("sports-player-direct")
+            Button { openURL(item.url) } label: { utilityLabel("Safari", symbol: "safari") }
+                .accessibilityLabel("Open in browser").accessibilityIdentifier("sports-player-browser")
+        }.font(.caption.weight(.semibold)).padding(.horizontal, max(12, session.safeAreaInsets.left)).buttonStyle(HapticPlainButtonStyle())
+    }
+    private func utilityLabel(_ title: String, symbol: String) -> some View {
+        Label(title, systemImage: symbol).lineLimit(1).minimumScaleFactor(0.85)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .background(.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+            .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(.white.opacity(0.12), lineWidth: 1) }
     }
 }

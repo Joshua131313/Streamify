@@ -122,6 +122,7 @@ struct SportsView: View {
                 }
             }.padding(.top, 4).padding(.bottom, 110)
         }
+        .environmentObject(queue)
         .foregroundStyle(AppTheme.foreground)
         .accessibilityIdentifier("sports-screen")
         .onAppear { refreshCurrentDay() }
@@ -196,7 +197,13 @@ struct SportsView: View {
                 scheduleStatus
                 gameList.opacity(loading ? 0 : 1).allowsHitTesting(!loading)
                 if !loading && error == nil && filteredGames.isEmpty {
-                    StateMessage(symbol: "sportscourt", title: followedTeamsOnly ? "No followed teams playing" : "No games to show", message: emptyScheduleMessage)
+                    VStack(spacing: 12) {
+                        Image(systemName: "sportscourt").font(.system(size: 28, weight: .light)).foregroundStyle(AppTheme.muted)
+                        Text(followedTeamsOnly ? "No followed teams playing" : "No games to show").font(.headline)
+                        Text(emptyScheduleMessage).font(.subheadline).foregroundStyle(AppTheme.muted)
+                            .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+                    }.frame(maxWidth: .infinity).padding(.horizontal, 28).padding(.vertical, 32)
+                        .accessibilityIdentifier("sports-empty-state")
                 }
             }
             .id(day)
@@ -282,9 +289,11 @@ struct SportsView: View {
             VStack(spacing: 5) {
                 Group {
                     if let league {
-                        Image("league-\(league.rawValue)").resizable().scaledToFit().padding(1)
+                        Image("league-\(league.rawValue)").resizable().scaledToFit().frame(width: 23, height: 23)
                     } else {
-                        Image(systemName: symbol ?? "sportscourt").font(.system(size: 21, weight: .regular))
+                        Image(systemName: selected ? "\(symbol ?? "sportscourt").fill" : symbol ?? "sportscourt")
+                            .font(.system(size: 21, weight: .regular))
+                            .foregroundStyle(selected && symbol == "star" ? Color.yellow : selected ? AppTheme.foreground : AppTheme.muted)
                     }
                 }.frame(width: 27, height: 27).accessibilityHidden(true)
                 Text(title).font(.system(size: 11, weight: selected ? .semibold : .medium))
@@ -302,19 +311,18 @@ struct SportsView: View {
     private func statusTab(_ item: SportsFilter) -> some View {
         let selected = filter == item
         let enabled = !channels && (item != .live || liveAvailable)
+        let title = item == .pregame && !liveAvailable ? "Upcoming" : item.rawValue
         return Button {
             guard daySwipeScope.permitsProtectedAction else { return }
             filter = item; home = false
         } label: {
-            HStack(spacing: 4) {
-                if item == .live { Circle().fill(enabled ? SportsLiveTint.color : AppTheme.muted).frame(width: 4, height: 4) }
-                Text(item.rawValue).font(.caption.weight(selected ? .semibold : .medium)).lineLimit(1)
-            }.padding(.horizontal, 7).frame(minWidth: 44, minHeight: 44)
+            Text(title).font(.caption.weight(selected ? .semibold : .medium)).lineLimit(1)
+                .padding(.horizontal, 7).frame(minWidth: 44, minHeight: 44)
                 .foregroundStyle(selected ? AppTheme.foreground : AppTheme.muted)
                 .overlay(alignment: .bottom) { Rectangle().fill(selected ? AppTheme.foreground : .clear).frame(height: 2) }
                 .contentShape(Rectangle())
         }.buttonStyle(HapticPlainButtonStyle()).disabled(!enabled).opacity(enabled ? 1 : 0.4)
-            .accessibilityLabel(item == .live ? "Live games" : item.rawValue)
+            .accessibilityLabel(item == .live ? "Live games" : title)
             .accessibilityValue(item == .live && !liveAvailable ? "Unavailable for future dates" : selected ? "On" : "Off")
             .accessibilityAddTraits(selected ? .isSelected : [])
             .accessibilityIdentifier(item == .live ? "sports-quick-live" : "sports-filter-\(item.rawValue)")
@@ -670,30 +678,27 @@ struct SportsGameCard: View {
     var daySwipeScope: SportsDaySwipeScope? = nil
     var action: () -> Void
     @EnvironmentObject private var playback: SportsPlaybackSession
+    @EnvironmentObject private var library: LibraryStore
+    @EnvironmentObject private var queue: SportsWatchQueue
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var playbackOrigin = SportsPlaybackOrigin()
     @State private var watchRevision = 0
     @State private var handledWatchRevision = 0
     @State private var watchLoading = false
     @State private var watchError: String?
+    @State private var selectedTeam: SportsTeamResult?
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            HStack(spacing: 8) {
-                Image("league-\(game.league.rawValue)").resizable().scaledToFit().frame(width: 14, height: 14).accessibilityHidden(true)
-                Text(game.league == .ncaaf ? "CFB" : game.league.title).font(.caption2.weight(.medium)).foregroundStyle(AppTheme.muted)
-                Spacer(minLength: 8)
-                if game.isLive { Circle().fill(SportsLiveTint.color).frame(width: 4, height: 4) }
-                Text(clockLabel).font(.caption2.weight(.semibold)).monospacedDigit().lineLimit(1)
+        VStack(alignment: .leading, spacing: 4) {
+            gameHeader
+            VStack(spacing: 0) {
+                teamControl(game.away)
+                teamControl(game.home)
             }
-            Button(action: action) {
-                VStack(spacing: 2) {
-                    matchTeam(game.away)
-                    matchTeam(game.home)
-                }.contentShape(Rectangle())
-            }.buttonStyle(HapticCardButtonStyle()).accessibilityElement(children: .combine).accessibilityIdentifier("sports-game-\(game.id)")
             SportsLiveSituationView(game: game)
             HStack(spacing: 10) {
-                Text(game.broadcasts).font(.caption2).foregroundStyle(AppTheme.muted).lineLimit(1)
+                if game.league != .nba && !game.broadcasts.isEmpty {
+                    Text(game.broadcasts).font(.caption2).foregroundStyle(AppTheme.muted).lineLimit(1)
+                }
                 Spacer(minLength: 2)
                 Button {
                     guard daySwipeScope?.permitsProtectedAction != false else { return }
@@ -704,7 +709,7 @@ struct SportsGameCard: View {
                         Text("Gamecast")
                         Image(systemName: "chevron.right").font(.system(size: 9, weight: .medium))
                     }.frame(minHeight: 44).contentShape(Rectangle())
-                }.buttonStyle(.plain).accessibilityLabel("Game Center")
+                }.buttonStyle(.plain).foregroundStyle(AppTheme.muted).accessibilityLabel("Game Center")
                     .sportsDaySwipeExcluded(daySwipeScope)
                 if game.canWatch {
                     Button {
@@ -713,10 +718,11 @@ struct SportsGameCard: View {
                         watchRevision += 1
                     } label: {
                         HStack(spacing: 7) {
+                            Text("Watch")
+                            Spacer(minLength: 7)
                             if watchLoading { ProgressView().controlSize(.small).tint(AppTheme.canvas) }
                             else { Image(systemName: "play.fill").font(.system(size: 11)) }
-                            Text("Watch")
-                        }.padding(.horizontal, 12).frame(minHeight: 36).frame(minWidth: 78)
+                        }.padding(.horizontal, 12).frame(width: 100, height: 36)
                             .foregroundStyle(AppTheme.canvas).background(AppTheme.foreground, in: RoundedRectangle(cornerRadius: 10))
                             .frame(minHeight: 44).contentShape(Rectangle())
                     }.buttonStyle(.plain).disabled(watchLoading)
@@ -725,17 +731,13 @@ struct SportsGameCard: View {
                         .sportsDaySwipeExcluded(daySwipeScope)
                 }
             }.font(.caption.weight(.semibold))
-        }.padding(.horizontal, 10).padding(.top, 9).padding(.bottom, 5)
+        }.padding(.horizontal, 10).padding(.top, 2).padding(.bottom, 5)
             .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 12))
             .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(AppTheme.border, lineWidth: 0.7) }
             .streamifyCardDepth(cornerRadius: 12)
             .sportsPlaybackOrigin(playbackOrigin)
-            .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 12))
-            .contextMenu {
-                Button("Game Center", systemImage: "sportscourt", action: action)
-                if game.canWatch {
-                    Button("Watch game", systemImage: "play.fill") { watchRevision += 1 }.disabled(watchLoading)
-                }
+            .sheet(item: $selectedTeam) { result in
+                NavigationStack { SportsTeamView(result: result).environmentObject(queue) }
             }
             .task(id: "\(watchRevision)-\(scenePhase == .active)") {
                 let request = watchRevision
@@ -759,7 +761,7 @@ struct SportsGameCard: View {
                     try Task.checkCancellation()
                     guard watchRevision == request, daySwipeScope?.generation == scheduleGeneration else { return }
                     if let first = streams.first {
-                        playback.play(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: first.url, sources: streams, origin: requestOrigin)
+                        playback.play(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: first.url, sources: streams, origin: requestOrigin, game: game)
                     }
                     else { watchError = "No source is available for this game yet. Try again closer to game time." }
                 } catch is CancellationError { }
@@ -768,6 +770,55 @@ struct SportsGameCard: View {
             .alert("Source unavailable", isPresented: Binding(get: { watchError != nil }, set: { if !$0 { watchError = nil } })) {
                 Button("OK", role: .cancel) { watchError = nil }
             } message: { Text(watchError ?? "Try again shortly.") }
+    }
+
+    private var gameHeader: some View {
+        Button {
+            guard daySwipeScope?.permitsProtectedAction != false else { return }
+            action()
+        } label: {
+            HStack(spacing: 7) {
+                Image("league-\(game.league.rawValue)").resizable().scaledToFit()
+                    .frame(width: 16, height: 16).frame(width: 20, height: 20).accessibilityHidden(true)
+                Text(game.league == .ncaaf ? "CFB" : game.league.title).foregroundStyle(AppTheme.muted)
+                Spacer(minLength: 8)
+                Text(clockLabel).monospacedDigit().lineLimit(1)
+            }.font(.caption2.weight(.medium)).frame(minHeight: 44).contentShape(Rectangle())
+        }.buttonStyle(HapticPlainButtonStyle()).accessibilityIdentifier("sports-game-\(game.id)")
+            .accessibilityLabel("\(game.league.title), \(game.away.name) at \(game.home.name), \(clockLabel), Game Center")
+            .sportsDaySwipeExcluded(daySwipeScope)
+    }
+
+    private func teamControl(_ team: SportsTeam) -> some View {
+        let following = library.followedTeams.contains(team.key(in: game.league))
+        return Button { openTeam(team) } label: {
+            matchTeam(team).contentShape(Rectangle())
+        }
+        .buttonStyle(CardPressedButtonStyle(cornerRadius: 8, preservesContextMenuSource: true))
+        .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 10))
+        .contextMenu {
+            Button {
+                AppHaptics.tap()
+                library.toggleTeam(team.key(in: game.league))
+            } label: { Label("\(following ? "Unfollow" : "Follow") \(team.name)", systemImage: following ? "star.slash" : "star") }
+                .accessibilityIdentifier("sports-card-follow-\(game.id)-\(team.id)")
+            Button("View team", systemImage: "person.3") { openTeam(team) }
+                .accessibilityIdentifier("sports-card-open-team-\(game.id)-\(team.id)")
+        } preview: {
+            matchTeam(team).padding(.horizontal, 12).padding(.vertical, 5).frame(width: 320)
+                .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 10))
+                .foregroundStyle(AppTheme.foreground)
+        }
+        .accessibilityIdentifier("sports-card-team-\(game.id)-\(team.id)")
+        .accessibilityLabel("\(team.name), \(team.score.isEmpty ? "" : team.score)")
+        .accessibilityValue(following ? "Following" : "Not followed")
+        .sportsDaySwipeExcluded(daySwipeScope)
+    }
+
+    private func openTeam(_ team: SportsTeam) {
+        guard daySwipeScope?.permitsProtectedAction != false else { return }
+        AppHaptics.tap()
+        selectedTeam = SportsTeamResult(league: game.league, team: team)
     }
 
     private var clockLabel: String {
@@ -788,18 +839,19 @@ struct SportsGameCard: View {
                 .font(.system(size: 14, weight: .semibold)).lineLimit(1)
                 .foregroundStyle(game.winner != nil && game.winner?.id != team.id ? AppTheme.muted : AppTheme.foreground)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            if game.possessionTeam?.id == team.id {
-                Image(systemName: game.league == .nfl || game.league == .ncaaf ? "football.fill" : "basketball.fill")
-                    .font(.system(size: 10)).foregroundStyle(SportsLiveTint.color)
-                    .accessibilityLabel("In possession")
-            }
             if game.state != "pre" { score(team) }
-        }.frame(minHeight: 33)
+        }.frame(minHeight: 44)
     }
 
     private func score(_ team: SportsTeam) -> some View {
         let losing = game.winner != nil && game.winner?.id != team.id
         return HStack(spacing: 6) {
+            if game.possessionTeam?.id == team.id {
+                Image(systemName: game.league.sport == "football" ? "football.fill" : "basketball.fill")
+                    .font(.system(size: 10)).foregroundStyle(AppTheme.foreground)
+                    .accessibilityLabel("In possession")
+                    .accessibilityIdentifier("sports-ball-\(game.id)-\(team.id)")
+            }
             Text(team.score.isEmpty ? "—" : team.score)
                 .font(.system(size: 22, weight: losing ? .medium : .bold, design: .rounded)).monospacedDigit()
                 .foregroundStyle(losing ? AppTheme.muted : AppTheme.foreground).lineLimit(1).minimumScaleFactor(0.7)

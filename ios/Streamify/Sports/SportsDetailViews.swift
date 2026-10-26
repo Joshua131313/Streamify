@@ -20,24 +20,8 @@ struct SportsGameView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(current.isLive ? "● LIVE · \(current.status)" : current.status).font(.caption.bold()).foregroundStyle(current.isLive ? AppTheme.accent : AppTheme.muted)
-                    Text("\(current.away.name)\nat \(current.home.name)").font(.title.bold()).fixedSize(horizontal: false, vertical: true)
-                    Text(current.date?.formatted(date: .abbreviated, time: .shortened) ?? "Time to be announced").font(.subheadline).foregroundStyle(AppTheme.muted)
-                    if !current.venue.isEmpty { Text(current.venue).font(.caption).foregroundStyle(AppTheme.muted) }
-                }
-                SportsPanel {
-                    ForEach([current.away, current.home]) { team in
-                        HStack {
-                            Button { selectedTeam = SportsTeamResult(league: game.league, team: team) } label: {
-                                SportsTeamScore(team: team, showScore: current.state != "pre", winner: current.winner?.id == team.id,
-                                    subdued: current.winner != nil && current.winner?.id != team.id)
-                            }.buttonStyle(HapticPlainButtonStyle()).accessibilityIdentifier("sports-team-\(team.id)")
-                            followButton(team)
-                        }
-                    }
-                }
+            VStack(alignment: .leading, spacing: 16) {
+                scoreboard
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) { ForEach(["Overview", "Scoring", "Team stats", "Latest play", "Chat"], id: \.self) { value in Pill(title: value, selected: tab == value) { tab = value }.accessibilityIdentifier(value == "Scoring" ? "sports-scoring-tab" : "sports-game-tab-\(value)") } }
                 }
@@ -56,7 +40,7 @@ struct SportsGameView: View {
                 if tab == "Chat" {
                     SportsChatView(game: current)
                 }
-            }.padding(20).padding(.bottom, 24)
+            }.padding(.horizontal, 16).padding(.top, 10).padding(.bottom, 24)
         }
         .background(AppTheme.canvas).foregroundStyle(AppTheme.foreground)
         .navigationTitle("Game center").navigationBarTitleDisplayMode(.inline)
@@ -86,29 +70,72 @@ struct SportsGameView: View {
         }
     }
 
+    private var scoreboard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 7) {
+                Text(current.isLive ? "LIVE" : current.league.title).font(.caption2.bold())
+                Text(current.status).font(.caption.weight(.semibold)).foregroundStyle(AppTheme.muted).lineLimit(2)
+                Spacer(minLength: 6)
+                if current.isLive { Text(current.league.title).font(.caption2.weight(.semibold)).foregroundStyle(AppTheme.muted) }
+            }
+            VStack(spacing: 0) {
+                ForEach([current.away, current.home]) { team in
+                    HStack(spacing: 0) {
+                        Button { selectedTeam = SportsTeamResult(league: game.league, team: team) } label: {
+                            HStack(spacing: 10) {
+                                RemoteArtwork(url: team.logoURL, contentMode: .fit).frame(width: 32, height: 32)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(team.name).font(.subheadline.weight(current.winner?.id == team.id ? .bold : .semibold)).lineLimit(2).multilineTextAlignment(.leading)
+                                    if !team.record.isEmpty { Text(team.record).font(.caption2).foregroundStyle(AppTheme.muted) }
+                                }.frame(maxWidth: .infinity, alignment: .leading)
+                                HStack(spacing: 4) {
+                                    if current.possessionTeam?.id == team.id {
+                                        Image(systemName: current.league.sport == "football" ? "american.football.fill" : "basketball.fill")
+                                            .font(.caption2).accessibilityLabel("Possession")
+                                    }
+                                    Text(current.state == "pre" || team.score.isEmpty ? "—" : team.score)
+                                        .font(.system(size: 28, weight: .bold, design: .rounded).monospacedDigit()).lineLimit(1).minimumScaleFactor(0.7)
+                                    if current.winner?.id == team.id { Image(systemName: "arrowtriangle.left.fill").font(.system(size: 7)).accessibilityHidden(true) }
+                                }.frame(minWidth: 48, alignment: .trailing)
+                            }.frame(minHeight: 62).contentShape(Rectangle())
+                        }.buttonStyle(HapticPlainButtonStyle()).accessibilityIdentifier("sports-team-\(team.id)")
+                            .foregroundStyle(current.winner != nil && current.winner?.id != team.id ? AppTheme.muted : AppTheme.foreground)
+                        followButton(team)
+                    }
+                    if team.id == current.away.id { Rectangle().fill(AppTheme.border.opacity(0.6)).frame(height: 0.5).accessibilityHidden(true) }
+                }
+            }
+            if current.isLive { SportsLiveSituationView(game: current) }
+            Text([current.date?.formatted(date: .abbreviated, time: .shortened) ?? "Time to be announced", current.venue]
+                .filter { !$0.isEmpty }.joined(separator: " · "))
+                .font(.caption2).foregroundStyle(AppTheme.muted).lineLimit(2)
+        }.padding(14).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 16))
+            .overlay { RoundedRectangle(cornerRadius: 16).strokeBorder(AppTheme.border, lineWidth: 0.5) }
+            .accessibilityIdentifier("sports-game-scoreboard")
+    }
+
     private var overview: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 16) {
             SportsPlaybackOriginCard { origin in
-                SportsPanel {
-                    Text("Game information").font(.headline)
-                    Text("\(current.away.name) at \(current.home.name). \(current.status).").foregroundStyle(AppTheme.muted)
-                    Label(current.broadcasts.isEmpty ? "Broadcast not announced" : current.broadcasts, systemImage: "tv").font(.subheadline).foregroundStyle(AppTheme.muted)
+                HStack(spacing: 10) {
                     if current.canWatch, let first = streams.first {
-                        Button { play(first, origin: origin) } label: { Label("Watch game", systemImage: "play.fill").font(.headline).frame(maxWidth: .infinity).padding(14).foregroundStyle(Color.black).background(Color.white, in: RoundedRectangle(cornerRadius: 12)) }.buttonStyle(HapticPlainButtonStyle())
+                        Button { play(first, origin: origin) } label: { HStack { Text("Watch game"); Spacer(); Image(systemName: "play.fill") } }.buttonStyle(PrimaryButtonStyle())
+                    } else if current.canWatch && streamsLoading {
+                        HStack { ProgressView(); Text("Finding streams…").font(.subheadline) }.frame(maxWidth: .infinity, minHeight: 44)
+                    } else {
+                        Label(current.broadcasts.isEmpty ? current.league.title : current.broadcasts, systemImage: "tv")
+                            .font(.caption).foregroundStyle(AppTheme.muted).frame(maxWidth: .infinity, alignment: .leading)
                     }
                     Button {
                         guard let first = streams.first else { return }
                         queue.add(SportsStream(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: first.url, alternatives: streams))
                         showMultiWatch = true
-                    } label: { Label("Add to multi-watch", systemImage: "rectangle.split.2x2").font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 44).streamifyControlSurface() }
+                    } label: { Image(systemName: "rectangle.split.2x2").font(.subheadline.weight(.semibold)).frame(width: 48, height: 48).streamifyControlSurface() }
                         .buttonStyle(HapticPlainButtonStyle()).disabled(streams.isEmpty || queue.streams.count >= 4)
+                        .accessibilityLabel("Add to multi-watch")
                 }
             }
-            ForEach([current.away, current.home]) { team in
-                Button { selectedTeam = SportsTeamResult(league: game.league, team: team) } label: {
-                    SportsPanel { HStack { SportsTeamScore(team: team, showScore: false); Image(systemName: "chevron.right").foregroundStyle(AppTheme.muted) } }
-                }.buttonStyle(HapticPlainButtonStyle()).accessibilityIdentifier("sports-team-profile-\(team.id)")
-            }
+            if let scoring = center?.scoring, !scoring.isEmpty { SportsScoringTable(game: current, periods: scoring) }
             VStack(alignment: .leading, spacing: 12) {
                 HStack { Text("Watch sources").font(.title3.bold()); Spacer(); if streamsLoading { ProgressView() } }
                 if let streamsError {
@@ -119,31 +146,41 @@ struct SportsGameView: View {
                 }
                 ForEach(streams) { stream in
                     SportsPlaybackOriginCard { origin in
-                        SportsPanel {
-                            Text(stream.title).font(.subheadline.weight(.semibold))
-                            HStack(spacing: 12) {
-                                Button { play(stream, origin: origin) } label: { Label("Watch", systemImage: "play.fill").frame(maxWidth: .infinity, minHeight: 30) }
-                                    .buttonStyle(HapticBorderedButtonStyle(prominent: true)).tint(AppTheme.foreground).foregroundStyle(AppTheme.canvas)
+                        HStack(spacing: 10) {
+                            Text(stream.title).font(.subheadline.weight(.semibold)).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
+                                Button { play(stream, origin: origin) } label: { Image(systemName: "play.fill").frame(width: 44, height: 44).streamifyControlSurface() }
+                                    .buttonStyle(HapticPlainButtonStyle()).accessibilityLabel("Watch \(stream.title)")
                                 Button {
                                     queue.add(SportsStream(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: stream.url, alternatives: streams))
                                     showMultiWatch = true
-                                } label: { Image(systemName: "rectangle.split.2x2").frame(minWidth: 32, minHeight: 28) }.buttonStyle(HapticBorderedButtonStyle())
+                                } label: { Image(systemName: "rectangle.split.2x2").frame(width: 44, height: 44).streamifyControlSurface() }.buttonStyle(HapticPlainButtonStyle())
                                     .disabled(queue.streams.count >= 4 || queue.streams.contains(where: { $0.url == stream.url })).accessibilityLabel("Add source to multi-watch")
-                            }
-                        }
+                        }.padding(12).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 12))
                     }
+                }
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Teams").font(.headline).padding(.bottom, 4)
+                ForEach([current.away, current.home]) { team in
+                    Button { selectedTeam = SportsTeamResult(league: game.league, team: team) } label: {
+                        HStack(spacing: 10) {
+                            RemoteArtwork(url: team.logoURL, contentMode: .fit).frame(width: 26, height: 26)
+                            Text(team.name).font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity, alignment: .leading)
+                            Image(systemName: "chevron.right").font(.caption).foregroundStyle(AppTheme.muted)
+                        }.frame(minHeight: 48).contentShape(Rectangle())
+                    }.buttonStyle(HapticPlainButtonStyle()).accessibilityIdentifier("sports-team-profile-\(team.id)")
                 }
             }
         }
     }
 
     private func play(_ stream: SportsStream, origin: SportsPlaybackOrigin) {
-        playback.play(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: stream.url, sources: streams, origin: origin)
+        playback.play(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: stream.url, sources: streams, origin: origin, game: current)
     }
 
     private func followButton(_ team: SportsTeam) -> some View {
         let following = library.followedTeams.contains(team.key(in: game.league))
-        return Button { library.toggleTeam(team.key(in: game.league)) } label: { Image(systemName: following ? "star.fill" : "star").foregroundStyle(following ? AppTheme.foreground : AppTheme.muted).frame(width: 44, height: 44) }.buttonStyle(HapticPlainButtonStyle()).accessibilityLabel("\(following ? "Unfollow" : "Follow") \(team.name)")
+        return Button { library.toggleTeam(team.key(in: game.league)) } label: { Image(systemName: following ? "star.fill" : "star").foregroundStyle(following ? Color.yellow : AppTheme.muted).frame(width: 44, height: 44) }.buttonStyle(HapticPlainButtonStyle()).accessibilityLabel("\(following ? "Unfollow" : "Follow") \(team.name)")
     }
 
     @ViewBuilder private func statTable(_ rows: [SportsStatRow], title: String) -> some View {
@@ -185,7 +222,7 @@ struct SportsTeamView: View {
                     Text(team.name).font(.title.bold())
                     Text([result.league.title, team.record, profile?.venue ?? ""].filter { !$0.isEmpty }.joined(separator: " · ")).font(.subheadline).foregroundStyle(AppTheme.muted)
                     Button { library.toggleTeam(result.id) } label: {
-                        Label(following ? "Following" : "Follow team", systemImage: following ? "star.fill" : "star")
+                        HStack { Image(systemName: following ? "star.fill" : "star").foregroundStyle(following ? Color.yellow : AppTheme.foreground); Text(following ? "Following" : "Follow team") }
                             .font(.subheadline.weight(.semibold)).padding(.horizontal, 16).frame(minHeight: 44).streamifyControlSurface()
                     }.buttonStyle(HapticPlainButtonStyle()).foregroundStyle(AppTheme.foreground)
                 }
@@ -237,12 +274,12 @@ struct SportsTeamView: View {
 struct SportsScoringTable: View {
     let game: SportsGame
     let periods: [SportsStatRow]
-    @ScaledMetric(relativeTo: .body) private var rowHeight: CGFloat = 56
-    @ScaledMetric(relativeTo: .caption) private var headerHeight: CGFloat = 32
-    @ScaledMetric(relativeTo: .body) private var teamWidth: CGFloat = 100
-    @ScaledMetric(relativeTo: .body) private var periodWidth: CGFloat = 44
-    @ScaledMetric(relativeTo: .body) private var totalWidth: CGFloat = 64
-    @ScaledMetric(relativeTo: .title2) private var totalSize: CGFloat = 24
+    @ScaledMetric(relativeTo: .body) private var rowHeight: CGFloat = 42
+    @ScaledMetric(relativeTo: .caption) private var headerHeight: CGFloat = 28
+    @ScaledMetric(relativeTo: .body) private var teamWidth: CGFloat = 82
+    @ScaledMetric(relativeTo: .body) private var periodWidth: CGFloat = 36
+    @ScaledMetric(relativeTo: .body) private var totalWidth: CGFloat = 52
+    @ScaledMetric(relativeTo: .title2) private var totalSize: CGFloat = 20
 
     private var subtitle: String {
         "\(game.league.title) · " + (game.league == .mlb ? "Inning by inning" : game.league == .nhl ? "Period by period" : "Quarter by quarter")
@@ -251,10 +288,11 @@ struct SportsScoringTable: View {
     private var totalColumnWidth: CGFloat { min(84, totalWidth) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Score breakdown").font(.headline)
-                Text(subtitle).font(.caption).foregroundStyle(AppTheme.muted)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Scoring").font(.subheadline.bold())
+                Spacer()
+                Text(game.league == .mlb ? "Innings" : game.league == .nhl ? "Periods" : "Quarters").font(.caption2).foregroundStyle(AppTheme.muted)
             }
             HStack(spacing: 0) {
                 VStack(spacing: 0) {
@@ -266,7 +304,7 @@ struct SportsScoringTable: View {
                     HStack(spacing: 0) {
                         ForEach(Array(periods.enumerated()), id: \.element.id) { index, period in
                             VStack(spacing: 0) {
-                                heading(periodTitle(index))
+                                heading(periodTitle((period.period ?? index + 1) - 1))
                                 periodCell(period.away, team: game.away, stripe: false)
                                 periodCell(period.home, team: game.home, stripe: true)
                             }.frame(width: periodWidth)
@@ -280,12 +318,13 @@ struct SportsScoringTable: View {
                     total(game.home, stripe: true)
                 }
                 .frame(width: totalColumnWidth)
-                .background(AppTheme.foreground.opacity(0.045), in: RoundedRectangle(cornerRadius: 12))
+                .background(AppTheme.foreground.opacity(0.045))
             }
             .frame(height: headerHeight + rowHeight * 2)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
-        .padding(16).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 20))
-        .overlay { RoundedRectangle(cornerRadius: 20).strokeBorder(AppTheme.border, lineWidth: 0.5) }
+        .padding(12).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 14))
+        .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(AppTheme.border, lineWidth: 0.5) }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("sports-scoring-table")
     }
@@ -295,16 +334,16 @@ struct SportsScoringTable: View {
             .lineLimit(1).minimumScaleFactor(0.75).frame(maxWidth: .infinity).frame(height: headerHeight)
     }
     private func teamLabel(_ team: SportsTeam, side: String, stripe: Bool) -> some View {
-        HStack(spacing: 8) {
-            RemoteArtwork(url: team.logoURL, contentMode: .fit).frame(width: 24, height: 24)
-            VStack(alignment: .leading, spacing: 3) {
+        HStack(spacing: 6) {
+            RemoteArtwork(url: team.logoURL, contentMode: .fit).frame(width: 20, height: 20)
+            VStack(alignment: .leading, spacing: 2) {
                 Text(team.abbreviation.isEmpty ? team.name : team.abbreviation).font(.subheadline.weight(.semibold))
                     .lineLimit(1).minimumScaleFactor(0.65)
-                Text(side).font(.caption2).foregroundStyle(AppTheme.muted)
             }
         }
         .padding(.horizontal, 6).frame(width: teamColumnWidth, height: rowHeight, alignment: .leading)
         .background(stripe ? AppTheme.foreground.opacity(0.025) : Color.clear)
+        .accessibilityLabel("\(team.name), \(side)")
     }
     private func periodCell(_ value: String, team: SportsTeam, stripe: Bool) -> some View {
         Text(value.isEmpty ? "—" : value).font(.subheadline.weight(.medium).monospacedDigit())

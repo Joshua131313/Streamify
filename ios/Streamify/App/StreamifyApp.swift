@@ -42,7 +42,7 @@ struct StreamifyApp: App {
                 .environmentObject(downloads)
                 .environmentObject(sportsPlayback)
                 .environmentObject(quickActions)
-                .background { SportsPlaybackHost(session: sportsPlayback).frame(width: 0, height: 0) }
+                .background { SportsPlaybackHost(session: sportsPlayback, apiBase: profiles.settings.apiBase).frame(width: 0, height: 0) }
                 .tint(AppTheme.foreground)
                 .onOpenURL { quickActions.enqueue(url: $0) }
                 .onAppear {
@@ -62,20 +62,45 @@ private struct ProfileAppGate: View {
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var account: AccountSession
     @EnvironmentObject private var sportsPlayback: SportsPlaybackSession
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var hasEnteredApp = false
 
+    private var isLoadingProfiles: Bool {
+        !account.isResolved || profiles.ownerUID != account.identity?.uid || !profiles.canEditProfiles
+    }
+    private var profileTransition: AnyTransition {
+        reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 1.025))
+    }
+
     var body: some View {
-        Group {
-            if !account.isResolved || profiles.ownerUID != account.identity?.uid || !profiles.canEditProfiles {
+        ZStack {
+            AppTheme.canvas.ignoresSafeArea()
+            Group {
+                if !isLoadingProfiles && !profiles.requiresSelection {
+                    RootView().id(profiles.contextID)
+                        .onAppear { hasEnteredApp = true }
+                        .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.985)))
+                }
+            }
+            .allowsHitTesting(!isLoadingProfiles && !profiles.requiresSelection)
+            .accessibilityHidden(isLoadingProfiles || profiles.requiresSelection)
+            .zIndex(0)
+            Group {
+                if !isLoadingProfiles && profiles.requiresSelection {
+                    ProfileChooserView(isSwitching: hasEnteredApp,
+                        onCancel: hasEnteredApp ? { profiles.cancelSwitch() } : nil)
+                        .transition(profileTransition)
+                }
+            }
+            .allowsHitTesting(!isLoadingProfiles && profiles.requiresSelection)
+            .accessibilityHidden(isLoadingProfiles || !profiles.requiresSelection)
+            .zIndex(1)
+            if isLoadingProfiles {
                 loadingProfiles
-            } else if profiles.requiresSelection {
-                ProfileChooserView(isSwitching: hasEnteredApp,
-                    onCancel: hasEnteredApp ? { profiles.cancelSwitch() } : nil)
-            } else {
-                RootView().id(profiles.contextID)
-                    .onAppear { hasEnteredApp = true }
+                    .zIndex(2)
             }
         }
+        .animation(isLoadingProfiles ? nil : .easeInOut(duration: reduceMotion ? 0.12 : 0.3), value: profiles.requiresSelection)
         .preferredColorScheme(profiles.requiresSelection ? .dark : settings.appearance == "System" ? nil : settings.appearance == "Light" ? .light : .dark)
         .task(id: account.identity?.uid) { await profiles.setAccount(account.identity) }
         .onChange(of: profiles.requiresSelection) { _, choosing in
@@ -277,7 +302,7 @@ struct RootView: View {
                     : "No stream is available for this game right now. Try its Game Center or another live game in Sports."
                 return
             }
-            sportsPlayback.play(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: first.url, sources: sources)
+            sportsPlayback.play(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: first.url, sources: sources, game: game)
         } catch is CancellationError { }
         catch {
             if !Task.isCancelled, quickActionRequest?.id == request.id {

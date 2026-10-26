@@ -254,7 +254,7 @@ enum PreviewFixtures {
         let parts = url.path.split(separator: "/").map(String.init)
         let league = ["nba", "wnba", "nfl", "nhl", "mlb", "college-football"].first { parts.contains($0) } ?? "nba"
         func team(_ home: Bool) -> [String: Any] {
-            ["id": home ? "200" : "100", "displayName": home ? "Toronto Towers" : "Boston Harbor", "abbreviation": home ? "TOR" : "BOS", "logo": "https://a.espncdn.com/fixture-logo.png", "logos": [["href": "https://a.espncdn.com/fixture-logo.png"]], "location": home ? "Toronto" : "Boston", "record": ["items": [["summary": "8-3"]]], "franchise": ["venue": ["fullName": "Streamify Arena"]]]
+            ["id": home ? "200" : "100", "displayName": home ? "Toronto Towers" : "Boston Harbor", "abbreviation": home ? "TOR" : "BOS", "color": home ? "13294B" : "BF0D3E", "logo": "https://a.espncdn.com/fixture-logo.png", "logos": [["href": "https://a.espncdn.com/fixture-logo.png"]], "location": home ? "Toronto" : "Boston", "record": ["items": [["summary": "8-3"]]], "franchise": ["venue": ["fullName": "Streamify Arena"]]]
         }
         let today = Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: Date()) ?? Date()
         let date = ISO8601DateFormatter().string(from: today)
@@ -265,8 +265,12 @@ enum PreviewFixtures {
         let football = ["nfl", "college-football"].contains(league)
         let situation: [String: Any] = football
             ? ["possession": "100", "shortDownDistanceText": "3rd & 3", "possessionText": "BOS 46", "yardLine": 46]
+            : league == "mlb" ? ["onFirst": true, "onSecond": false, "onThird": true, "balls": 2, "strikes": 1, "outs": 1]
             : ["possession": "100"]
-        let game: [String: Any] = ["id": "\(league)-fixture", "date": date, "competitions": [["date": date, "competitors": [competitor(false), competitor(true)], "status": ["period": 4, "displayClock": "2:18", "type": ["state": "in", "shortDetail": "4th · 02:18", "description": "In Progress"]], "situation": situation, "venue": ["fullName": "Streamify Arena"], "broadcasts": [["names": ["ESPN"]]]]]]
+        let liveStatus: [String: Any] = league == "mlb"
+            ? ["period": 7, "periodPrefix": "Bottom", "type": ["state": "in", "shortDetail": "Bottom 7th", "description": "In Progress"]]
+            : ["period": 4, "displayClock": "2:18", "type": ["state": "in", "shortDetail": "4th · 02:18", "description": "In Progress"]]
+        let game: [String: Any] = ["id": "\(league)-fixture", "date": date, "competitions": [["date": date, "competitors": [competitor(false), competitor(true)], "status": liveStatus, "situation": situation, "venue": ["fullName": "Streamify Arena"], "broadcasts": [["names": [league == "nba" ? "NBA League Pass" : "ESPN"]]]]]]
         let final: [String: Any] = ["id": "\(league)-final", "date": date, "competitions": [["date": date, "competitors": [competitor(false), competitor(true)], "status": ["type": ["state": "post", "shortDetail": "Final", "description": "Final"]], "venue": ["fullName": "Streamify Arena"], "broadcasts": [["names": ["ESPN"]]]]]]
         let pregame: [String: Any] = ["id": "\(league)-pregame", "date": date, "competitions": [["date": date, "competitors": [competitor(false), competitor(true)], "status": ["type": ["state": "pre", "shortDetail": "Scheduled", "description": "Scheduled"]], "venue": ["fullName": "Streamify Arena"], "broadcasts": [["names": ["ESPN"]]]]]]
         if parts.last == "scoreboard" || parts.last == "schedule" { return ["events": league == "nba" ? [game, final, pregame] : [game]] }

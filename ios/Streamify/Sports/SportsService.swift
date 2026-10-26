@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 
 /// Today includes games still in progress from the preceding local date.
 /// Resolve duplicate states before date filtering so a stale live copy cannot
@@ -93,7 +94,15 @@ struct SportsService: Sendable {
         SportsTeam(id: raw.sportsText("id"), name: raw.sportsText("displayName"), abbreviation: raw.sportsText("abbreviation"),
                    logo: raw.sportsObjects("logos").first?.sportsText("href") ?? raw.sportsText("logo"),
                    record: raw.sportsObject("record").sportsObjects("items").first?.sportsText("summary") ?? "",
-                   streamNames: [raw.sportsText("displayName"), raw.sportsText("shortDisplayName"), raw.sportsText("location")].filter { !$0.isEmpty })
+                   streamNames: [raw.sportsText("displayName"), raw.sportsText("shortDisplayName"), raw.sportsText("location")].filter { !$0.isEmpty },
+                   primaryColorHex: Self.teamColor(raw.sportsText("color")))
+    }
+
+    static func teamColor(_ value: String) -> String? {
+        let value = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hex = value.hasPrefix("#") ? String(value.dropFirst()) : value
+        guard hex.range(of: "^[0-9a-fA-F]{6}$", options: .regularExpression) != nil else { return nil }
+        return hex.uppercased()
     }
 
     func parseGame(_ raw: [String: Any], league: SportsLeague, situationOverride: [String: Any]? = nil) -> SportsGame? {
@@ -113,9 +122,16 @@ struct SportsService: Sendable {
         let dateText = raw.sportsText("date").isEmpty ? competition.sportsText("date") : raw.sportsText("date")
         let detail = type.sportsText("shortDetail").isEmpty ? type.sportsText("description") : type.sportsText("shortDetail")
         let broadcasts = competition.sportsObjects("broadcasts").flatMap { $0["names"] as? [String] ?? [] }
-        let situation = competition.sportsObject("situation")
+        var situation = competition.sportsObject("situation")
             .merging(raw.sportsObject("situation")) { _, latest in latest }
             .merging(situationOverride ?? [:]) { _, latest in latest }
+        // ESPN summary headers can publish a possession flag per competitor.
+        // Both false (or both true), and explicitly unsupported arrows, are unknown.
+        let possessing = competitors.filter { Self.explicitBool($0["possession"]) == true }
+        if ["football", "basketball"].contains(league.sport), possessing.count == 1,
+           Self.explicitBool(competition["possessionArrowAvailable"]) != false {
+            situation["competitorPossessionTeamID"] = possessing[0].sportsObject("team").sportsText("id")
+        }
         return SportsGame(eventID: raw.sportsText("id"), league: league, date: Self.parseDate(dateText), state: type.sportsText("state"),
                           status: detail, home: home, away: away, venue: competition.sportsObject("venue").sportsText("fullName"),
                           broadcasts: broadcasts.joined(separator: " · "), link: raw.sportsObjects("links").first?.sportsText("href") ?? "",
@@ -127,11 +143,12 @@ struct SportsService: Sendable {
         guard state == "in" else { return nil }
         let period = Int(status.sportsText("period")).flatMap { (1...30).contains($0) ? $0 : nil }
         let rawClock = status.sportsText("displayClock").trimmingCharacters(in: .whitespacesAndNewlines)
-        let clock = rawClock.range(of: #"^(?:[0-9]{1,2}:[0-5][0-9](?:\.[0-9]{1,2})?|[0-9]{1,2}(?:\.[0-9]{1,2})?)$"#, options: .regularExpression) == nil ? nil : rawClock
+        let clock = league == .mlb || rawClock.range(of: #"^(?:[0-9]{1,2}:[0-5][0-9](?:\.[0-9]{1,2})?|[0-9]{1,2}(?:\.[0-9]{1,2})?)$"#, options: .regularExpression) == nil ? nil : rawClock
         let possessionObject = raw.sportsObject("possession")
         let possessionCandidates = [raw.sportsText("possession"), possessionObject.sportsText("id"),
-            possessionObject.sportsObject("team").sportsText("id"), raw.sportsText("possessionTeamId")]
-        let possession = possessionCandidates.first { !$0.isEmpty && ($0 == home.id || $0 == away.id) }
+            possessionObject.sportsObject("team").sportsText("id"), raw.sportsText("possessionTeamId"), raw.sportsText("competitorPossessionTeamID")]
+        let validPossession = Set(possessionCandidates.filter { !$0.isEmpty && ($0 == home.id || $0 == away.id) })
+        let possession = ["football", "basketball"].contains(league.sport) && validPossession.count == 1 ? validPossession.first : nil
         var result = SportsLiveSituation(period: period, clock: clock, possessionTeamID: possession)
         if league == .nfl || league == .ncaaf {
             let short = raw.sportsText("shortDownDistanceText").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -144,8 +161,44 @@ struct SportsService: Sendable {
                 result.fieldProgress = position.progress
             }
         }
+        if league == .mlb {
+            let halfText = status.sportsText("periodPrefix").lowercased()
+            let half: SportsInningHalf? = ["top": .top, "bottom": .bottom, "middle": .middle, "mid": .middle, "end": .end][halfText]
+            let baseball = SportsBaseballSituation(firstOccupied: baseOccupied(raw["onFirst"]),
+                secondOccupied: baseOccupied(raw["onSecond"]), thirdOccupied: baseOccupied(raw["onThird"]),
+                balls: count(raw["balls"], range: 0...4), strikes: count(raw["strikes"], range: 0...3),
+                outs: count(raw["outs"], range: 0...3), inning: period, half: half)
+            if baseball.hasBaseData || baseball.balls != nil || baseball.strikes != nil || baseball.outs != nil || baseball.inning != nil || baseball.half != nil {
+                result.baseball = baseball
+            }
+        }
         return result.period == nil && result.clock == nil && result.possessionTeamID == nil &&
-            result.downDistance == nil && result.fieldPosition == nil ? nil : result
+            result.downDistance == nil && result.fieldPosition == nil && result.baseball == nil ? nil : result
+    }
+
+    private static func explicitBool(_ raw: Any?) -> Bool? {
+        guard let number = raw as? NSNumber, CFGetTypeID(number) == CFBooleanGetTypeID() else { return nil }
+        return number.boolValue
+    }
+    private static func count(_ raw: Any?, range: ClosedRange<Int>) -> Int? {
+        guard explicitBool(raw) == nil else { return nil }
+        let value: Int?
+        if let number = raw as? NSNumber, number.doubleValue.isFinite, number.doubleValue.rounded() == number.doubleValue,
+           number.doubleValue >= Double(range.lowerBound), number.doubleValue <= Double(range.upperBound) { value = number.intValue }
+        else if let text = raw as? String { value = Int(text) }
+        else { value = nil }
+        return value.flatMap { range.contains($0) ? $0 : nil }
+    }
+    private static func baseOccupied(_ raw: Any?) -> Bool? {
+        if let flag = explicitBool(raw) { return flag }
+        guard let player = raw as? [String: Any] else { return nil }
+        let athlete = player.sportsObject("athlete")
+        let identifiers = [player.sportsText("playerId"), player.sportsText("id"), athlete.sportsText("id")]
+        if identifiers.contains(where: { validEventID($0) && $0.contains(where: { $0 != "0" }) }) { return true }
+        // ESPN Core represents an occupied base with an athlete reference.
+        if let url = URL(string: athlete.sportsText("$ref")), url.host == "sports.core.api.espn.com",
+           url.path.contains("/athletes/"), validEventID(url.lastPathComponent) { return true }
+        return nil
     }
 
     /// ESPN's `possessionText` explicitly identifies the side of midfield. Its
@@ -168,7 +221,8 @@ struct SportsService: Sendable {
         func side(_ key: String) -> SportsTeam {
             let team = raw.sportsObject(key)
             return SportsTeam(id: team.sportsText("id"), name: team.sportsText("name"), abbreviation: team.sportsText("abbreviation"),
-                              logo: team.sportsText("logo"), score: team.sportsText("score"), record: team.sportsText("record"))
+                              logo: team.sportsText("logo"), score: team.sportsText("score"), record: team.sportsText("record"),
+                              primaryColorHex: Self.teamColor(team.sportsText("color")))
         }
         let home = side("homeTeam"), away = side("awayTeam")
         guard !home.id.isEmpty, !away.id.isEmpty else { return nil }
@@ -219,8 +273,12 @@ struct SportsService: Sendable {
     /// possession data that the legacy backend omits, without clearing cards or
     /// turning a valid scoreboard into an error when an enrichment feed fails.
     func enrichLiveGames(_ games: [SportsGame], day: Date) async -> [SportsGame] {
-        let supported: Set<SportsLeague> = [.nfl, .ncaaf, .nba, .wnba]
-        let missing = games.filter { $0.isLive && supported.contains($0.league) && $0.possessionTeam == nil }
+        let supported = Set(SportsLeague.allCases.filter { ["football", "basketball", "baseball"].contains($0.sport) })
+        let missing = games.filter {
+            $0.isLive && supported.contains($0.league) &&
+            ($0.home.primaryColorHex == nil || $0.away.primaryColorHex == nil ||
+             ($0.league == .mlb ? $0.liveSituation?.baseball?.hasBaseData != true : $0.possessionTeam == nil))
+        }
         guard !missing.isEmpty, !Task.isCancelled else { return games }
         let utc = DateFormatter()
         utc.locale = Locale(identifier: "en_US_POSIX")
@@ -258,21 +316,22 @@ struct SportsService: Sendable {
         var enriched = Self.applyingLiveSnapshots(snapshots, to: games)
         // Basketball feeds may supply possession only on their game summary.
         // Never infer it from lastPlay.team, which can name a scorer or defender.
-        let basketball = enriched.filter { $0.isLive && ($0.league == .nba || $0.league == .wnba) && $0.possessionTeam == nil }
+        let summaryGames = enriched.filter { $0.isLive &&
+            (($0.league.sport == "basketball" && $0.possessionTeam == nil) ||
+             ($0.league == .mlb && $0.liveSituation?.baseball?.hasBaseData != true)) }
         let summaries = await withTaskGroup(of: [SportsGame].self) { group in
-            for worker in 0..<min(3, basketball.count) {
+            for worker in 0..<min(3, summaryGames.count) {
                 group.addTask {
                     var result: [SportsGame] = []
-                    for index in stride(from: worker, to: basketball.count, by: 3) {
+                    for index in stride(from: worker, to: summaryGames.count, by: 3) {
                         guard !Task.isCancelled else { break }
-                        let game = basketball[index]
+                        let game = summaryGames[index]
                         var allowed = CharacterSet.urlQueryAllowed
                         allowed.remove(charactersIn: "&+=?#")
                         guard let event = game.eventID.addingPercentEncoding(withAllowedCharacters: allowed) else { continue }
                         do {
                             let response = try await object("\(game.league.endpoint)/summary?event=\(event)")
-                            if let snapshot = parseGame(response.sportsObject("header"), league: game.league,
-                                situationOverride: response.sportsObject("situation")) { result.append(snapshot) }
+                            if let snapshot = await summaryGame(response, fallback: game) { result.append(snapshot) }
                         } catch { /* Unknown possession stays hidden. */ }
                     }
                     return result
@@ -294,12 +353,37 @@ struct SportsService: Sendable {
             // final card or attach a different matchup's possession snapshot.
             guard game.isLive, let next = freshest[game.id], next.state != "pre",
                   next.home.id == game.home.id, next.away.id == game.away.id else { return game }
-            return SportsGame(eventID: game.eventID, league: game.league, date: next.date ?? game.date,
-                state: next.state, status: next.status, home: next.home, away: next.away,
-                venue: next.venue.isEmpty ? game.venue : next.venue,
-                broadcasts: next.broadcasts.isEmpty ? game.broadcasts : next.broadcasts,
-                link: next.link.isEmpty ? game.link : next.link, liveSituation: next.liveSituation)
+            return preservingPresentation(next, from: game)
         }
+    }
+
+    private static func preservingPresentation(_ next: SportsGame, from game: SportsGame) -> SportsGame {
+        func team(_ next: SportsTeam, _ previous: SportsTeam) -> SportsTeam {
+            SportsTeam(id: next.id, name: next.name.isEmpty ? previous.name : next.name,
+                abbreviation: next.abbreviation.isEmpty ? previous.abbreviation : next.abbreviation,
+                logo: next.logo.isEmpty ? previous.logo : next.logo, score: next.score, record: next.record.isEmpty ? previous.record : next.record,
+                streamNames: next.streamNames.isEmpty ? previous.streamNames : next.streamNames,
+                primaryColorHex: next.primaryColorHex ?? previous.primaryColorHex)
+        }
+        return SportsGame(eventID: next.eventID, league: next.league, date: next.date ?? game.date,
+            state: next.state, status: next.status, home: team(next.home, game.home), away: team(next.away, game.away),
+            venue: next.venue.isEmpty ? game.venue : next.venue, broadcasts: next.broadcasts.isEmpty ? game.broadcasts : next.broadcasts,
+            link: next.link.isEmpty ? game.link : next.link, liveSituation: next.liveSituation)
+    }
+
+    private func summaryGame(_ response: [String: Any], fallback game: SportsGame) async -> SportsGame? {
+        let header = response.sportsObject("header")
+        var situation = response.sportsObject("situation")
+        guard var fresh = parseGame(header, league: game.league, situationOverride: situation),
+              fresh.eventID == game.eventID, fresh.home.id == game.home.id, fresh.away.id == game.away.id else { return nil }
+        if fresh.isLive, game.league == .mlb, fresh.liveSituation?.baseball?.hasBaseData != true, Self.validEventID(game.eventID) {
+            let url = "https://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/events/\(game.eventID)/competitions/\(game.eventID)/situation"
+            if let core = try? await object(url), !Task.isCancelled {
+                situation.merge(core) { _, current in current }
+                fresh = parseGame(header, league: game.league, situationOverride: situation) ?? fresh
+            }
+        }
+        return Self.preservingPresentation(fresh, from: game)
     }
 
     private func schedule(league: SportsLeague, day: Date, now: Date) async throws -> SportsSchedule {
@@ -381,25 +465,38 @@ struct SportsService: Sendable {
     func center(_ game: SportsGame) async throws -> SportsGameCenter {
         let response = try await object("\(game.league.endpoint)/summary?event=\(game.eventID)")
         let header = response.sportsObject("header")
-        let fresh = parseGame(header, league: game.league, situationOverride: response.sportsObject("situation")) ?? game
+        let fresh = await summaryGame(response, fallback: game) ?? game
+        try Task.checkCancellation()
         let competitors = header.sportsObjects("competitions").first?.sportsObjects("competitors") ?? []
         let awayPeriods = competitors.first { $0.sportsText("homeAway") == "away" }?.sportsObjects("linescores") ?? []
         let homePeriods = competitors.first { $0.sportsText("homeAway") == "home" }?.sportsObjects("linescores") ?? []
-        func score(_ values: [[String: Any]], index: Int) -> String {
-            guard values.indices.contains(index) else { return "—" }
-            let item = values[index]
+        func indexed(_ values: [[String: Any]]) -> [Int: [String: Any]] {
+            var result: [Int: [String: Any]] = [:]
+            for (index, value) in values.enumerated() {
+                let period = Int(value.sportsText("period")) ?? index + 1
+                if (1...50).contains(period) { result[period] = value }
+            }
+            return result
+        }
+        let awayScores = indexed(awayPeriods), homeScores = indexed(homePeriods)
+        func score(_ item: [String: Any]?) -> String {
+            guard let item else { return "—" }
             return item.sportsText("displayValue").isEmpty ? item.sportsText("value") : item.sportsText("displayValue")
         }
-        let scoring = (0..<max(awayPeriods.count, homePeriods.count)).map { index in
-            SportsStatRow(id: String(index), label: "\(game.league == .mlb ? "Inning" : "Period") \(index + 1)", away: score(awayPeriods, index: index), home: score(homePeriods, index: index))
+        let scoring = Set(awayScores.keys).union(homeScores.keys).sorted().map { period in
+            SportsStatRow(id: String(period), label: "\(game.league == .mlb ? "Inning" : "Period") \(period)",
+                away: score(awayScores[period]), home: score(homeScores[period]), period: period)
         }
         let teams = response.sportsObject("boxscore").sportsObjects("teams")
         let away = teams.first { $0.sportsObject("team").sportsText("id") == game.away.id }?.sportsObjects("statistics") ?? []
         let home = teams.first { $0.sportsObject("team").sportsText("id") == game.home.id }?.sportsObjects("statistics") ?? []
-        let keys = Array(Set((away + home).map { $0.sportsText("name") })).sorted()
+        var seen = Set<String>()
+        let keys = (away + home).map { $0.sportsText("name") }.filter { !$0.isEmpty && seen.insert($0).inserted }
         let statistics = keys.map { key -> SportsStatRow in
             let a = away.first { $0.sportsText("name") == key }, h = home.first { $0.sportsText("name") == key }
-            return SportsStatRow(id: key, label: (a ?? h ?? [:]).sportsText("label"), away: a?.sportsText("displayValue") ?? "—", home: h?.sportsText("displayValue") ?? "—")
+            let value = a ?? h ?? [:]
+            let label = ["label", "displayName", "abbreviation", "name"].map { value.sportsText($0) }.first { !$0.isEmpty } ?? key
+            return SportsStatRow(id: key, label: label, away: a?.sportsText("displayValue") ?? "—", home: h?.sportsText("displayValue") ?? "—")
         }
         let latest = response.sportsObjects("plays").last?.sportsText("text") ?? response.sportsObject("drives").sportsObject("current").sportsObjects("plays").last?.sportsText("text") ?? ""
         return SportsGameCenter(game: fresh, scoring: scoring, statistics: statistics, latest: latest)

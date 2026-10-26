@@ -30,6 +30,62 @@ final class SportsPlaybackFlowTests: XCTestCase {
         XCUIDevice.shared.orientation = .portrait
     }
 
+    func testGameAndStreamSelectorsSwitchIndependentlyAndKeepOnePlayer() {
+        let source = openSportsPlayerOnBravo()
+        let game = app.buttons["sports-player-game-picker"]
+        XCTAssertTrue(game.exists)
+        XCTAssertTrue((game.value as? String ?? "").hasPrefix("NBA,"))
+        XCTAssertEqual(app.webViews.count, 1)
+        game.tap()
+        let football = app.buttons["sports-player-game-option-nfl:nfl-fixture"]
+        XCTAssertTrue(football.waitForExistence(timeout: 8))
+        XCTAssertFalse(app.buttons["sports-player-game-option-nba:nba-final"].exists)
+        XCTAssertFalse(app.buttons["sports-player-game-option-nba:nba-pregame"].exists)
+        capture("Live game selector separates matchups from current stream choices")
+        football.tap()
+        XCTAssertTrue(wait { (game.value as? String ?? "").hasPrefix("NFL,") })
+        XCTAssertTrue(wait { (source.value as? String ?? "").contains("alpha") })
+        XCTAssertTrue(playbackDocument.waitForExistence(timeout: 10))
+        XCTAssertEqual(app.webViews.count, 1, "Switching games must retain one provider surface.")
+
+        source.tap()
+        app.buttons["sports-player-source-option-1"].tap()
+        XCTAssertTrue(wait { (source.value as? String ?? "").contains("bravo") })
+        XCTAssertTrue((game.value as? String ?? "").hasPrefix("NFL,"), "Changing servers cannot change the selected game.")
+        let pip = app.buttons["sports-player-pip"]
+        XCTAssertTrue(wait { pip.value as? String == "Unavailable" })
+        let sharedChannelDocument = playbackDocument.label
+        game.tap()
+        let basketball = app.buttons["sports-player-game-option-nba:nba-fixture"]
+        XCTAssertTrue(basketball.waitForExistence(timeout: 5))
+        basketball.tap()
+        XCTAssertTrue(wait { (game.value as? String ?? "").hasPrefix("NBA,") })
+        XCTAssertTrue((source.value as? String ?? "").contains("bravo"), "Returning to NBA restores its previous server.")
+        XCTAssertEqual(app.webViews.count, 1)
+        XCTAssertEqual(playbackDocument.label, sharedChannelDocument,
+            "When game entries share a channel, changing metadata must not reload its document.")
+        XCTAssertEqual(pip.value as? String, "Unavailable",
+            "The retained no-video fixture must keep its confirmed capability, not lose its bridge and stay Checking.")
+        let document = playbackDocument.label
+        backgroundAndReturn()
+        XCTAssertTrue(wait { source.isHittable && game.isHittable })
+        XCTAssertTrue((game.value as? String ?? "").hasPrefix("NBA,"))
+        XCTAssertTrue((source.value as? String ?? "").contains("bravo"))
+        XCTAssertEqual(playbackDocument.label, document)
+        for identifier in ["sports-player-reload", "sports-player-direct", "sports-player-browser"] {
+            let button = app.buttons[identifier]
+            XCTAssertTrue(button.isHittable)
+            XCTAssertGreaterThanOrEqual(button.frame.height, 44)
+        }
+        capture("Independent game and server selects with visible utility buttons")
+        app.buttons["sports-player-reload"].tap()
+        XCTAssertTrue(wait { self.playbackDocument.exists && self.playbackDocument.label != document })
+        XCTAssertTrue((game.value as? String ?? "").hasPrefix("NBA,"))
+        XCTAssertTrue((source.value as? String ?? "").contains("bravo"))
+        XCTAssertEqual(app.webViews.count, 1)
+        closeAndVerifySportsDoesNotReopen(source)
+    }
+
     func testSportsFullscreenUsesTheProvidersOwnControlAndKeepsItsDocument() {
         let source = openSportsPlayerOnBravo()
         let selectedDocument = playbackDocument.label

@@ -46,6 +46,7 @@ struct ProfileChooserView: View {
         }
         .task(id: settings.tmdbToken) { await loadArtwork() }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: editing)
+        .animation(.easeInOut(duration: reduceMotion ? 0.12 : 0.24), value: store.profiles)
     }
 
     private var header: some View {
@@ -268,12 +269,19 @@ private struct ProfileChoiceTile: View {
 struct ProfileAvatarView: View {
     let avatar: ProfileAvatar
     let size: CGFloat
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        Image(avatar.artworkName).resizable().scaledToFill()
-            .frame(width: size, height: size)
-            .clipShape(RoundedRectangle(cornerRadius: size * 0.2, style: .continuous))
-            .shadow(color: .black.opacity(0.2), radius: 5, y: 3)
-            .accessibilityHidden(true)
+        ZStack {
+            Image(avatar.artworkName).resizable().scaledToFill()
+                .frame(width: size, height: size)
+                .id(avatar)
+                .transition(.opacity)
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: size * 0.2, style: .continuous))
+        .shadow(color: .black.opacity(0.2), radius: 5, y: 3)
+        .animation(.easeInOut(duration: reduceMotion ? 0.12 : 0.2), value: avatar)
+        .accessibilityHidden(true)
     }
 }
 

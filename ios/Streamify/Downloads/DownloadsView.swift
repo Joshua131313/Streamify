@@ -64,9 +64,6 @@ struct DownloadsView: View {
                 }.padding(.top, 12)
                     .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
                     .listRowBackground(AppTheme.canvas).listRowSeparator(.hidden)
-            } footer: {
-                Text("Movie and episode downloads depend on source availability. Streaming-only titles, anime, and live sports cannot be saved for offline viewing.")
-                    .font(.caption).foregroundStyle(AppTheme.muted).padding(.bottom, 16)
             }
         }.listStyle(.plain).listSectionSpacing(8)
             .environment(\.defaultMinListRowHeight, 0)
@@ -214,7 +211,8 @@ private struct DownloadSeriesView: View {
                 Section {
                     MediaDetailLink(media: MediaItem(id: series.id, kind: .tv, title: series.title)) {
                         Text("View more episodes").font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 48)
-                            .foregroundStyle(AppTheme.canvas).background(AppTheme.foreground, in: Capsule())
+                            .foregroundStyle(AppTheme.canvas)
+                            .background(AppTheme.foreground, in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
                     }.accessibilityIdentifier("download-series-more-\(seriesID)")
                         .listRowInsets(EdgeInsets(top: 16, leading: 36, bottom: 20, trailing: 36))
                         .listRowBackground(AppTheme.canvas).listRowSeparator(.hidden)

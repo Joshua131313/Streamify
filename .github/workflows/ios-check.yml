@@ -11,7 +11,7 @@ on:
         type: choice
         required: true
         default: full
-        options: [full, player-recheck, polish-recheck]
+        options: [full, player-recheck, polish-recheck, sports-refinement]
 permissions:
   contents: read
 concurrency:
@@ -50,7 +50,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.scope == 'player-recheck' && '["player-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'polish-recheck' && '["polish-recheck"]' || '["playback", "controls", "screens"]') }}
+        suite: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.scope == 'sports-refinement' && '["sports-cards", "sports-player", "profiles-downloads"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'player-recheck' && '["player-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'polish-recheck' && '["polish-recheck"]' || '["playback", "controls", "screens"]') }}
     steps:
       - uses: actions/checkout@v4
       - name: Generate Xcode project
@@ -88,6 +88,44 @@ jobs:
           xcodebuild build-for-testing "${COMMON[@]}"
           # Keep suite assignments explicit so each screen check runs once.
           case "$TEST_SUITE" in
+            sports-cards)
+              SELECTORS=(
+                -only-testing:StreamifyTests/SportsLiveSituationTests
+                -only-testing:StreamifyTests/SportsResultTests
+                -only-testing:StreamifyTests/SportsContractTests
+                -only-testing:StreamifyTests/SportsMidnightScheduleTests
+                -only-testing:StreamifyTests/SportsHomeOrderTests
+                -only-testing:StreamifyTests/SportsDaySwipeGateTests
+                -only-testing:StreamifyUITests/CardInteractionFlowTests/testSportsTeamHoldsKeepIndependentFollowActionsAndTapOpensExactTeam
+                -only-testing:StreamifyUITests/ParityFlowTests/testBaseballDiamondUsesLiveBaseStatesAndSymmetricFieldLayout
+                -only-testing:StreamifyUITests/ParityFlowTests/testSportsSingleLeagueCalendarKeepsSelectionAndPosition
+                -only-testing:StreamifyUITests/ParityFlowTests/testLivePregameFinalTabsKeepLeagueAndFutureDatePolicy
+                -only-testing:StreamifyUITests/ParityFlowTests/testCollegeFootballLeagueOpensItsGameAndAvailableStream
+                -only-testing:StreamifyUITests/ParityFlowTests/testSportsScheduleScoringTableRosterChannelsAndMultiWatch
+                -only-testing:StreamifyUITests/ParityFlowTests/testFinalSportsScoringHighlightsTheActualWinner
+                -only-testing:StreamifyUITests/ControlInteractionFlowTests/testSportsSingleLeagueTabsFollowingAndTodayReset
+                -only-testing:StreamifyUITests/ControlInteractionFlowTests/testSportsSearchReturnsToItsSelectedLeaguesAndFutureDate
+              )
+              ;;
+            sports-player)
+              SELECTORS=(
+                -only-testing:StreamifyTests/SportsPlaybackSessionTests
+                -only-testing:StreamifyTests/SportsPlayerDismissTests
+                -only-testing:StreamifyUITests/SportsPlaybackFlowTests
+                -only-testing:StreamifyUITests/ParityFlowTests/testSportsChannelsAndMultiwatchPreserveSelectedServerAndTile
+              )
+              ;;
+            profiles-downloads)
+              SELECTORS=(
+                -only-testing:StreamifyTests/ProfileStoreTests
+                -only-testing:StreamifyTests/AppQuickActionTests
+                -only-testing:StreamifyUITests/ProfileFlowTests
+                -only-testing:StreamifyUITests/QuickActionFlowTests/testQueuedColdActionsOpenDownloadsFavoritesAndSports
+                -only-testing:StreamifyUITests/QuickActionFlowTests/testWidgetSportsAndWatchURLsRouteWarmAndColdWithoutReplayingClosedPlayer
+                -only-testing:StreamifyUITests/DownloadIndicatorFlowTests/testSingleEpisodeShowPagePreservesExactSwipeActionsAndReturnsAfterLastRemoval
+                -only-testing:StreamifyUITests/ParityFlowTests/testRootTabsUseTapNavigationAndLeaveCarouselsIndependent
+              )
+              ;;
             polish-recheck)
               SELECTORS=(-only-testing:StreamifyTests -only-testing:StreamifyUITests/AccountFlowTests -only-testing:StreamifyUITests/CardInteractionFlowTests -only-testing:StreamifyUITests/ParityFlowTests/testLivePregameFinalTabsKeepLeagueAndFutureDatePolicy -only-testing:StreamifyUITests/ParityFlowTests/testCollegeFootballLeagueOpensItsGameAndAvailableStream -only-testing:StreamifyUITests/ControlInteractionFlowTests/testSportsSingleLeagueTabsFollowingAndTodayReset)
               ;;
@@ -106,7 +144,8 @@ jobs:
             *) exit 2 ;;
           esac
           # Normal push/PR/full-dispatch suites cover every UI test class once.
-          # Manual rechecks retain all unit tests and the affected UI flows.
+          # Broad rechecks retain all units; sports-refinement selects the changed
+          # sports, profile and routing contracts plus their affected UI flows.
           xcodebuild test-without-building "${COMMON[@]}" "${TEST_OPTIONS[@]}" "${SELECTORS[@]}" -resultBundlePath ios/build/Streamify.xcresult
       - name: Export simulator screenshots
         if: always()

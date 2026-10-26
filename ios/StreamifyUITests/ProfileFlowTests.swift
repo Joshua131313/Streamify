@@ -187,15 +187,15 @@ final class ProfileFlowTests: XCTestCase {
         XCTAssertTrue(tile.waitForExistence(timeout: 6))
         reveal(tile)
         tile.tap()
-        XCTAssertTrue(app.buttons["tab-home"].waitForExistence(timeout: 12))
-        XCTAssertFalse(element("profile-chooser").exists)
+        XCTAssertTrue(wait { self.app.buttons["tab-home"].isHittable && !self.element("profile-chooser").exists },
+            "The profile transition must finish with only the selected viewer's app interactive.")
     }
     private func openSwitcher() {
         app.buttons["More options"].tap()
         XCTAssertTrue(app.buttons["Switch profiles"].waitForExistence(timeout: 4))
         app.buttons["Switch profiles"].tap()
-        XCTAssertTrue(element("profile-chooser").waitForExistence(timeout: 6))
-        XCTAssertFalse(app.buttons["tab-home"].exists)
+        XCTAssertTrue(wait { self.element("profile-chooser").exists && !self.app.buttons["tab-home"].exists },
+            "Switching profiles must finish the transition and remove the previous root controls.")
     }
     private func openSettings() {
         app.buttons["More options"].tap()

@@ -123,6 +123,60 @@ final class CardInteractionFlowTests: XCTestCase {
         XCTAssertTrue(card.exists)
     }
 
+    func testSportsTeamHoldsKeepIndependentFollowActionsAndTapOpensExactTeam() {
+        app.buttons["tab-sports"].tap()
+        let nba = app.buttons["sports-league-option-nba"]
+        XCTAssertTrue(nba.waitForExistence(timeout: 8))
+        nba.tap()
+        let away = app.buttons["sports-card-team-nba:nba-fixture-100"]
+        let home = app.buttons["sports-card-team-nba:nba-fixture-200"]
+        XCTAssertTrue(away.waitForExistence(timeout: 8))
+        XCTAssertTrue(home.exists)
+        XCTAssertFalse(app.staticTexts["NBA League Pass"].exists, "NBA cards keep the watch actions clear of broadcast branding.")
+        XCTAssertGreaterThanOrEqual(away.frame.height, 44)
+        XCTAssertGreaterThanOrEqual(home.frame.height, 44)
+        let homeFrame = home.frame
+
+        away.press(forDuration: 1.2)
+        let followAway = app.buttons["Follow Boston Harbor"]
+        XCTAssertTrue(followAway.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Follow Toronto Towers"].exists, "The held team owns its actions.")
+        XCTAssertFalse(app.buttons["sports-team-roster-tab"].exists, "Holding must not also open a team page.")
+        capture("Only the held away team lifts into its own rounded preview")
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.1)).tap()
+        XCTAssertTrue(wait { !followAway.exists && away.isHittable && home.isHittable })
+        XCTAssertEqual(home.frame.minY, homeFrame.minY, accuracy: 2)
+        XCTAssertEqual(home.value as? String, "Not followed")
+        XCTAssertFalse(app.buttons["sports-team-roster-tab"].exists)
+
+        home.press(forDuration: 1.2)
+        let followHome = app.buttons["Follow Toronto Towers"]
+        XCTAssertTrue(followHome.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Follow Boston Harbor"].exists)
+        XCTAssertFalse(app.buttons["sports-team-roster-tab"].exists)
+        capture("Home team hold exposes only home team follow and view actions")
+        followHome.tap()
+        XCTAssertTrue(wait { home.value as? String == "Following" })
+        XCTAssertEqual(away.value as? String, "Not followed", "Following the home team must not follow its opponent.")
+
+        away.tap()
+        XCTAssertTrue(app.navigationBars["NBA · Team"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["sports-team-roster-tab"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts["Boston Harbor"].firstMatch.exists)
+        XCTAssertTrue(app.buttons["Follow team"].exists)
+        capture("A normal tap after cancelling a hold opens the exact away team")
+        app.navigationBars["NBA · Team"].buttons["Close"].tap()
+        XCTAssertTrue(wait { home.isHittable && !self.app.buttons["sports-team-roster-tab"].exists })
+        app.buttons["sports-followed-teams"].tap()
+        XCTAssertTrue(app.buttons["sports-followed-teams"].isSelected)
+        XCTAssertTrue(home.waitForExistence(timeout: 8), "The newly followed team's game belongs in Followed teams.")
+        home.press(forDuration: 1.2)
+        let unfollow = app.buttons["Unfollow Toronto Towers"]
+        XCTAssertTrue(unfollow.waitForExistence(timeout: 5))
+        unfollow.tap()
+        XCTAssertTrue(app.staticTexts["No followed teams playing"].waitForExistence(timeout: 8))
+    }
+
     private func element(_ identifier: String) -> XCUIElement {
         app.descendants(matching: .any).matching(identifier: identifier).firstMatch
     }
