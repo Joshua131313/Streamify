@@ -317,18 +317,23 @@ struct SportsScoringTable: View {
                     teamLabel(game.away, side: "Away", stripe: false)
                     teamLabel(game.home, side: "Home", stripe: true)
                 }
-                ScrollView(.horizontal, showsIndicators: true) {
-                    HStack(spacing: 0) {
-                        ForEach(Array(periods.enumerated()), id: \.element.id) { index, period in
-                            VStack(spacing: 0) {
-                                heading(periodTitle((period.period ?? index + 1) - 1))
-                                periodCell(period.away, team: game.away, stripe: false)
-                                periodCell(period.home, team: game.home, stripe: true)
-                            }.frame(width: periodWidth)
+                GeometryReader { geometry in
+                    ScrollView(.horizontal, showsIndicators: true) {
+                        HStack(spacing: 0) {
+                            ForEach(Array(periods.enumerated()), id: \.element.id) { index, period in
+                                VStack(spacing: 0) {
+                                    heading(periodTitle((period.period ?? index + 1) - 1))
+                                    periodCell(period.away, team: game.away, stripe: false)
+                                    periodCell(period.home, team: game.home, stripe: true)
+                                }.frame(width: max(periodWidth, geometry.size.width / CGFloat(max(1, periods.count))))
+                                    .accessibilityElement(children: .contain)
+                                    .accessibilityIdentifier("sports-scoring-period-\(index)")
+                            }
                         }
                     }
+                    .accessibilityLabel(game.league == .mlb ? "Inning scores" : game.league == .nhl ? "Period scores" : "Quarter scores")
+                    .accessibilityIdentifier("sports-scoring-periods")
                 }
-                .accessibilityLabel(game.league == .mlb ? "Inning scores" : game.league == .nhl ? "Period scores" : "Quarter scores")
                 VStack(spacing: 0) {
                     heading("TOTAL")
                     total(game.away, stripe: false)

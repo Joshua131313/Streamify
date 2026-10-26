@@ -95,6 +95,7 @@ jobs:
                 -only-testing:StreamifyTests/SportsWidgetPolicyTests
                 -only-testing:StreamifyUITests/ParityFlowTests/testBasketballPossessionIconSitsImmediatelyBeforeTheCorrectScoreForBothLeagues
                 -only-testing:StreamifyUITests/ParityFlowTests/testGameCenterWatchActionUsesACompactButtonWithAnAccessibleTapTarget
+                -only-testing:StreamifyUITests/ParityFlowTests/testFinalSportsScoringHighlightsTheActualWinner
                 -only-testing:StreamifyUITests/ParityFlowTests/testLivePregameFinalTabsKeepLeagueAndFutureDatePolicy
               )
               ;;

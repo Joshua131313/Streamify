@@ -695,6 +695,12 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertTrue(element("sports-scoring-total-200").label.contains("winner"))
         XCTAssertEqual(element("sports-scoring-total-200").value as? String, "105")
         XCTAssertFalse(element("sports-scoring-total-100").label.contains("winner"))
+        let columns = element("sports-scoring-periods")
+        let firstQuarter = element("sports-scoring-period-0"), lastQuarter = element("sports-scoring-period-3")
+        XCTAssertEqual(firstQuarter.frame.minX, columns.frame.minX, accuracy: 2)
+        XCTAssertEqual(lastQuarter.frame.maxX, columns.frame.maxX, accuracy: 2,
+            "Quarters must fill the space between the team and total columns.")
+        XCTAssertEqual(firstQuarter.frame.width, lastQuarter.frame.width, accuracy: 1)
         capture("36c Final scoring highlights the actual winner")
     }
 
