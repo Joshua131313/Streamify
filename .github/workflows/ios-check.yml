@@ -11,7 +11,7 @@ on:
         type: choice
         required: true
         default: full
-        options: [full, player-recheck, polish-recheck, sports-refinement, refinement-recheck, live-today-recheck, player-scene-recheck]
+        options: [full, player-recheck, polish-recheck, sports-refinement, refinement-recheck, live-today-recheck, player-scene-recheck, profile-activation-recheck]
 permissions:
   contents: read
 concurrency:
@@ -20,6 +20,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   device:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.scope != 'profile-activation-recheck' }}
     name: iPhone test package
     runs-on: macos-latest
     timeout-minutes: 20
@@ -50,7 +51,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.scope == 'player-scene-recheck' && '["scene-selector", "scene-restoration"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'live-today-recheck' && '["live-today-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'refinement-recheck' && '["profile-recheck", "game-center-recheck", "selector-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'sports-refinement' && '["sports-cards", "sports-player", "profiles-downloads"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'player-recheck' && '["player-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'polish-recheck' && '["polish-recheck"]' || '["playback", "controls", "screens"]') }}
+        suite: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.scope == 'profile-activation-recheck' && '["profile-activation-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'player-scene-recheck' && '["scene-selector", "scene-restoration"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'live-today-recheck' && '["live-today-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'refinement-recheck' && '["profile-recheck", "game-center-recheck", "selector-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'sports-refinement' && '["sports-cards", "sports-player", "profiles-downloads"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'player-recheck' && '["player-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'polish-recheck' && '["polish-recheck"]' || '["playback", "controls", "screens"]') }}
     steps:
       - uses: actions/checkout@v4
       - name: Generate Xcode project
@@ -88,6 +89,9 @@ jobs:
           xcodebuild build-for-testing "${COMMON[@]}"
           # Keep suite assignments explicit so each screen check runs once.
           case "$TEST_SUITE" in
+            profile-activation-recheck)
+              SELECTORS=(-only-testing:StreamifyUITests/ProfileFlowTests/testChooserSelectionAndSwitchingKeepActualSavedTitlesInTheirOwnProfile)
+              ;;
             scene-selector)
               SELECTORS=(
                 -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testGameAndStreamSelectorsSwitchIndependentlyAndKeepOnePlayer

@@ -187,15 +187,24 @@ final class ProfileFlowTests: XCTestCase {
         XCTAssertTrue(tile.waitForExistence(timeout: 6))
         reveal(tile)
         tile.tap()
-        XCTAssertTrue(wait { self.app.buttons["tab-home"].isHittable && !self.element("profile-chooser").exists },
-            "The profile transition must finish with only the selected viewer's app interactive.")
+        // Query each transition endpoint with XCTest's element waits. Wrapping
+        // the disappearing chooser query in another predicate can exhaust its
+        // deadline while XCTest retries an already-absent accessibility node.
+        XCTAssertTrue(element("profile-chooser").waitForNonExistence(timeout: 10),
+            "The chooser must disappear after selecting a profile.")
+        XCTAssertTrue(app.buttons["tab-home"].waitForExistence(timeout: 10),
+            "The selected viewer's root controls must exist.")
+        XCTAssertTrue(app.buttons["tab-home"].wait(for: \.isHittable, toEqual: true, timeout: 10),
+            "The selected viewer's app must become interactive.")
     }
     private func openSwitcher() {
         app.buttons["More options"].tap()
         XCTAssertTrue(app.buttons["Switch profiles"].waitForExistence(timeout: 4))
         app.buttons["Switch profiles"].tap()
-        XCTAssertTrue(wait { self.element("profile-chooser").exists && !self.app.buttons["tab-home"].exists },
-            "Switching profiles must finish the transition and remove the previous root controls.")
+        XCTAssertTrue(app.buttons["tab-home"].waitForNonExistence(timeout: 10),
+            "Switching profiles must remove the previous viewer's root controls.")
+        XCTAssertTrue(element("profile-chooser").waitForExistence(timeout: 10),
+            "Switching profiles must present the chooser.")
     }
     private func openSettings() {
         app.buttons["More options"].tap()
