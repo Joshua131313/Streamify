@@ -29,6 +29,9 @@ final class ProfileFlowTests: XCTestCase {
     }
 
     func testChooserSelectionAndSwitchingKeepActualSavedTitlesInTheirOwnProfile() {
+        // This complete two-viewer flow includes three Settings visits and a
+        // real catalog save. Keep its full assertions within the CI's 6m cap.
+        executionTimeAllowance = 360
         capture("Profiles first launch cinematic chooser")
         choose("My profile")
         openSettings()
