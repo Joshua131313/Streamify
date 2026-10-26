@@ -485,7 +485,10 @@ final class SportsPlaybackFlowTests: XCTestCase {
         watch.tap()
         let source = app.buttons["sports-player-source-picker"]
         XCTAssertTrue(source.waitForExistence(timeout: 10))
-        XCTAssertTrue(playbackDocument.waitForExistence(timeout: 10))
+        // A fresh simulator may need extra time to launch its first WebContent
+        // process. This wait is only initial setup; fullscreen still gets one tap
+        // and its normal deadlines, with no app reload or automatic retry.
+        XCTAssertTrue(playbackDocument.waitForExistence(timeout: 30))
         let alphaDocument = playbackDocument.label
         source.tap()
         XCTAssertTrue(app.buttons["sports-player-source-option-1"].waitForExistence(timeout: 5))
