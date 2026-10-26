@@ -17,6 +17,29 @@ struct SportsPlaybackWindowFocus {
     }
 }
 
+/// A manually hosted player window does not inherit the SwiftUI App scene's
+/// scenePhase. Observe its actual scene so live choices load on presentation
+/// and polling pauses while that scene is inactive or in the background.
+@MainActor
+private final class SportsPlaybackSceneActivity: ObservableObject {
+    @Published private(set) var isActive: Bool
+    private var observations = Set<AnyCancellable>()
+
+    init(scene: UIWindowScene) {
+        isActive = scene.activationState == .foregroundActive
+        NotificationCenter.default.publisher(for: UIScene.didActivateNotification, object: scene)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.isActive = true }.store(in: &observations)
+        for event in [UIScene.willDeactivateNotification, UIScene.didEnterBackgroundNotification, UIScene.didDisconnectNotification] {
+            NotificationCenter.default.publisher(for: event, object: scene)
+                .receive(on: RunLoop.main)
+                .sink { [weak self] _ in self?.isActive = false }.store(in: &observations)
+        }
+        // The overlay owns this observer. Closing the session removes its
+        // hosting controller, releasing these subscriptions and its task.
+    }
+}
+
 /// This window retains one full-size source while AVKit/WebKit owns system PiP.
 struct SportsPlaybackHost: UIViewRepresentable {
     let session: SportsPlaybackSession
@@ -66,7 +89,9 @@ struct SportsPlaybackHost: UIViewRepresentable {
                         return
                     }
                     if window.rootViewController == nil {
+                        guard let scene = window.windowScene else { return }
                         let controller = UIHostingController(rootView: SportsPlaybackOverlay(session: self.session,
+                            activity: SportsPlaybackSceneActivity(scene: scene),
                             sourceFrame: { [weak self, weak window] in
                                 guard let window else { return nil }
                                 return self?.session.origin?.frame(in: window)
@@ -130,16 +155,17 @@ private final class SportsPlaybackWindow: UIWindow {
 private struct SportsPlaybackOverlay: View {
     @ObservedObject var session: SportsPlaybackSession
     @ObservedObject private var pictureInPicture: SportsSystemPiP
+    @ObservedObject private var activity: SportsPlaybackSceneActivity
     @Environment(\.openURL) private var openURL
-    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let sourceFrame: () -> CGRect?
     @State private var drag = CGSize.zero
     @State private var returnFrame: CGRect?
     @State private var dismissing = false
     @State private var dismissalToken = UUID()
-    init(session: SportsPlaybackSession, sourceFrame: @escaping () -> CGRect?) {
+    init(session: SportsPlaybackSession, activity: SportsPlaybackSceneActivity, sourceFrame: @escaping () -> CGRect?) {
         self.session = session
+        self.activity = activity
         self.sourceFrame = sourceFrame
         _pictureInPicture = ObservedObject(wrappedValue: session.pictureInPicture)
     }
@@ -167,9 +193,9 @@ private struct SportsPlaybackOverlay: View {
         .onChange(of: session.item?.id) { _, _ in resetDismissal() }
         .onChange(of: session.item?.url) { _, _ in resetDismissal() }
         .onChange(of: session.presentation) { _, _ in resetDismissal() }
-        .onChange(of: scenePhase) { _, phase in if phase != .active { resetDismissal() } }
-        .task(id: "\(session.item?.id.uuidString ?? "")-\(scenePhase == .active)-\(session.isExpanded)") {
-            guard scenePhase == .active, session.isExpanded else { return }
+        .onChange(of: activity.isActive) { _, active in if !active { resetDismissal() } }
+        .task(id: "\(session.item?.id.uuidString ?? "")-\(activity.isActive)-\(session.isExpanded)") {
+            guard activity.isActive, session.isExpanded else { return }
             repeat {
                 await session.refreshLiveGames()
                 do { try await Task.sleep(for: .seconds(30)) } catch { return }
