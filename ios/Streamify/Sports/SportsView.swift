@@ -310,10 +310,14 @@ struct SportsView: View {
 
     private func statusTab(_ item: SportsFilter) -> some View {
         let selected = filter == item
-        let enabled = !channels && (item != .live || liveAvailable)
+        let enabled = !channels
         let title = item == .pregame && !liveAvailable ? "Upcoming" : item.rawValue
         return Button {
             guard daySwipeScope.permitsProtectedAction else { return }
+            if item == .live {
+                refreshCurrentDay()
+                selectDay(today)
+            }
             filter = item; home = false
         } label: {
             Text(title).font(.caption.weight(selected ? .semibold : .medium)).lineLimit(1)
@@ -323,7 +327,8 @@ struct SportsView: View {
                 .contentShape(Rectangle())
         }.buttonStyle(HapticPlainButtonStyle()).disabled(!enabled).opacity(enabled ? 1 : 0.4)
             .accessibilityLabel(item == .live ? "Live games" : title)
-            .accessibilityValue(item == .live && !liveAvailable ? "Unavailable for future dates" : selected ? "On" : "Off")
+            .accessibilityValue(selected ? "On" : "Off")
+            .accessibilityHint(item == .live && !liveAvailable ? "Show today’s live games." : "")
             .accessibilityAddTraits(selected ? .isSelected : [])
             .accessibilityIdentifier(item == .live ? "sports-quick-live" : "sports-filter-\(item.rawValue)")
             .sportsDaySwipeExcluded(daySwipeScope)

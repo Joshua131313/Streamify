@@ -11,7 +11,7 @@ on:
         type: choice
         required: true
         default: full
-        options: [full, player-recheck, polish-recheck, sports-refinement, refinement-recheck]
+        options: [full, player-recheck, polish-recheck, sports-refinement, refinement-recheck, live-today-recheck]
 permissions:
   contents: read
 concurrency:
@@ -50,7 +50,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.scope == 'refinement-recheck' && '["profile-recheck", "game-center-recheck", "selector-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'sports-refinement' && '["sports-cards", "sports-player", "profiles-downloads"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'player-recheck' && '["player-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'polish-recheck' && '["polish-recheck"]' || '["playback", "controls", "screens"]') }}
+        suite: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.scope == 'live-today-recheck' && '["live-today-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'refinement-recheck' && '["profile-recheck", "game-center-recheck", "selector-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'sports-refinement' && '["sports-cards", "sports-player", "profiles-downloads"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'player-recheck' && '["player-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'polish-recheck' && '["polish-recheck"]' || '["playback", "controls", "screens"]') }}
     steps:
       - uses: actions/checkout@v4
       - name: Generate Xcode project
@@ -88,6 +88,12 @@ jobs:
           xcodebuild build-for-testing "${COMMON[@]}"
           # Keep suite assignments explicit so each screen check runs once.
           case "$TEST_SUITE" in
+            live-today-recheck)
+              SELECTORS=(
+                -only-testing:StreamifyUITests/ParityFlowTests/testLivePregameFinalTabsKeepLeagueAndFutureDatePolicy
+                -only-testing:StreamifyUITests/ControlInteractionFlowTests/testSportsSearchReturnsToItsSelectedLeaguesAndFutureDate
+              )
+              ;;
             profile-recheck)
               SELECTORS=(-only-testing:StreamifyUITests/ProfileFlowTests)
               ;;

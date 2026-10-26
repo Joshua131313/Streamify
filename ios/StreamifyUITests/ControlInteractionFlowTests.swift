@@ -330,7 +330,8 @@ final class ControlInteractionFlowTests: XCTestCase {
         XCTAssertTrue(wait { date.isHittable && self.app.buttons["focus-sports-search"].isHittable })
         XCTAssertEqual(date.value as? String, selectedDate)
         XCTAssertEqual(leagues.value as? String, "NBA")
-        XCTAssertFalse(app.buttons["sports-quick-live"].isEnabled)
+        XCTAssertTrue(app.buttons["sports-quick-live"].isEnabled)
+        XCTAssertFalse(app.buttons["sports-quick-live"].isSelected)
         XCTAssertTrue(app.buttons["tab-sports"].isSelected)
         capture("Search cancel preserves selected leagues and future game date")
     }

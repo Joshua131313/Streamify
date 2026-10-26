@@ -383,6 +383,8 @@ final class ParityFlowTests: XCTestCase {
         let live = app.buttons["sports-quick-live"]
         let pregame = app.buttons["sports-filter-Pregame"]
         let finalTab = app.buttons["sports-filter-Final"]
+        let datePicker = app.buttons["sports-date-picker"]
+        let todayDescription = datePicker.value as? String
         XCTAssertTrue(live.isSelected)
         XCTAssertTrue(app.buttons["sports-game-nba:nba-fixture"].waitForExistence(timeout: 8))
         XCTAssertFalse(app.buttons["sports-game-nba:nba-final"].exists)
@@ -403,14 +405,14 @@ final class ParityFlowTests: XCTestCase {
         app.buttons["sports-date-picker"].tap()
         app.buttons["sports-date-offset-1"].tap()
         app.buttons["sports-calendar-done"].tap()
-        XCTAssertTrue(wait { !live.isEnabled && !live.isSelected && pregame.isSelected })
+        XCTAssertTrue(wait { live.isEnabled && !live.isSelected && pregame.isSelected })
         XCTAssertEqual(pregame.label, "Upcoming")
         XCTAssertEqual(app.buttons["sports-league-picker"].value as? String, "NBA")
         capture("Future date clears Live and opens Upcoming directly")
-        app.buttons["sports-date-picker"].tap()
-        app.navigationBars["Game calendar"].buttons["Today"].tap()
-        app.buttons["sports-calendar-done"].tap()
+        live.tap()
         XCTAssertTrue(wait { live.isEnabled && live.isSelected })
+        XCTAssertEqual(datePicker.value as? String, todayDescription)
+        XCTAssertEqual(app.buttons["sports-league-picker"].value as? String, "NBA")
         XCTAssertEqual(pregame.label, "Pregame")
         XCTAssertTrue(app.buttons["sports-game-nba:nba-fixture"].waitForExistence(timeout: 8))
         app.buttons["tab-search"].tap()
@@ -419,6 +421,18 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["sports-game-nba:nba-fixture"].exists)
         XCTAssertFalse(element("sports-schedule-loading").exists, "Returning to Sports should keep cached cards visible.")
         capture("Sports tab return retains Live league selection and visible cards")
+
+        let followed = app.buttons["sports-followed-teams"]
+        followed.tap()
+        datePicker.tap()
+        app.buttons["sports-date-offset-1"].tap()
+        app.buttons["sports-calendar-done"].tap()
+        XCTAssertTrue(wait { live.isEnabled && !live.isSelected && pregame.isSelected })
+        live.tap()
+        XCTAssertTrue(wait { live.isSelected && followed.isSelected })
+        XCTAssertEqual(datePicker.value as? String, todayDescription)
+        XCTAssertEqual(app.buttons["sports-league-picker"].value as? String, "Followed teams")
+        capture("Live returns future Followed teams to Today without resetting the scope")
     }
 
     func testCollegeFootballLeagueOpensItsGameAndAvailableStream() {
