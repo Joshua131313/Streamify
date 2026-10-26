@@ -160,6 +160,14 @@ StreamifyUITests       Screen/interaction checks and attached screenshots
 
 Sports fullscreen uses the embedded provider’s own control and real WebKit element fullscreen for recognized JW players, retaining its HTML controls. Streamify adds no separate fullscreen button. The player closes by downward card dismissal; the horizontal-swipe exit is removed. Native-video providers and system PiP retain their supported paths.
 
+In landscape, the sports video uses the entire canvas. Game/source selectors and utility controls overlay it through the options button instead of reserving top and bottom bars. Rotation retains the same provider document. Portrait retains its separate controls.
+
+Recently fetched sports schedules are retained per league, local date, timezone and backend, including known-empty results. Warm league/tab changes reuse them immediately without requesting the schedule again. Thirty-second score polling and explicit refresh can update stale cards in place. Switching the selected filter never clears a cached result first.
+
+Continue Watching and history try the poster if a backdrop fails, repair sparse catalog metadata, and preserve existing artwork when playback reports fewer fields. Artwork repair does not reset progress or change the last-watched time. Favorite genres use equal-width, equal-height cards in two columns, switching to one column at accessibility text sizes.
+
+Google sign-in uses the official Google Sign-In SDK and the existing Firebase account. Explicit email/Google sign-in opens Home after loading the account’s last-used profile. Normal cold launches retain the profile chooser. Local injected auth/profile backends exercise success and cancellation without creating production users or sending test credentials.
+
 Downloads group every catalog show into its own episode page, with season sections, cached artwork, progress rings and native swipe/context actions. Quality is an exact selection: an unavailable or incompatible 1080p file is never silently replaced with 480p. Retry resolves a fresh source; an expired catalog URL can renew automatically once, only if a different signed address is returned at the same quality. A refresh is not a second provider. No additional direct-file provider has been verified for FROM S1 E1.
 
 The offline seek preview follows the native thumb horizontally and matches Android’s 208×117 fit-center frame, 6pt corners, black 2pt border, separate transparent 24pt timestamp row, and a preferred 100pt bottom inset, raised when necessary to keep the timestamp above the actual iOS thumb.

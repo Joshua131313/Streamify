@@ -74,7 +74,7 @@ final class AccountCacheFlowTests: XCTestCase {
             if metric("failedImages") > 0 && metric("metadata") > 0 { break }
             app.swipeUp()
         }
-        XCTAssertTrue(wait { self.metric("failedImages") > 0 && self.metric("metadata") > 0 && self.metric("images") > 1 })
+        XCTAssertTrue(wait { self.metric("failedImages") > 0 && self.metric("metadata") > 0 && self.metric("fallback") > 0 })
         capture("Continue Watching poster fallback and metadata repair")
         app.buttons["tab-library"].tap()
         app.buttons["History · 2"].tap()
@@ -84,6 +84,8 @@ final class AccountCacheFlowTests: XCTestCase {
     private func launch(_ extra: [String]) {
         app = XCUIApplication(); app.launchArguments = ["--ui-fixtures"] + extra; app.launch()
         XCTAssertTrue(app.buttons["tab-home"].waitForExistence(timeout: 15))
+        let pause = app.buttons["hero-carousel-pause"]
+        if pause.waitForExistence(timeout: 5), pause.label == "Pause carousel" { pause.tap() }
     }
     private func openAccount() {
         app.buttons["tab-library"].tap(); app.buttons["More options"].tap()

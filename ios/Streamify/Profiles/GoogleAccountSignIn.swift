@@ -19,7 +19,9 @@ import GoogleSignIn
             return GoogleAuthProvider.credential(withIDToken: token, accessToken: result.user.accessToken.tokenString)
         } catch {
             let native = error as NSError
-            if native.domain == kGIDSignInErrorDomain, native.code == GIDSignInErrorCode.canceled.rawValue { throw CancellationError() }
+            // Google Sign-In defines user cancellation as -5 in this domain.
+            // Its NS_ERROR_ENUM name is imported differently by newer SDKs.
+            if native.domain == kGIDSignInErrorDomain, native.code == -5 { throw CancellationError() }
             throw error
         }
     }

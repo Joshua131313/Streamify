@@ -86,6 +86,34 @@ final class SportsPlaybackFlowTests: XCTestCase {
         closeAndVerifySportsDoesNotReopen(source)
     }
 
+    func testLandscapeVideoFillsCanvasAndRotationKeepsTheSameStreamDocument() {
+        let source = openSportsPlayerOnBravo()
+        let selectedSource = source.value as? String
+        let document = playbackDocument.label
+        let video = element("sports-video-surface")
+        XCTAssertTrue(video.exists)
+        XCUIDevice.shared.orientation = .landscapeLeft
+        XCTAssertTrue(wait { self.app.frame.width > self.app.frame.height && video.frame.width > video.frame.height })
+        XCTAssertGreaterThanOrEqual(video.frame.height, app.frame.height - 3,
+            "Landscape must not reserve header/footer space and shrink the actual video viewport.")
+        XCTAssertGreaterThanOrEqual(video.frame.width, app.frame.width - 3)
+        XCTAssertEqual(playbackDocument.label, document, "Rotation must retain the provider document, not reload playback.")
+        let options = app.buttons["sports-landscape-options"]
+        XCTAssertTrue(options.isHittable)
+        capture("Sports landscape video fills the canvas without portrait bars")
+        options.tap()
+        XCTAssertTrue(source.wait(for: \.isHittable, toEqual: true, timeout: 5))
+        XCTAssertEqual(source.value as? String, selectedSource)
+        XCTAssertGreaterThanOrEqual(video.frame.height, app.frame.height - 3, "Overlay controls must not reduce the video frame.")
+        capture("Sports landscape selectors overlay the retained full size video")
+        XCUIDevice.shared.orientation = .portrait
+        XCTAssertTrue(wait { self.app.frame.height > self.app.frame.width && source.isHittable })
+        XCTAssertLessThan(video.frame.height, app.frame.height - 100)
+        XCTAssertEqual(playbackDocument.label, document)
+        XCTAssertEqual(source.value as? String, selectedSource)
+        capture("Sports portrait rotation restores controls and the same stream")
+    }
+
     func testSportsFullscreenUsesTheProvidersOwnControlAndKeepsItsDocument() {
         let source = openSportsPlayerOnBravo()
         let selectedDocument = playbackDocument.label

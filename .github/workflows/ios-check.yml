@@ -99,12 +99,15 @@ jobs:
               ;;
             cache-artwork)
               SELECTORS=(
+                -only-testing:StreamifyTests/SportsPlayerLayoutTests
                 -only-testing:StreamifyTests/SportsScheduleCacheTests
                 -only-testing:StreamifyTests/HistoryArtworkTests
                 -only-testing:StreamifyTests/MediaDownloadResolverTests
                 -only-testing:StreamifyTests/ResponseMemoryCacheTests
                 -only-testing:StreamifyUITests/AccountCacheFlowTests/testLeagueRoundTripsReuseNetworkResultsAndNeverEnterLoadingAgain
                 -only-testing:StreamifyUITests/AccountCacheFlowTests/testContinueWatchingRepairsMissingMetadataAndRetriesFailedBackdrop
+                -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testLandscapeVideoFillsCanvasAndRotationKeepsTheSameStreamDocument
+                -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testSportsFullscreenUsesTheProvidersOwnControlAndKeepsItsDocument
               )
               ;;
             profile-picker-recheck)

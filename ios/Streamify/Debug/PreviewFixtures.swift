@@ -33,7 +33,7 @@ enum PreviewFixtures {
         guard enabled, !seeded else { return }
         seeded = true
         if ProcessInfo.processInfo.arguments.contains("--ui-artwork-repair") {
-            var brokenMovie = movie; brokenMovie.backdropPath = "/fixture-missing.jpg"
+            var brokenMovie = movie; brokenMovie.backdropPath = "/fixture-missing.jpg"; brokenMovie.posterPath = "/fixture-history-fallback.jpg"
             var sparseShow = show; sparseShow.backdropPath = ""; sparseShow.posterPath = "null"
             store.record(brokenMovie, positionSeconds: 900, durationSeconds: 7200)
             store.record(sparseShow, season: 1, episode: 1, positionSeconds: 300, durationSeconds: 2700)

@@ -17,6 +17,20 @@ struct SportsPlaybackWindowFocus {
     }
 }
 
+/// Landscape chrome overlays the video. Reserving portrait bars in a short
+/// landscape viewport letterboxes an already aspect-fitted provider twice.
+struct SportsPlayerVideoLayout {
+    let size: CGSize
+    let safeArea: UIEdgeInsets
+    var isLandscape: Bool { size.width > size.height }
+    var headerHeight: CGFloat { (isLandscape ? 60 : 108) + safeArea.top }
+    var footerHeight: CGFloat { 54 + safeArea.bottom }
+    var videoFrame: CGRect {
+        CGRect(x: 0, y: isLandscape ? 0 : headerHeight, width: size.width,
+               height: isLandscape ? size.height : max(0, size.height - headerHeight - footerHeight))
+    }
+}
+
 /// A manually hosted player window does not inherit the SwiftUI App scene's
 /// scenePhase. Observe its actual scene so live choices load on presentation
 /// and polling pauses while that scene is inactive or in the background.
@@ -163,6 +177,7 @@ private struct SportsPlaybackOverlay: View {
     @State private var returnFrame: CGRect?
     @State private var dismissing = false
     @State private var dismissalToken = UUID()
+    @State private var landscapeControlsVisible = false
     init(session: SportsPlaybackSession, activity: SportsPlaybackSceneActivity, sourceFrame: @escaping () -> CGRect?) {
         self.session = session
         self.activity = activity
@@ -187,7 +202,7 @@ private struct SportsPlaybackOverlay: View {
                 .frame(width: geometry.size.width, height: geometry.size.height)
                 .accessibilityElement(children: .contain).accessibilityIdentifier("sports-player")
                 .accessibilityValue("\(item.title), \(session.sourceTitle)")
-                .onChange(of: geometry.size) { _, _ in resetDismissal() }
+                .onChange(of: geometry.size) { _, _ in resetDismissal(); landscapeControlsVisible = false }
             }
         }.ignoresSafeArea().preferredColorScheme(.dark).foregroundStyle(.white).tint(.white)
         .onChange(of: session.item?.id) { _, _ in resetDismissal() }
@@ -244,12 +259,15 @@ private struct SportsPlaybackOverlay: View {
         withTransaction(transaction) { drag = .zero; returnFrame = nil; dismissing = false }
     }
     private func playerCanvas(_ item: SportsPlaybackItem, size: CGSize) -> some View {
-        VStack(spacing: 0) {
-            header(item, landscape: size.width > size.height).padding(.top, session.safeAreaInsets.top)
-                .frame(height: (size.width > size.height ? 60 : 108) + session.safeAreaInsets.top)
+        let layout = SportsPlayerVideoLayout(size: size, safeArea: session.safeAreaInsets)
+        let controlsVisible = !layout.isLandscape || landscapeControlsVisible
+        return ZStack(alignment: .topLeading) {
             ProviderPlaybackSurface(url: item.url, reload: session.reload, direct: session.direct,
                 preservePlaybackOnBackground: true, preferProviderControlsFullscreen: true, systemPiP: pictureInPicture)
                 .id(item.id)
+                .frame(width: layout.videoFrame.width, height: layout.videoFrame.height)
+                .accessibilityElement(children: .contain).accessibilityIdentifier("sports-video-surface")
+                .position(x: layout.videoFrame.midX, y: layout.videoFrame.midY)
                 .sportsPlayerSwipeDownToDismiss(enabled: session.isExpanded && !dismissing,
                     onChanged: { translation in
                         if drag == .zero { returnFrame = sourceFrame() }
@@ -261,8 +279,31 @@ private struct SportsPlaybackOverlay: View {
                             withAnimation(reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.85)) { drag = .zero }
                         }
                     })
-            footer(item).padding(.bottom, session.safeAreaInsets.bottom)
-                .frame(height: 54 + session.safeAreaInsets.bottom)
+            VStack(spacing: 0) {
+                header(item, landscape: layout.isLandscape)
+                    .padding(.trailing, layout.isLandscape ? 48 : 0)
+                    .padding(.top, session.safeAreaInsets.top).frame(height: layout.headerHeight)
+                    .background(.black.opacity(layout.isLandscape ? 0.65 : 1))
+                Spacer(minLength: 0)
+                footer(item).padding(.bottom, session.safeAreaInsets.bottom).frame(height: layout.footerHeight)
+                    .background(.black.opacity(layout.isLandscape ? 0.65 : 1))
+            }
+            .opacity(controlsVisible ? 1 : 0).allowsHitTesting(controlsVisible).accessibilityHidden(!controlsVisible)
+            if layout.isLandscape {
+                HStack {
+                    Spacer()
+                    Button {
+                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) { landscapeControlsVisible.toggle() }
+                    } label: {
+                        Image(systemName: landscapeControlsVisible ? "chevron.up" : "ellipsis")
+                            .font(.system(size: 17, weight: .semibold)).frame(width: 44, height: 44)
+                            .background(.ultraThinMaterial, in: Circle())
+                    }.buttonStyle(HapticPlainButtonStyle())
+                        .accessibilityLabel(landscapeControlsVisible ? "Hide player options" : "Show player options")
+                        .accessibilityIdentifier("sports-landscape-options")
+                }.padding(.trailing, max(12, session.safeAreaInsets.right))
+                    .padding(.top, session.safeAreaInsets.top + 6)
+            }
         }
         .background(.black)
     }
