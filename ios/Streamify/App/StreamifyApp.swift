@@ -18,6 +18,10 @@ struct StreamifyApp: App {
         let profileStore = ProfileStore(defaults: PreviewFixtures.enabled ? PreviewFixtures.defaults : .standard,
             chooseOnLaunch: !PreviewFixtures.enabled || ProcessInfo.processInfo.arguments.contains("--ui-profile-chooser"))
         if PreviewFixtures.enabled { PreviewFixtures.seedLibrary(profileStore.library) }
+        if PreviewFixtures.enabled && ProcessInfo.processInfo.arguments.contains("--ui-profile-quick-switch") {
+            profileStore.settings.appearance = "Light"
+            try? profileStore.add(name: "Alex", avatar: .ocean)
+        }
         _profiles = StateObject(wrappedValue: profileStore)
         if PreviewFixtures.enabled {
             let arguments = ProcessInfo.processInfo.arguments
@@ -63,49 +67,132 @@ private struct ProfileAppGate: View {
     @EnvironmentObject private var account: AccountSession
     @EnvironmentObject private var sportsPlayback: SportsPlaybackSession
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @State private var hasEnteredApp = false
+    @State private var showsChooser = true
+    @State private var rootDimmed = false
+    @State private var changingProfile = false
+    @State private var initialized = false
+    @State private var chooserReset = 0
 
     private var isLoadingProfiles: Bool {
         !account.isResolved || profiles.ownerUID != account.identity?.uid || !profiles.canEditProfiles
     }
-    private var profileTransition: AnyTransition {
-        reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 1.025))
+    private var handoffAnimation: Animation {
+        .easeInOut(duration: reduceMotion ? 0.18 : 0.42)
     }
 
     var body: some View {
         ZStack {
             AppTheme.canvas.ignoresSafeArea()
             Group {
-                if !isLoadingProfiles && !profiles.requiresSelection {
-                    RootView().id(profiles.contextID)
+                if !isLoadingProfiles && (hasEnteredApp || !profiles.requiresSelection) {
+                    RootView(onSelectProfile: selectProfile).id(profiles.contextID)
+                        .environment(\.scenePhase, profiles.requiresSelection || showsChooser || changingProfile ? .inactive : scenePhase)
                         .onAppear { hasEnteredApp = true }
-                        .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.985)))
+                        .opacity(showsChooser || rootDimmed ? 0 : 1)
+                        .scaleEffect(!reduceMotion && (showsChooser || rootDimmed) ? 0.985 : 1)
                 }
             }
-            .allowsHitTesting(!isLoadingProfiles && !profiles.requiresSelection)
-            .accessibilityHidden(isLoadingProfiles || profiles.requiresSelection)
+            .allowsHitTesting(!isLoadingProfiles && !profiles.requiresSelection && !showsChooser && !changingProfile)
+            .accessibilityHidden(isLoadingProfiles || profiles.requiresSelection || showsChooser || changingProfile)
             .zIndex(0)
             Group {
-                if !isLoadingProfiles && profiles.requiresSelection {
+                if !isLoadingProfiles {
                     ProfileChooserView(isSwitching: hasEnteredApp,
-                        onCancel: hasEnteredApp ? { profiles.cancelSwitch() } : nil)
-                        .transition(profileTransition)
+                        onCancel: hasEnteredApp ? { profiles.cancelSwitch() } : nil,
+                        onSelect: selectProfile, resetToken: chooserReset)
+                        .opacity(showsChooser ? 1 : 0)
+                        .scaleEffect(!reduceMotion && !showsChooser ? 1.025 : 1)
                 }
             }
-            .allowsHitTesting(!isLoadingProfiles && profiles.requiresSelection)
-            .accessibilityHidden(isLoadingProfiles || !profiles.requiresSelection)
+            .allowsHitTesting(!isLoadingProfiles && profiles.requiresSelection && showsChooser && !changingProfile)
+            .accessibilityHidden(isLoadingProfiles || !profiles.requiresSelection || !showsChooser || changingProfile)
             .zIndex(1)
             if isLoadingProfiles {
                 loadingProfiles
                     .zIndex(2)
             }
         }
-        .animation(isLoadingProfiles ? nil : .easeInOut(duration: reduceMotion ? 0.12 : 0.3), value: profiles.requiresSelection)
-        .preferredColorScheme(profiles.requiresSelection ? .dark : settings.appearance == "System" ? nil : settings.appearance == "Light" ? .light : .dark)
+        .preferredColorScheme(showsChooser ? .dark : settings.appearance == "System" ? nil : settings.appearance == "Light" ? .light : .dark)
         .task(id: account.identity?.uid) { await profiles.setAccount(account.identity) }
-        .onChange(of: profiles.requiresSelection) { _, choosing in
+        .onChange(of: profiles.requiresSelection, initial: true) { _, choosing in
             if choosing { sportsPlayback.close() }
+            guard initialized else {
+                initialized = true
+                showsChooser = choosing
+                return
+            }
+            guard !changingProfile else { return }
+            changingProfile = true
+            withAnimation(handoffAnimation, completionCriteria: .logicallyComplete) {
+                showsChooser = choosing
+            } completion: { finishProfileTransition() }
         }
+    }
+
+    private func selectProfile(_ id: UUID) {
+        guard !changingProfile, profiles.canEditProfiles,
+              profiles.profiles.contains(where: { $0.id == id }) else { return }
+        changingProfile = true
+        sportsPlayback.close()
+        if showsChooser {
+            // Mount the selected viewer's root behind the still-visible chooser
+            // before fading. Replacing its identity during the fade cuts it short.
+            profiles.select(id)
+            let context = profiles.contextID
+            Task { @MainActor in
+                await Task.yield()
+                guard profiles.contextID == context, !profiles.requiresSelection else {
+                    finishProfileTransition()
+                    return
+                }
+                withAnimation(handoffAnimation, completionCriteria: .logicallyComplete) {
+                    showsChooser = false
+                } completion: { finishProfileTransition() }
+            }
+        } else {
+            // A quick switch has no full chooser. Fade out the old viewer before
+            // changing its stores/theme, then reveal the new root as one surface.
+            let owner = profiles.ownerUID
+            withAnimation(.easeOut(duration: reduceMotion ? 0.12 : 0.18), completionCriteria: .logicallyComplete) {
+                rootDimmed = true
+            } completion: {
+                guard profiles.ownerUID == owner, profiles.canEditProfiles,
+                      profiles.profiles.contains(where: { $0.id == id }) else {
+                    finishProfileTransition()
+                    return
+                }
+                profiles.select(id)
+                let context = profiles.contextID
+                Task { @MainActor in
+                    await Task.yield()
+                    guard profiles.ownerUID == owner, profiles.contextID == context,
+                          !profiles.requiresSelection else {
+                        finishProfileTransition()
+                        return
+                    }
+                    withAnimation(handoffAnimation, completionCriteria: .logicallyComplete) {
+                        rootDimmed = false
+                    } completion: { finishProfileTransition() }
+                }
+            }
+        }
+    }
+
+    private func finishProfileTransition() {
+        rootDimmed = false
+        // Account restoration, sign-out or deletion can request the chooser
+        // during a handoff. Reconcile to the store before unlocking either UI.
+        let choosing = profiles.requiresSelection
+        guard showsChooser == choosing else {
+            withAnimation(handoffAnimation, completionCriteria: .logicallyComplete) {
+                showsChooser = choosing
+            } completion: { finishProfileTransition() }
+            return
+        }
+        changingProfile = false
+        if !choosing { chooserReset += 1 }
     }
 
     private var loadingProfiles: some View {
@@ -140,6 +227,7 @@ enum AppTab: String, CaseIterable {
 }
 
 struct RootView: View {
+    let onSelectProfile: (UUID) -> Void
     private enum LibraryDestination: Hashable { case downloads }
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var profiles: ProfileStore
@@ -200,7 +288,7 @@ struct RootView: View {
             // height reserves the same space without giving a carousel's
             // native view a hit region underneath these navigation buttons.
             if !keyboardVisible && visibleRootPages.contains(tab) && (tab != .library || libraryPath.isEmpty) {
-                FloatingNavigation(selection: rootSelection)
+                FloatingNavigation(selection: rootSelection, onSelectProfile: onSelectProfile)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -362,76 +450,5 @@ struct RootView: View {
         .font(.system(size: 23)).buttonStyle(HapticPlainButtonStyle()).foregroundStyle(AppTheme.foreground)
         .padding(.leading, 16).padding(.trailing, 8).frame(height: 60)
         .background(AppTheme.rootTopTint.ignoresSafeArea(edges: .top))
-    }
-}
-
-private struct FloatingNavigation: View {
-    @Binding var selection: AppTab
-    @EnvironmentObject private var profiles: ProfileStore
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.colorScheme) private var colorScheme
-    @Namespace private var selectedTabAnimation
-    @State private var selectionFeedback = 0
-    @ScaledMetric(relativeTo: .caption2) private var labelSize: CGFloat = 9.5
-
-    private var selectionAnimation: Animation? {
-        reduceMotion ? nil : .spring(response: 0.38, dampingFraction: 0.82)
-    }
-
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(AppTab.allCases, id: \.self) { tab in
-                let selected = tab == selection
-                Button {
-                    guard !selected else { return }
-                    selectionFeedback += 1
-                    selection = tab
-                } label: {
-                    VStack(spacing: 1) {
-                        ZStack {
-                            if tab == .library {
-                                ProfileAvatarView(avatar: profiles.activeProfile?.avatar ?? .crimson, size: 23)
-                            } else {
-                                Image(systemName: tab.symbol)
-                                    .font(.system(size: 21, weight: .light))
-                                    .foregroundStyle(AppTheme.foreground.opacity(selected ? 1 : 0.55))
-                            }
-                        }
-                        .frame(width: 24, height: 24)
-                        .scaleEffect(selected && !reduceMotion ? 1.06 : 1)
-                        .accessibilityHidden(true)
-                        Text(tab.title).font(.system(size: labelSize, weight: selected ? .semibold : .medium))
-                            .foregroundStyle(AppTheme.foreground.opacity(selected ? 1 : 0.55))
-                            .lineLimit(1).minimumScaleFactor(0.8)
-                            .scaleEffect(selected && !reduceMotion ? 1.02 : 1)
-                    }
-                    .frame(maxWidth: .infinity).frame(minHeight: 50)
-                    .background {
-                        if selected {
-                            Capsule().fill(AppTheme.foreground.opacity(colorScheme == .dark ? 0.12 : 0.08))
-                                .overlay { Capsule().strokeBorder(AppTheme.foreground.opacity(0.06), lineWidth: 0.5) }
-                                .matchedGeometryEffect(id: "selected-tab", in: selectedTabAnimation)
-                                .padding(.horizontal, 2)
-                        }
-                    }
-                    .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(tab.title)
-                .accessibilityValue(tab == .library ? "Profile: \(profiles.activeProfile?.name ?? "My profile"), \(profiles.activeProfile?.avatar.title ?? "Crimson") avatar" : "")
-                .accessibilityAddTraits(selected ? [.isSelected] : [])
-                .accessibilityIdentifier("tab-\(tab.rawValue)")
-            }
-        }
-        .padding(3).frame(maxWidth: 400)
-        .background {
-            Capsule().fill(.ultraThinMaterial)
-                .overlay { Capsule().fill(AppTheme.canvas.opacity(colorScheme == .dark ? 0.3 : 0.55)) }
-        }
-        .overlay { Capsule().strokeBorder(AppTheme.foreground.opacity(colorScheme == .dark ? 0.14 : 0.1), lineWidth: 0.7) }
-        .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 12, y: 5)
-        .animation(selectionAnimation, value: selection)
-        .sensoryFeedback(.selection, trigger: selectionFeedback)
-        .padding(.horizontal, 50).padding(.top, 4)
     }
 }

@@ -6,6 +6,8 @@ import SwiftUI
 struct ProfileChooserView: View {
     var isSwitching = false
     var onCancel: (() -> Void)? = nil
+    var onSelect: ((UUID) -> Void)? = nil
+    var resetToken = 0
     @EnvironmentObject private var store: ProfileStore
     @EnvironmentObject private var settings: SettingsStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -36,7 +38,7 @@ struct ProfileChooserView: View {
             }
         }
         .foregroundStyle(.white)
-        .preferredColorScheme(.dark)
+        .environment(\.colorScheme, .dark)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("profile-chooser")
         .sheet(item: $editor) { target in
@@ -45,6 +47,11 @@ struct ProfileChooserView: View {
                 .preferredColorScheme(.dark)
         }
         .task(id: settings.tmdbToken) { await loadArtwork() }
+        .onChange(of: resetToken) { _, _ in
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) { editing = false; editor = nil }
+        }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: editing)
         .animation(.easeInOut(duration: reduceMotion ? 0.12 : 0.24), value: store.profiles)
     }
@@ -131,7 +138,7 @@ struct ProfileChooserView: View {
                 ProfileChoiceTile(profile: profile, size: avatarSize, editing: editing,
                     selected: store.activeProfile?.id == profile.id) {
                     if editing { editor = ProfileEditorTarget(profile: profile) }
-                    else { store.select(profile.id) }
+                    else { if let onSelect { onSelect(profile.id) } else { store.select(profile.id) } }
                 }
             }
             if store.profiles.count < 5 {
