@@ -346,7 +346,6 @@ private struct SportsPlaybackOverlay: View {
             }.frame(maxWidth: .infinity, alignment: .leading)
             Image(systemName: "chevron.down").font(.caption.weight(.semibold))
         }.padding(.horizontal, 12).frame(maxWidth: .infinity, minHeight: 44)
-            .background(.white.opacity(0.09), in: RoundedRectangle(cornerRadius: 12))
             .contentShape(RoundedRectangle(cornerRadius: 12))
     }
 

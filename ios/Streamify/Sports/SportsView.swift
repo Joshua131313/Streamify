@@ -701,9 +701,6 @@ struct SportsGameCard: View {
             }
             SportsLiveSituationView(game: game)
             HStack(spacing: 10) {
-                if game.league != .nba && !game.broadcasts.isEmpty {
-                    Text(game.broadcasts).font(.caption2).foregroundStyle(AppTheme.muted).lineLimit(1)
-                }
                 Spacer(minLength: 2)
                 Button {
                     guard daySwipeScope?.permitsProtectedAction != false else { return }
@@ -713,8 +710,11 @@ struct SportsGameCard: View {
                     HStack(spacing: 7) {
                         Text("Gamecast")
                         Image(systemName: "chevron.right").font(.system(size: 9, weight: .medium))
-                    }.frame(minHeight: 44).contentShape(Rectangle())
-                }.buttonStyle(.plain).foregroundStyle(AppTheme.muted).accessibilityLabel("Game Center")
+                    }.padding(.horizontal, 12).frame(height: 36)
+                        .background(AppTheme.foreground.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
+                        .overlay { RoundedRectangle(cornerRadius: 10).strokeBorder(AppTheme.border, lineWidth: 0.7) }
+                        .frame(minHeight: 44).contentShape(Rectangle())
+                }.buttonStyle(.plain).foregroundStyle(AppTheme.foreground).accessibilityLabel("Game Center")
                     .sportsDaySwipeExcluded(daySwipeScope)
                 if game.canWatch {
                     Button {
@@ -724,10 +724,9 @@ struct SportsGameCard: View {
                     } label: {
                         HStack(spacing: 7) {
                             Text("Watch")
-                            Spacer(minLength: 7)
                             if watchLoading { ProgressView().controlSize(.small).tint(AppTheme.canvas) }
                             else { Image(systemName: "play.fill").font(.system(size: 11)) }
-                        }.padding(.horizontal, 12).frame(width: 100, height: 36)
+                        }.padding(.horizontal, 12).frame(height: 36)
                             .foregroundStyle(AppTheme.canvas).background(AppTheme.foreground, in: RoundedRectangle(cornerRadius: 10))
                             .frame(minHeight: 44).contentShape(Rectangle())
                     }.buttonStyle(.plain).disabled(watchLoading)
@@ -810,7 +809,7 @@ struct SportsGameCard: View {
             Button("View team", systemImage: "person.3") { openTeam(team) }
                 .accessibilityIdentifier("sports-card-open-team-\(game.id)-\(team.id)")
         } preview: {
-            matchTeam(team).padding(.horizontal, 12).padding(.vertical, 5).frame(width: 320)
+            matchTeam(team, preview: true).padding(.horizontal, 12).padding(.vertical, 5).frame(width: 320)
                 .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 10))
                 .foregroundStyle(AppTheme.foreground)
         }
@@ -837,14 +836,14 @@ struct SportsGameCard: View {
         return game.status
     }
 
-    private func matchTeam(_ team: SportsTeam) -> some View {
+    private func matchTeam(_ team: SportsTeam, preview: Bool = false) -> some View {
         HStack(spacing: 7) {
             RemoteArtwork(url: team.logoURL, contentMode: .fit).frame(width: 25, height: 25)
             Text(team.name.isEmpty ? team.abbreviation : team.name)
-                .font(.system(size: 14, weight: .semibold)).lineLimit(1)
-                .foregroundStyle(game.winner != nil && game.winner?.id != team.id ? AppTheme.muted : AppTheme.foreground)
+                .font(.system(size: 14, weight: .semibold)).lineLimit(preview ? 2 : 1)
+                .foregroundStyle(!preview && game.winner != nil && game.winner?.id != team.id ? AppTheme.muted : AppTheme.foreground)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            if game.state != "pre" { score(team) }
+            if !preview && game.state != "pre" { score(team) }
         }.frame(minHeight: 44)
     }
 
