@@ -108,7 +108,7 @@ jobs:
               SELECTORS=(-only-testing:StreamifyUITests/SportsPlaybackFlowTests/testProviderNativeVideoFullscreenPresentsAboveTheSportsWindowAndKeepsItsSource)
               ;;
             profile-activation-recheck)
-              SELECTORS=(-only-testing:StreamifyUITests/ProfileFlowTests/testChooserSelectionAndSwitchingKeepActualSavedTitlesInTheirOwnProfile)
+              SELECTORS=(-only-testing:StreamifyUITests/QuickProfileFlowTests)
               ;;
             scene-selector)
               SELECTORS=(

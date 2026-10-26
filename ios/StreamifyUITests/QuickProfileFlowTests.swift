@@ -37,7 +37,7 @@ final class QuickProfileFlowTests: XCTestCase {
         library.press(forDuration: 1)
         let picker = element("quick-profile-picker")
         XCTAssertTrue(picker.waitForExistence(timeout: 5))
-        XCTAssertFalse(element("profile-chooser").exists, "A hold must open the compact anchored picker.")
+        assertFullChooserInactive()
         XCTAssertLessThanOrEqual(picker.frame.maxY, anchor.minY + 4, "The profile choices must appear directly above My list.")
         XCTAssertLessThan(picker.frame.height, app.frame.height * 0.6, "The picker must remain compact, not adapt to a sheet.")
         XCTAssertEqual(quickProfile("My profile").value as? String, "Current profile")
@@ -86,8 +86,8 @@ final class QuickProfileFlowTests: XCTestCase {
         app.buttons["profile-manage"].tap()
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label == 'Edit My profile'")).firstMatch.waitForExistence(timeout: 5))
         app.buttons["profile-switch-cancel"].tap()
-        XCTAssertTrue(element("profile-chooser").waitForNonExistence(timeout: 5))
         XCTAssertTrue(app.buttons["tab-sports"].wait(for: \.isHittable, toEqual: true, timeout: 5))
+        assertFullChooserInactive()
         XCTAssertTrue(app.buttons["tab-sports"].isSelected, "Cancelling returns to the original tab and viewer.")
 
         openFullChooser()
@@ -105,15 +105,18 @@ final class QuickProfileFlowTests: XCTestCase {
         app.buttons["More options"].tap()
         XCTAssertTrue(app.buttons["Switch profiles"].waitForExistence(timeout: 5))
         app.buttons["Switch profiles"].tap()
-        XCTAssertTrue(app.buttons["tab-home"].waitForNonExistence(timeout: 5))
         XCTAssertTrue(element("profile-chooser").waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["profile-manage"].wait(for: \.isHittable, toEqual: true, timeout: 5))
+        for tab in ["home", "sports", "search", "library"] {
+            XCTAssertFalse(app.buttons["tab-\(tab)"].isHittable, "The retained root must not accept input under the full chooser.")
+        }
         XCTAssertFalse(element("quick-profile-picker").exists)
     }
 
     private func assertRoot(profile: String, avatar: String) {
         XCTAssertTrue(element("quick-profile-picker").waitForNonExistence(timeout: 5))
-        XCTAssertTrue(element("profile-chooser").waitForNonExistence(timeout: 5))
         XCTAssertTrue(app.buttons["tab-home"].wait(for: \.isHittable, toEqual: true, timeout: 8))
+        assertFullChooserInactive()
         XCTAssertEqual(app.buttons["tab-library"].value as? String, "Profile: \(profile), \(avatar) avatar")
         pauseCarousel()
     }
@@ -122,6 +125,16 @@ final class QuickProfileFlowTests: XCTestCase {
         let pause = app.buttons["hero-carousel-pause"]
         XCTAssertTrue(pause.waitForExistence(timeout: 10))
         if pause.label == "Pause carousel" { pause.tap() }
+    }
+
+    private func assertFullChooserInactive() {
+        // The gate retains the cinematic surface for its next crossfade. Its
+        // container may remain in XCTest's tree, but none of its actions may
+        // receive a tap while the app or the compact picker is active.
+        let actions = app.buttons.matching(NSPredicate(format:
+            "identifier BEGINSWITH 'profile-tile-' OR identifier IN {'profile-manage', 'profile-add', 'profile-switch-cancel'}"))
+            .allElementsBoundByIndex
+        XCTAssertTrue(actions.allSatisfy { !$0.isHittable }, "The hidden full chooser must not expose interactive profile controls.")
     }
 
     private func assertAppearance(_ name: String) {
