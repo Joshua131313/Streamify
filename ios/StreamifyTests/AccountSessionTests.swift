@@ -3,6 +3,35 @@ import XCTest
 @testable import Streamify
 
 @MainActor final class AccountSessionTests: XCTestCase {
+    func testOnlyExplicitSuccessfulSignInRequestsHomeAndCancellationKeepsGuest() async {
+        let client = AccountClientFake()
+        client.currentIdentity = AccountIdentity(uid: "restored-account", email: nil)
+        let session = AccountSession(client: client)
+        XCTAssertNil(session.homeIntent, "Restoring an account on cold launch still uses the profile chooser.")
+        await session.signOut()
+        client.failure = CancellationError()
+        await session.signInWithGoogle()
+        XCTAssertNil(session.error)
+        XCTAssertNil(session.homeIntent)
+        XCTAssertNil(session.identity)
+        XCTAssertFalse(session.isSigningIn)
+        client.failure = nil
+        await session.signInWithGoogle()
+        XCTAssertEqual(session.homeIntent?.uid, "account-google")
+        XCTAssertEqual(session.identity?.uid, "account-google")
+        XCTAssertFalse(session.isSigningIn)
+        let id = session.homeIntent!.id
+        session.consumeHomeIntent(UUID())
+        XCTAssertNotNil(session.homeIntent)
+        session.consumeHomeIntent(id)
+        XCTAssertNil(session.homeIntent)
+        await session.signOut()
+        await session.signIn(email: "a@example.com", password: "password")
+        XCTAssertEqual(session.homeIntent?.uid, "account-alice")
+        await session.signOut()
+        XCTAssertNil(session.homeIntent)
+    }
+
     func testSignInRegisterResetAndSignOutUseInjectedClient() async {
         let client = AccountClientFake()
         let session = AccountSession(client: client)
@@ -97,6 +126,11 @@ import XCTest
         if let failure { throw failure }
         lastEmail = email
         currentIdentity = AccountIdentity(uid: "account-alice", email: email)
+        observer?(currentIdentity)
+    }
+    func signInWithGoogle() async throws {
+        if let failure { throw failure }
+        currentIdentity = AccountIdentity(uid: "account-google", email: "g@example.invalid")
         observer?(currentIdentity)
     }
     func signOut() async throws {

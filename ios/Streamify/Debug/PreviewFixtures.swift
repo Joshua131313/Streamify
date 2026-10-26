@@ -32,9 +32,16 @@ enum PreviewFixtures {
     @MainActor static func seedLibrary(_ store: LibraryStore) {
         guard enabled, !seeded else { return }
         seeded = true
+        if ProcessInfo.processInfo.arguments.contains("--ui-artwork-repair") {
+            var brokenMovie = movie; brokenMovie.backdropPath = "/fixture-missing.jpg"
+            var sparseShow = show; sparseShow.backdropPath = ""; sparseShow.posterPath = "null"
+            store.record(brokenMovie, positionSeconds: 900, durationSeconds: 7200)
+            store.record(sparseShow, season: 1, episode: 1, positionSeconds: 300, durationSeconds: 2700)
+        } else {
+            store.record(movie, positionSeconds: 900, durationSeconds: 7200)
+            store.record(show, season: 1, episode: 1, positionSeconds: 300, durationSeconds: 2700)
+        }
         for item in [movie, show, anime] { if !store.isSaved(item) { store.toggleSaved(item) } }
-        store.record(movie, positionSeconds: 900, durationSeconds: 7200)
-        store.record(show, season: 1, episode: 1, positionSeconds: 300, durationSeconds: 2700)
         store.rememberSearch("Horizon")
     }
     @MainActor private static var seededDownloads = false
@@ -180,6 +187,7 @@ enum PreviewFixtures {
         let host = url.host ?? "", path = url.path
         var value: Any = [String: Any]()
         if host == "image.tmdb.org" || host.contains("espncdn.com") {
+            if path.contains("fixture-missing") { return (404, "image/jpeg", Data()) }
             let asset = path.contains("matrix") ? "collection-matrix" : path.contains("pirates") ? "collection-pirates" : path.contains("harry") ? "collection-harry-potter" : "collection-avengers"
             if let data = UIImage(named: asset)?.jpegData(compressionQuality: 0.8) { return (200, "image/jpeg", data) }
             return (404, "image/jpeg", Data())
@@ -298,6 +306,7 @@ private final class FixtureURLProtocol: URLProtocol {
     override func startLoading() {
         let (status, contentType, body) = PreviewFixtures.response(request)
         guard let url = request.url, let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": contentType, "Content-Length": String(body.count), "Cache-Control": "no-store"]) else { return }
+        PreviewNetworkActivity.record(url, status: status)
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: body)
         client?.urlProtocolDidFinishLoading(self)

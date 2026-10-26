@@ -16,6 +16,9 @@ packages:
   Firebase:
     url: https://github.com/firebase/firebase-ios-sdk
     exactVersion: 13.1.1
+  GoogleSignIn:
+    url: https://github.com/google/GoogleSignIn-iOS
+    exactVersion: 10.1.0
 targets:
   Streamify:
     type: application
@@ -34,6 +37,10 @@ targets:
         product: FirebaseAuth
       - package: Firebase
         product: FirebaseFirestore
+      - package: GoogleSignIn
+        product: GoogleSignIn
+      - package: GoogleSignIn
+        product: GoogleSignInSwift
       - target: StreamifyWidgets
         embed: true
         codeSign: true

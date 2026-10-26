@@ -65,6 +65,13 @@ struct StreamifySelectLabel: View {
 struct RemoteArtwork: View {
     let url: URL?
     var contentMode: ContentMode = .fill
+    var fallbackURLs: [URL] = []
+    var onFailure: (() -> Void)? = nil
+
+    private var candidates: [URL] {
+        var seen = Set<URL>()
+        return ([url].compactMap { $0 } + fallbackURLs).filter { seen.insert($0).inserted }
+    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -73,14 +80,8 @@ struct RemoteArtwork: View {
             // contribute that larger frame to a parent button or accessibility.
             Color.clear
                 .overlay {
-                    AsyncImage(url: url) { phase in
-                        if let image = phase.image {
-                            image.resizable().aspectRatio(contentMode: contentMode)
-                        } else {
-                            Rectangle().fill(AppTheme.panel)
-                                .overlay { Image(systemName: "photo").font(.system(size: 22, weight: .light)).foregroundStyle(.tertiary) }
-                        }
-                    }
+                    ArtworkCandidates(urls: candidates, contentMode: contentMode, onFailure: onFailure)
+                    .id(candidates)
                     .frame(width: geometry.size.width, height: geometry.size.height)
                     .clipped()
                     .allowsHitTesting(false)
@@ -92,6 +93,36 @@ struct RemoteArtwork: View {
         .clipped()
         .contentShape(Rectangle())
         .accessibilityHidden(true)
+    }
+}
+
+private struct ArtworkCandidates: View {
+    let urls: [URL]
+    let contentMode: ContentMode
+    let onFailure: (() -> Void)?
+    @State private var attempt = 0
+
+    var body: some View {
+        let index = attempt
+        if urls.indices.contains(index) {
+            AsyncImage(url: urls[index]) { phase in
+                if let image = phase.image {
+                    image.resizable().aspectRatio(contentMode: contentMode)
+                } else if phase.error != nil {
+                    placeholder.task(id: urls[index]) {
+                        guard !Task.isCancelled, attempt == index else { return }
+                        if index + 1 < urls.count { attempt += 1 }
+                        else { onFailure?() }
+                    }
+                } else { placeholder }
+            }.id(urls[index])
+        } else {
+            placeholder
+        }
+    }
+    private var placeholder: some View {
+        Rectangle().fill(AppTheme.panel)
+            .overlay { Image(systemName: "photo").font(.system(size: 22, weight: .light)).foregroundStyle(.tertiary) }
     }
 }
 

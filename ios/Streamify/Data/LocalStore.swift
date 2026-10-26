@@ -51,12 +51,23 @@ final class LibraryStore: ObservableObject {
         let old = history.first { $0.id == media.key && $0.season == max(1, season) && $0.episode == max(1, episode) }
         let position = positionSeconds ?? old?.positionSeconds ?? 0
         let duration = durationSeconds ?? old?.durationSeconds ?? 0
-        let entry = WatchEntry(media: media, season: max(1, season), episode: max(1, episode), watchedAt: Date(),
+        let previousMedia = history.first { $0.id == media.key }?.media ?? saved.first { $0.key == media.key }
+        let entry = WatchEntry(media: media.preservingArtwork(from: previousMedia), season: max(1, season), episode: max(1, episode), watchedAt: Date(),
             positionSeconds: position.isFinite ? max(0, position) : 0,
             durationSeconds: duration.isFinite ? max(0, duration) : 0)
         history.removeAll { $0.id == media.key }
         history.insert(entry, at: 0)
         history = Array(history.prefix(200))
+        persist()
+    }
+
+    func repairHistoryArtwork(_ media: MediaItem) {
+        guard storageEnabled, let index = history.firstIndex(where: { $0.id == media.key }) else { return }
+        let old = history[index]
+        let repaired = media.preservingArtwork(from: old.media)
+        guard repaired != old.media else { return }
+        history[index] = WatchEntry(media: repaired, season: old.season, episode: old.episode, watchedAt: old.watchedAt,
+                                   positionSeconds: old.positionSeconds, durationSeconds: old.durationSeconds)
         persist()
     }
 

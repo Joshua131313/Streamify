@@ -39,6 +39,7 @@ struct SportsView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var queue = SportsWatchQueue()
+    @StateObject private var scheduleCache = SportsScheduleCache()
     @StateObject private var daySwipeScope = SportsDaySwipeScope()
     @State private var selectedLeague: SportsLeague?
     @State private var followedTeamsOnly = false
@@ -126,6 +127,11 @@ struct SportsView: View {
         .foregroundStyle(AppTheme.foreground)
         .accessibilityIdentifier("sports-screen")
         .onAppear { refreshCurrentDay() }
+        .onChange(of: loading) { _, value in
+            #if DEBUG
+            if value && PreviewNetworkActivity.enabled { PreviewNetworkActivity.shared.loadingTransitions += 1 }
+            #endif
+        }
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in refreshCurrentDay() }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in refreshCurrentDay() }
         .onChange(of: scenePhase) { _, value in
@@ -152,9 +158,11 @@ struct SportsView: View {
         }
         .task(id: requestKey) {
             guard scenePhase == .active, !channels else { return }
+            var first = true
             repeat {
                 let reload = manualReload; manualReload = false
-                await loadSchedule(forceReload: reload)
+                await loadSchedule(forceReload: reload || !first)
+                first = false
                 do { try await Task.sleep(for: .seconds(30)) } catch { return }
             } while !Task.isCancelled
         }
@@ -249,8 +257,8 @@ struct SportsView: View {
                 HStack(alignment: .top, spacing: 4) {
                     leagueScopeButton(title: "Followed\nteams", symbol: "star", league: nil,
                         selected: followedTeamsOnly, identifier: "sports-followed-teams") {
-                        daySwipeScope.invalidateRequests()
-                        followedTeamsOnly = true; selectedLeague = nil; channels = false; home = false
+                        chooseLeague(nil)
+                        followedTeamsOnly = true
                     }
                     leagueScopeButton(title: "All", symbol: "square.grid.2x2", league: nil,
                         selected: selectedLeague == nil && !followedTeamsOnly, identifier: "sports-league-picker") { chooseLeague(nil) }
@@ -485,14 +493,17 @@ struct SportsView: View {
         let value = min(lastDay, max(today, Calendar.current.startOfDay(for: value)))
         guard value != day else { return }
         let returningToToday = Calendar.current.isDate(value, inSameDayAs: today)
+        let cached = scheduleCache.snapshot(leagues: leagues, day: value, backend: settings.apiBase)
         let update = {
             daySwipeScope.invalidateRequests()
+            scheduleRequest = UUID()
             revision += 1
-            games = []
-            loading = true
+            games = cached?.games ?? []
+            loading = cached == nil
             error = nil
-            partial = false
+            partial = cached?.partial ?? false
             day = value
+            loadedScheduleKey = cached == nil ? nil : scheduleKey
             if returningToToday { filter = .live }
             else if filter == .live { filter = .pregame }
         }
@@ -551,9 +562,16 @@ struct SportsView: View {
 
     private func chooseLeague(_ value: SportsLeague?, showHome: Bool = false) {
         daySwipeScope.invalidateRequests()
+        scheduleRequest = UUID()
+        let cached = scheduleCache.snapshot(leagues: value.map { [$0] } ?? SportsLeague.allCases, day: day, backend: settings.apiBase)
         selectedLeague = value
         followedTeamsOnly = false
         home = showHome; channels = false
+        games = cached?.games ?? []
+        loading = cached == nil
+        loadedScheduleKey = cached == nil ? nil : scheduleKey
+        partial = cached?.partial ?? false
+        error = nil
     }
 
     private var sportsHome: some View {
@@ -589,21 +607,27 @@ struct SportsView: View {
         let requestedKey = requestKey
         let identity = scheduleKey
         let requestedDay = day
+        let requestedLeagues = leagues
+        let backend = settings.apiBase
         let request = UUID(); scheduleRequest = request
         if loadedBackend != settings.apiBase {
             games = []; loadedScheduleKey = nil; loadedBackend = settings.apiBase
         }
-        // Switching tabs or returning from search keeps the current scorecards
-        // visible and tappable while live data refreshes in the background.
-        // A new league selection may have no matching retained cards yet.
-        // Keep its loading state until that selection has a real result.
-        loading = filteredGames.isEmpty && loadedScheduleKey != identity
+        if let cached = scheduleCache.snapshot(leagues: requestedLeagues, day: requestedDay, backend: backend) {
+            games = cached.games; partial = cached.partial
+            loadedScheduleKey = identity; loading = false
+            if cached.fresh && !forceReload { return }
+        } else {
+            loading = loadedScheduleKey != identity
+        }
         defer { if scheduleRequest == request { loading = false } }
         do {
-            let service = SportsService(backend: settings.apiBase, forceReload: forceReload)
-            let result = try await service.schedule(leagues: leagues, day: requestedDay)
+            let service = SportsService(backend: backend, forceReload: forceReload)
+            let result = try await service.schedule(leagues: requestedLeagues, day: requestedDay)
+            let fetchedAt = Date()
             try Task.checkCancellation()
             guard requestedKey == requestKey, scheduleRequest == request else { return }
+            scheduleCache.store(result, leagues: requestedLeagues, day: requestedDay, backend: backend, fetchedAt: fetchedAt)
             games = result.games
             loadedScheduleKey = identity
             partial = result.partial
@@ -613,6 +637,8 @@ struct SportsView: View {
             try Task.checkCancellation()
             guard requestedKey == requestKey, scheduleRequest == request else { return }
             games = enriched
+            scheduleCache.store(SportsSchedule(games: enriched, failedLeagues: result.failedLeagues, partial: result.partial),
+                                leagues: requestedLeagues, day: requestedDay, backend: backend, fetchedAt: fetchedAt)
         } catch is CancellationError { }
         catch { if !Task.isCancelled && requestedKey == requestKey && scheduleRequest == request { self.error = error.localizedDescription } }
     }

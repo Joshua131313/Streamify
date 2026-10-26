@@ -12,11 +12,13 @@ struct StreamifyApp: App {
 
     init() {
         SportsChatBootstrap.configure()
-        _account = StateObject(wrappedValue: AccountSession())
         #if DEBUG
         if PreviewFixtures.enabled { PreviewFixtures.install() }
+        let localAccount = PreviewFixtures.enabled && ProcessInfo.processInfo.arguments.contains("--ui-account-success")
+        _account = StateObject(wrappedValue: AccountSession(client: localAccount ? PreviewAccountClient() : nil))
         let profileStore = ProfileStore(defaults: PreviewFixtures.enabled ? PreviewFixtures.defaults : .standard,
-            chooseOnLaunch: !PreviewFixtures.enabled || ProcessInfo.processInfo.arguments.contains("--ui-profile-chooser"))
+            chooseOnLaunch: !PreviewFixtures.enabled || ProcessInfo.processInfo.arguments.contains("--ui-profile-chooser"),
+            backend: localAccount ? PreviewProfileBackend() : nil)
         if PreviewFixtures.enabled { PreviewFixtures.seedLibrary(profileStore.library) }
         if PreviewFixtures.enabled && ProcessInfo.processInfo.arguments.contains("--ui-profile-quick-switch") {
             profileStore.settings.appearance = "Light"
@@ -31,6 +33,7 @@ struct StreamifyApp: App {
             }
         }
         #else
+        _account = StateObject(wrappedValue: AccountSession())
         _profiles = StateObject(wrappedValue: ProfileStore())
         #endif
     }
@@ -47,8 +50,13 @@ struct StreamifyApp: App {
                 .environmentObject(sportsPlayback)
                 .environmentObject(quickActions)
                 .background { SportsPlaybackHost(session: sportsPlayback, apiBase: profiles.settings.apiBase).frame(width: 0, height: 0) }
+                .overlay(alignment: .bottomLeading) {
+                    #if DEBUG
+                    if PreviewNetworkActivity.enabled { PreviewNetworkReport() }
+                    #endif
+                }
                 .tint(AppTheme.foreground)
-                .onOpenURL { quickActions.enqueue(url: $0) }
+                .onOpenURL { if !GoogleAccountSignIn.handle($0) { quickActions.enqueue(url: $0) } }
                 .onAppear {
                     #if DEBUG
                     if PreviewFixtures.enabled {
@@ -74,9 +82,15 @@ private struct ProfileAppGate: View {
     @State private var changingProfile = false
     @State private var initialized = false
     @State private var chooserReset = 0
+    @State private var homeRevision = 0
+
+    private var returningFromSignIn: Bool {
+        account.isSigningIn || (account.homeIntent?.uid != nil && account.homeIntent?.uid == account.identity?.uid)
+    }
 
     private var isLoadingProfiles: Bool {
-        !account.isResolved || profiles.ownerUID != account.identity?.uid || !profiles.canEditProfiles
+        !account.isResolved || profiles.ownerUID != account.identity?.uid || !profiles.canEditProfiles ||
+            (returningFromSignIn && profiles.requiresSelection)
     }
     private var handoffAnimation: Animation {
         .easeInOut(duration: reduceMotion ? 0.18 : 0.42)
@@ -87,7 +101,7 @@ private struct ProfileAppGate: View {
             AppTheme.canvas.ignoresSafeArea()
             Group {
                 if !isLoadingProfiles && (hasEnteredApp || !profiles.requiresSelection) {
-                    RootView(onSelectProfile: selectProfile).id(profiles.contextID)
+                    RootView(onSelectProfile: selectProfile).id("\(profiles.contextID):\(homeRevision)")
                         .environment(\.scenePhase, profiles.requiresSelection || showsChooser || changingProfile ? .inactive : scenePhase)
                         .onAppear { hasEnteredApp = true }
                         .opacity(showsChooser || rootDimmed ? 0 : 1)
@@ -115,9 +129,12 @@ private struct ProfileAppGate: View {
             }
         }
         .preferredColorScheme(showsChooser ? .dark : settings.appearance == "System" ? nil : settings.appearance == "Light" ? .light : .dark)
-        .task(id: account.identity?.uid) { await profiles.setAccount(account.identity) }
+        .task(id: account.identity?.uid) { await profiles.setAccount(account.identity); completeSignIn() }
+        .onChange(of: account.homeIntent) { _, _ in completeSignIn() }
+        .onChange(of: profiles.syncStatus) { _, _ in completeSignIn() }
         .onChange(of: profiles.requiresSelection, initial: true) { _, choosing in
             if choosing { sportsPlayback.close() }
+            if choosing && returningFromSignIn { return }
             guard initialized else {
                 initialized = true
                 showsChooser = choosing
@@ -129,6 +146,13 @@ private struct ProfileAppGate: View {
                 showsChooser = choosing
             } completion: { finishProfileTransition() }
         }
+    }
+
+    private func completeSignIn() {
+        guard let intent = account.homeIntent, account.identity?.uid == intent.uid,
+              profiles.finishSignIn(uid: intent.uid) else { return }
+        homeRevision += 1
+        account.consumeHomeIntent(intent.id)
     }
 
     private func selectProfile(_ id: UUID) {

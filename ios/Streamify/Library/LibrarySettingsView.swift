@@ -1,4 +1,5 @@
 import SwiftUI
+import GoogleSignInSwift
 
 @MainActor
 struct LibraryView: View {
@@ -246,6 +247,16 @@ struct AccountView: View {
                     .font(.caption).foregroundStyle(AppTheme.muted)
             } else {
                 Text(registering ? "Create your account" : "Sign in to Streamify").font(.headline)
+                GoogleSignInButton(scheme: .light, style: .wide, state: account.isWorking ? .disabled : .normal) {
+                    AppHaptics.tap(.primary)
+                    Task { password = ""; await account.signInWithGoogle() }
+                }.frame(maxWidth: .infinity, minHeight: 48)
+                    .accessibilityIdentifier("account-google-sign-in")
+                HStack(spacing: 12) {
+                    Rectangle().fill(AppTheme.border).frame(height: 1)
+                    Text("or use email").font(.caption).foregroundStyle(AppTheme.muted).fixedSize()
+                    Rectangle().fill(AppTheme.border).frame(height: 1)
+                }
                 TextField("Email address", text: $email)
                     .textContentType(.username).keyboardType(.emailAddress).autocorrectionDisabled().textInputAutocapitalization(.never)
                     .padding(14).streamifyControlSurface().accessibilityIdentifier("account-email")
@@ -294,17 +305,49 @@ struct AccountView: View {
 struct PreferencesView: View {
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var profiles: ProfileStore
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @ScaledMetric(relativeTo: .body) private var tileHeight: CGFloat = 68
     private let genres = [(28,"Action"),(12,"Adventure"),(16,"Animation"),(35,"Comedy"),(80,"Crime"),(99,"Documentary"),(18,"Drama"),(10751,"Family"),(14,"Fantasy"),(27,"Horror"),(9648,"Mystery"),(10749,"Romance"),(878,"Sci-Fi"),(53,"Thriller")]
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 SectionHeading(title: "What do you love?", subtitle: "Choose a few genres to shape your For you recommendations.")
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 135))], spacing: 12) {
+                HStack {
+                    Text("\(library.favoriteGenres.count) selected").font(.caption.weight(.medium)).foregroundStyle(AppTheme.muted)
+                    Spacer()
+                }
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: typeSize.isAccessibilitySize ? 1 : 2), spacing: 12) {
                     ForEach(genres, id: \.0) { genre in
-                        Pill(title: genre.1, selected: library.favoriteGenres.contains(genre.0)) { library.setGenre(genre.0) }.disabled(!profiles.canEditProfiles)
+                        let selected = library.favoriteGenres.contains(genre.0)
+                        Button { library.setGenre(genre.0) } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: symbol(for: genre.0)).font(.system(size: 18, weight: .regular)).frame(width: 24)
+                                Text(genre.1).font(.subheadline.weight(.medium)).lineLimit(2).multilineTextAlignment(.leading)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                                    .font(.system(size: 17, weight: .regular)).opacity(selected ? 1 : 0.25)
+                            }
+                            .padding(.horizontal, 14).frame(maxWidth: .infinity, minHeight: tileHeight, alignment: .leading)
+                            .foregroundStyle(AppTheme.foreground)
+                            .background(selected ? AppTheme.foreground.opacity(0.10) : AppTheme.panel, in: RoundedRectangle(cornerRadius: 14))
+                            .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(selected ? AppTheme.foreground.opacity(0.5) : AppTheme.border, lineWidth: selected ? 1.2 : 0.7) }
+                            .contentShape(RoundedRectangle(cornerRadius: 14))
+                        }.buttonStyle(HapticPlainButtonStyle()).disabled(!profiles.canEditProfiles)
+                            .accessibilityLabel(genre.1).accessibilityAddTraits(selected ? .isSelected : [])
+                            .accessibilityIdentifier("favorite-genre-\(genre.0)")
                     }
                 }
             }.padding(20)
-        }.background(AppTheme.canvas).navigationTitle("Preferences").navigationBarTitleDisplayMode(.inline)
+        }.background(AppTheme.canvas).navigationTitle("Favorite genres").navigationBarTitleDisplayMode(.inline)
+            .accessibilityIdentifier("favorite-genres-screen")
+    }
+
+    private func symbol(for id: Int) -> String {
+        switch id {
+        case 28: "bolt"; case 12: "map"; case 16: "sparkles"; case 35: "face.smiling"
+        case 80: "fingerprint"; case 99: "camera"; case 18: "theatermasks"; case 10751: "person.2"
+        case 14: "wand.and.stars"; case 27: "moon"; case 9648: "magnifyingglass"; case 10749: "heart"
+        case 878: "globe.americas"; default: "film"
+        }
     }
 }

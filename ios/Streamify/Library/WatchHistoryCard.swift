@@ -24,7 +24,7 @@ struct WatchHistoryCard: View {
             ZStack(alignment: .bottom) {
                 Button(action: resume) {
                     Color.clear.frame(width: 128, height: 72)
-                        .overlay { RemoteArtwork(url: entry.media.backdropURL ?? entry.media.posterURL) }
+                        .overlay { WatchHistoryArtwork(media: entry.media) }
                         .overlay {
                             Image(systemName: "play.fill").font(.system(size: 15, weight: .semibold))
                                 .foregroundStyle(.white).offset(x: 2)

@@ -30,11 +30,19 @@ struct MediaItem: Identifiable, Hashable, Codable {
     }
     var key: String { "\(kind.rawValue):\(id)" }
     var year: String { String(releaseDate.prefix(4)) }
-    var posterURL: URL? { catalogImageURL(posterPath.isEmpty ? backdropPath : posterPath) }
-    var backdropURL: URL? { catalogImageURL(backdropPath.isEmpty ? posterPath : backdropPath, size: "w780") }
+    var posterURL: URL? { catalogImageURL(posterPath) ?? catalogImageURL(backdropPath) }
+    var backdropURL: URL? { catalogImageURL(backdropPath, size: "w780") ?? catalogImageURL(posterPath) }
     /// Large hero surfaces need the full poster rather than an upscaled rail thumbnail.
-    var heroPosterURL: URL? { catalogImageURL(posterPath.isEmpty ? backdropPath : posterPath, size: "original") }
-    var heroBackdropURL: URL? { catalogImageURL(backdropPath.isEmpty ? posterPath : backdropPath, size: "original") }
+    var heroPosterURL: URL? { catalogImageURL(posterPath, size: "original") ?? catalogImageURL(backdropPath, size: "original") }
+    var heroBackdropURL: URL? { catalogImageURL(backdropPath, size: "original") ?? catalogImageURL(posterPath, size: "original") }
+
+    func preservingArtwork(from previous: MediaItem?) -> MediaItem {
+        guard let previous, previous.key == key else { return self }
+        var result = self
+        if catalogImageURL(posterPath) == nil { result.posterPath = previous.posterPath }
+        if catalogImageURL(backdropPath) == nil { result.backdropPath = previous.backdropPath }
+        return result
+    }
 }
 
 func secureURL(_ value: String) -> URL? {
@@ -44,7 +52,8 @@ func secureURL(_ value: String) -> URL? {
 }
 
 func catalogImageURL(_ path: String, size: String = "w500") -> URL? {
-    guard !path.isEmpty else { return nil }
+    let path = path.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !path.isEmpty, !["null", "undefined", "/"].contains(path.lowercased()) else { return nil }
     if path.hasPrefix("/") { return secureURL("https://image.tmdb.org/t/p/\(size)\(path)") }
     return secureURL(path)
 }

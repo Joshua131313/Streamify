@@ -110,6 +110,13 @@ enum ProfileSyncStatus: Equatable {
     }
     func showChooser() { requiresSelection = true }
     func cancelSwitch() { if activeProfile != nil { requiresSelection = false } }
+    /// Enter the account's own last-used profile only after its load has settled.
+    func finishSignIn(uid: String) -> Bool {
+        guard ownerUID == uid, canEditProfiles, let selected = activeProfile else { return false }
+        if syncStatus == .loading || syncStatus == .syncing { return false }
+        select(selected.id)
+        return !requiresSelection
+    }
     func add(name: String, avatar: ProfileAvatar) throws {
         guard canEditProfiles else { throw ProfileSyncError.notReady }
         guard profiles.count < 5 else { throw ProfileError.limit }

@@ -11,6 +11,28 @@ import XCTest
             profile: AppProfile(id: id, name: name, avatar: .forest), appearance: "Light", serverID: "vidy",
             favoriteGenres: [18], followedTeams: ["nba:2"])]))
     }
+    func testExplicitSignInWaitsForAccountAndUsesItsLastSelectedProfile() async throws {
+        let backend = ProfileBackendFake(), defaults = defaults()
+        let first = cloud("First"), second = cloud("Second")
+        backend.documents["alice"] = ProfileCloudDocument(revision: 1,
+            payload: ProfileCloudPayload(profiles: first.payload.profiles + second.payload.profiles))
+        let store = ProfileStore(defaults: defaults, backend: backend)
+        XCTAssertFalse(store.finishSignIn(uid: "alice"))
+        await store.setAccount(AccountIdentity(uid: "alice", email: nil))
+        XCTAssertTrue(store.requiresSelection, "Restored accounts must still choose a profile on a normal launch.")
+        store.select(second.payload.profiles[0].profile.id)
+        await store.setAccount(nil)
+        await store.setAccount(AccountIdentity(uid: "alice", email: nil))
+        XCTAssertTrue(store.requiresSelection)
+        XCTAssertFalse(store.finishSignIn(uid: "other-account"))
+        XCTAssertTrue(store.finishSignIn(uid: "alice"))
+        XCTAssertEqual(store.activeProfile?.name, "Second")
+        XCTAssertFalse(store.requiresSelection)
+        let coldLaunch = ProfileStore(defaults: defaults, backend: backend)
+        await coldLaunch.setAccount(AccountIdentity(uid: "alice", email: nil))
+        XCTAssertTrue(coldLaunch.requiresSelection)
+        XCTAssertEqual(coldLaunch.activeProfile?.name, "Second")
+    }
     func testPreferencesAreScopedAndDeviceConnectionRemainsShared() throws {
         let defaults = defaults()
         defaults.set("Light", forKey: "streamify.ios.appearance")

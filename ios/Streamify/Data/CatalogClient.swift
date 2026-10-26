@@ -29,6 +29,13 @@ struct TMDBClient {
 
     func reloading(_ enabled: Bool = true) -> TMDBClient { TMDBClient(token: token, session: session, forceReload: enabled) }
 
+    func mediaMetadata(_ media: MediaItem) async throws -> MediaItem {
+        if media.kind == .anime { return try await details(media).media }
+        let json = try await request(path: "\(media.kind.rawValue)/\(media.id)")
+        guard let result = Self.media(json, kind: media.kind) else { throw CatalogError.invalidResponse }
+        return result
+    }
+
     func catalog(path: String, kind: MediaKind? = nil, page: Int = 1, query: String = "",
                  parameters: [String: String] = [:]) async throws -> MediaPage {
         if kind == .anime {

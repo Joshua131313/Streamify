@@ -401,7 +401,7 @@ private struct ContinueWatchingRail: View {
                     ForEach(Array(library.history.filter { !$0.completed }.prefix(12))) { entry in
                         VStack(alignment: .leading, spacing: 8) {
                             Button { selected = entry } label: {
-                                RemoteArtwork(url: entry.media.backdropURL ?? entry.media.posterURL)
+                                WatchHistoryArtwork(media: entry.media)
                                     .aspectRatio(16.0 / 9.0, contentMode: .fit)
                                     .overlay {
                                         Image(systemName: "play.fill").font(.body)
