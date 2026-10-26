@@ -91,7 +91,7 @@ final class MultiWatchRotationFlowTests: XCTestCase {
             self.app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Multi-watch media paused'")).count == 0
         }, "Audio changes must mute one real video without pausing either video.")
     }
-    private func wait(_ condition: () -> Bool, _ message: String = "", timeout: TimeInterval = 10) -> Bool {
+    private func wait(_ condition: @escaping () -> Bool, _ message: String = "", timeout: TimeInterval = 10) -> Bool {
         XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in condition() }, object: nil)], timeout: timeout) == .completed
     }
     private func capture(_ name: String) {
