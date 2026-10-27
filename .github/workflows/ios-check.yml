@@ -11,7 +11,7 @@ on:
         type: choice
         required: true
         default: full
-        options: [full, native-hls-research, codec-diagnostics, download-provider-recheck, interaction-followup, interaction-recheck, delivery-recheck, download-source-recheck, multi-source-ui-recheck, stream-recovery-recheck, player-recheck, polish-recheck, sports-refinement, refinement-recheck, live-today-recheck, player-scene-recheck, profile-activation-recheck, native-fullscreen-recheck, football-polish-recheck, profile-picker-recheck, account-cache-recheck, cache-retap-recheck, provider-control-recheck, possession-widget-recheck, playback-start-recheck, landscape-touch-recheck, diamond-player-recheck, chat-connection-recheck]
+        options: [full, native-download-research, native-hls-research, codec-diagnostics, download-provider-recheck, interaction-followup, interaction-recheck, delivery-recheck, download-source-recheck, multi-source-ui-recheck, stream-recovery-recheck, player-recheck, polish-recheck, sports-refinement, refinement-recheck, live-today-recheck, player-scene-recheck, profile-activation-recheck, native-fullscreen-recheck, football-polish-recheck, profile-picker-recheck, account-cache-recheck, cache-retap-recheck, provider-control-recheck, possession-widget-recheck, playback-start-recheck, landscape-touch-recheck, diamond-player-recheck, chat-connection-recheck]
 permissions:
   contents: read
 concurrency:
@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   native-hls-research:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.scope == 'native-hls-research' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.scope == 'native-hls-research' || inputs.scope == 'native-download-research') }}
     name: Native HLS source feasibility
     runs-on: macos-latest
     timeout-minutes: 12
@@ -52,7 +52,7 @@ jobs:
           path: ios/build/hls-research
           if-no-files-found: error
   codec-diagnostics:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.scope == 'codec-diagnostics' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.scope == 'codec-diagnostics' || inputs.scope == 'native-download-research') }}
     name: Native iPhone codec diagnostics
     runs-on: macos-latest
     timeout-minutes: 12
@@ -84,7 +84,7 @@ jobs:
           path: ios/build/codec-diagnostics
           if-no-files-found: error
   device:
-    if: ${{ inputs.scope != 'native-hls-research' && inputs.scope != 'codec-diagnostics' && inputs.scope != 'download-provider-recheck' && (github.event_name != 'workflow_dispatch' || (inputs.scope != 'profile-activation-recheck' && inputs.scope != 'native-fullscreen-recheck' && inputs.scope != 'provider-control-recheck' && inputs.scope != 'landscape-touch-recheck')) }}
+    if: ${{ inputs.scope != 'native-download-research' && inputs.scope != 'native-hls-research' && inputs.scope != 'codec-diagnostics' && inputs.scope != 'download-provider-recheck' && (github.event_name != 'workflow_dispatch' || (inputs.scope != 'profile-activation-recheck' && inputs.scope != 'native-fullscreen-recheck' && inputs.scope != 'provider-control-recheck' && inputs.scope != 'landscape-touch-recheck')) }}
     name: iPhone test package
     runs-on: macos-latest
     timeout-minutes: 20
@@ -109,7 +109,7 @@ jobs:
           path: ios/build/Streamify-unsigned.ipa
           if-no-files-found: error
   simulator:
-    if: ${{ github.event_name != 'workflow_dispatch' || (inputs.scope != 'codec-diagnostics' && inputs.scope != 'native-hls-research') }}
+    if: ${{ github.event_name != 'workflow_dispatch' || (inputs.scope != 'native-download-research' && inputs.scope != 'codec-diagnostics' && inputs.scope != 'native-hls-research') }}
     name: iPhone UI - ${{ matrix.suite }}
     runs-on: macos-latest
     timeout-minutes: 45

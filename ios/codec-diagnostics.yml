@@ -20,6 +20,7 @@ targets:
     platform: iOS
     sources:
       - path: StreamifyTests/HEVCPackagingDiagnosticsTests.swift
+      - path: NativeCodecDiagnostics/ApplePassthroughExportDiagnosticsTests.swift
       - path: StreamifyTests/Fixtures/hevc-hvc1-aac-1080.mp4
       - path: StreamifyTests/Fixtures/hevc-hev1-aac-1080.mp4
       - path: StreamifyTests/Fixtures/from-s1e1-daratech-native-first-second.mp4

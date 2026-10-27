@@ -42,6 +42,7 @@ final class VixSrcNativeHLSDiagnosticsTests: XCTestCase {
             }) else { throw DiagnosticError.message("Native HLS metadata did not expose the advertised 1080p variant") }
             report["native1080VariantFound"] = true
             report["nativeVariantCount"] = variants.count
+            report["native1080VariantPeakBitRate"] = fullHD.peakBitRate ?? 0
             let audioGroup = try await asset.loadMediaSelectionGroup(for: .audible)
             let preferred = try await asset.load(.preferredMediaSelection)
             guard let selection = preferred.mutableCopy() as? AVMutableMediaSelection,
@@ -73,7 +74,9 @@ final class VixSrcNativeHLSDiagnosticsTests: XCTestCase {
                 item.preferredForwardBufferDuration = 1
                 // These preferences are upper bounds, not a promise that adaptive
                 // playback selects 1080p. Actual decoded pixels are checked below.
-                item.preferredPeakBitRate = max(1, fullHD.peakBitRate ?? 0)
+                // Zero is AVPlayer's default (no throughput ceiling). A nil
+                // variant bitrate must not accidentally become a 1bps limit.
+                item.preferredPeakBitRate = max(0, fullHD.peakBitRate ?? 0)
                 item.preferredMaximumResolution = CGSize(width: 1920, height: 1080)
                 report["playbackResolutionPreferenceIsCeiling"] = true
                 item.select(english, in: audioGroup)
@@ -207,8 +210,8 @@ final class VixSrcNativeHLSDiagnosticsTests: XCTestCase {
             configuration.httpCookieStorage = nil
             configuration.urlCredentialStorage = nil
             configuration.httpMaximumConnectionsPerHost = 1
-            configuration.timeoutIntervalForRequest = 8
-            configuration.timeoutIntervalForResource = 8
+            configuration.timeoutIntervalForRequest = 15
+            configuration.timeoutIntervalForResource = 15
             let session = AVAssetDownloadURLSession(configuration: configuration, assetDownloadDelegate: delegate, delegateQueue: nil)
             defer { session.invalidateAndCancel() }
             let download = AVAssetDownloadConfiguration(asset: asset, title: "Bounded native HLS feasibility")
@@ -217,7 +220,7 @@ final class VixSrcNativeHLSDiagnosticsTests: XCTestCase {
             let task = session.makeAssetDownloadTask(downloadConfiguration: download)
             task.taskDescription = "diagnostic-only-cancel-before-full-episode"
             task.resume()
-            let downloadDeadline = Date().addingTimeInterval(4)
+            let downloadDeadline = Date().addingTimeInterval(10)
             while Date() < downloadDeadline && !delegate.finished {
                 if task.countOfBytesReceived >= min(2 * 1024 * 1024, max(0, Self.maximumObservedMediaBytes - playbackObservedBytes)) {
                     delegate.stop(task, reason: "early combined byte budget")
@@ -421,8 +424,8 @@ private final class BoundedHLSDownloadDelegate: NSObject, AVAssetDownloadDelegat
     var finished: Bool { lock.lock(); defer { lock.unlock() }; return completed }
     var accepted: Bool {
         lock.lock(); defer { lock.unlock() }
-        return resolved && selectedAudio.lowercased().hasPrefix("en")
-            && selectedVariants.contains { $0["width"] == 1920 && $0["height"] == 1080 }
+        return resolved && selectedAudio.lowercased().hasPrefix("en") && !selectedVariants.isEmpty
+            && selectedVariants.allSatisfy { $0["width"] == 1920 && $0["height"] == 1080 }
     }
     func stop(_ task: AVAssetDownloadTask, reason: String) {
         lock.lock(); if self.reason.isEmpty { self.reason = reason }; lock.unlock()
