@@ -55,6 +55,8 @@ struct DownloadItem: Identifiable, Codable, Sendable {
     var hlsAttempt: UUID? = nil
     var hlsPackagePath: String? = nil
     var pendingHLSPackagePath: String? = nil
+    var hlsPackageReference: HLSOwnedPackageReference? = nil
+    var pendingHLSReference: HLSOwnedPackageReference? = nil
     var hlsSelectedVariants: [HLSDownloadedVariant]? = nil
     var hlsSelectedAudioLanguage: String? = nil
     var hlsDidFinishPackage: Bool? = nil
@@ -107,11 +109,18 @@ struct DownloadItem: Identifiable, Codable, Sendable {
     }
     var fileURL: URL? {
         if transport == .hlsVOD {
+            if var reference = hlsPackageReference {
+                guard status == .completed, owns(reference: reference) else { return nil }
+                return try? reference.resolve(expectedIdentity: reference.identity)
+            }
             guard status == .completed, let hlsPackagePath else { return nil }
             return HLSDownloadedPackages.fileURL(for: hlsPackagePath)
         }
         guard status == .completed, let fileName, !fileName.contains("/"), !fileName.contains("\\") else { return nil }
         return try? DownloadFiles.directory().appendingPathComponent(fileName)
+    }
+    func owns(reference: HLSOwnedPackageReference) -> Bool {
+        reference.identity.id == id && reference.identity.attempt == hlsAttempt
     }
 }
 
@@ -240,6 +249,12 @@ final class DownloadStore: ObservableObject {
             if FileManager.default.fileExists(atPath: url.path) {
                 items = try JSONDecoder().decode([DownloadItem].self, from: Data(contentsOf: url))
                 restoredMetadata = true
+                for index in items.indices where items[index].status == .completed {
+                    if var reference = items[index].hlsPackageReference, items[index].owns(reference: reference),
+                       (try? reference.resolve(expectedIdentity: reference.identity)) != nil {
+                        items[index].hlsPackageReference = reference
+                    }
+                }
                 for index in items.indices where items[index].status == .completed {
                     if items[index].fileURL == nil || items[index].fileURL.map({ !FileManager.default.fileExists(atPath: $0.path) }) == true {
                         items[index].status = .failed
@@ -442,6 +457,12 @@ final class DownloadStore: ObservableObject {
         resolutionAttempts[id] = nil
         tasks[id]?.cancel()
         tasks[id] = nil
+        if let item = items.first(where: { $0.id == id }), var reference = item.hlsPackageReference,
+           reference.identity.id == id {
+            do { try reference.remove(expectedIdentity: reference.identity) }
+            catch HLSOwnedPackageReferenceError.missingPackage { /* Already purged by the system. */ }
+            catch { storageError = "The local video package could not be removed. \(error.localizedDescription)"; return }
+        }
         if let path = items.first(where: { $0.id == id })?.hlsPackagePath {
             do { try HLSDownloadedPackages.remove(relativePath: path) }
             catch { storageError = "The local video package could not be removed. \(error.localizedDescription)"; return }
@@ -641,8 +662,10 @@ final class DownloadStore: ObservableObject {
                 }
                 let oldFileName = self.items[index].fileName
                 let oldHLSPackage = self.items[index].hlsPackagePath
+                let oldHLSReference = self.items[index].hlsPackageReference
                 self.items[index].fileName = fileName
                 self.items[index].hlsPackagePath = nil
+                self.items[index].hlsPackageReference = nil
                 self.items[index].pendingFileName = nil
                 self.items[index].status = .completed
                 self.items[index].taskIdentifier = nil
@@ -660,6 +683,7 @@ final class DownloadStore: ObservableObject {
                     if DownloadFiles.isSupported(old) { try? FileManager.default.removeItem(at: old) }
                 }
                 if self.storageError == nil, let oldHLSPackage { try? HLSDownloadedPackages.remove(relativePath: oldHLSPackage) }
+                if self.storageError == nil, var oldHLSReference { try? oldHLSReference.remove(expectedIdentity: oldHLSReference.identity) }
             } catch {
                 guard let self, self.validationAttempts[id] == attempt,
                       let index = self.items.firstIndex(where: { $0.id == id }),
@@ -692,6 +716,18 @@ final class DownloadStore: ObservableObject {
         if let index = items.firstIndex(where: { $0.id == id }), let pending = items[index].pendingHLSPackagePath {
             if pending != items[index].hlsPackagePath { try? HLSDownloadedPackages.remove(relativePath: pending) }
             items[index].pendingHLSPackagePath = nil
+        }
+        if let index = items.firstIndex(where: { $0.id == id }), var pending = items[index].pendingHLSReference {
+            var safeToRemove = true
+            if let retained = items[index].hlsPackageReference {
+                safeToRemove = referencesSamePackage(pending, retained) == false
+            } else if let path = items[index].hlsPackagePath, let retained = HLSDownloadedPackages.fileURL(for: path) {
+                safeToRemove = reference(pending, pointsTo: retained) == false
+            }
+            if items[index].owns(reference: pending), safeToRemove {
+                try? pending.remove(expectedIdentity: pending.identity)
+            }
+            items[index].pendingHLSReference = nil
         }
         finishBackgroundEventsIfPossible()
     }
@@ -748,6 +784,19 @@ final class DownloadStore: ObservableObject {
 }
 
 extension DownloadStore: HLSDownloadSessionObserver {
+    private func referencesSamePackage(_ first: HLSOwnedPackageReference, _ second: HLSOwnedPackageReference) -> Bool? {
+        var left = first, right = second
+        guard let leftURL = try? left.resolve(expectedIdentity: left.identity),
+              let rightURL = try? right.resolve(expectedIdentity: right.identity) else { return nil }
+        return try? HLSOwnedPackageReference.locationsReferToSamePackage(leftURL, rightURL)
+    }
+
+    private func reference(_ reference: HLSOwnedPackageReference, pointsTo location: URL) -> Bool? {
+        var owned = reference
+        guard let url = try? owned.resolve(expectedIdentity: owned.identity) else { return nil }
+        return try? HLSOwnedPackageReference.locationsReferToSamePackage(url, location)
+    }
+
     func handleHLSBackgroundEvents(_ completion: @escaping () -> Void) {
         hlsSession.registerBackgroundCompletion(completion)
         reconnectHLSTasks()
@@ -810,6 +859,7 @@ extension DownloadStore: HLSDownloadSessionObserver {
                 return HLSDownloadRestoreRecord(identity: identity, quality: quality,
                     audioLanguage: item.sourceAudioLanguage ?? "en",
                     packageURL: item.pendingHLSPackagePath.flatMap { HLSDownloadedPackages.fileURL(for: $0) },
+                    packageReference: item.pendingHLSReference?.isDurable == true ? item.pendingHLSReference : nil,
                     selectedVariants: item.hlsSelectedVariants ?? [], selectedAudioLanguage: item.hlsSelectedAudioLanguage,
                     didFinishPackage: item.hlsDidFinishPackage == true)
             }
@@ -834,7 +884,13 @@ extension DownloadStore: HLSDownloadSessionObserver {
               items[index].transport == .hlsVOD, items[index].hlsAttempt == identity.attempt else { return }
         if snapshot.event == .prepared, items[index].taskIdentifier == nil { items[index].taskIdentifier = identity.taskIdentifier }
         guard items[index].acceptsHLS(identity) else { return }
-        if let package = snapshot.packageURL {
+        if let reference = snapshot.packageReference {
+            guard reference.identity == identity else {
+                failHLS(id: identity.id, message: HLSDownloadSessionError.unsafePackage.localizedDescription); return
+            }
+            items[index].pendingHLSReference = reference
+            items[index].pendingHLSPackagePath = nil
+        } else if let package = snapshot.packageURL {
             do { items[index].pendingHLSPackagePath = try HLSDownloadedPackages.relativePath(of: package) }
             catch { failHLS(id: identity.id, message: HLSDownloadSessionError.unsafePackage.localizedDescription); return }
         }
@@ -851,6 +907,16 @@ extension DownloadStore: HLSDownloadSessionObserver {
                 items[index].error = storageError
             }
         case .completed:
+            if var reference = items[index].pendingHLSReference {
+                do {
+                    // Persist ownership before the async cache-validation hop.
+                    // This is not a declaration of completed/playable media.
+                    try reference.makeDurable(expectedIdentity: identity)
+                    items[index].pendingHLSReference = reference
+                } catch {
+                    failHLS(id: identity.id, message: error.localizedDescription); return
+                }
+            }
             items[index].hlsTransferSucceeded = true
             save()
             validateHLSPackage(identity: identity)
@@ -879,6 +945,10 @@ extension DownloadStore: HLSDownloadSessionObserver {
     }
 
     private func validateHLSPackage(identity: HLSDownloadIdentity) {
+        if items.first(where: { $0.acceptsHLS(identity) })?.pendingHLSReference != nil {
+            validateOwnedHLSPackage(identity: identity)
+            return
+        }
         guard validations[identity.id] == nil,
               let item = items.first(where: { $0.acceptsHLS(identity) }), item.hlsTransferSucceeded == true,
               item.hlsDidFinishPackage == true, let path = item.pendingHLSPackagePath,
@@ -907,16 +977,79 @@ extension DownloadStore: HLSDownloadSessionObserver {
                       let index = self.items.firstIndex(where: { $0.acceptsHLS(identity) }),
                       self.items[index].pendingHLSPackagePath == path else { return }
                 let oldPackage = self.items[index].hlsPackagePath, oldFile = self.items[index].fileName
+                let oldReference = self.items[index].hlsPackageReference
                 self.items[index].hlsPackagePath = path; self.items[index].pendingHLSPackagePath = nil
+                self.items[index].hlsPackageReference = nil
                 self.items[index].fileName = nil; self.items[index].status = .completed
                 self.items[index].taskIdentifier = nil; self.items[index].error = nil
                 self.items[index].hlsFractionCompleted = 1
                 self.cacheArtwork(id: identity.id); self.save()
                 if self.storageError == nil {
+                    if var oldReference, self.reference(oldReference, pointsTo: package) == false {
+                        try? oldReference.remove(expectedIdentity: oldReference.identity)
+                    }
                     if let oldPackage, oldPackage != path { try? HLSDownloadedPackages.remove(relativePath: oldPackage) }
                     if let oldFile, !oldFile.contains("/"), !oldFile.contains("\\"), let directory = try? DownloadFiles.directory() {
                         let old = directory.appendingPathComponent(oldFile)
                         if DownloadFiles.isSupported(old) { try? FileManager.default.removeItem(at: old) }
+                    }
+                }
+            } catch {
+                guard !Task.isCancelled, self.validationAttempts[identity.id] == attempt,
+                      self.items.contains(where: { $0.acceptsHLS(identity) }) else { return }
+                self.failHLS(id: identity.id, message: OfflineVideoError.classify(error).downloadMessage)
+            }
+        }
+    }
+
+    private func validateOwnedHLSPackage(identity: HLSDownloadIdentity) {
+        guard validations[identity.id] == nil else { return }
+        guard let item = items.first(where: { $0.acceptsHLS(identity) }), item.hlsTransferSucceeded == true,
+              item.hlsDidFinishPackage == true, let reference = item.pendingHLSReference,
+              reference.identity == identity, reference.isDurable, let quality = item.quality,
+              let variants = item.hlsSelectedVariants, !variants.isEmpty,
+              variants.allSatisfy({ $0.matches(quality: quality) }),
+              item.hlsSelectedAudioLanguage?.lowercased().hasPrefix("en") == true else {
+            failHLS(id: identity.id, message: HLSDownloadSessionError.incompletePackage.localizedDescription)
+            return
+        }
+        let attempt = UUID(), barrier = hlsSession.beginCompletionBarrier()
+        validationAttempts[identity.id] = attempt
+        validations[identity.id] = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                if self.validationAttempts[identity.id] == attempt {
+                    self.validationAttempts[identity.id] = nil; self.validations[identity.id] = nil
+                }
+                self.hlsSession.endCompletionBarrier(barrier)
+                self.finishBackgroundEventsIfPossible()
+            }
+            do {
+                _ = try await OfflineHLSValidation.validate(reference: reference, expectedIdentity: identity,
+                    quality: quality, audioLanguage: item.sourceAudioLanguage ?? "en")
+                try Task.checkCancellation()
+                guard self.validationAttempts[identity.id] == attempt,
+                      let index = self.items.firstIndex(where: { $0.acceptsHLS(identity) }),
+                      self.items[index].pendingHLSReference?.bookmarkData == reference.bookmarkData else { return }
+                let previous = self.items[index]
+                self.items[index].hlsPackageReference = reference
+                self.items[index].pendingHLSReference = nil
+                self.items[index].hlsPackagePath = nil; self.items[index].pendingHLSPackagePath = nil
+                self.items[index].fileName = nil; self.items[index].status = .completed
+                self.items[index].taskIdentifier = nil; self.items[index].error = nil
+                self.items[index].hlsFractionCompleted = 1
+                self.cacheArtwork(id: identity.id); self.save()
+                if self.storageError == nil {
+                    if var old = previous.hlsPackageReference, self.referencesSamePackage(old, reference) == false {
+                        try? old.remove(expectedIdentity: old.identity)
+                    }
+                    if let path = previous.hlsPackagePath, let location = HLSDownloadedPackages.fileURL(for: path),
+                       self.reference(reference, pointsTo: location) == false {
+                        try? HLSDownloadedPackages.remove(relativePath: path)
+                    }
+                    if let name = previous.fileName, !name.contains("/"), !name.contains("\\"), let directory = try? DownloadFiles.directory() {
+                        let file = directory.appendingPathComponent(name)
+                        if DownloadFiles.isSupported(file) { try? FileManager.default.removeItem(at: file) }
                     }
                 }
             } catch {

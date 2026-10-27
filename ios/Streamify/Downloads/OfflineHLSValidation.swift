@@ -118,6 +118,19 @@ enum OfflineHLSValidation {
     static func validate(_ location: URL, quality: Int?, audioLanguage: String = "en", timeout: TimeInterval = 12) async throws -> Result {
         try Task.checkCancellation()
         _ = try HLSDownloadedPackages.relativePath(of: location)
+        return try await validateNativePackage(location, quality: quality, audioLanguage: audioLanguage, timeout: timeout)
+    }
+
+    static func validate(reference: HLSOwnedPackageReference, expectedIdentity: HLSDownloadIdentity,
+                         quality: Int?, audioLanguage: String = "en", timeout: TimeInterval = 12) async throws -> Result {
+        try Task.checkCancellation()
+        var owned = reference
+        let location = try owned.resolve(expectedIdentity: expectedIdentity)
+        return try await validateNativePackage(location, quality: quality, audioLanguage: audioLanguage, timeout: timeout)
+    }
+
+    private static func validateNativePackage(_ location: URL, quality: Int?, audioLanguage: String,
+                                              timeout: TimeInterval) async throws -> Result {
         guard let values = try? location.resourceValues(forKeys: [.isDirectoryKey]), values.isDirectory == true,
               FileManager.default.isReadableFile(atPath: location.path) else { throw OfflineVideoError.missingFile }
         let asset = AVURLAsset(url: location)

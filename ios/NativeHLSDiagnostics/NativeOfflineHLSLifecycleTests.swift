@@ -33,7 +33,11 @@ final class NativeOfflineHLSLifecycleTests: XCTestCase, HLSDownloadSessionObserv
         let session = HLSDownloadSessionOwner(observer: self,
             sessionIdentifier: "com.streamify.hls.lifecycle.cancel.\(UUID().uuidString)")
         owner = session; cancelWhenPrepared = true; startReturned = false; snapshots = []
-        defer { cleanUpOwnedPackages(session); owner = nil }
+        defer {
+            let cleanup = cleanUpOwnedPackages(session)
+            XCTAssertTrue((cleanup["errors"] as? [String] ?? []).isEmpty, "Only this native task's owned packages must be removed successfully")
+            report["cleanup"] = cleanup; owner = nil
+        }
         let identity = try await session.start(id: UUID(), attempt: UUID(), source: source,
             title: "Own HLS cancellation fixture", metadataTimeout: 15)
         startReturned = true
@@ -70,7 +74,11 @@ final class NativeOfflineHLSLifecycleTests: XCTestCase, HLSDownloadSessionObserv
         let session = HLSDownloadSessionOwner(observer: self,
             sessionIdentifier: "com.streamify.hls.lifecycle.\(fixture).\(UUID().uuidString)")
         owner = session; cancelWhenPrepared = false; startReturned = false; snapshots = []
-        defer { cleanUpOwnedPackages(session); owner = nil }
+        defer {
+            let cleanup = cleanUpOwnedPackages(session)
+            XCTAssertTrue((cleanup["errors"] as? [String] ?? []).isEmpty, "Only this native task's owned packages must be removed successfully")
+            report["cleanup"] = cleanup; owner = nil
+        }
         do {
             let deadline = Date().addingTimeInterval(90)
             let identity = try await session.start(id: UUID(), attempt: UUID(), source: source,
@@ -84,8 +92,8 @@ final class NativeOfflineHLSLifecycleTests: XCTestCase, HLSDownloadSessionObserv
             while Date() < deadline {
                 try Task.checkCancellation()
                 maximumNativeBytes = max(maximumNativeBytes, session.observedBytes(identity: identity))
-                if let package = snapshots.last(where: { $0.identity == identity && $0.packageURL != nil })?.packageURL {
-                    maximumPackageBytes = max(maximumPackageBytes, try Self.ownedPackageBytes(package))
+                if let reference = snapshots.last(where: { $0.identity == identity && $0.packageReference != nil })?.packageReference {
+                    maximumPackageBytes = max(maximumPackageBytes, try Self.ownedPackageBytes(reference, expectedIdentity: identity))
                 }
                 if max(maximumPackageBytes, maximumNativeBytes) > byteBudget {
                     session.cancel(identity)
@@ -104,7 +112,8 @@ final class NativeOfflineHLSLifecycleTests: XCTestCase, HLSDownloadSessionObserv
                 throw LifecycleError.message("Native own-fixture download did not complete within 90seconds")
             }
             if let failure = completion.error { throw failure }
-            guard completion.event == .completed, completion.didFinishPackage, let package = completion.packageURL,
+            guard completion.event == .completed, completion.didFinishPackage, completion.packageURL != nil,
+                  var reference = completion.packageReference, reference.identity == identity,
                   !completion.selectedVariants.isEmpty,
                   completion.selectedVariants.allSatisfy({ $0.width == 1920 && $0.height == 1080 }),
                   completion.selectedAudioLanguage?.lowercased().hasPrefix("en") == true else {
@@ -118,20 +127,32 @@ final class NativeOfflineHLSLifecycleTests: XCTestCase, HLSDownloadSessionObserv
             report["selectedVariants"] = completion.selectedVariants.map { ["width": $0.width, "height": $0.height] }
             report["selectedAudioLanguage"] = completion.selectedAudioLanguage ?? "unknown"
 
-            phase = "relative path persistence and fresh local asset"
-            let relative = try HLSDownloadedPackages.relativePath(of: package)
+            phase = "runtime-owned package validation and durable bookmark persistence"
+            // The native owner's checked callback grants provisional access;
+            // no app-Library path reconstruction or /.nofollow replacement.
+            let initial = try await OfflineHLSValidation.validate(reference: reference, expectedIdentity: identity,
+                quality: 1080, audioLanguage: "en", timeout: 15)
+            XCTAssertTrue(initial.asset.url.isFileURL)
+            XCTAssertTrue(initial.asset.assetCache?.isPlayableOffline == true)
+            report["runtimeOwnedPackageValidated"] = true
+            try reference.makeDurable(expectedIdentity: identity)
+            XCTAssertTrue(reference.isDurable)
             let metadataFile = FileManager.default.temporaryDirectory.appendingPathComponent("hls-lifecycle-\(UUID().uuidString).json")
             defer { try? FileManager.default.removeItem(at: metadataFile) }
-            try JSONEncoder().encode(PersistedPackage(relativePath: relative, quality: 1080, audioLanguage: "en"))
+            try JSONEncoder().encode(PersistedPackage(reference: reference, quality: 1080, audioLanguage: "en"))
                 .write(to: metadataFile, options: .atomic)
             let restored = try JSONDecoder().decode(PersistedPackage.self, from: Data(contentsOf: metadataFile))
-            guard let restoredURL = HLSDownloadedPackages.fileURL(for: restored.relativePath) else {
-                throw LifecycleError.message("Saved relative native package location could not be restored")
-            }
-            XCTAssertEqual(restoredURL, package.standardizedFileURL.resolvingSymlinksInPath())
-            let validation = try await OfflineHLSValidation.validate(restoredURL,
+            XCTAssertEqual(restored.reference.identity, identity)
+            XCTAssertTrue(restored.reference.isDurable)
+            // Decoding revokes provisional callback authority. This fresh
+            // validation must resolve the durable bookmark, with no new callback.
+            let validation = try await OfflineHLSValidation.validate(reference: restored.reference, expectedIdentity: identity,
                 quality: restored.quality, audioLanguage: restored.audioLanguage, timeout: 15)
-            report["relativePathRoundTrip"] = true
+            XCTAssertFalse(initial.asset === validation.asset)
+            XCTAssertTrue(validation.asset.url.isFileURL)
+            report["durableBookmarkRoundTrip"] = true
+            report["decodedReferenceReassociatedWithCallback"] = false
+            report["freshLocalAssetUsed"] = true
             report["freshAssetCachePlayableOffline"] = validation.asset.assetCache?.isPlayableOffline ?? false
             report["cachedEnglishOptions"] = validation.asset.assetCache?.mediaSelectionOptions(in: validation.audioGroup)
                 .filter { OfflineHLSValidation.isRequestedLanguage($0, language: "en") }
@@ -151,7 +172,7 @@ final class NativeOfflineHLSLifecycleTests: XCTestCase, HLSDownloadSessionObserv
         }
     }
 
-    private struct PersistedPackage: Codable { let relativePath: String; let quality: Int; let audioLanguage: String }
+    private struct PersistedPackage: Codable { let reference: HLSOwnedPackageReference; let quality: Int; let audioLanguage: String }
     private enum LifecycleError: LocalizedError {
         case message(String)
         var errorDescription: String? { if case .message(let value) = self { return value }; return nil }
@@ -173,16 +194,18 @@ final class NativeOfflineHLSLifecycleTests: XCTestCase, HLSDownloadSessionObserv
          "maximumObservedByteBudget": 2 * 1024 * 1024]
     }
 
-    private static func ownedPackageBytes(_ package: URL) throws -> Int64 {
-        _ = try HLSDownloadedPackages.relativePath(of: package)
-        let root = package.standardizedFileURL.resolvingSymlinksInPath()
-        guard FileManager.default.fileExists(atPath: root.path) else { return 0 }
-        guard let files = FileManager.default.enumerator(at: root,
+    private static func ownedPackageBytes(_ reference: HLSOwnedPackageReference, expectedIdentity: HLSDownloadIdentity) throws -> Int64 {
+        var checked = reference
+        let package: URL
+        do { package = try checked.resolve(expectedIdentity: expectedIdentity) }
+        catch HLSOwnedPackageReferenceError.missingPackage { return 0 } // Destination callback may precede directory creation.
+        let rootPath = package.standardizedFileURL.resolvingSymlinksInPath().path
+        guard let files = FileManager.default.enumerator(at: package,
             includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey]) else { return 0 }
         var count: Int64 = 0
         for case let file as URL in files {
             let resolved = file.standardizedFileURL.resolvingSymlinksInPath()
-            guard resolved.path.hasPrefix(root.path + "/") else { throw LifecycleError.message("Native package member escaped its owned directory") }
+            guard resolved.path.hasPrefix(rootPath + "/") else { throw LifecycleError.message("Native package member escaped its owned directory") }
             let values = try file.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
             if values.isRegularFile == true {
                 let size = Int64(max(0, values.fileSize ?? 0))
@@ -238,11 +261,18 @@ final class NativeOfflineHLSLifecycleTests: XCTestCase, HLSDownloadSessionObserv
             "actualDecodedAudioPCMProven": false, "playerLayerReadyForDisplay": layer.isReadyForDisplay]
     }
 
-    private func cleanUpOwnedPackages(_ session: HLSDownloadSessionOwner) {
+    private func cleanUpOwnedPackages(_ session: HLSDownloadSessionOwner) -> [String: Any] {
         for identity in Set(snapshots.map(\.identity)) { session.cancel(identity) }
-        for snapshot in snapshots where snapshot.packageURL != nil {
-            if let package = snapshot.packageURL { try? session.removeOwnedPackage(identity: snapshot.identity, packageURL: package) }
+        var attempted = Set<String>(), failures: [String] = []
+        for snapshot in snapshots {
+            guard let package = snapshot.packageURL else { continue }
+            let exactOwnedLocation = "\(snapshot.identity.taskDescription)|\(snapshot.identity.taskIdentifier)|\(package.absoluteString)"
+            guard attempted.insert(exactOwnedLocation).inserted else { continue }
+            do { try session.removeOwnedPackage(identity: snapshot.identity, packageURL: package) }
+            catch { failures.append(HLSDownloadFailure(error).message) }
         }
+        return ["ownedPackageRemovalAttempts": attempted.count, "errors": failures,
+            "movedPackage": false, "rewroteNativeDestination": false, "readOrExportedKeyBytes": false]
     }
     private func record(_ report: [String: Any]) {
         guard let data = try? JSONSerialization.data(withJSONObject: report, options: [.sortedKeys]),

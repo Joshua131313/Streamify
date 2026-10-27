@@ -84,8 +84,15 @@ final class OfflinePlaybackModel: ObservableObject {
             let preferredAudio: AVMediaSelectionOption?
             let validatedAudioGroup: AVMediaSelectionGroup?
             if isHLSPackage {
-                let validated = try await OfflineHLSValidation.validate(url, quality: item.quality,
-                    audioLanguage: item.sourceAudioLanguage ?? "en")
+                let validated: OfflineHLSValidation.Result
+                if let reference = item.hlsPackageReference {
+                    guard item.owns(reference: reference) else { throw OfflineVideoError.missingFile }
+                    validated = try await OfflineHLSValidation.validate(reference: reference, expectedIdentity: reference.identity,
+                        quality: item.quality, audioLanguage: item.sourceAudioLanguage ?? "en")
+                } else {
+                    validated = try await OfflineHLSValidation.validate(url, quality: item.quality,
+                        audioLanguage: item.sourceAudioLanguage ?? "en")
+                }
                 asset = validated.asset; loadedDuration = validated.duration; preferredAudio = validated.audioOption
                 validatedAudioGroup = validated.audioGroup
             } else {

@@ -67,8 +67,8 @@ final class VixSrcCompleteEpisodeResearchTests: XCTestCase, HLSDownloadSessionOb
             while Date() < deadline {
                 try Task.checkCancellation()
                 maximumNativeBytes = max(maximumNativeBytes, session.observedBytes(identity: identity))
-                if let package = latestPackage(identity: identity) {
-                    maximumPackageBytes = max(maximumPackageBytes, try Self.packageBytes(package))
+                if let reference = latestPackageReference(identity: identity) {
+                    maximumPackageBytes = max(maximumPackageBytes, try Self.packageBytes(reference, expectedIdentity: identity))
                 }
                 report["maximumNativeTaskBytes"] = maximumNativeBytes
                 report["maximumOwnedPackageBytes"] = maximumPackageBytes
@@ -82,13 +82,14 @@ final class VixSrcCompleteEpisodeResearchTests: XCTestCase, HLSDownloadSessionOb
             guard Date() < deadline else { session.cancel(identity); throw ResearchError.deadline }
             guard let finished = terminal(identity: identity) else { throw ResearchError.message("Native task did not report completion") }
             if let error = finished.error { throw error }
-            guard finished.event == .completed, finished.didFinishPackage, let package = finished.packageURL,
+            guard finished.event == .completed, finished.didFinishPackage, finished.packageURL != nil,
+                  var reference = finished.packageReference, reference.identity == identity,
                   !finished.selectedVariants.isEmpty,
                   finished.selectedVariants.allSatisfy({ $0.width == 1920 && $0.height == 1080 }),
                   finished.selectedAudioLanguage?.lowercased().hasPrefix("en") == true else {
                 throw ResearchError.message("Native completion did not confirm a finished1080p English package")
             }
-            maximumPackageBytes = max(maximumPackageBytes, try Self.packageBytes(package))
+            maximumPackageBytes = max(maximumPackageBytes, try Self.packageBytes(reference, expectedIdentity: identity))
             guard maximumPackageBytes <= Self.byteBudget else { throw ResearchError.budget }
             report["maximumOwnedPackageBytes"] = maximumPackageBytes
             report["nativeTransportCompleted"] = true
@@ -98,22 +99,33 @@ final class VixSrcCompleteEpisodeResearchTests: XCTestCase, HLSDownloadSessionOb
             report["genuineTimeProgressCallbackCount"] = progress.count
             report["maximumGenuineTimeProgress"] = progress.max() ?? 0
 
-            phase = "persisted location and fresh local package validation"
-            let relative = try HLSDownloadedPackages.relativePath(of: package)
+            phase = "runtime-owned package validation and durable bookmark persistence"
+            guard Date() < deadline else { throw ResearchError.deadline }
+            let initial = try await OfflineHLSValidation.validate(reference: reference, expectedIdentity: identity,
+                quality: 1080, audioLanguage: "en", timeout: min(15, remaining(deadline)))
+            guard initial.asset.url.isFileURL, initial.asset.assetCache?.isPlayableOffline == true else {
+                throw ResearchError.message("Runtime-owned provider package did not validate as locally playable offline")
+            }
+            report["runtimeOwnedPackageValidated"] = true
+            try reference.makeDurable(expectedIdentity: identity)
+            guard reference.isDurable else { throw ResearchError.message("Native completed package did not produce a durable bookmark") }
             let metadata = FileManager.default.temporaryDirectory.appendingPathComponent("from-package-research-\(UUID().uuidString).json")
             defer { try? FileManager.default.removeItem(at: metadata) }
-            try JSONEncoder().encode(SavedPackage(relativePath: relative, quality: 1080, language: "en"))
+            try JSONEncoder().encode(SavedPackage(reference: reference, quality: 1080, language: "en"))
                 .write(to: metadata, options: .atomic)
             let saved = try JSONDecoder().decode(SavedPackage.self, from: Data(contentsOf: metadata))
-            guard let local = HLSDownloadedPackages.fileURL(for: saved.relativePath), local.isFileURL else {
-                throw ResearchError.message("Saved native package path could not be restored")
+            guard saved.reference.identity == identity, saved.reference.isDurable else {
+                throw ResearchError.message("Saved native package lost its exact task identity or durable bookmark")
             }
             guard Date() < deadline else { throw ResearchError.deadline }
-            // The validator constructs a NEW AVURLAsset from the saved local
-            // file URL. Neither playback nor validation reuses the remote asset.
-            let validation = try await OfflineHLSValidation.validate(local, quality: saved.quality,
+            // Decoding clears provisional authority. Only the durable bookmark
+            // may resolve this new local asset; no runtime callback is replayed.
+            let validation = try await OfflineHLSValidation.validate(reference: saved.reference,
+                expectedIdentity: identity, quality: saved.quality,
                 audioLanguage: saved.language, timeout: min(15, remaining(deadline)))
-            report["relativePathRoundTrip"] = true
+            guard initial.asset !== validation.asset else { throw ResearchError.message("Persisted package validation reused the first native asset") }
+            report["durableBookmarkRoundTrip"] = true
+            report["decodedReferenceReassociatedWithCallback"] = false
             report["freshLocalAssetUsed"] = validation.asset.url.isFileURL
             report["originalRemoteAssetReusedForPlayback"] = false
             report["assetCachePlayableOffline"] = validation.asset.assetCache?.isPlayableOffline ?? false
@@ -138,14 +150,14 @@ final class VixSrcCompleteEpisodeResearchTests: XCTestCase, HLSDownloadSessionOb
         snapshots.append(snapshot)
         if snapshot.event == .prepared { preparedSynchronously = !startReturned }
     }
-    private func latestPackage(identity: HLSDownloadIdentity) -> URL? {
-        snapshots.last(where: { $0.identity == identity && $0.packageURL != nil })?.packageURL
+    private func latestPackageReference(identity: HLSDownloadIdentity) -> HLSOwnedPackageReference? {
+        snapshots.last(where: { $0.identity == identity && $0.packageReference != nil })?.packageReference
     }
     private func terminal(identity: HLSDownloadIdentity) -> HLSDownloadSnapshot? {
         snapshots.last(where: { $0.identity == identity && [.completed, .failed, .cancelled].contains($0.event) })
     }
     private func remaining(_ deadline: Date) -> TimeInterval { max(0.1, deadline.timeIntervalSinceNow) }
-    private struct SavedPackage: Codable { let relativePath: String; let quality: Int; let language: String }
+    private struct SavedPackage: Codable { let reference: HLSOwnedPackageReference; let quality: Int; let language: String }
     private enum ResearchError: LocalizedError {
         case deadline, budget, message(String)
         var errorDescription: String? {
@@ -157,16 +169,18 @@ final class VixSrcCompleteEpisodeResearchTests: XCTestCase, HLSDownloadSessionOb
         }
     }
 
-    private static func packageBytes(_ package: URL) throws -> Int64 {
-        _ = try HLSDownloadedPackages.relativePath(of: package)
-        let root = package.standardizedFileURL.resolvingSymlinksInPath()
-        guard FileManager.default.fileExists(atPath: root.path),
-              let files = FileManager.default.enumerator(at: root, includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey]) else { return 0 }
+    private static func packageBytes(_ reference: HLSOwnedPackageReference, expectedIdentity: HLSDownloadIdentity) throws -> Int64 {
+        var checked = reference
+        let package: URL
+        do { package = try checked.resolve(expectedIdentity: expectedIdentity) }
+        catch HLSOwnedPackageReferenceError.missingPackage { return 0 }
+        let rootPath = package.standardizedFileURL.resolvingSymlinksInPath().path
+        guard let files = FileManager.default.enumerator(at: package, includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey]) else { return 0 }
         var total: Int64 = 0
         for case let file as URL in files {
             let resolved = file.standardizedFileURL.resolvingSymlinksInPath()
             // Never traverse or inspect a link outside this exact package.
-            guard resolved.path.hasPrefix(root.path + "/") else { continue }
+            guard resolved.path.hasPrefix(rootPath + "/") else { throw ResearchError.message("Native package member escaped its exact owned directory") }
             do {
                 let values = try file.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
                 if values.isRegularFile == true {
@@ -258,13 +272,14 @@ final class VixSrcCompleteEpisodeResearchTests: XCTestCase, HLSDownloadSessionOb
         for identity in identities { session.cancel(identity) }
         var attempted = Set<String>(), failures: [String] = []
         for snapshot in snapshots {
-            guard let package = snapshot.packageURL, let relative = try? HLSDownloadedPackages.relativePath(of: package),
-                  attempted.insert(relative).inserted else { continue }
+            guard let package = snapshot.packageURL else { continue }
+            let exactOwnedLocation = "\(snapshot.identity.taskDescription)|\(snapshot.identity.taskIdentifier)|\(package.absoluteString)"
+            guard attempted.insert(exactOwnedLocation).inserted else { continue }
             do { try session.removeOwnedPackage(identity: snapshot.identity, packageURL: package) }
             catch { failures.append(HLSDownloadFailure(error).message) }
         }
         return ["ownedPackageRemovalAttempts": attempted.count, "errors": failures,
-            "movedPackage": false, "readOrExportedKeyBytes": false]
+            "movedPackage": false, "rewroteNativeDestination": false, "readOrExportedKeyBytes": false]
     }
     private func record(_ report: [String: Any]) {
         guard let data = try? JSONSerialization.data(withJSONObject: report, options: [.sortedKeys]),

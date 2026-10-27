@@ -16,6 +16,7 @@ targets:
       - path: Streamify/Downloads/OfflineVideoValidation.swift
       - path: Streamify/Downloads/OfflineHLSValidation.swift
       - path: Streamify/Downloads/HLSDownloadSessionOwner.swift
+      - path: Streamify/Downloads/HLSOwnedPackageReference.swift
       - path: Streamify/Downloads/VixSrcDownloadResolver.swift
       - path: Streamify/Data/Models.swift
     settings:
@@ -32,6 +33,7 @@ targets:
       - path: NativeHLSDiagnostics/NativeOfflineHLSLifecycleTests.swift
       - path: NativeHLSDiagnostics/VixSrcProductionResolverDiagnosticsTests.swift
       - path: NativeHLSDiagnostics/VixSrcCompleteEpisodeResearchTests.swift
+      - path: StreamifyTests/HLSOwnedPackageReferenceTests.swift
     dependencies:
       - target: HLSResearchHost
     settings:

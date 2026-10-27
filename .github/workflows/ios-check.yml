@@ -39,7 +39,7 @@ jobs:
           xcrun simctl bootstatus "$DEVICE_ID" -b
           mkdir -p ios/build/hls-research
           RESEARCH_TESTS=(-only-testing:HLSResearchTests/VixSrcNativeHLSDiagnosticsTests)
-          if [ "$RESEARCH_SCOPE" = native-offline-research ] || [ "$RESEARCH_SCOPE" = hls-delivery-recheck ]; then RESEARCH_TESTS=(-only-testing:HLSResearchTests/NativeOfflineHLSLifecycleTests -only-testing:HLSResearchTests/VixSrcProductionResolverDiagnosticsTests); fi
+          if [ "$RESEARCH_SCOPE" = native-offline-research ] || [ "$RESEARCH_SCOPE" = hls-delivery-recheck ]; then RESEARCH_TESTS=(-only-testing:HLSResearchTests/NativeOfflineHLSLifecycleTests -only-testing:HLSResearchTests/VixSrcProductionResolverDiagnosticsTests -only-testing:HLSResearchTests/HLSOwnedPackageReferenceTests); fi
           if [ "$RESEARCH_SCOPE" = native-provider-research ]; then RESEARCH_TESTS=(-only-testing:HLSResearchTests/VixSrcCompleteEpisodeResearchTests); fi
           set -o pipefail
           xcodebuild test -project ios/StreamifyHLSResearch.xcodeproj -scheme StreamifyHLSResearch -destination "platform=iOS Simulator,id=$DEVICE_ID" -derivedDataPath ios/build/HLSResearch CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY='-' -parallel-testing-enabled NO "${RESEARCH_TESTS[@]}" -resultBundlePath ios/build/HLSResearch.xcresult | tee ios/build/hls-research/native.log
@@ -60,7 +60,7 @@ jobs:
             ios/build/hls-research/attachments/**/*.json
           if-no-files-found: error
   codec-diagnostics:
-    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.scope == 'codec-diagnostics' || inputs.scope == 'native-download-research' || inputs.scope == 'hls-delivery-recheck') }}
+    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.scope == 'codec-diagnostics' || inputs.scope == 'native-download-research') }}
     name: Native iPhone codec diagnostics
     runs-on: macos-latest
     timeout-minutes: 12
@@ -168,6 +168,7 @@ jobs:
                   -only-testing:StreamifyTests/CatalogDownloadResolverTests
                   -only-testing:StreamifyTests/HLSDownloadPolicyTests
                   -only-testing:StreamifyTests/HLSDownloadStateTests
+                  -only-testing:StreamifyTests/HLSOwnedPackageReferenceTests
                   -only-testing:StreamifyTests/DaraTechDownloadResolverTests
                   -only-testing:StreamifyTests/MediaDownloadResolverTests
                   -only-testing:StreamifyTests/DownloadSourceReliabilityTests

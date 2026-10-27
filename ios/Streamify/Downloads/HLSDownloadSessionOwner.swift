@@ -47,11 +47,22 @@ struct HLSDownloadSnapshot: Sendable {
     let sequence: UInt64
     let event: Event
     let packageURL: URL?
+    let packageReference: HLSOwnedPackageReference?
     let selectedVariants: [HLSDownloadedVariant]
     let selectedAudioLanguage: String?
     let fractionCompleted: Double?
     let didFinishPackage: Bool
     let error: HLSDownloadFailure?
+
+    init(identity: HLSDownloadIdentity, sequence: UInt64, event: Event, packageURL: URL?,
+         packageReference: HLSOwnedPackageReference? = nil, selectedVariants: [HLSDownloadedVariant],
+         selectedAudioLanguage: String?, fractionCompleted: Double?, didFinishPackage: Bool,
+         error: HLSDownloadFailure?) {
+        self.identity = identity; self.sequence = sequence; self.event = event
+        self.packageURL = packageURL; self.packageReference = packageReference
+        self.selectedVariants = selectedVariants; self.selectedAudioLanguage = selectedAudioLanguage
+        self.fractionCompleted = fractionCompleted; self.didFinishPackage = didFinishPackage; self.error = error
+    }
 }
 
 struct HLSDownloadFailure: Error, LocalizedError, Codable, Equatable, Sendable {
@@ -93,6 +104,7 @@ struct HLSDownloadRestoreRecord: Sendable {
     let quality: Int
     let audioLanguage: String
     var packageURL: URL? = nil
+    var packageReference: HLSOwnedPackageReference? = nil
     var selectedVariants: [HLSDownloadedVariant] = []
     var selectedAudioLanguage: String? = nil
     var didFinishPackage = false
@@ -272,11 +284,13 @@ final class HLSDownloadSessionOwner {
         finishBackgroundEventsIfPossible()
     }
 
-    /// Only a path registered for this exact native task is eligible. The
-    /// helper rejects traversal, symlink escapes and non-.movpkg locations.
+    /// Only a reference registered for this exact native task is eligible.
+    /// Preserve the system's URL/access context, including /.nofollow paths.
     func removeOwnedPackage(identity: HLSDownloadIdentity, packageURL: URL) throws {
-        guard delegate.owns(packageURL, identity: identity) else { throw HLSDownloadSessionError.unsafePackage }
-        try HLSDownloadedPackages.remove(relativePath: HLSDownloadedPackages.relativePath(of: packageURL))
+        guard var reference = delegate.registeredReference(packageURL, identity: identity) else {
+            throw HLSDownloadSessionError.unsafePackage
+        }
+        try reference.remove(expectedIdentity: identity)
     }
 
     func registerBackgroundCompletion(_ completion: @escaping () -> Void) {
@@ -394,6 +408,7 @@ private final class HLSAssetDownloadDelegate: NSObject, AVAssetDownloadDelegate,
         var selectedLanguage: String?
         var variants: [HLSDownloadedVariant] = []
         var location: URL?
+        var packageReference: HLSOwnedPackageReference?
         var fraction: Double?
         var didFinish = false
         var transportComplete = false
@@ -420,12 +435,29 @@ private final class HLSAssetDownloadDelegate: NSObject, AVAssetDownloadDelegate,
 
     func register(_ record: HLSDownloadRestoreRecord, audioGroup: AVMediaSelectionGroup?,
                   event: HLSDownloadSnapshot.Event) -> HLSDownloadSnapshot {
+        // Decoded provisional external URLs have no authority. Only a valid
+        // durable bookmark for this exact identity may restore access without
+        // a fresh destination callback. Never call nativeCallback on metadata.
+        var restoredReference: HLSOwnedPackageReference?
+        var restoredLocation: URL?
+        if var reference = record.packageReference, reference.identity == record.identity, reference.isDurable,
+           let location = try? reference.resolve(expectedIdentity: record.identity) {
+            restoredReference = reference; restoredLocation = location
+        }
+        let legacyLocation = record.packageURL.flatMap { location -> URL? in
+            (try? HLSDownloadedPackages.relativePath(of: location)) == nil ? nil : location
+        }
         lock.lock(); defer { lock.unlock() }
         var state = states[record.identity] ?? State(identity: record.identity)
         state.registered = true; state.quality = record.quality; state.language = record.audioLanguage
         state.audioGroup = audioGroup
-        if state.location == nil, let location = record.packageURL,
-           (try? HLSDownloadedPackages.relativePath(of: location)) != nil { state.location = location }
+        if state.packageReference == nil, let restoredReference {
+            state.packageReference = restoredReference; state.location = restoredLocation
+        } else if state.location == nil {
+            // Backward-compatible contained paths may be retained as hints,
+            // but do not gain native-callback or external deletion authority.
+            state.location = legacyLocation
+        }
         if state.variants.isEmpty { state.variants = record.selectedVariants }
         if state.selectedLanguage == nil { state.selectedLanguage = record.selectedAudioLanguage }
         state.didFinish = state.didFinish || record.didFinishPackage
@@ -460,22 +492,22 @@ private final class HLSAssetDownloadDelegate: NSObject, AVAssetDownloadDelegate,
         guard let state = states[identity] else { return false }
         return !state.cancelled && !state.terminalSent
     }
-    func owns(_ url: URL, identity: HLSDownloadIdentity) -> Bool {
+    func registeredReference(_ url: URL, identity: HLSDownloadIdentity) -> HLSOwnedPackageReference? {
         lock.lock(); defer { lock.unlock() }
         guard let location = states[identity]?.location,
-              let first = try? HLSDownloadedPackages.relativePath(of: location),
-              let second = try? HLSDownloadedPackages.relativePath(of: url) else { return false }
-        return first == second
+              location == url, let reference = states[identity]?.packageReference,
+              reference.identity == identity else { return nil }
+        return reference
     }
     func cancel(_ identity: HLSDownloadIdentity, removePartialPackage: Bool) {
         lock.lock()
         guard var state = states[identity], !state.terminalSent else { lock.unlock(); return }
         state.cancelled = true; state.removePartialOnCancel = removePartialPackage
         state.discardPartial = removePartialPackage; state.terminalSent = true
-        let location = removePartialPackage ? state.location : nil
+        let reference = removePartialPackage ? state.packageReference : nil
         let snapshot = Self.snapshot(&state, event: .cancelled)
         states[identity] = state; lock.unlock()
-        Self.removeOwnedPartial(location); enqueue(snapshot)
+        Self.removeOwnedPartial(reference, identity: identity); enqueue(snapshot)
     }
     func fail(_ identity: HLSDownloadIdentity, error: Error) {
         lock.lock()
@@ -483,7 +515,7 @@ private final class HLSAssetDownloadDelegate: NSObject, AVAssetDownloadDelegate,
         state.failure = HLSDownloadFailure(error); state.terminalSent = true; state.discardPartial = true
         let snapshot = state.registered ? Self.snapshot(&state, event: .failed) : nil
         states[identity] = state; lock.unlock()
-        Self.removeOwnedPartial(state.location)
+        Self.removeOwnedPartial(state.packageReference, identity: identity)
         if let snapshot { enqueue(snapshot) }
     }
     func abandon(_ task: AVAssetDownloadTask) {
@@ -494,8 +526,8 @@ private final class HLSAssetDownloadDelegate: NSObject, AVAssetDownloadDelegate,
         // native completion has already been accepted.
         if state.terminalSent && !state.cancelled && state.failure == nil { lock.unlock(); return }
         state.cancelled = true; state.terminalSent = true; state.discardPartial = true
-        let location = state.location; states[identity] = state
-        lock.unlock(); Self.removeOwnedPartial(location)
+        let reference = state.packageReference; states[identity] = state
+        lock.unlock(); Self.removeOwnedPartial(reference, identity: identity)
     }
 
     func urlSession(_ session: URLSession, assetDownloadTask task: AVAssetDownloadTask, willDownloadTo location: URL) {
@@ -506,16 +538,26 @@ private final class HLSAssetDownloadDelegate: NSObject, AVAssetDownloadDelegate,
     }
     private func destination(_ task: AVAssetDownloadTask, location: URL, didFinish: Bool) {
         guard let identity = capture(task) else { return }
-        guard (try? HLSDownloadedPackages.relativePath(of: location)) != nil else {
-            fail(identity, error: HLSDownloadSessionError.unsafePackage); task.cancel(); return
-        }
         lock.lock()
         guard var state = states[identity], !state.terminalSent || state.discardPartial else { lock.unlock(); return }
+        do {
+            if var reference = state.packageReference {
+                try reference.reassociateNativeCallback(location: location, identity: identity)
+                state.packageReference = reference
+            } else {
+                state.packageReference = try HLSOwnedPackageReference.nativeCallback(location: location, identity: identity)
+            }
+        } catch {
+            lock.unlock()
+            fail(identity, error: error); task.cancel(); return
+        }
+        // Retain the exact system-supplied URL, never a stripped/reconstructed
+        // app-home path. The reference certifies ownership, not completion.
         state.location = location; state.didFinish = state.didFinish || didFinish
         let snapshot = state.registered && !state.terminalSent
             ? Self.snapshot(&state, event: didFinish ? .packageFinished : .destination) : nil
         states[identity] = state; lock.unlock()
-        if state.discardPartial { Self.removeOwnedPartial(location) }
+        if state.discardPartial { Self.removeOwnedPartial(state.packageReference, identity: identity) }
         if let snapshot { enqueue(snapshot) }
     }
     func urlSession(_ session: URLSession, assetDownloadTask task: AVAssetDownloadTask, willDownloadVariants variants: [AVAssetVariant]) {
@@ -579,12 +621,13 @@ private final class HLSAssetDownloadDelegate: NSObject, AVAssetDownloadDelegate,
         let validSelection = !state.variants.isEmpty && state.variants.allSatisfy { $0.matches(quality: quality) }
             && Self.matchesLanguage(state.selectedLanguage, requested: state.language)
         if !state.didFinish || state.location == nil { state.failure = HLSDownloadFailure(HLSDownloadSessionError.incompletePackage) }
+        else if state.packageReference == nil { state.failure = HLSDownloadFailure(HLSDownloadSessionError.unsafePackage) }
         else if !validSelection { state.failure = HLSDownloadFailure(HLSDownloadSessionError.unexpectedSelection) }
         state.discardPartial = state.failure != nil
         state.terminalSent = true
         let snapshot = Self.snapshot(&state, event: state.failure == nil ? .completed : .failed)
         states[identity] = state; lock.unlock()
-        if state.discardPartial { Self.removeOwnedPartial(state.location) }
+        if state.discardPartial { Self.removeOwnedPartial(state.packageReference, identity: identity) }
         enqueue(snapshot)
     }
     private func selectionIsValidIfKnown(_ identity: HLSDownloadIdentity) -> Bool {
@@ -599,7 +642,8 @@ private final class HLSAssetDownloadDelegate: NSObject, AVAssetDownloadDelegate,
     private static func snapshot(_ state: inout State, event: HLSDownloadSnapshot.Event) -> HLSDownloadSnapshot {
         state.sequence &+= 1
         return HLSDownloadSnapshot(identity: state.identity, sequence: state.sequence, event: event,
-            packageURL: state.location, selectedVariants: state.variants, selectedAudioLanguage: state.selectedLanguage,
+            packageURL: state.location, packageReference: state.packageReference,
+            selectedVariants: state.variants, selectedAudioLanguage: state.selectedLanguage,
             fractionCompleted: state.fraction, didFinishPackage: state.didFinish, error: state.failure)
     }
     private static func language(_ selection: AVMediaSelection, group: AVMediaSelectionGroup) -> String? {
@@ -610,9 +654,9 @@ private final class HLSAssetDownloadDelegate: NSObject, AVAssetDownloadDelegate,
         guard let actual, !actual.isEmpty, !requested.isEmpty else { return false }
         return actual.lowercased().prefix(2) == requested.lowercased().prefix(2)
     }
-    private static func removeOwnedPartial(_ location: URL?) {
-        guard let location, let relative = try? HLSDownloadedPackages.relativePath(of: location) else { return }
-        try? HLSDownloadedPackages.remove(relativePath: relative)
+    private static func removeOwnedPartial(_ value: HLSOwnedPackageReference?, identity: HLSDownloadIdentity) {
+        guard var reference = value, reference.identity == identity else { return }
+        try? reference.remove(expectedIdentity: identity)
     }
     private func enqueue(_ snapshot: HLSDownloadSnapshot) {
         enqueueAction { [deliver] in deliver(snapshot) }
