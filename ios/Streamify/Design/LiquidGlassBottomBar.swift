@@ -16,6 +16,7 @@ struct LiquidGlassBottomBar: View {
     @State private var touch: BarTouch?
     @State private var dragCenter: CGFloat?
     @State private var preview: AppTab?
+    @State private var settledTab: AppTab?
     @State private var holdTask: Task<Void, Never>?
     @State private var profilesOpen = false
     @State private var pendingProfile: UUID?
@@ -25,6 +26,7 @@ struct LiquidGlassBottomBar: View {
     private let height: CGFloat = 56
     private let inset: CGFloat = 3
     private var focusedTab: AppTab { preview ?? selection }
+    private var pressingLens: Bool { touch.map { !$0.cancelled && !$0.consumed } ?? false }
     private var settlingAnimation: Animation? {
         reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.86)
     }
@@ -38,7 +40,13 @@ struct LiquidGlassBottomBar: View {
                 legacyBar
             }
         }
-        .onChange(of: selection) { _, _ in if touch != nil { cancelTouch(animated: false) } }
+        .onAppear { settledTab = selection }
+        .onChange(of: selection) { _, _ in
+            if touch != nil { cancelTouch(animated: false) }
+            // The page stays instant. Only the older-iOS fallback lens springs
+            // into its slot; UIKit owns this animation on iOS 26 and later.
+            withTransaction(Transaction(animation: settlingAnimation)) { settledTab = selection }
+        }
         .onChange(of: profilesOpen) { _, open in if open { cancelTouch(animated: false) } }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active {
@@ -72,7 +80,6 @@ struct LiquidGlassBottomBar: View {
                 }
             }
             .frame(maxWidth: 440)
-            .padding(.horizontal, 28)
     }
 
     private var quickProfilePicker: some View {
@@ -93,12 +100,14 @@ struct LiquidGlassBottomBar: View {
         GeometryReader { geometry in
             let width = max(1, geometry.size.width - inset * 2)
             let cellWidth = width / CGFloat(AppTab.allCases.count)
-            let center = dragCenter ?? tabCenter(selection, width: width)
+            let center = dragCenter ?? tabCenter(settledTab ?? selection, width: width)
             ZStack(alignment: .leading) {
                 selectionLens
                     .frame(width: max(1, cellWidth - 2), height: height - inset * 2)
-                    .scaleEffect(x: dragCenter == nil || reduceMotion ? 1 : 1.035,
-                                 y: dragCenter == nil || reduceMotion ? 1 : 1.04)
+                    .scaleEffect(x: pressingLens && !reduceMotion ? 1.10 : 1,
+                                 y: pressingLens && !reduceMotion ? 1.12 : 1)
+                    .offset(y: pressingLens && !reduceMotion ? -1 : 0)
+                    .animation(reduceMotion ? nil : .spring(response: 0.28, dampingFraction: 0.76), value: pressingLens)
                     .offset(x: inset + center - cellWidth / 2 + 1)
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
@@ -253,7 +262,9 @@ struct LiquidGlassBottomBar: View {
     }
 
     private func settleLens() {
-        withAnimation(settlingAnimation) { dragCenter = nil; preview = nil }
+        withTransaction(Transaction(animation: settlingAnimation)) {
+            settledTab = selection; dragCenter = nil; preview = nil
+        }
     }
 
     private func cancelTouch(animated: Bool) {
@@ -262,7 +273,7 @@ struct LiquidGlassBottomBar: View {
         else {
             var transaction = Transaction(animation: nil)
             transaction.disablesAnimations = true
-            withTransaction(transaction) { dragCenter = nil; preview = nil }
+            withTransaction(transaction) { settledTab = selection; dragCenter = nil; preview = nil }
         }
     }
 

@@ -30,13 +30,15 @@ struct NativeGlassTabBar: UIViewRepresentable {
             item.accessibilityLabel = tab.title
             return item
         }, animated: false)
-        let hold = UILongPressGestureRecognizer(target: context.coordinator,
-            action: #selector(Coordinator.heldProfile(_:)))
-        hold.minimumPressDuration = 0.45
-        hold.allowableMovement = 10
-        hold.delegate = context.coordinator
-        hold.cancelsTouchesInView = true
-        bar.addGestureRecognizer(hold)
+        // Observe the contact without replacing UIKit's liquid-lens tracking.
+        // Navigation commits once on release; moving outside cancels it.
+        let contact = UILongPressGestureRecognizer(target: context.coordinator,
+            action: #selector(Coordinator.contactChanged(_:)))
+        contact.minimumPressDuration = 0
+        contact.allowableMovement = .greatestFiniteMagnitude
+        contact.delegate = context.coordinator
+        contact.cancelsTouchesInView = false
+        bar.addGestureRecognizer(contact)
         context.coordinator.bar = bar
         updateUIView(bar, context: context)
         return bar
@@ -49,8 +51,12 @@ struct NativeGlassTabBar: UIViewRepresentable {
     }
 
     func updateUIView(_ bar: UITabBar, context: Context) {
+        if context.coordinator.parent.selection != selection {
+            context.coordinator.cancelContact()
+        }
         context.coordinator.parent = self
-        if let index = AppTab.allCases.firstIndex(of: selection),
+        if !context.coordinator.isTracking,
+           let index = AppTab.allCases.firstIndex(of: selection),
            let item = bar.items?[index], bar.selectedItem !== item {
             bar.selectedItem = item
         }
@@ -75,6 +81,7 @@ struct NativeGlassTabBar: UIViewRepresentable {
     }
 
     static func dismantleUIView(_ bar: UITabBar, coordinator: Coordinator) {
+        coordinator.cancelContact()
         bar.delegate = nil
         coordinator.bar = nil
     }
@@ -93,29 +100,86 @@ struct NativeGlassTabBar: UIViewRepresentable {
         var parent: NativeGlassTabBar
         weak var bar: UITabBar?
         var avatar: ProfileAvatar?
+        private var contactID: UUID?
+        private var pendingSelection: AppTab?
+        private var holdTask: Task<Void, Never>?
+        private var origin = CGPoint.zero
+        private var consumedHold = false
+        var isTracking: Bool { contactID != nil }
 
         init(parent: NativeGlassTabBar) { self.parent = parent }
 
         func tabBar(_ tabBar: UITabBar, didSelect item: UITabBarItem) {
             guard AppTab.allCases.indices.contains(item.tag) else { return }
-            parent.select(AppTab.allCases[item.tag])
+            let tab = AppTab.allCases[item.tag]
+            if isTracking { pendingSelection = tab }
+            else { parent.select(tab) } // VoiceOver and keyboard activation.
         }
 
-        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-            guard parent.canSwitchProfiles, let bar else { return false }
-            let point = gestureRecognizer.location(in: bar)
-            // Four equally distributed system items; no private subview or
-            // undocumented tab-button frame lookup is involved.
-            return bar.bounds.contains(point) && point.x >= bar.bounds.width * 0.75
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                               shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            true
         }
 
-        @objc func heldProfile(_ gesture: UILongPressGestureRecognizer) {
-            guard gesture.state == .began, parent.canSwitchProfiles else { return }
-            // A hold cancels the native contact; it must not also switch tabs.
+        @objc func contactChanged(_ gesture: UILongPressGestureRecognizer) {
+            guard let bar else { return }
+            let point = gesture.location(in: bar)
+            switch gesture.state {
+            case .began:
+                cancelContact()
+                let id = UUID()
+                contactID = id; origin = point
+                if parent.canSwitchProfiles && isProfileSlot(point, in: bar) {
+                    holdTask = Task { @MainActor [weak self] in
+                        do { try await Task.sleep(for: .milliseconds(450)) } catch { return }
+                        guard let self, self.contactID == id, self.parent.canSwitchProfiles else { return }
+                        self.consumedHold = true
+                        self.restoreCommittedSelection()
+                        self.parent.openProfiles()
+                    }
+                }
+            case .changed:
+                if hypot(point.x - origin.x, point.y - origin.y) > 8 {
+                    holdTask?.cancel(); holdTask = nil
+                }
+            case .ended:
+                holdTask?.cancel(); holdTask = nil
+                let id = contactID
+                let inside = bar.bounds.insetBy(dx: -20, dy: -24).contains(point)
+                // Native item actions may be delivered later in this same
+                // touch event. Let UIKit finish before committing the page.
+                DispatchQueue.main.async { [weak self] in
+                    guard let self, self.contactID == id, id != nil else { return }
+                    let target = self.pendingSelection ?? self.bar?.selectedItem.flatMap { item in
+                        AppTab.allCases.indices.contains(item.tag) ? AppTab.allCases[item.tag] : nil
+                    }
+                    let commit = inside && !self.consumedHold
+                    self.contactID = nil; self.pendingSelection = nil; self.consumedHold = false
+                    if commit, let target { self.parent.select(target) }
+                    else { self.restoreCommittedSelection() }
+                }
+            case .cancelled, .failed:
+                cancelContact()
+            default: break
+            }
+        }
+
+        func cancelContact() {
+            holdTask?.cancel(); holdTask = nil
+            contactID = nil; pendingSelection = nil; consumedHold = false
+            restoreCommittedSelection()
+        }
+
+        private func restoreCommittedSelection() {
             if let index = AppTab.allCases.firstIndex(of: parent.selection) {
                 bar?.selectedItem = bar?.items?[index]
             }
-            parent.openProfiles()
+        }
+
+        private func isProfileSlot(_ point: CGPoint, in bar: UITabBar) -> Bool {
+            let inTrailingQuarter = bar.effectiveUserInterfaceLayoutDirection == .rightToLeft
+                ? point.x <= bar.bounds.width * 0.25 : point.x >= bar.bounds.width * 0.75
+            return inTrailingQuarter && bar.bounds.insetBy(dx: 0, dy: -24).contains(point)
         }
     }
 }

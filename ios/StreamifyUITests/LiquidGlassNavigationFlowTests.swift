@@ -191,7 +191,9 @@ final class LiquidGlassNavigationFlowTests: XCTestCase {
         let lightFrame = element("floating-navigation").frame
         assertReadableItems()
         capture("Native Apple glass in light mode")
-        app.scrollViews.firstMatch.swipeUp()
+        let catalog = app.scrollViews["home-catalog"]
+        XCTAssertTrue(catalog.waitForExistence(timeout: 5))
+        scrollCatalogBesideHero(catalog)
         assertReadableItems()
         XCTAssertEqual(element("floating-navigation").frame.minY, lightFrame.minY, accuracy: 1)
         capture("Native light glass floating over artwork without a footer shelf")
@@ -205,7 +207,9 @@ final class LiquidGlassNavigationFlowTests: XCTestCase {
         assertOnlySelectedTab("home")
         assertReadableItems()
         capture("Native Apple glass in dark mode")
-        app.scrollViews.firstMatch.swipeUp()
+        let darkCatalog = app.scrollViews["home-catalog"]
+        XCTAssertTrue(darkCatalog.waitForExistence(timeout: 5))
+        scrollCatalogBesideHero(darkCatalog)
         assertReadableItems()
         capture("Native dark glass floating over artwork without a footer shelf")
     }
@@ -220,6 +224,14 @@ final class LiquidGlassNavigationFlowTests: XCTestCase {
             XCTAssertTrue(app.frame.contains(item.frame), "Every native item must remain on screen.", file: file, line: line)
             XCTAssertGreaterThanOrEqual(item.frame.width, 44, file: file, line: line)
         }
+    }
+
+    private func scrollCatalogBesideHero(_ catalog: XCUIElement) {
+        // The hero is a separate horizontal pager with its own card buttons.
+        // Scroll the vertical catalog through its real side gutter instead.
+        let start = catalog.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.8))
+        let finish = catalog.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.2))
+        start.press(forDuration: 0.05, thenDragTo: finish)
     }
 
     private func assertOneFloatingBar(file: StaticString = #filePath, line: UInt = #line) {

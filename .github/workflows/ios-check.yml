@@ -11,7 +11,7 @@ on:
         type: choice
         required: true
         default: full
-        options: [full, liquid-glass-recheck, hls-app-recheck, native-provider-research, hls-delivery-recheck, native-offline-research, native-download-research, native-hls-research, codec-diagnostics, download-provider-recheck, interaction-followup, interaction-recheck, delivery-recheck, download-source-recheck, multi-source-ui-recheck, stream-recovery-recheck, player-recheck, polish-recheck, sports-refinement, refinement-recheck, live-today-recheck, player-scene-recheck, profile-activation-recheck, native-fullscreen-recheck, football-polish-recheck, profile-picker-recheck, account-cache-recheck, cache-retap-recheck, provider-control-recheck, possession-widget-recheck, playback-start-recheck, landscape-touch-recheck, diamond-player-recheck, chat-connection-recheck]
+        options: [full, native-transport-research, liquid-glass-recheck, hls-app-recheck, native-provider-research, hls-delivery-recheck, native-offline-research, native-download-research, native-hls-research, codec-diagnostics, download-provider-recheck, interaction-followup, interaction-recheck, delivery-recheck, download-source-recheck, multi-source-ui-recheck, stream-recovery-recheck, player-recheck, polish-recheck, sports-refinement, refinement-recheck, live-today-recheck, player-scene-recheck, profile-activation-recheck, native-fullscreen-recheck, football-polish-recheck, profile-picker-recheck, account-cache-recheck, cache-retap-recheck, provider-control-recheck, possession-widget-recheck, playback-start-recheck, landscape-touch-recheck, diamond-player-recheck, chat-connection-recheck]
 permissions:
   contents: read
 concurrency:
@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   native-hls-research:
-    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.scope == 'native-hls-research' || inputs.scope == 'native-download-research' || inputs.scope == 'native-offline-research' || inputs.scope == 'hls-delivery-recheck' || inputs.scope == 'native-provider-research') }}
+    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.scope == 'native-hls-research' || inputs.scope == 'native-download-research' || inputs.scope == 'native-offline-research' || inputs.scope == 'hls-delivery-recheck' || inputs.scope == 'native-provider-research' || inputs.scope == 'native-transport-research') }}
     name: Native HLS source feasibility
     runs-on: macos-latest
     timeout-minutes: 12
@@ -41,6 +41,7 @@ jobs:
           RESEARCH_TESTS=(-only-testing:HLSResearchTests/VixSrcNativeHLSDiagnosticsTests)
           if [ "$RESEARCH_SCOPE" = native-offline-research ] || [ "$RESEARCH_SCOPE" = hls-delivery-recheck ]; then RESEARCH_TESTS=(-only-testing:HLSResearchTests/NativeOfflineHLSLifecycleTests -only-testing:HLSResearchTests/VixSrcProductionResolverDiagnosticsTests -only-testing:HLSResearchTests/HLSOwnedPackageReferenceTests); fi
           if [ "$RESEARCH_SCOPE" = native-provider-research ]; then RESEARCH_TESTS=(-only-testing:HLSResearchTests/VixSrcCompleteEpisodeResearchTests); fi
+          if [ "$RESEARCH_SCOPE" = native-transport-research ]; then RESEARCH_TESTS=(-only-testing:HLSResearchTests/NativeHLSFixtureTransportDiagnosticsTests); fi
           set -o pipefail
           xcodebuild test -project ios/StreamifyHLSResearch.xcodeproj -scheme StreamifyHLSResearch -destination "platform=iOS Simulator,id=$DEVICE_ID" -derivedDataPath ios/build/HLSResearch CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY='-' -parallel-testing-enabled NO "${RESEARCH_TESTS[@]}" -resultBundlePath ios/build/HLSResearch.xcresult | tee ios/build/hls-research/native.log
       - name: Export native feasibility evidence
@@ -92,7 +93,7 @@ jobs:
           path: ios/build/codec-diagnostics
           if-no-files-found: error
   device:
-    if: ${{ inputs.scope != 'native-provider-research' && inputs.scope != 'native-offline-research' && inputs.scope != 'native-download-research' && inputs.scope != 'native-hls-research' && inputs.scope != 'codec-diagnostics' && inputs.scope != 'download-provider-recheck' && (github.event_name != 'workflow_dispatch' || (inputs.scope != 'profile-activation-recheck' && inputs.scope != 'native-fullscreen-recheck' && inputs.scope != 'provider-control-recheck' && inputs.scope != 'landscape-touch-recheck')) }}
+    if: ${{ inputs.scope != 'native-provider-research' && inputs.scope != 'native-transport-research' && inputs.scope != 'native-offline-research' && inputs.scope != 'native-download-research' && inputs.scope != 'native-hls-research' && inputs.scope != 'codec-diagnostics' && inputs.scope != 'download-provider-recheck' && (github.event_name != 'workflow_dispatch' || (inputs.scope != 'profile-activation-recheck' && inputs.scope != 'native-fullscreen-recheck' && inputs.scope != 'provider-control-recheck' && inputs.scope != 'landscape-touch-recheck')) }}
     name: iPhone test package
     runs-on: macos-latest
     timeout-minutes: 20
@@ -117,7 +118,7 @@ jobs:
           path: ios/build/Streamify-unsigned.ipa
           if-no-files-found: error
   simulator:
-    if: ${{ github.event_name != 'workflow_dispatch' || (inputs.scope != 'native-provider-research' && inputs.scope != 'native-offline-research' && inputs.scope != 'native-download-research' && inputs.scope != 'codec-diagnostics' && inputs.scope != 'native-hls-research') }}
+    if: ${{ github.event_name != 'workflow_dispatch' || (inputs.scope != 'native-provider-research' && inputs.scope != 'native-transport-research' && inputs.scope != 'native-offline-research' && inputs.scope != 'native-download-research' && inputs.scope != 'codec-diagnostics' && inputs.scope != 'native-hls-research') }}
     name: iPhone UI - ${{ matrix.suite }}
     runs-on: macos-latest
     timeout-minutes: 45
@@ -156,7 +157,8 @@ jobs:
             done
           ) &
           DIAGNOSTIC_PID=$!
-          trap 'kill "$DIAGNOSTIC_PID" 2>/dev/null || true' EXIT
+          GLASS_MOTION_PID=''
+          trap 'if [ -n "$GLASS_MOTION_PID" ]; then kill -INT "$GLASS_MOTION_PID" 2>/dev/null || true; wait "$GLASS_MOTION_PID" 2>/dev/null || true; fi; kill "$DIAGNOSTIC_PID" 2>/dev/null || true' EXIT
           COMMON=(-project ios/Streamify.xcodeproj -scheme Streamify -configuration Debug -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_ID" -derivedDataPath ios/build/Simulator CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY='-')
           TEST_OPTIONS=(-parallel-testing-enabled NO -test-timeouts-enabled YES -default-test-execution-time-allowance 240 -maximum-test-execution-time-allowance 360)
           xcodebuild build-for-testing "${COMMON[@]}"
@@ -468,12 +470,23 @@ jobs:
           # Normal push/PR/full-dispatch suites cover every UI test class once.
           # Broad rechecks retain all units; sports-refinement selects the changed
           # sports, profile and routing contracts plus their affected UI flows.
+          if [ "$TEST_SUITE" = liquid-glass ]; then
+            # Capture the actual held contact, expansion and release. A still
+            # attachment taken after the gesture cannot establish motion.
+            xcrun simctl io "$IOS_SIMULATOR_ID" recordVideo --codec=h264 ios/build/diagnostics/liquid-glass-thumb-motion.mp4 > ios/build/diagnostics/liquid-glass-recording.log 2>&1 &
+            GLASS_MOTION_PID=$!
+            xcodebuild test-without-building "${COMMON[@]}" "${TEST_OPTIONS[@]}" -only-testing:StreamifyUITests/LiquidGlassNavigationFlowTests/testRealThumbScrubCommitsReleasedTabAndTapsRemainIndependent -resultBundlePath ios/build/GlassMotion.xcresult
+            kill -INT "$GLASS_MOTION_PID" 2>/dev/null || true
+            wait "$GLASS_MOTION_PID" || true
+            GLASS_MOTION_PID=''
+            SELECTORS+=(-skip-testing:StreamifyUITests/LiquidGlassNavigationFlowTests/testRealThumbScrubCommitsReleasedTabAndTapsRemainIndependent)
+          fi
           xcodebuild test-without-building "${COMMON[@]}" "${TEST_OPTIONS[@]}" "${SELECTORS[@]}" -resultBundlePath ios/build/Streamify.xcresult
       - name: Export simulator screenshots
         if: always()
         continue-on-error: true
         run: |
-          for RESULT in ios/build/Streamify.xcresult; do
+          for RESULT in ios/build/Streamify.xcresult ios/build/GlassMotion.xcresult; do
             if test -d "$RESULT"; then
               NAME=$(basename "$RESULT" .xcresult)
               xcrun xcresulttool export attachments --path "$RESULT" --output-path "ios/build/screenshots/$NAME"

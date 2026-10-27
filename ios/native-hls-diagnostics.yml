@@ -30,6 +30,7 @@ targets:
     platform: iOS
     sources:
       - path: NativeHLSDiagnostics/VixSrcNativeHLSDiagnosticsTests.swift
+      - path: NativeHLSDiagnostics/NativeHLSFixtureTransportDiagnosticsTests.swift
       - path: NativeHLSDiagnostics/NativeOfflineHLSLifecycleTests.swift
       - path: NativeHLSDiagnostics/VixSrcProductionResolverDiagnosticsTests.swift
       - path: NativeHLSDiagnostics/VixSrcCompleteEpisodeResearchTests.swift
