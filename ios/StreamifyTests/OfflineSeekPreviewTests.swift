@@ -132,6 +132,64 @@ final class OfflineSeekPreviewTests: XCTestCase {
         XCTAssertEqual(model.seconds, 8)
     }
 
+    @MainActor
+    func testHLSPackageUsesNativeDecoderInjectionAndConflatesItsPendingFrames() async throws {
+        let gate = FrameGate()
+        var mp4Calls = 0
+        let model = OfflineSeekPreviewModel(frameLoader: { _, _ in
+            mp4Calls += 1
+            throw CancellationError()
+        }, packageFrameLoader: { _, time in await gate.load(second: Int(time.seconds)) })
+        defer { model.close(); gate.releaseAll() }
+        let asset = AVURLAsset(url: FileManager.default.temporaryDirectory.appendingPathComponent("owned-preview.movpkg"))
+        model.show(asset: asset, seconds: 1, duration: 20)
+        let firstStarted = await settled { gate.requested == [1] }
+        XCTAssertTrue(firstStarted)
+        model.show(asset: asset, seconds: 2, duration: 20)
+        model.show(asset: asset, seconds: 3, duration: 20)
+        gate.release(1)
+        let latestStarted = await settled { gate.requested == [1, 3] }
+        XCTAssertTrue(latestStarted)
+        XCTAssertNil(model.image)
+        gate.release(3)
+        let latestShown = await settled { model.image != nil && !model.loading }
+        XCTAssertTrue(latestShown)
+        model.show(asset: asset, seconds: 3, duration: 20)
+        XCTAssertEqual(gate.requested, [1, 3])
+        XCTAssertEqual(mp4Calls, 0, "An HLS package must not use the unsupported image-generator-only path")
+    }
+
+    @MainActor
+    func testHLSPackagePreviewRejectsLateGenerationAndNeverAcceptsRemoteSources() async throws {
+        let gate = FrameGate()
+        let model = OfflineSeekPreviewModel(frameLoader: { _, _ in throw CancellationError() },
+            packageFrameLoader: { _, time in await gate.load(second: Int(time.seconds)) })
+        defer { model.close(); gate.releaseAll() }
+        let asset = AVURLAsset(url: FileManager.default.temporaryDirectory.appendingPathComponent("cancel-preview.movpkg"))
+        model.show(asset: asset, seconds: 1, duration: 20)
+        let firstStarted = await settled { gate.requested == [1] }
+        XCTAssertTrue(firstStarted)
+        model.hide()
+        model.show(asset: asset, seconds: 8, duration: 20)
+        let newStarted = await settled { gate.requested == [1, 8] }
+        XCTAssertTrue(newStarted)
+        gate.release(1); await Task.yield()
+        XCTAssertNil(model.image)
+        gate.release(8)
+        let newShown = await settled { model.image != nil && !model.loading }
+        XCTAssertTrue(newShown)
+        model.show(asset: AVURLAsset(url: URL(string: "https://example.invalid/not-local.movpkg")!), seconds: 9, duration: 20)
+        XCTAssertFalse(model.visible)
+        XCTAssertEqual(gate.requested, [1, 8])
+    }
+
+    func testNativeHLSPreviewDecoderRejectsRemoteAndUnvalidatedLocalPackages() {
+        XCTAssertThrowsError(try OfflineHLSSeekFrameDecoder(asset:
+            AVURLAsset(url: URL(string: "https://example.invalid/not-local.movpkg")!)))
+        XCTAssertThrowsError(try OfflineHLSSeekFrameDecoder(asset:
+            AVURLAsset(url: FileManager.default.temporaryDirectory.appendingPathComponent("missing-preview.movpkg"))))
+    }
+
     @MainActor private func settled(timeout: Duration = .seconds(5), _ condition: () -> Bool) async -> Bool {
         let clock = ContinuousClock()
         let deadline = clock.now.advanced(by: timeout)

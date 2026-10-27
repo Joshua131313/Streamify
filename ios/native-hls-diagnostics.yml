@@ -15,6 +15,7 @@ targets:
       - path: Streamify/Downloads/CatalogDownloadSource.swift
       - path: Streamify/Downloads/OfflineVideoValidation.swift
       - path: Streamify/Downloads/OfflineHLSValidation.swift
+      - path: Streamify/Downloads/OfflineHLSSeekFrameDecoder.swift
       - path: Streamify/Downloads/HLSDownloadSessionOwner.swift
       - path: Streamify/Downloads/HLSOwnedPackageReference.swift
       - path: Streamify/Downloads/VixSrcDownloadResolver.swift

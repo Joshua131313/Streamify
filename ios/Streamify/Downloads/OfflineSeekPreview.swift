@@ -48,8 +48,14 @@ enum OfflineSeekPreviewMath {
 private final class OfflineSeekPreviewResources {
     var asset: AVURLAsset?
     var generator: AVAssetImageGenerator?
-    func cancel() { generator?.cancelAllCGImageGeneration() }
-    func clear() { cancel(); asset?.cancelLoading(); generator = nil; asset = nil }
+    var packageDecoder: OfflineHLSSeekFrameDecoder?
+    var ownsAsset = false
+    func cancel() { generator?.cancelAllCGImageGeneration(); packageDecoder?.cancel() }
+    func clear() {
+        cancel(); packageDecoder?.close()
+        if ownsAsset { asset?.cancelLoading() }
+        generator = nil; packageDecoder = nil; asset = nil; ownsAsset = false
+    }
     deinit { clear() }
 }
 
@@ -58,12 +64,14 @@ private final class OfflineSeekPreviewResources {
 @MainActor
 final class OfflineSeekPreviewModel: ObservableObject {
     typealias FrameLoader = (AVAssetImageGenerator, CMTime) async throws -> CGImage
+    typealias PackageFrameLoader = (AVURLAsset, CMTime) async throws -> CGImage
     @Published private(set) var image: UIImage?
     @Published private(set) var visible = false
     @Published private(set) var loading = false
     @Published private(set) var seconds: Double = 0
     private let resources = OfflineSeekPreviewResources()
     private let frameLoader: FrameLoader
+    private let packageFrameLoader: PackageFrameLoader?
     private var source: URL?
     private var generation = UUID()
     private var latest: Int?
@@ -77,19 +85,38 @@ final class OfflineSeekPreviewModel: ObservableObject {
     init(frameLoader: @escaping FrameLoader = { generator, time in
         let result = try await generator.image(at: time)
         return result.image
-    }) { self.frameLoader = frameLoader }
+    }) { self.frameLoader = frameLoader; packageFrameLoader = nil }
+
+    /// Separate overload preserves the existing MP4 trailing-closure injection.
+    init(frameLoader: @escaping FrameLoader, packageFrameLoader: @escaping PackageFrameLoader) {
+        self.frameLoader = frameLoader; self.packageFrameLoader = packageFrameLoader
+    }
 
     func show(url: URL, seconds: Double, duration: Double) {
+        show(asset: AVURLAsset(url: url), ownsAsset: true, seconds: seconds, duration: duration)
+    }
+
+    /// The real player passes its validated local asset. In particular, preserve
+    /// the system-owned package URL/access context and its loaded cache metadata.
+    func show(asset: AVURLAsset, seconds: Double, duration: Double) {
+        show(asset: asset, ownsAsset: false, seconds: seconds, duration: duration)
+    }
+
+    private func show(asset: AVURLAsset, ownsAsset: Bool, seconds: Double, duration: Double) {
+        let url = asset.url
         guard url.isFileURL, let second = OfflineSeekPreviewMath.second(position: seconds, duration: duration) else { hide(); return }
         if source != url {
             close(); source = url
-            let asset = AVURLAsset(url: url)
-            let generator = AVAssetImageGenerator(asset: asset)
-            generator.maximumSize = CGSize(width: 320, height: 180)
-            generator.appliesPreferredTrackTransform = true
-            // The default time tolerance permits a nearby sync frame, matching
-            // Android MediaMetadataRetriever.OPTION_CLOSEST_SYNC.
-            resources.asset = asset; resources.generator = generator
+            resources.asset = asset; resources.ownsAsset = ownsAsset
+            if url.pathExtension.lowercased() == "movpkg" {
+                resources.packageDecoder = try? OfflineHLSSeekFrameDecoder(asset: asset)
+            } else {
+                let generator = AVAssetImageGenerator(asset: asset)
+                generator.maximumSize = CGSize(width: 320, height: 180)
+                generator.appliesPreferredTrackTransform = true
+                // Retain the existing MP4 sync-frame path and injection.
+                resources.generator = generator
+            }
         }
         visible = true; self.seconds = Double(second)
         if latest == second, image != nil || decoding == second { return }
@@ -114,21 +141,34 @@ final class OfflineSeekPreviewModel: ObservableObject {
     }
 
     private func drain() {
-        guard worker == nil, let generator = resources.generator else { return }
-        let request = generation, load = frameLoader
+        guard worker == nil, let asset = resources.asset else { return }
+        let request = generation, load = frameLoader, loadPackage = packageFrameLoader
+        let generator = resources.generator, decoder = resources.packageDecoder
+        let package = asset.url.pathExtension.lowercased() == "movpkg"
         worker = Task { @MainActor [weak self] in
             while !Task.isCancelled {
                 guard let self, self.generation == request, let second = self.pending else { break }
                 self.pending = nil; self.decoding = second
                 do {
-                    let frame = try await load(generator, CMTime(seconds: Double(second), preferredTimescale: 600))
+                    let time = CMTime(seconds: Double(second), preferredTimescale: 600)
+                    let frame: CGImage
+                    if package {
+                        if let loadPackage { frame = try await loadPackage(asset, time) }
+                        else if let decoder { frame = try await decoder.image(at: time) }
+                        else { throw OfflineHLSSeekFrameDecoder.Failure.unavailableLocalPackage }
+                    } else if let generator { frame = try await load(generator, time) }
+                    else { throw OfflineHLSSeekFrameDecoder.Failure.frameUnavailable }
                     guard !Task.isCancelled, self.generation == request else { return }
                     let picture = UIImage(cgImage: frame)
                     self.frames[second] = picture; self.touchCache(second)
                     if self.visible, self.latest == second { self.image = picture; self.loading = false }
                 } catch {
                     guard !Task.isCancelled, self.generation == request else { return }
-                    self.unavailable.insert(second); self.touchCache(second)
+                    // A native package decoder can be interrupted while its
+                    // local seek warms up. Do not permanently black-list that
+                    // second; a later thumb update may retry it.
+                    if !package { self.unavailable.insert(second) }
+                    self.touchCache(second)
                     if self.visible, self.latest == second { self.image = nil; self.loading = false }
                 }
                 self.decoding = nil

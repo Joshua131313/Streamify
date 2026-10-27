@@ -386,8 +386,10 @@ struct OfflinePlayerView: View {
                     onThumbMoved: { rect in
                         seekThumbInWindow = rect
                         guard scrubbing, !locked, scenePhase == .active, controlsVisible,
-                              panel == nil, model.error == nil, let file = current.fileURL else { return }
-                        seekPreview.show(url: file, seconds: scrubPosition, duration: model.duration)
+                              panel == nil, model.error == nil,
+                              let asset = model.player?.currentItem?.asset as? AVURLAsset,
+                              asset.url.isFileURL else { return }
+                        seekPreview.show(asset: asset, seconds: scrubPosition, duration: model.duration)
                     })
                     .frame(minHeight: 44)
                 Text(stamp(max(0, model.duration - (scrubbing ? scrubPosition : model.position))))

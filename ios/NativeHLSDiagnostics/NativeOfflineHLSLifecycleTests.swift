@@ -164,6 +164,19 @@ final class NativeOfflineHLSLifecycleTests: XCTestCase, HLSDownloadSessionObserv
             phase = "real local package video playback"
             let playback = try await Self.localPlayback(validation)
             report["localPlayback"] = playback
+            phase = "bounded real local HLS seek preview frames"
+            let decoder = try OfflineHLSSeekFrameDecoder(asset: validation.asset)
+            defer { decoder.close() }
+            var previews: [[String: Any]] = []
+            for second in [1, 3, 4] {
+                let frame = try await decoder.image(at: CMTime(seconds: Double(second), preferredTimescale: 600), timeout: 8)
+                XCTAssertGreaterThan(frame.width, 0); XCTAssertGreaterThan(frame.height, 0)
+                XCTAssertLessThanOrEqual(frame.width, 320); XCTAssertLessThanOrEqual(frame.height, 180)
+                previews.append(["requestedSecond": second, "pixelWidth": frame.width, "pixelHeight": frame.height])
+            }
+            XCTAssertEqual(decoder.observedTransferredBytes, 0, "Preview decoding must use this completed local package")
+            report["localSeekPreviewFrames"] = previews
+            report["previewObservedTransferredBytes"] = decoder.observedTransferredBytes
             report["completeOwnFixturePackageProven"] = true
             report["physicalAirplaneModeVerified"] = false
         } catch {
