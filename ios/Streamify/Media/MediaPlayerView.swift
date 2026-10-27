@@ -188,6 +188,7 @@ private struct PlayerEpisodePicker: View {
                     Picker("Season", selection: $season) {
                         ForEach(seasons) { item in Text(item.name).tag(item.number) }
                     }.tint(AppTheme.foreground)
+                        .accessibilityIdentifier("player-episode-season-picker")
                 }
                 if loading { ProgressView("Loading episodes…") }
                 if let error {
@@ -207,6 +208,7 @@ private struct PlayerEpisodePicker: View {
                             if selectedSeason == season && selectedEpisode == episode.number { Image(systemName: "play.fill").foregroundStyle(AppTheme.foreground) }
                         }.frame(minHeight: 44)
                     }.listRowBackground(AppTheme.panel)
+                        .accessibilityIdentifier("player-episode-choice-\(season)-\(episode.number)")
                 }
                 if !loading && error == nil && episodes.isEmpty { Text("No episodes are available for this season.").foregroundStyle(AppTheme.muted) }
             }

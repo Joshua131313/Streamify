@@ -51,8 +51,13 @@ final class AccountFlowTests: XCTestCase {
         // Use the form's real Next action. On iOS26 XCTest can throw while
         // asking an unfocused SecureTextField for its activation point, even
         // when the field is fully visible above the email keyboard.
-        let next = app.keyboards.buttons["Next"]
+        // iOS26 exposes the arrow key as identifier Next: / label next.
+        // Scope to the keyboard and use that real control, not a title-cased
+        // application button which does not exist in its accessibility tree.
+        let next = app.keyboards.buttons.matching(NSPredicate(format:
+            "identifier == %@ OR label ==[c] %@", "Next:", "next")).firstMatch
         XCTAssertTrue(next.waitForExistence(timeout: 5))
+        XCTAssertTrue(next.isHittable)
         next.tap()
         XCTAssertTrue(password.exists, "Passwords must use the native secure input.")
         dismissStrongPasswordSuggestion(waitForAppearance: true)

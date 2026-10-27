@@ -3,6 +3,7 @@ import Foundation
 enum DaraTechDownloadError: LocalizedError, Equatable {
     case missingAPIKey, invalidAPIKey, identityUnavailable, ambiguousIdentity, invalidResponse
     case http(status: Int, retryAfter: String?)
+    case redirectRefused(status: Int)
 
     var errorDescription: String? {
         switch self {
@@ -11,6 +12,7 @@ enum DaraTechDownloadError: LocalizedError, Equatable {
         case .identityUnavailable: return "This download source could not verify the exact title, year and media type."
         case .ambiguousIdentity: return "This download source returned more than one matching title."
         case .invalidResponse: return "The download source returned unreadable or incomplete metadata."
+        case .redirectRefused: return "The download API redirected this request. Its credential was not forwarded."
         case .http(let status, _):
             return status == 429 ? "The download API rate limit was reached. Please wait before trying again."
                 : "The download API could not complete this request (HTTP \(status))."
@@ -150,9 +152,12 @@ struct DaraTechDownloadResolver {
         request.httpShouldHandleCookies = false
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        let redirectPolicy = DaraTechMetadataRedirectPolicy()
         do {
-            let (bytes, response) = try await session.bytes(for: request, delegate: DaraTechMetadataRedirectPolicy())
+            let (bytes, response) = try await session.bytes(for: request, delegate: redirectPolicy)
             defer { bytes.task.cancel() }
+            try Task.checkCancellation()
+            if let refusal = redirectPolicy.refusal { throw refusal }
             guard let http = response as? HTTPURLResponse, http.url == url,
                   Self.isMetadataOrigin(http.url) else { throw DaraTechDownloadError.invalidResponse }
             guard http.statusCode == 200 else {
@@ -176,7 +181,12 @@ struct DaraTechDownloadResolver {
             }
             return result
         } catch {
-            if Task.isCancelled || error is CancellationError || (error as? URLError)?.code == .cancelled {
+            // An explicit caller cancellation wins a race with a redirect.
+            // Foundation can itself report a refused URLProtocol redirect as
+            // a transport cancellation, so do not label that as a user action.
+            if Task.isCancelled { throw CancellationError() }
+            if let refusal = redirectPolicy.refusal { throw refusal }
+            if error is CancellationError || (error as? URLError)?.code == .cancelled {
                 throw CancellationError()
             }
             throw error
@@ -284,10 +294,17 @@ struct DaraTechDownloadResolver {
 }
 
 private final class DaraTechMetadataRedirectPolicy: NSObject, URLSessionTaskDelegate {
+    private let lock = NSLock()
+    private var blockedStatus: Int?
+    var refusal: DaraTechDownloadError? {
+        lock.lock(); defer { lock.unlock() }
+        return blockedStatus.map { .redirectRefused(status: $0) }
+    }
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
                     newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
         // A metadata redirect is an error, including to another same-origin
         // path; this key is never forwarded to another URL or a media task.
+        lock.lock(); blockedStatus = response.statusCode; lock.unlock()
         completionHandler(nil)
     }
 }

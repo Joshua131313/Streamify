@@ -63,22 +63,29 @@ final class MediaWatchFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Season 1 · Episode 1"].waitForExistence(timeout: 5))
         app.buttons["Episodes"].tap()
         XCTAssertTrue(app.navigationBars["Episodes"].waitForExistence(timeout: 5))
-        // The underlying details surface remains mounted below this sheet and
-        // has its own Season 1 button. Select the sheet's native labeled Picker.
-        let season = app.buttons["Season, Season 1"]
+        // Details remain mounted below this sheet. These IDs belong only to
+        // the player's visible sheet, never its covered detail-page controls.
+        let season = app.buttons["player-episode-season-picker"]
         XCTAssertTrue(season.waitForExistence(timeout: 5))
         XCTAssertTrue(season.isHittable, "The Episodes sheet's visible season picker must receive the tap.")
         season.tap()
-        XCTAssertTrue(app.buttons["Season 2"].waitForExistence(timeout: 5))
-        app.buttons["Season 2"].tap()
-        let episode = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "3. A New Horizon")).firstMatch
+        let secondSeason = app.buttons["Season 2"]
+        XCTAssertTrue(secondSeason.waitForExistence(timeout: 5))
+        XCTAssertTrue(secondSeason.isHittable)
+        secondSeason.tap()
+        let episode = app.buttons["player-episode-choice-2-3"]
         XCTAssertTrue(episode.waitForExistence(timeout: 8))
+        XCTAssertTrue(episode.isHittable, "The selected season's visible episode row must receive the tap.")
+        XCTAssertTrue(episode.label.contains("3. A New Horizon"))
         episode.tap()
+        XCTAssertTrue(app.navigationBars["Episodes"].waitForNonExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Season 2 · Episode 3"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["Close player"].isHittable)
         XCTAssertTrue(app.webViews.staticTexts["Streamify preview player"].waitForExistence(timeout: 8))
         capture("Show Watch retains the player after season and episode selection")
         closePlayer()
         XCTAssertTrue(app.buttons["detail-watch-tv:43"].exists)
+        XCTAssertTrue(app.buttons["close-media-details"].isHittable)
         XCTAssertFalse(app.navigationBars.firstMatch.exists)
     }
 

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// A floating control, rather than a page gesture: dragging previews a tab and
 /// commits it on release. The underlying root page stays mounted while scrubbing.
@@ -341,12 +342,11 @@ private struct LiquidGlassQuickProfilePicker: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @State private var rowFrames: [UUID: CGRect] = [:]
-    @State private var pickerSize: CGSize = .zero
     @State private var rowsHeight: CGFloat = 0
-    @State private var contactOrigin: UUID?
+    @State private var contactActive = false
     @State private var pressedProfile: UUID?
     @State private var hoveredProfile: UUID?
-    private static let coordinateSpace = "streamify-quick-profile-choices"
+    private static let coordinateSpace = "streamify-quick-profile-rows"
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -361,6 +361,12 @@ private struct LiquidGlassQuickProfilePicker: View {
                         Color.clear.preference(key: LiquidGlassProfileRowsHeightKey.self, value: geometry.size.height)
                     }
                 }
+                .overlay {
+                    LiquidGlassProfileContactSurface(rows: rowFrames,
+                        changed: updateContact, released: finishContact,
+                        hovered: { hoveredProfile = $0 })
+                        .accessibilityHidden(true)
+                }
             }
             .frame(height: min(300, rowsHeight > 0 ? rowsHeight : max(60, CGFloat(profiles.profiles.count) * 64 - 4)))
             .scrollDisabled(rowsHeight <= 300)
@@ -369,14 +375,7 @@ private struct LiquidGlassQuickProfilePicker: View {
         }
         .padding(10).frame(width: dynamicTypeSize.isAccessibilitySize ? 300 : 264)
         .foregroundStyle(AppTheme.foreground)
-        .coordinateSpace(name: Self.coordinateSpace)
-        .background {
-            GeometryReader { geometry in
-                Color.clear.preference(key: LiquidGlassPickerSizeKey.self, value: geometry.size)
-            }
-        }
         .onPreferenceChange(LiquidGlassProfileFramesKey.self) { rowFrames = $0 }
-        .onPreferenceChange(LiquidGlassPickerSizeKey.self) { pickerSize = $0 }
         .onPreferenceChange(LiquidGlassProfileRowsHeightKey.self) { rowsHeight = $0 }
         .onChange(of: scenePhase) { _, phase in if phase != .active { cancelContact() } }
         .onDisappear { cancelContact(); hoveredProfile = nil }
@@ -388,7 +387,7 @@ private struct LiquidGlassQuickProfilePicker: View {
         VStack(spacing: 4) {
             ForEach(profiles.profiles) { profile in
                 let current = profile.id == profiles.activeProfile?.id
-                let highlighted = (contactOrigin == nil ? hoveredProfile : pressedProfile) == profile.id
+                let highlighted = (contactActive ? pressedProfile : hoveredProfile) == profile.id
                 Button { select(profile) } label: {
                     HStack(spacing: 12) {
                         ProfileAvatarView(avatar: profile.avatar, size: 44)
@@ -414,20 +413,9 @@ private struct LiquidGlassQuickProfilePicker: View {
                         }
                     }
                 }
-                .buttonStyle(LiquidGlassTabInteractionStyle(coordinateSpace: Self.coordinateSpace,
-                    changed: { updateContact(origin: profile.id, location: $0.location) },
-                    ended: { value in
-                        if abs(value.translation.width) < 6 && abs(value.translation.height) < 6 {
-                            // A short tap already identifies its real Button;
-                            // do not require a preference-frame lookup to fire.
-                            cancelContact()
-                            return true
-                        }
-                        finishContact(origin: profile.id, location: value.location)
-                        return false
-                    }, cancelled: { if contactOrigin == profile.id { cancelContact() } }))
-                // Pointer hover is only visual. An iPhone finger previews while
-                // pressed and commits one choice when it is released in a row.
+                .buttonStyle(.plain)
+                // Buttons retain normal accessibility activation. Physical
+                // contacts belong to one popup-wide owner, not the first row.
                 .onHover { hovering in
                     if hovering { hoveredProfile = profile.id }
                     else if hoveredProfile == profile.id { hoveredProfile = nil }
@@ -438,36 +426,23 @@ private struct LiquidGlassQuickProfilePicker: View {
                 .accessibilityIdentifier("quick-profile-\(profile.id.uuidString)")
             }
         }
+        .coordinateSpace(name: Self.coordinateSpace)
     }
 
-    private func profileAt(_ location: CGPoint) -> UUID? {
-        guard location.x >= 0, location.y >= 0,
-              location.x <= pickerSize.width, location.y <= pickerSize.height else { return nil }
-        return rowFrames.first { $0.value.contains(location) }?.key
-    }
-
-    private func updateContact(origin: UUID, location: CGPoint) {
-        guard scenePhase == .active else { return }
-        if contactOrigin == nil { contactOrigin = origin; hoveredProfile = nil }
-        guard contactOrigin == origin else { return }
-        let target = profileAt(location)
+    private func updateContact(_ target: UUID?) {
+        contactActive = true; hoveredProfile = nil
         if pressedProfile != nil, target != nil, pressedProfile != target { AppHaptics.tap(.selection) }
         pressedProfile = target
     }
 
-    private func finishContact(origin: UUID, location: CGPoint) {
-        // onEnded belongs to the row that received this contact. GestureState
-        // can clear the visual contact before this callback; that must not
-        // discard a valid release. Cancelled gestures never deliver onEnded.
-        guard profiles.profiles.contains(where: { $0.id == origin }) else { cancelContact(); return }
-        let target = profileAt(location)
+    private func finishContact(_ target: UUID?) {
         cancelContact()
         guard let target, let profile = profiles.profiles.first(where: { $0.id == target }) else { return }
         select(profile)
     }
 
     private func cancelContact() {
-        contactOrigin = nil; pressedProfile = nil
+        contactActive = false; pressedProfile = nil
     }
 }
 
@@ -478,12 +453,88 @@ private struct LiquidGlassProfileFramesKey: PreferenceKey {
     }
 }
 
-private struct LiquidGlassPickerSizeKey: PreferenceKey {
-    static var defaultValue: CGSize = .zero
-    static func reduce(value: inout CGSize, nextValue: () -> CGSize) { value = nextValue() }
-}
-
 private struct LiquidGlassProfileRowsHeightKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
+/// Coordinates are local to the rendered row list and its native contact view.
+/// A release over spacing or outside the clipped popup never selects a viewer.
+enum LiquidGlassProfileHitPolicy {
+    static func target(at point: CGPoint, rows: [UUID: CGRect], visibleBounds: CGRect) -> UUID? {
+        guard point.x.isFinite, point.y.isFinite, !visibleBounds.isNull,
+              visibleBounds.contains(point) else { return nil }
+        return rows.first { $0.value.contains(point) }?.key
+    }
+}
+
+private struct LiquidGlassProfileContactSurface: UIViewRepresentable {
+    let rows: [UUID: CGRect]
+    let changed: (UUID?) -> Void
+    let released: (UUID?) -> Void
+    let hovered: (UUID?) -> Void
+
+    func makeUIView(context: Context) -> LiquidGlassProfileContactView {
+        let view = LiquidGlassProfileContactView()
+        configure(view)
+        return view
+    }
+    func updateUIView(_ view: LiquidGlassProfileContactView, context: Context) { configure(view) }
+    private func configure(_ view: LiquidGlassProfileContactView) {
+        view.rows = rows; view.changed = changed; view.released = released; view.hovered = hovered
+    }
+    static func dismantleUIView(_ view: LiquidGlassProfileContactView, coordinator: ()) {
+        view.changed = { _ in }; view.released = { _ in }; view.hovered = { _ in }
+        view.cancelTracking()
+    }
+}
+
+@MainActor
+private final class LiquidGlassProfileContactView: UIView {
+    var rows: [UUID: CGRect] = [:]
+    var changed: (UUID?) -> Void = { _ in }
+    var released: (UUID?) -> Void = { _ in }
+    var hovered: (UUID?) -> Void = { _ in }
+    private weak var trackingTouch: UITouch?
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .clear; isOpaque = false; isMultipleTouchEnabled = true
+        isAccessibilityElement = false; accessibilityElementsHidden = true
+        addGestureRecognizer(UIHoverGestureRecognizer(target: self, action: #selector(hover(_:))))
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    private func target(at point: CGPoint) -> UUID? {
+        var visible = bounds
+        var ancestor = superview
+        while let view = ancestor {
+            if view.clipsToBounds { visible = visible.intersection(convert(view.bounds, from: view)) }
+            ancestor = view.superview
+        }
+        return LiquidGlassProfileHitPolicy.target(at: point, rows: rows, visibleBounds: visible)
+    }
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        let active = event?.allTouches?.filter { $0.phase == .began || $0.phase == .moved || $0.phase == .stationary }.count ?? touches.count
+        guard trackingTouch == nil, active == 1, let touch = touches.first else { cancelTracking(); return }
+        trackingTouch = touch
+        changed(target(at: touch.location(in: self)))
+    }
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard let touch = trackingTouch, touches.contains(touch) else { return }
+        changed(target(at: touch.location(in: self)))
+    }
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard let touch = trackingTouch, touches.contains(touch) else { return }
+        let selected = target(at: touch.location(in: self))
+        trackingTouch = nil
+        released(selected)
+    }
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) { cancelTracking() }
+    override func didMoveToWindow() { super.didMoveToWindow(); if window == nil { cancelTracking() } }
+    func cancelTracking() { trackingTouch = nil; released(nil) }
+    @objc private func hover(_ gesture: UIHoverGestureRecognizer) {
+        guard trackingTouch == nil else { return }
+        hovered(gesture.state == .ended || gesture.state == .cancelled ? nil : target(at: gesture.location(in: self)))
+    }
 }

@@ -177,10 +177,22 @@ final class DaraTechDownloadResolverTests: XCTestCase {
 
     func testMetadataRedirectCannotForwardTheCallerKeyToAnotherOrigin() async {
         let fixture = DaraTechFixture([.redirect("https://other.example.test/collect")])
-        do { _ = try await resolver(fixture).resolve(media: from, apiKey: key); XCTFail("Metadata redirect must fail") }
-        catch { XCTAssertEqual(error as? DaraTechDownloadError, .http(status: 302, retryAfter: nil)) }
+        let checked = DaraTechNativeChecks()
+        let adapter = DaraTechDownloadResolver(session: fixture.session,
+            validateNativeSource: { await checked.record($0) })
+        do { _ = try await adapter.resolve(media: from, apiKey: key); XCTFail("Metadata redirect must fail") }
+        catch {
+            let underlying = error as NSError
+            XCTAssertEqual(error as? DaraTechDownloadError, .redirectRefused(status: 302),
+                "A refused metadata redirect must have its exact status, not become caller cancellation (\(underlying.domain), \(underlying.code)).")
+        }
         XCTAssertEqual(fixture.requests.count, 1)
         XCTAssertEqual(fixture.requests.first?.url?.host, "apimovie.runflix.name.ng")
+        XCTAssertTrue(fixture.requests.allSatisfy { $0.url?.host == "apimovie.runflix.name.ng" },
+            "No redirected request may carry the metadata credential to another origin.")
+        XCTAssertEqual(fixture.requests.first?.value(forHTTPHeaderField: "Authorization"), "Bearer \(key)")
+        let nativeChecks = await checked.urls
+        XCTAssertTrue(nativeChecks.isEmpty, "A refused metadata redirect must not start source or native-quality checks.")
     }
 
     func testMalformedOversizedAndUnauthorizedMetadataMakeNoMediaRequest() async {

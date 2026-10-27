@@ -177,7 +177,13 @@ final class CardInteractionFlowTests: XCTestCase {
         let viewAway = menuButton("View team")
         XCTAssertTrue(viewAway.waitForExistence(timeout: 5))
         XCTAssertEqual(viewAway.label, "View team")
-        viewAway.tap()
+        XCTAssertTrue(viewAway.wait(for: \.isHittable, toEqual: true, timeout: 5))
+        // The native menu's AX activation point can lag its lifted preview.
+        // Use the current visible row center for one physical tap; the strict
+        // dismissal and exact-team assertions below still verify the action.
+        viewAway.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        XCTAssertTrue(viewAway.waitForNonExistence(timeout: 5), "View team must actually activate and dismiss its native menu.")
+        XCTAssertFalse(app.navigationBars["Game center"].exists, "The held-team action must not trigger the card's primary navigation.")
         XCTAssertTrue(app.navigationBars["NBA · Team"].waitForExistence(timeout: 8))
         XCTAssertTrue(app.buttons["sports-team-roster-tab"].waitForExistence(timeout: 8))
         XCTAssertTrue(app.staticTexts["Boston Harbor"].firstMatch.exists)
