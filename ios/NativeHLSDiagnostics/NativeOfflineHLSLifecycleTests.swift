@@ -199,20 +199,32 @@ final class NativeOfflineHLSLifecycleTests: XCTestCase, HLSDownloadSessionObserv
         let package: URL
         do { package = try checked.resolve(expectedIdentity: expectedIdentity) }
         catch HLSOwnedPackageReferenceError.missingPackage { return 0 } // Destination callback may precede directory creation.
-        let rootPath = package.standardizedFileURL.resolvingSymlinksInPath().path
+        var enumerationError: Error?
         guard let files = FileManager.default.enumerator(at: package,
-            includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey]) else { return 0 }
+            includingPropertiesForKeys: [.isSymbolicLinkKey, .isRegularFileKey],
+            errorHandler: { _, error in enumerationError = error; return false }) else {
+            throw LifecycleError.message("The exact owned native package could not be enumerated")
+        }
         var count: Int64 = 0
         for case let file as URL in files {
-            let resolved = file.standardizedFileURL.resolvingSymlinksInPath()
-            guard resolved.path.hasPrefix(rootPath + "/") else { throw LifecycleError.message("Native package member escaped its owned directory") }
-            let values = try file.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
-            if values.isRegularFile == true {
-                let size = Int64(max(0, values.fileSize ?? 0))
+            // The enumerator starts at the owner's original capability URL.
+            // Apple may expose descendant URLs through another file namespace;
+            // canonical string prefixes are not an ownership/access check.
+            let type = try file.resourceValues(forKeys: [.isSymbolicLinkKey, .isRegularFileKey])
+            if type.isSymbolicLink == true {
+                files.skipDescendants()
+                throw LifecycleError.message("A symbolic link prevents a complete owned-package byte count")
+            }
+            guard type.isSymbolicLink == false else { throw LifecycleError.message("Native package member type could not be verified") }
+            if type.isRegularFile == true {
+                let values = try file.resourceValues(forKeys: [.fileSizeKey])
+                guard let fileSize = values.fileSize, fileSize >= 0 else { throw LifecycleError.message("Native package member size is unavailable") }
+                let size = Int64(fileSize)
                 guard size <= 2 * 1024 * 1024 - count else { return 2 * 1024 * 1024 + 1 }
                 count += size
             }
         }
+        if let enumerationError { throw enumerationError }
         return count
     }
 

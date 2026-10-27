@@ -16,7 +16,7 @@ permissions:
   contents: read
 concurrency:
   # A device repair must not cancel an older run while it exports UI evidence.
-  group: ios-check-${{ github.ref }}-${{ github.sha }}
+  group: ios-check-${{ github.ref }}-${{ github.sha }}-${{ inputs.scope || github.event_name }}
   cancel-in-progress: true
 jobs:
   native-hls-research:

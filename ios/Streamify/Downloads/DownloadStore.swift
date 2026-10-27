@@ -227,7 +227,10 @@ final class DownloadStore: ObservableObject {
     private var artworkAttempts: [UUID: UUID] = [:]
     private var validations: [UUID: Task<Void, Never>] = [:]
     private var validationAttempts: [UUID: UUID] = [:]
-    private lazy var hlsSession = HLSDownloadSessionOwner(observer: self)
+    private lazy var hlsSession = HLSDownloadSessionOwner(observer: self,
+        shouldRemovePartialPackage: { [weak self] reference in
+            self?.canDiscardPartialHLSPackage(reference) ?? false
+        })
     private var hlsRestoration: Task<Void, Never>?
     private var hlsRestorationPending = false
     private var backgroundEventsFinished = false
@@ -718,13 +721,7 @@ final class DownloadStore: ObservableObject {
             items[index].pendingHLSPackagePath = nil
         }
         if let index = items.firstIndex(where: { $0.id == id }), var pending = items[index].pendingHLSReference {
-            var safeToRemove = true
-            if let retained = items[index].hlsPackageReference {
-                safeToRemove = referencesSamePackage(pending, retained) == false
-            } else if let path = items[index].hlsPackagePath, let retained = HLSDownloadedPackages.fileURL(for: path) {
-                safeToRemove = reference(pending, pointsTo: retained) == false
-            }
-            if items[index].owns(reference: pending), safeToRemove {
+            if items[index].owns(reference: pending), canDiscardPartialHLSPackage(pending) {
                 try? pending.remove(expectedIdentity: pending.identity)
             }
             items[index].pendingHLSReference = nil
@@ -784,6 +781,19 @@ final class DownloadStore: ObservableObject {
 }
 
 extension DownloadStore: HLSDownloadSessionObserver {
+    /// Native HLS can reuse a physical package for a later attempt. Keep every
+    /// retained library package safe before the backend removes a partial one.
+    private func canDiscardPartialHLSPackage(_ candidate: HLSOwnedPackageReference) -> Bool {
+        for item in items {
+            if let retained = item.hlsPackageReference,
+               referencesSamePackage(candidate, retained) != false { return false }
+            if let path = item.hlsPackagePath,
+               let location = HLSDownloadedPackages.fileURL(for: path),
+               reference(candidate, pointsTo: location) != false { return false }
+        }
+        return true
+    }
+
     private func referencesSamePackage(_ first: HLSOwnedPackageReference, _ second: HLSOwnedPackageReference) -> Bool? {
         var left = first, right = second
         guard let leftURL = try? left.resolve(expectedIdentity: left.identity),

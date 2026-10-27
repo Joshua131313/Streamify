@@ -136,13 +136,20 @@ final class HLSDownloadSessionOwner {
     private var restorationRequiredForBackgroundEvents = false
     private var restorationCount = 0
     private let identifier: String
+    private let shouldRemovePartialPackage: @MainActor (HLSOwnedPackageReference) -> Bool
 
     private lazy var delegate: HLSAssetDownloadDelegate = {
-        HLSAssetDownloadDelegate(deliver: { [weak self] snapshot in
+        let removalPolicy = shouldRemovePartialPackage
+        return HLSAssetDownloadDelegate(deliver: { [weak self] snapshot in
             self?.receive(snapshot)
         }, eventsFinished: { [weak self] in
             self?.backgroundEventsFinished = true
-        }, deliveryFinished: { [weak self] in self?.finishBackgroundEventsIfPossible() })
+        }, deliveryFinished: { [weak self] in self?.finishBackgroundEventsIfPossible() },
+        removePartialPackage: { reference, identity in
+            guard reference.identity == identity, removalPolicy(reference) else { return }
+            var owned = reference
+            try? owned.remove(expectedIdentity: identity)
+        })
     }()
 
     private lazy var session: AVAssetDownloadURLSession = {
@@ -160,8 +167,10 @@ final class HLSDownloadSessionOwner {
     }()
 
     init(observer: HLSDownloadSessionObserver? = nil,
+         shouldRemovePartialPackage: @escaping @MainActor (HLSOwnedPackageReference) -> Bool = { _ in true },
          sessionIdentifier: String = HLSDownloadSessionOwner.sessionIdentifier) {
         self.observer = observer; identifier = sessionIdentifier
+        self.shouldRemovePartialPackage = shouldRemovePartialPackage
     }
 
     var activeIdentities: Set<HLSDownloadIdentity> {
@@ -425,10 +434,13 @@ private final class HLSAssetDownloadDelegate: NSObject, AVAssetDownloadDelegate,
     private let deliver: @MainActor (HLSDownloadSnapshot) -> Void
     private let eventsFinished: @MainActor () -> Void
     private let deliveryFinished: @MainActor () -> Void
+    private let removePartialPackage: @MainActor (HLSOwnedPackageReference, HLSDownloadIdentity) -> Void
 
     init(deliver: @escaping @MainActor (HLSDownloadSnapshot) -> Void,
-         eventsFinished: @escaping @MainActor () -> Void, deliveryFinished: @escaping @MainActor () -> Void) {
+         eventsFinished: @escaping @MainActor () -> Void, deliveryFinished: @escaping @MainActor () -> Void,
+         removePartialPackage: @escaping @MainActor (HLSOwnedPackageReference, HLSDownloadIdentity) -> Void) {
         self.deliver = deliver; self.eventsFinished = eventsFinished; self.deliveryFinished = deliveryFinished
+        self.removePartialPackage = removePartialPackage
     }
 
     var hasPendingDeliveries: Bool { lock.lock(); defer { lock.unlock() }; return pendingDeliveries > 0 }
@@ -507,7 +519,7 @@ private final class HLSAssetDownloadDelegate: NSObject, AVAssetDownloadDelegate,
         let reference = removePartialPackage ? state.packageReference : nil
         let snapshot = Self.snapshot(&state, event: .cancelled)
         states[identity] = state; lock.unlock()
-        Self.removeOwnedPartial(reference, identity: identity); enqueue(snapshot)
+        removeOwnedPartial(reference, identity: identity); enqueue(snapshot)
     }
     func fail(_ identity: HLSDownloadIdentity, error: Error) {
         lock.lock()
@@ -515,7 +527,7 @@ private final class HLSAssetDownloadDelegate: NSObject, AVAssetDownloadDelegate,
         state.failure = HLSDownloadFailure(error); state.terminalSent = true; state.discardPartial = true
         let snapshot = state.registered ? Self.snapshot(&state, event: .failed) : nil
         states[identity] = state; lock.unlock()
-        Self.removeOwnedPartial(state.packageReference, identity: identity)
+        removeOwnedPartial(state.packageReference, identity: identity)
         if let snapshot { enqueue(snapshot) }
     }
     func abandon(_ task: AVAssetDownloadTask) {
@@ -527,7 +539,7 @@ private final class HLSAssetDownloadDelegate: NSObject, AVAssetDownloadDelegate,
         if state.terminalSent && !state.cancelled && state.failure == nil { lock.unlock(); return }
         state.cancelled = true; state.terminalSent = true; state.discardPartial = true
         let reference = state.packageReference; states[identity] = state
-        lock.unlock(); Self.removeOwnedPartial(reference, identity: identity)
+        lock.unlock(); removeOwnedPartial(reference, identity: identity)
     }
 
     func urlSession(_ session: URLSession, assetDownloadTask task: AVAssetDownloadTask, willDownloadTo location: URL) {
@@ -557,7 +569,7 @@ private final class HLSAssetDownloadDelegate: NSObject, AVAssetDownloadDelegate,
         let snapshot = state.registered && !state.terminalSent
             ? Self.snapshot(&state, event: didFinish ? .packageFinished : .destination) : nil
         states[identity] = state; lock.unlock()
-        if state.discardPartial { Self.removeOwnedPartial(state.packageReference, identity: identity) }
+        if state.discardPartial { removeOwnedPartial(state.packageReference, identity: identity) }
         if let snapshot { enqueue(snapshot) }
     }
     func urlSession(_ session: URLSession, assetDownloadTask task: AVAssetDownloadTask, willDownloadVariants variants: [AVAssetVariant]) {
@@ -627,7 +639,7 @@ private final class HLSAssetDownloadDelegate: NSObject, AVAssetDownloadDelegate,
         state.terminalSent = true
         let snapshot = Self.snapshot(&state, event: state.failure == nil ? .completed : .failed)
         states[identity] = state; lock.unlock()
-        if state.discardPartial { Self.removeOwnedPartial(state.packageReference, identity: identity) }
+        if state.discardPartial { removeOwnedPartial(state.packageReference, identity: identity) }
         enqueue(snapshot)
     }
     private func selectionIsValidIfKnown(_ identity: HLSDownloadIdentity) -> Bool {
@@ -654,9 +666,12 @@ private final class HLSAssetDownloadDelegate: NSObject, AVAssetDownloadDelegate,
         guard let actual, !actual.isEmpty, !requested.isEmpty else { return false }
         return actual.lowercased().prefix(2) == requested.lowercased().prefix(2)
     }
-    private static func removeOwnedPartial(_ value: HLSOwnedPackageReference?, identity: HLSDownloadIdentity) {
-        guard var reference = value, reference.identity == identity else { return }
-        try? reference.remove(expectedIdentity: identity)
+    private func removeOwnedPartial(_ value: HLSOwnedPackageReference?, identity: HLSDownloadIdentity) {
+        guard let reference = value, reference.identity == identity else { return }
+        // Library retention policy is main-actor state. Count and enqueue
+        // BEFORE hopping so a background completion cannot outrun the guard
+        // or physical deletion. Unknown/aliased retained packages may veto it.
+        enqueueAction { [removePartialPackage] in removePartialPackage(reference, identity) }
     }
     private func enqueue(_ snapshot: HLSDownloadSnapshot) {
         enqueueAction { [deliver] in deliver(snapshot) }

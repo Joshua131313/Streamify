@@ -174,17 +174,28 @@ final class VixSrcCompleteEpisodeResearchTests: XCTestCase, HLSDownloadSessionOb
         let package: URL
         do { package = try checked.resolve(expectedIdentity: expectedIdentity) }
         catch HLSOwnedPackageReferenceError.missingPackage { return 0 }
-        let rootPath = package.standardizedFileURL.resolvingSymlinksInPath().path
-        guard let files = FileManager.default.enumerator(at: package, includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey]) else { return 0 }
+        var enumerationError: Error?
+        guard let files = FileManager.default.enumerator(at: package,
+            includingPropertiesForKeys: [.isSymbolicLinkKey, .isRegularFileKey],
+            errorHandler: { _, error in enumerationError = error; return false }) else {
+            throw ResearchError.message("The exact owned native package could not be enumerated")
+        }
         var total: Int64 = 0
         for case let file as URL in files {
-            let resolved = file.standardizedFileURL.resolvingSymlinksInPath()
-            // Never traverse or inspect a link outside this exact package.
-            guard resolved.path.hasPrefix(rootPath + "/") else { throw ResearchError.message("Native package member escaped its exact owned directory") }
             do {
-                let values = try file.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
-                if values.isRegularFile == true {
-                    let size = Int64(max(0, values.fileSize ?? 0))
+                // Ownership comes from the exact native reference/identity and
+                // this enumerator, never an alias-sensitive path prefix. Do not
+                // read target size or traverse a symbolic-link destination.
+                let type = try file.resourceValues(forKeys: [.isSymbolicLinkKey, .isRegularFileKey])
+                if type.isSymbolicLink == true {
+                    files.skipDescendants()
+                    throw ResearchError.message("A symbolic link prevents a complete owned-package byte count")
+                }
+                guard type.isSymbolicLink == false else { throw ResearchError.message("Native package member type could not be verified") }
+                if type.isRegularFile == true {
+                    let values = try file.resourceValues(forKeys: [.fileSizeKey])
+                    guard let fileSize = values.fileSize, fileSize >= 0 else { throw ResearchError.message("Native package member size is unavailable") }
+                    let size = Int64(fileSize)
                     guard size <= byteBudget - total else { return byteBudget + 1 }
                     total += size
                 }
@@ -195,6 +206,7 @@ final class VixSrcCompleteEpisodeResearchTests: XCTestCase, HLSDownloadSessionOb
                 throw error
             }
         }
+        if let enumerationError { throw enumerationError }
         return total
     }
 
