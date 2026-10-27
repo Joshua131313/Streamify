@@ -9,7 +9,17 @@ final class HLSDownloadPolicyTests: XCTestCase {
         let relative = "Library/managed-assets/episode.movpkg"
         let original = first.appendingPathComponent(relative)
         XCTAssertEqual(try HLSDownloadedPackages.relativePath(of: original, home: first), relative)
-        XCTAssertEqual(HLSDownloadedPackages.fileURL(for: relative, home: next), next.appendingPathComponent(relative))
+        XCTAssertEqual(HLSDownloadedPackages.fileURL(for: relative, home: next), next.appendingPathComponent(relative, isDirectory: true))
+    }
+
+    func testNativeDirectoryHintIsNotTreatedAsAnUnsafePackageBeforeCreation() throws {
+        let home = URL(fileURLWithPath: "/test/nonexistent-container", isDirectory: true)
+        let relative = "Library/managed-assets/new.movpkg"
+        let directory = home.appendingPathComponent(relative, isDirectory: true)
+        let plain = home.appendingPathComponent(relative, isDirectory: false)
+        XCTAssertEqual(try HLSDownloadedPackages.relativePath(of: directory, home: home), relative)
+        XCTAssertEqual(try HLSDownloadedPackages.relativePath(of: plain, home: home), relative)
+        XCTAssertEqual(HLSDownloadedPackages.fileURL(for: relative, home: home)?.path, directory.path)
     }
 
     func testPackagePathsCannotEscapeAppLibraryOrPointToOrdinaryFiles() {

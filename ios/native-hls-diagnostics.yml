@@ -31,6 +31,7 @@ targets:
       - path: NativeHLSDiagnostics/VixSrcNativeHLSDiagnosticsTests.swift
       - path: NativeHLSDiagnostics/NativeOfflineHLSLifecycleTests.swift
       - path: NativeHLSDiagnostics/VixSrcProductionResolverDiagnosticsTests.swift
+      - path: NativeHLSDiagnostics/VixSrcCompleteEpisodeResearchTests.swift
     dependencies:
       - target: HLSResearchHost
     settings:

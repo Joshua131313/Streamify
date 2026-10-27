@@ -7,10 +7,17 @@ enum HLSDownloadedPackages {
     static func relativePath(of location: URL, home: URL = URL(fileURLWithPath: NSHomeDirectory())) throws -> String {
         let root = home.standardizedFileURL.resolvingSymlinksInPath()
         let package = location.standardizedFileURL.resolvingSymlinksInPath()
-        let prefix = root.path + "/"
-        guard location.isFileURL, package.path.hasPrefix(prefix) else { throw OfflineVideoError.missingFile }
-        let relative = String(package.path.dropFirst(prefix.count))
-        guard fileURL(for: relative, home: root) == package else { throw OfflineVideoError.missingFile }
+        let prefix = normalizedPath(root) + "/"
+        let path = normalizedPath(package)
+        guard location.isFileURL, path.hasPrefix(prefix) else {
+            reportRejectedLocation(location, home: root)
+            throw OfflineVideoError.missingFile
+        }
+        let relative = String(path.dropFirst(prefix.count))
+        guard let restored = fileURL(for: relative, home: root), normalizedPath(restored) == path else {
+            reportRejectedLocation(location, home: root)
+            throw OfflineVideoError.missingFile
+        }
         return relative
     }
 
@@ -20,7 +27,7 @@ enum HLSDownloadedPackages {
               parts.allSatisfy({ !$0.isEmpty && $0 != "." && $0 != ".." }),
               URL(fileURLWithPath: relativePath).pathExtension.lowercased() == "movpkg" else { return nil }
         let library = home.appendingPathComponent("Library", isDirectory: true).standardizedFileURL.resolvingSymlinksInPath()
-        let package = home.appendingPathComponent(relativePath).standardizedFileURL.resolvingSymlinksInPath()
+        let package = home.appendingPathComponent(relativePath, isDirectory: true).standardizedFileURL.resolvingSymlinksInPath()
         guard package.path.hasPrefix(library.path + "/"), package != library else { return nil }
         return package
     }
@@ -28,6 +35,26 @@ enum HLSDownloadedPackages {
     static func remove(relativePath: String) throws {
         guard let package = fileURL(for: relativePath) else { throw OfflineVideoError.missingFile }
         if FileManager.default.fileExists(atPath: package.path) { try FileManager.default.removeItem(at: package) }
+    }
+
+    private static func normalizedPath(_ url: URL) -> String {
+        var path = url.standardizedFileURL.resolvingSymlinksInPath().path
+        while path.count > 1 && path.hasSuffix("/") { path.removeLast() }
+        return path
+    }
+
+    private static func reportRejectedLocation(_ location: URL, home: URL) {
+        #if DEBUG
+        let path = normalizedPath(location), root = normalizedPath(home)
+        let shape: [String: Any] = ["isFileURL": location.isFileURL,
+            "directoryHint": location.hasDirectoryPath, "extension": location.pathExtension,
+            "insideAppHome": path.hasPrefix(root + "/"),
+            "insideAppLibrary": path.hasPrefix(root + "/Library/"),
+            "homeRelativeTopDirectory": path.hasPrefix(root + "/") ? String(path.dropFirst(root.count + 1).split(separator: "/").first ?? "") : "outside",
+            "componentCount": location.pathComponents.count]
+        if let data = try? JSONSerialization.data(withJSONObject: shape, options: [.sortedKeys]),
+           let text = String(data: data, encoding: .utf8) { print("HLS_PACKAGE_POLICY_DIAGNOSTIC \(text)") }
+        #endif
     }
 }
 
@@ -85,8 +112,14 @@ enum OfflineHLSValidation {
                     try await withTaskCancellationHandler {
                         // A local package location alone also exists for a
                         // cancelled task. It is never proof of completion.
+                        #if DEBUG
+                        print("HLS_LOCAL_CACHE_DIAGNOSTIC present=\(asset.assetCache != nil) playableOffline=\(asset.assetCache?.isPlayableOffline == true)")
+                        #endif
                         guard let cache = asset.assetCache, cache.isPlayableOffline else { throw OfflineVideoError.damagedFile }
                         let (playable, duration, protected) = try await asset.load(.isPlayable, .duration, .hasProtectedContent)
+                        #if DEBUG
+                        print("HLS_LOCAL_METADATA_DIAGNOSTIC playable=\(playable) protected=\(protected) duration=\(duration.seconds)")
+                        #endif
                         guard !protected else { throw OfflineVideoError.protectedContent }
                         guard playable else { throw OfflineVideoError.unplayable }
                         guard duration.seconds.isFinite, duration.seconds > 0 else { throw OfflineVideoError.damagedFile }

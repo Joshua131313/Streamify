@@ -333,14 +333,24 @@ struct VixSrcDownloadResolver {
             group.addTask {
                 try await withTaskCancellationHandler {
                     let (playable, protected) = try await asset.load(.isPlayable, .hasProtectedContent)
+                    #if DEBUG
+                    print("VIXSRC_NATIVE_CAPABILITY_METADATA playable=\(playable) protected=\(protected)")
+                    #endif
                     guard playable, !protected else { throw VixSrcDownloadError.nativeCapabilityUnavailable }
                     let variants = try await asset.load(.variants)
                     let matching = variants.filter { variant in
                         guard let size = variant.videoAttributes?.presentationSize else { return false }
                         return size.width == CGFloat(selected.width) && size.height == CGFloat(selected.height)
                     }
+                    #if DEBUG
+                    let sizes = variants.compactMap { $0.videoAttributes?.presentationSize }.map { "\($0.width)x\($0.height)" }.joined(separator: ",")
+                    print("VIXSRC_NATIVE_CAPABILITY_VARIANTS count=\(variants.count) matchingDimensions=\(matching.count) sizes=\(sizes)")
+                    #endif
                     let matchedURL: URL
                     if #available(iOS 26.0, *) {
+                        #if DEBUG
+                        print("VIXSRC_NATIVE_CAPABILITY_URL_MATCH exact=\(matching.contains(where: { $0.url == selected.videoURL }))")
+                        #endif
                         guard let variant = matching.first(where: { $0.url == selected.videoURL }) else {
                             throw VixSrcDownloadError.nativeCapabilityUnavailable
                         }
