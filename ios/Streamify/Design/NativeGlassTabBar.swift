@@ -15,9 +15,8 @@ struct NativeGlassTabBar: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
     func makeUIView(context: Context) -> UITabBar {
-        let bar = UITabBar()
+        let bar = NativeGlassTabBarView()
         bar.delegate = context.coordinator
-        bar.itemPositioning = .fill
         bar.tintColor = .label
         bar.unselectedItemTintColor = .secondaryLabel
         bar.accessibilityIdentifier = "floating-navigation"
@@ -56,9 +55,13 @@ struct NativeGlassTabBar: UIViewRepresentable {
         }
         context.coordinator.parent = self
         if !context.coordinator.isTracking,
-           let index = AppTab.allCases.firstIndex(of: selection),
-           let item = bar.items?[index], bar.selectedItem !== item {
-            bar.selectedItem = item
+           let index = AppTab.allCases.firstIndex(of: selection), let item = bar.items?[index] {
+            if let native = bar as? NativeGlassTabBarView, !native.didApplyInitialSelection {
+                native.selectionAfterLayout = item
+                native.setNeedsLayout()
+            } else if bar.selectedItem !== item {
+                bar.selectedItem = item
+            }
         }
         let avatar = profile?.avatar ?? .crimson
         if context.coordinator.avatar != avatar, let item = bar.items?.last {
@@ -180,6 +183,28 @@ struct NativeGlassTabBar: UIViewRepresentable {
             let inTrailingQuarter = bar.effectiveUserInterfaceLayoutDirection == .rightToLeft
                 ? point.x <= bar.bounds.width * 0.25 : point.x >= bar.bounds.width * 0.75
             return inTrailingQuarter && bar.bounds.insetBy(dx: 0, dy: -24).contains(point)
+        }
+    }
+}
+
+/// Selecting while the representable still has zero-width bounds caches a
+/// truncated initial caption in UIKit. Select once at the first real layout;
+/// later selection and all lens animation remain entirely system-managed.
+@available(iOS 26.0, *)
+private final class NativeGlassTabBarView: UITabBar {
+    var selectionAfterLayout: UITabBarItem?
+    private(set) var didApplyInitialSelection = false
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        guard !didApplyInitialSelection, window != nil, bounds.width > 0, bounds.height > 0,
+              let item = selectionAfterLayout else { return }
+        didApplyInitialSelection = true
+        selectionAfterLayout = nil
+        UIView.performWithoutAnimation {
+            selectedItem = nil
+            selectedItem = item
+            setNeedsLayout()
         }
     }
 }

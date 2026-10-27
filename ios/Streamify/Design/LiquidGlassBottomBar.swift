@@ -67,17 +67,11 @@ struct LiquidGlassBottomBar: View {
             select: { if !profilesOpen { select($0, feedback: true) } },
             openProfiles: openProfiles)
             .fixedSize(horizontal: false, vertical: true)
-            .overlay(alignment: .trailing) {
-                GeometryReader { geometry in
-                    Color.clear
-                        .frame(width: geometry.size.width / 4, height: geometry.size.height)
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)
-                        .popover(isPresented: $profilesOpen, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
-                            quickProfilePicker
-                        }
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                }
+            // A point on the real bar anchors the menu without adding an
+            // invisible view above My List that could intercept its touches.
+            .popover(isPresented: $profilesOpen,
+                     attachmentAnchor: .point(UnitPoint(x: 0.875, y: 0)), arrowEdge: .bottom) {
+                quickProfilePicker
             }
             .frame(maxWidth: 440)
     }
@@ -289,7 +283,7 @@ struct LiquidGlassBottomBar: View {
     }
 
     private func openProfiles() {
-        guard !profilesOpen, profiles.canEditProfiles else { return }
+        guard scenePhase == .active, !profilesOpen, profiles.canEditProfiles else { return }
         pendingProfile = nil; pendingOwner = nil
         AppHaptics.tap()
         profilesOpen = true
