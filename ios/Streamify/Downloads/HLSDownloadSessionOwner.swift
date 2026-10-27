@@ -215,7 +215,16 @@ final class HLSDownloadSessionOwner {
         try Task.checkCancellation()
         guard preparing[key] === asset else { throw CancellationError() }
         let configuration = AVAssetDownloadConfiguration(asset: asset, title: title)
-        configuration.primaryContentConfiguration.variantQualifiers = [AVAssetVariantQualifier(variant: metadata.variant)]
+        guard let size = metadata.variant.videoAttributes?.presentationSize,
+              size.width > 0, size.height > 0 else { throw HLSDownloadSessionError.unexpectedSelection }
+        // A qualifier tied to the loaded variant object fails before media
+        // transfer on the verified runtime. Typed size predicates retain exact
+        // resolution using its public presentation dimensions instead.
+        let exactSize = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            AVAssetVariantQualifier.predicate(forPresentationWidth: size.width, operatorType: .equalTo),
+            AVAssetVariantQualifier.predicate(forPresentationHeight: size.height, operatorType: .equalTo)
+        ])
+        configuration.primaryContentConfiguration.variantQualifiers = [AVAssetVariantQualifier(predicate: exactSize)]
         configuration.primaryContentConfiguration.mediaSelections = [metadata.selection]
         let task = session.makeAssetDownloadTask(downloadConfiguration: configuration)
         let identity = HLSDownloadIdentity(id: id, attempt: attempt, taskIdentifier: task.taskIdentifier)
