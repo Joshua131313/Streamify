@@ -70,6 +70,9 @@ targets:
           - Info.plist
       - path: Streamify/Sports/SportsModels.swift
       - path: Streamify/Sports/SportsService.swift
+      - path: Streamify/Sports/SportsSourceIdentity.swift
+      - path: Streamify/Sports/StreamFreeProvider.swift
+      - path: Streamify/Sports/DaddyLiveProvider.swift
       - path: Streamify/Data/ResponseMemoryCache.swift
       - path: Streamify/Sports/SportsWidgetPolicy.swift
     settings:

@@ -54,8 +54,14 @@ struct MediaDetailView: View {
                         Button { play(season: previous?.season ?? season, episode: previous?.episode ?? 1) } label: {
                             Label(watchTitle, systemImage: "play.fill")
                                 .font(.headline).frame(maxWidth: .infinity).frame(minHeight: 50)
+                                .foregroundStyle(.black)
+                                .background(.white, in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
+                                // A plain button must own the entire visible surface,
+                                // including the space beside its centered play label.
+                                .contentShape(Rectangle())
                         }
-                        .buttonStyle(HapticPlainButtonStyle()).foregroundStyle(.black).background(.white, in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
+                        .buttonStyle(HapticPlainButtonStyle())
+                        .accessibilityIdentifier("detail-watch-\(media.key)")
                         MediaDownloadButton(media: title, season: previous?.season ?? season, episode: previous?.episode ?? 1,
                             onRequestDownload: { presentDownload(season: previous?.season ?? season, episode: previous?.episode ?? 1) })
                         HStack(spacing: 12) {
@@ -152,6 +158,7 @@ struct MediaDetailView: View {
     private var hero: some View {
         TrailerPreview(url: details?.trailer, poster: title.backdropURL,
             active: pageVisible && previewVisible && selection == nil && selectedCast == nil && !downloadPresented)
+            .contentShape(Rectangle())
     }
 
     private var metadata: String {
@@ -178,7 +185,7 @@ struct MediaDetailView: View {
                         }
                     } label: {
                         StreamifySelectLabel(title: media.kind == .anime ? "All episodes" : "Season \(season)")
-                    }.buttonStyle(HapticPlainButtonStyle())
+                    }.buttonStyle(HapticPlainButtonStyle()).accessibilityIdentifier("detail-season-picker-\(media.key)")
                 }
             }
             if loadingEpisodes { ProgressView().frame(maxWidth: .infinity).padding() }
@@ -209,7 +216,7 @@ struct MediaDetailView: View {
                             }.frame(maxWidth: .infinity, alignment: .leading)
                         }
                         .contentShape(Rectangle())
-                    }.buttonStyle(HapticPlainButtonStyle())
+                    }.buttonStyle(HapticPlainButtonStyle()).accessibilityIdentifier("detail-play-\(media.key):\(season):\(episode.number)")
                     if media.kind == .tv {
                         MediaDownloadButton(media: title, season: season, episode: episode.number, episodeTitle: episode.title,
                             compact: true, onRequestDownload: { presentDownload(season: season, episode: episode.number, title: episode.title) })

@@ -272,7 +272,7 @@ extension SportsLeague {
     }
 }
 
-struct SportsStream: Identifiable, Hashable {
+struct SportsStream: Identifiable, Hashable, Sendable {
     let title: String
     let url: URL
     let alternatives: [SportsStream]

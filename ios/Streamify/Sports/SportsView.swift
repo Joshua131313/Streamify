@@ -29,6 +29,15 @@ private enum SportsLayout: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+/// Live follows the local clock; an explicitly chosen result date stays put
+/// until it falls outside the two-day history window.
+enum SportsVisibleDayPolicy {
+    static func afterRollover(selection: Date, previousToday: Date, now: Date, live: Bool, calendar: Calendar) -> Date {
+        if live && calendar.isDate(selection, inSameDayAs: previousToday) { return calendar.startOfDay(for: now) }
+        return SportsScheduleDayPolicy.selectedDay(selection, now: now, calendar: calendar)
+    }
+}
+
 struct SportsView: View {
     var searchRequest = 0
     var searchNamespace: Namespace.ID? = nil
@@ -75,6 +84,7 @@ struct SportsView: View {
     @State private var dayTransitioning = false
 
     private var today: Date { currentToday }
+    private var firstDay: Date { Calendar.current.date(byAdding: .day, value: -2, to: today) ?? today }
     private var lastDay: Date { Calendar.current.date(byAdding: .day, value: 13, to: today) ?? today }
 
     private var leagues: [SportsLeague] { selectedLeague.map { [$0] } ?? SportsLeague.allCases }
@@ -185,7 +195,7 @@ struct SportsView: View {
                     VStack(alignment: .leading, spacing: 20) {
                         calendarGrid
                         calendarLegend
-                        Text("Choose a day in the next two weeks. Dots show leagues with scheduled games.")
+                        Text("Browse results from the past two days or games in the next two weeks. Dots show leagues with scheduled games.")
                             .font(.footnote).foregroundStyle(AppTheme.muted).padding(.horizontal, 20)
                     }.padding(.vertical, 16)
                 }.background(AppTheme.canvas).foregroundStyle(AppTheme.foreground)
@@ -228,7 +238,7 @@ struct SportsView: View {
             SportsDaySwipeObserver(scope: daySwipeScope,
                 enabled: scenePhase == .active && !home && !channels && layout == .list && !loading && !dayTransitioning &&
                     !showCalendar && !showFilters && !showSportsSearch && !showMultiWatch && selectedGame == nil && !playback.isExpanded,
-                canGoBack: day > today, canGoForward: day < lastDay, changeDay: swipeDay)
+                canGoBack: day > firstDay, canGoForward: day < lastDay, changeDay: swipeDay)
                 .allowsHitTesting(false).accessibilityHidden(true)
         }
     }
@@ -320,7 +330,7 @@ struct SportsView: View {
     private func statusTab(_ item: SportsFilter) -> some View {
         let selected = filter == item
         let enabled = !channels
-        let title = item == .pregame && !liveAvailable ? "Upcoming" : item.rawValue
+        let title = item == .pregame && day > today ? "Upcoming" : item.rawValue
         return Button {
             guard daySwipeScope.permitsProtectedAction else { return }
             if item == .live {
@@ -402,7 +412,7 @@ struct SportsView: View {
                 Button {
                     calendarMonth = Calendar.current.date(byAdding: .month, value: -1, to: monthStart(calendarMonth)) ?? calendarMonth
                 } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44) }
-                    .disabled(monthStart(calendarMonth) <= monthStart(today))
+                    .disabled(monthStart(calendarMonth) <= monthStart(firstDay))
                     .accessibilityLabel("Previous month").accessibilityIdentifier("sports-calendar-previous-month")
                 Text(calendarMonth.formatted(.dateTime.month(.wide).year())).font(.headline).frame(maxWidth: .infinity)
                 Button {
@@ -425,7 +435,7 @@ struct SportsView: View {
 
     private func calendarDateCell(_ value: Date) -> some View {
         let selected = Calendar.current.isDate(value, inSameDayAs: day)
-        let enabled = value >= today && value <= lastDay
+        let enabled = value >= firstDay && value <= lastDay
         let offset = Calendar.current.dateComponents([.day], from: today, to: value).day ?? -1
         return Button { selectDay(value) } label: {
             VStack(spacing: 5) {
@@ -466,7 +476,7 @@ struct SportsView: View {
                 }
             }
             Text("Choose one league for the schedule and calendar. Tap it again to show all leagues.").font(.caption2).foregroundStyle(AppTheme.muted)
-            if calendarLoading { HStack(spacing: 10) { ProgressView().controlSize(.small); Text("Finding games over the next two weeks").font(.caption).foregroundStyle(AppTheme.muted) } }
+            if calendarLoading { HStack(spacing: 10) { ProgressView().controlSize(.small); Text("Finding recent results and upcoming games").font(.caption).foregroundStyle(AppTheme.muted) } }
             if !calendarUnavailable.intersection(selectedLeagues).isEmpty {
                 Text("Some event markers are unavailable. Select a day to check its schedule.").font(.caption).foregroundStyle(AppTheme.muted)
             }
@@ -491,8 +501,8 @@ struct SportsView: View {
     }
 
     private func selectDay(_ value: Date, animated: Bool = false) {
-        let value = min(lastDay, max(today, Calendar.current.startOfDay(for: value)))
-        guard value != day else { return }
+        let value = min(lastDay, max(firstDay, Calendar.current.startOfDay(for: value)))
+        guard value != day else { if value < today { filter = .final }; return }
         let returningToToday = Calendar.current.isDate(value, inSameDayAs: today)
         let cached = scheduleCache.snapshot(leagues: leagues, day: value, backend: settings.apiBase)
         let update = {
@@ -505,8 +515,9 @@ struct SportsView: View {
             partial = cached?.partial ?? false
             day = value
             loadedScheduleKey = cached == nil ? nil : scheduleKey
-            if returningToToday { filter = .live }
-            else if filter == .live { filter = .pregame }
+            if value < today { filter = .final }
+            else if returningToToday { filter = .live }
+            else { filter = .pregame }
         }
         if animated && !reduceMotion {
             dayTransitioning = true
@@ -524,7 +535,8 @@ struct SportsView: View {
         let calendar = Calendar.current
         let freshToday = calendar.startOfDay(for: now)
         guard freshToday != currentToday else { return }
-        let selection = SportsScheduleDayPolicy.selectedDay(day, now: now, calendar: calendar)
+        let selection = SportsVisibleDayPolicy.afterRollover(selection: day, previousToday: currentToday,
+            now: now, live: filter == .live, calendar: calendar)
         daySwipeScope.invalidateRequests()
         var transaction = Transaction(animation: nil)
         transaction.disablesAnimations = true
@@ -541,14 +553,15 @@ struct SportsView: View {
                 error = nil
                 partial = false
             }
-            if !calendar.isDate(selection, inSameDayAs: freshToday), filter == .live { filter = .pregame }
+            if selection < freshToday { filter = .final }
+            else if selection > freshToday, filter == .live { filter = .pregame }
             calendarMonth = monthStart(selection)
         }
     }
 
     private func swipeDay(_ direction: Int) {
         guard !loading, !dayTransitioning, layout == .list, !home, !channels,
-              let next = Calendar.current.date(byAdding: .day, value: direction, to: day), next >= today, next <= lastDay else { return }
+              let next = Calendar.current.date(byAdding: .day, value: direction, to: day), next >= firstDay, next <= lastDay else { return }
         daySwipeDirection = direction
         selectDay(next, animated: true)
     }
@@ -656,13 +669,13 @@ struct SportsView: View {
         refreshCurrentDay()
         calendarLoading = true
         defer { calendarLoading = false }
-        let start = today, end = lastDay, referenceTime = Date()
+        let referenceToday = today, start = firstDay, end = lastDay, referenceTime = Date()
         let calendar = Calendar.current
         let jobs: [(SportsLeague, Date, String)] = {
             var result: [(SportsLeague, Date, String)] = []
             for item in SportsLeague.allCases {
-                for offset in -1...14 {
-                    guard let date = calendar.date(byAdding: .day, value: offset, to: start) else { continue }
+                for offset in -3...14 {
+                    guard let date = calendar.date(byAdding: .day, value: offset, to: referenceToday) else { continue }
                     for parameters in item.scoreboardParameters { result.append((item, date, parameters)) }
                 }
             }
@@ -697,7 +710,7 @@ struct SportsView: View {
                 return results
             }
             try Task.checkCancellation()
-            guard start == today else { return }
+            guard referenceToday == today, start == firstDay else { return }
             var markers: [Date: Set<SportsLeague>] = [:]
             for game in SportsScheduleDayPolicy.canonicalGames(batches.flatMap(\.games)) {
                 guard let date = SportsScheduleDayPolicy.markerDay(for: game, now: referenceTime, calendar: calendar), date >= start, date <= end else { continue }

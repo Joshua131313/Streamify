@@ -235,7 +235,22 @@ enum PreviewFixtures {
                 "situation": ["awayTeam": ["strength": 5, "situationDescriptions": ["PP"]],
                     "homeTeam": ["strength": 4], "timeRemaining": "0:42"]]]]
         }
-        else if host == "timst.top" {
+        else if host == "streamfree.top" {
+            let events = streamFreeEvents()
+            if path == "/api/v1/streams" { value = ["streams": events, "count": events.count] as [String: Any] }
+            else if path.hasPrefix("/api/v1/sources/"), let item = events.first(where: { $0.sportsText("stream_key") == url.lastPathComponent }) {
+                value = ["stream_key": item.sportsText("stream_key"), "sources": item["sources"] ?? []]
+            } else { return (404, "application/json", Data("{}".utf8)) }
+        }
+        else if host == "thedaddy.pk" {
+            let html: String
+            if path == "/" { html = daddyScheduleHTML }
+            else if path == "/watch.php" {
+                html = "<iframe id=\"playerFrame\" src=\"https://fixture.streamify.test/daddy\" allowfullscreen></iframe>"
+            } else { return (404, "text/html", Data()) }
+            return (200, "text/html", Data(html.utf8))
+        }
+        else if host == "timst.top" || host == "tim-streams.com" {
             let events = timstEvents()
             if path == "/api/live-upcoming" { value = ["events": events, "genres": []] as [String: Any] }
             else if path.hasPrefix("/api/watch/"), let event = events.first(where: { $0.sportsText("url") == url.lastPathComponent }) {
@@ -278,6 +293,32 @@ enum PreviewFixtures {
         }
         return data
     }
+    private static func streamFreeEvents() -> [[String: Any]] {
+        let start = Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: Date()) ?? Date()
+        return SportsLeague.allCases.map { league in
+            let key = "fixture-\(league.rawValue)"
+            return ["name": "Boston Harbor vs Toronto Towers", "category": league.sport, "league": league.title,
+                    "stream_key": key, "match_timestamp": start.timeIntervalSince1970,
+                    "sources": ["https://streamfree.top/embed/\(league.sport)/\(key)1080p3"]]
+        }
+    }
+
+    private static var daddyScheduleHTML: String {
+        let start = Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: Date()) ?? Date()
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX"); formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "EEEE d MMM yyyy"
+        let day = formatter.string(from: start)
+        formatter.dateFormat = "HH:mm"
+        let time = formatter.string(from: start)
+        let rows = SportsLeague.allCases.enumerated().map { index, league in
+            "<div class=\"schedule__event\"><span class=\"schedule__time\" data-time=\"\(time)\">\(time)</span>" +
+            "<span class=\"schedule__eventTitle\">\(league.title) : Boston Harbor vs Toronto Towers</span>" +
+            "<div class=\"schedule__channels\"><a href=\"/watch.php?id=\(index + 1)\">Fixture broadcast</a></div></div>"
+        }.joined()
+        return "<section class=\"schedule__day\"><h2 class=\"schedule__dayTitle\">\(day)</h2>\(rows)</section>"
+    }
+
     private static func timstEvents() -> [[String: Any]] {
         var identities = SportsLeague.allCases.map { ($0, "\($0.rawValue)-fixture") }
         identities += [(.nba, "401020304"), (.mlb, "mlb-second-base"), (.mlb, "mlb-two-outs")]
@@ -316,6 +357,16 @@ enum PreviewFixtures {
         let final: [String: Any] = ["id": "\(league)-final", "date": date, "competitions": [["date": date, "competitors": [competitor(false), competitor(true)], "status": ["type": ["state": "post", "shortDetail": "Final", "description": "Final"]], "venue": ["fullName": "Streamify Arena"], "broadcasts": [["names": ["ESPN"]]]]]]
         let pregame: [String: Any] = ["id": "\(league)-pregame", "date": date, "competitions": [["date": date, "competitors": [competitor(false), competitor(true)], "status": ["type": ["state": "pre", "shortDetail": "Scheduled", "description": "Scheduled"]], "venue": ["fullName": "Streamify Arena"], "broadcasts": [["names": ["ESPN"]]]]]]
         if parts.last == "scoreboard" || parts.last == "schedule" {
+            if league == "nba", ProcessInfo.processInfo.arguments.contains("--ui-past-sports-results") {
+                let past: [[String: Any]] = [1, 2].map { offset in
+                    var item = final
+                    item["id"] = "nba-past-final-\(offset)"
+                    let historical = Calendar.current.date(byAdding: .day, value: -offset, to: today) ?? today
+                    item["date"] = ISO8601DateFormatter().string(from: historical)
+                    return item
+                }
+                return ["events": [game, final, pregame] + past]
+            }
             if league == "mlb", ProcessInfo.processInfo.arguments.contains("--ui-mlb-count-fixtures") {
                 func countGame(_ id: String, first: Bool, second: Bool, third: Bool, balls: Int, strikes: Int, outs: Int) -> [String: Any] {
                     var event = game

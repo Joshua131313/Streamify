@@ -604,7 +604,7 @@ final class ParityFlowTests: XCTestCase {
         let leftStart = heading.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.5))
         let leftEnd = heading.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.5))
         leftStart.press(forDuration: 0.05, thenDragTo: leftEnd)
-        XCTAssertTrue(wait { date.value as? String != originalDate && !live.isEnabled && !live.isSelected })
+        XCTAssertTrue(wait { date.value as? String != originalDate && live.isEnabled && !live.isSelected })
         XCTAssertEqual(date.frame.minY, originalToolbarY, accuracy: 2)
         XCTAssertEqual(app.buttons["sports-league-picker"].value as? String, "NBA")
         XCTAssertTrue(app.buttons["tab-sports"].isSelected)
@@ -616,20 +616,29 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertTrue(wait { date.value as? String == originalDate && live.isEnabled })
         XCTAssertTrue(app.buttons["sports-game-nba:nba-fixture"].waitForExistence(timeout: 10))
         XCTAssertEqual(date.frame.minY, originalToolbarY, accuracy: 2)
-        // A drag over an explicit action must neither switch days nor invoke it.
-        let gameCenter = app.buttons["Game Center"].firstMatch
-        let protectedStart = gameCenter.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.5))
-        let protectedEnd = gameCenter.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5))
+        // A drag over an explicit Watch action must neither switch days nor invoke it.
+        let watch = app.buttons["sports-watch-nba:nba-fixture"]
+        XCTAssertTrue(watch.isHittable)
+        let protectedStart = watch.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.5))
+        let protectedEnd = watch.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5))
         protectedStart.press(forDuration: 0.05, thenDragTo: protectedEnd)
         XCTAssertEqual(date.value as? String, originalDate)
-        XCTAssertFalse(app.navigationBars["Game center"].exists, "Dragging inside Game Center must cancel its press, not open its sheet.")
+        XCTAssertFalse(app.navigationBars["Game center"].exists)
         XCTAssertFalse(app.buttons["Close player"].exists)
         XCTAssertTrue(app.buttons["tab-sports"].isSelected)
         capture("Swipe right returns to today without changing leagues or root tabs")
+        let gameCenter = app.buttons["sports-game-nba:nba-fixture"].firstMatch
         gameCenter.tap()
         XCTAssertTrue(app.navigationBars["Game center"].waitForExistence(timeout: 5), "A normal tap immediately after the cancelled drag must still open Game Center.")
         app.buttons["Close"].tap()
         XCTAssertTrue(wait { !self.app.navigationBars["Game center"].exists && date.exists })
+        leftStart.press(forDuration: 0.05, thenDragTo: leftEnd)
+        XCTAssertTrue(wait { date.value as? String != originalDate && live.isEnabled })
+        live.tap()
+        XCTAssertTrue(wait { date.value as? String == originalDate && live.isSelected })
+        XCTAssertEqual(app.buttons["sports-league-picker"].value as? String, "NBA")
+        XCTAssertEqual(date.frame.minY, originalToolbarY, accuracy: 2)
+        XCTAssertTrue(app.buttons["tab-sports"].isSelected)
     }
 
     func testSportsScheduleScoringTableRosterChannelsAndMultiWatch() {

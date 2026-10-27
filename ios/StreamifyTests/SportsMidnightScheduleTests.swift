@@ -144,13 +144,58 @@ final class SportsMidnightScheduleTests: XCTestCase {
         XCTAssertEqual(query("end", in: request), "2026-10-24")
     }
 
-    func testMidnightSelectionAdvancesTodayButPreservesAnExplicitFutureDate() throws {
+    func testDatePolicyPreservesTwoRecentDaysAndBoundsFutureDates() throws {
         let calendar = try localCalendar("America/Toronto")
         let before = try instant("2026-10-24T03:59:00Z")
         let after = try instant("2026-10-24T04:01:00Z")
         let future = try instant("2026-10-27T04:00:00Z")
-        XCTAssertEqual(SportsScheduleDayPolicy.selectedDay(calendar.startOfDay(for: before), now: after, calendar: calendar), calendar.startOfDay(for: after))
+        let today = calendar.startOfDay(for: after)
+        XCTAssertEqual(SportsScheduleDayPolicy.selectedDay(calendar.startOfDay(for: before), now: after, calendar: calendar), calendar.startOfDay(for: before))
         XCTAssertEqual(SportsScheduleDayPolicy.selectedDay(future, now: after, calendar: calendar), future)
+        let oldest = try XCTUnwrap(calendar.date(byAdding: .day, value: -2, to: today))
+        XCTAssertEqual(SportsScheduleDayPolicy.selectedDay(oldest, now: after, calendar: calendar), oldest)
+        XCTAssertEqual(SportsScheduleDayPolicy.selectedDay(try XCTUnwrap(calendar.date(byAdding: .day, value: -3, to: today)), now: after, calendar: calendar), oldest)
+        XCTAssertEqual(SportsScheduleDayPolicy.selectedDay(try XCTUnwrap(calendar.date(byAdding: .day, value: 14, to: today)), now: after, calendar: calendar), calendar.date(byAdding: .day, value: 13, to: today))
+    }
+
+    func testLiveSelectionFollowsMidnightWhileExplicitFinalSelectionStaysOnItsDay() throws {
+        let calendar = try localCalendar("America/Toronto")
+        let before = try instant("2026-10-24T03:59:00Z")
+        let after = try instant("2026-10-24T04:01:00Z")
+        let previous = calendar.startOfDay(for: before)
+        let today = calendar.startOfDay(for: after)
+        XCTAssertEqual(SportsVisibleDayPolicy.afterRollover(selection: previous, previousToday: previous,
+            now: after, live: true, calendar: calendar), today)
+        XCTAssertEqual(SportsVisibleDayPolicy.afterRollover(selection: previous, previousToday: previous,
+            now: after, live: false, calendar: calendar), previous)
+        let oldestBeforeMidnight = try XCTUnwrap(calendar.date(byAdding: .day, value: -2, to: previous))
+        XCTAssertEqual(SportsVisibleDayPolicy.afterRollover(selection: oldestBeforeMidnight, previousToday: previous,
+            now: after, live: false, calendar: calendar), calendar.date(byAdding: .day, value: -2, to: today))
+    }
+
+    func testPastSelectionUsesCalendarDaysAcrossDST() throws {
+        let calendar = try localCalendar("America/Toronto")
+        let now = try instant("2026-11-02T05:10:00Z")
+        let oldest = try instant("2026-10-31T04:00:00Z")
+        XCTAssertEqual(SportsScheduleDayPolicy.selectedDay(oldest, now: now, calendar: calendar), oldest,
+            "The two-day limit must use local dates across the 25-hour DST day.")
+    }
+
+    func testTwoDayOldESPNResultsStayOnTheSelectedDateAndCannotBeWatched() async throws {
+        let calendar = try localCalendar("America/Toronto")
+        let now = try instant("2026-10-24T16:00:00Z")
+        let selected = try instant("2026-10-22T04:00:00Z")
+        let fixture = try MidnightScheduleFixture(scoreboards: [
+            "20261021": [espnGame("outside", date: "2026-10-21T18:00:00Z", state: "post")],
+            "20261022": [espnGame("recent-final", date: "2026-10-22T18:00:00Z", state: "post")],
+            "20261023": [espnGame("today-live", date: "2026-10-24T02:00:00Z", state: "in")]
+        ])
+        let result = try await SportsService(session: fixture.session, calendar: calendar, now: { now })
+            .schedule(leagues: [.nba], day: selected)
+        XCTAssertEqual(result.games.map(\.eventID), ["recent-final"])
+        XCTAssertTrue(try XCTUnwrap(result.games.first).isFinal)
+        XCTAssertFalse(try XCTUnwrap(result.games.first).canWatch)
+        XCTAssertEqual(fixture.requests.compactMap(\.url).compactMap { query("dates", in: $0) }, ["20261021", "20261022", "20261023"])
     }
 
     private func instant(_ value: String) throws -> Date { try XCTUnwrap(SportsService.parseDate(value)) }

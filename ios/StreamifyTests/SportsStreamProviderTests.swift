@@ -5,6 +5,63 @@ import XCTest
 /// Public response-shaped snapshots and URLProtocol only. No provider, player,
 /// Firebase, authentication or media request reaches the network.
 final class SportsStreamProviderTests: XCTestCase {
+    func testDefaultUsesOfficialComAPIAndRefreshesWatchWithoutCachingItsSourceURL() async throws {
+        let fixture = TimProviderProtocolFixture(.success)
+        let service = SportsService(session: fixture.session, streamCatalog: .timStreams)
+        let first = try await service.streams(TimProviderSnapshots.nbaGame)
+        let second = try await service.streams(TimProviderSnapshots.nbaGame)
+        XCTAssertEqual(first.map(\.url.absoluteString), ["https://fixture.streamify.test/fresh-1"])
+        XCTAssertEqual(second.map(\.url.absoluteString), ["https://fixture.streamify.test/fresh-2"])
+        XCTAssertEqual(fixture.requests.map { $0.url?.host }, ["tim-streams.com", "tim-streams.com", "tim-streams.com"])
+        XCTAssertEqual(fixture.requests.map { $0.url?.path }, ["/api/live-upcoming", "/api/watch/" + TimProviderSnapshots.nbaSlug, "/api/watch/" + TimProviderSnapshots.nbaSlug])
+    }
+
+    func testPrimaryCannotFindHostUsesTheOtherOfficialCatalogAndWatchOnTheSameHost() async throws {
+        let fixture = TimProviderProtocolFixture(.primaryDNSFailure)
+        let values = try await SportsService(session: fixture.session, streamCatalog: .timStreams).streams(TimProviderSnapshots.nbaGame)
+        XCTAssertEqual(values.map(\.url.absoluteString), ["https://fixture.streamify.test/fresh-1"])
+        XCTAssertEqual(fixture.requests.map { $0.url?.host }, ["tim-streams.com", "timst.top", "timst.top"])
+        XCTAssertEqual(fixture.requests.map { $0.url?.path }, ["/api/live-upcoming", "/api/live-upcoming", "/api/watch/" + TimProviderSnapshots.nbaSlug])
+    }
+
+    func testWatchHostFailureReloadsTheOtherHostsCatalogInsteadOfMixingKeys() async throws {
+        let fixture = TimProviderProtocolFixture(.primaryWatchDNSFailure)
+        let values = try await SportsService(session: fixture.session, streamCatalog: .timStreams).streams(TimProviderSnapshots.nbaGame)
+        XCTAssertEqual(values.map(\.url.absoluteString), ["https://fixture.streamify.test/fresh-1"])
+        XCTAssertEqual(fixture.requests.map { $0.url?.host }, ["tim-streams.com", "tim-streams.com", "timst.top", "timst.top"])
+        XCTAssertEqual(fixture.requests.map { $0.url?.path }, ["/api/live-upcoming", "/api/watch/" + TimProviderSnapshots.nbaSlug,
+            "/api/live-upcoming", "/api/watch/returned-by-top-" + TimProviderSnapshots.nbaGame.eventID])
+    }
+
+    func testPrimaryHTMLFailureCanUseTheOfficialAlternateWithoutRawParseErrors() async throws {
+        let fixture = TimProviderProtocolFixture(.primaryClosure)
+        let values = try await SportsService(session: fixture.session, streamCatalog: .timStreams).streams(TimProviderSnapshots.nbaGame)
+        XCTAssertEqual(values.count, 1)
+        XCTAssertEqual(fixture.requests.map { $0.url?.host }, ["tim-streams.com", "timst.top", "timst.top"])
+    }
+
+    func testBothHostDNSFailuresPreserveTheMeaningfulTransportError() async throws {
+        let fixture = TimProviderProtocolFixture(.bothDNSFailure)
+        do { _ = try await SportsService(session: fixture.session, streamCatalog: .timStreams).streams(TimProviderSnapshots.nbaGame); XCTFail("Both API hosts are unavailable.") }
+        catch { XCTAssertEqual((error as? URLError)?.code, .cannotFindHost) }
+        XCTAssertEqual(fixture.requests.map { $0.url?.host }, ["tim-streams.com", "timst.top"])
+    }
+
+    func testCancelledPrimaryDoesNotStartAHostFailoverOrAPlayer() async throws {
+        let fixture = TimProviderProtocolFixture(.primaryCancellation)
+        do { _ = try await SportsService(session: fixture.session, streamCatalog: .timStreams).streams(TimProviderSnapshots.nbaGame); XCTFail("Cancellation must stop discovery.") }
+        catch { XCTAssertEqual((error as? URLError)?.code, .cancelled) }
+        XCTAssertEqual(fixture.requests.map { $0.url?.host }, ["tim-streams.com"])
+    }
+
+    func testAValidCatalogWithoutThisEventDoesNotGuessOtherHostsOrSources() async throws {
+        let fixture = TimProviderProtocolFixture(.unrelatedCatalog)
+        let values = try await SportsService(session: fixture.session, streamCatalog: .timStreams).streams(TimProviderSnapshots.nbaGame)
+        XCTAssertTrue(values.isEmpty)
+        XCTAssertEqual(fixture.requests.map { $0.url?.host }, ["tim-streams.com"])
+        XCTAssertEqual(fixture.requests.map { $0.url?.path }, ["/api/live-upcoming"])
+    }
+
     func testCapturedNBAAndNHLItemsKeepTheProvidersActualSourceAddresses() throws {
         let nba = try decoded(TimProviderSnapshots.nba)
         let nhl = try decoded(TimProviderSnapshots.nhl)
@@ -108,9 +165,9 @@ final class SportsStreamProviderTests: XCTestCase {
         XCTAssertTrue(SportsService.timstStreams(absent, game: TimProviderSnapshots.nbaGame).isEmpty)
     }
 
-    func testDefaultDiscoveryUsesTheReturnedCatalogSlugThenTheFreshWatchItem() async throws {
+    func testExplicitTimHostUsesTheReturnedCatalogSlugThenTheFreshWatchItem() async throws {
         let fixture = TimProviderProtocolFixture(.success)
-        let values = try await SportsService(session: fixture.session).streams(TimProviderSnapshots.nbaGame)
+        let values = try await SportsService(session: fixture.session, streamCatalog: .timStreams, timStreamAPIHosts: ["timst.top"]).streams(TimProviderSnapshots.nbaGame)
         XCTAssertEqual(values.map(\.url.absoluteString), ["https://fixture.streamify.test/fresh-1"])
         XCTAssertEqual(fixture.requests.map { $0.url?.path }, ["/api/live-upcoming", "/api/watch/" + TimProviderSnapshots.nbaSlug])
         XCTAssertTrue(fixture.requests.allSatisfy { $0.url?.scheme == "https" && $0.url?.host == "timst.top" })
@@ -118,7 +175,7 @@ final class SportsStreamProviderTests: XCTestCase {
 
     func testAnotherWatchRefreshesItsAddressWhileTheCatalogRemainsWarm() async throws {
         let fixture = TimProviderProtocolFixture(.success)
-        let service = SportsService(session: fixture.session)
+        let service = SportsService(session: fixture.session, streamCatalog: .timStreams, timStreamAPIHosts: ["timst.top"])
         let first = try await service.streams(TimProviderSnapshots.nbaGame)
         let second = try await service.streams(TimProviderSnapshots.nbaGame)
         XCTAssertEqual(first.map(\.url.absoluteString), ["https://fixture.streamify.test/fresh-1"])
@@ -128,11 +185,11 @@ final class SportsStreamProviderTests: XCTestCase {
 
     func testUnrelatedCatalogAndWrongWatchItemAreRejectedWithoutGuessingOrFallback() async throws {
         let unrelated = TimProviderProtocolFixture(.unrelatedCatalog)
-        let values = try await SportsService(session: unrelated.session).streams(TimProviderSnapshots.nbaGame)
+        let values = try await SportsService(session: unrelated.session, streamCatalog: .timStreams, timStreamAPIHosts: ["timst.top"]).streams(TimProviderSnapshots.nbaGame)
         XCTAssertTrue(values.isEmpty)
         XCTAssertEqual(unrelated.requests.map { $0.url?.path }, ["/api/live-upcoming"], "Do not derive a watch URL from team names or an ESPN ID.")
         let changed = TimProviderProtocolFixture(.wrongWatchItem)
-        do { _ = try await SportsService(session: changed.session).streams(TimProviderSnapshots.nbaGame); XCTFail("An unrelated watch item must not become playback.") }
+        do { _ = try await SportsService(session: changed.session, streamCatalog: .timStreams, timStreamAPIHosts: ["timst.top"]).streams(TimProviderSnapshots.nbaGame); XCTFail("An unrelated watch item must not become playback.") }
         catch { guard case .invalidResponse? = error as? SportsServiceError else { return XCTFail("Unexpected rejection: \(error)") } }
         XCTAssertEqual(changed.requests.map { $0.url?.path }, ["/api/live-upcoming", "/api/watch/" + TimProviderSnapshots.nbaSlug])
         XCTAssertTrue((unrelated.requests + changed.requests).allSatisfy { $0.url?.host == "timst.top" }, "A missing event must not silently fall back to the dead provider.")
@@ -141,7 +198,7 @@ final class SportsStreamProviderTests: XCTestCase {
     func testProviderFailureAndCancellationArePreservedWithoutFetchingOtherHosts() async throws {
         for mode in [TimProviderProtocolFixture.Mode.catalogFailure(.cannotConnectToHost), .watchFailure(.notConnectedToInternet), .watchFailure(.cancelled)] {
             let fixture = TimProviderProtocolFixture(mode)
-            do { _ = try await SportsService(session: fixture.session).streams(TimProviderSnapshots.nbaGame); XCTFail("The provider request must report its failure.") }
+            do { _ = try await SportsService(session: fixture.session, streamCatalog: .timStreams, timStreamAPIHosts: ["timst.top"]).streams(TimProviderSnapshots.nbaGame); XCTFail("The provider request must report its failure.") }
             catch { XCTAssertEqual((error as? URLError)?.code, mode.failureCode) }
             XCTAssertTrue(fixture.requests.allSatisfy { $0.url?.host == "timst.top" })
         }
@@ -149,7 +206,7 @@ final class SportsStreamProviderTests: XCTestCase {
 
     func testCancelledLookupCannotReturnAPlayerSource() async throws {
         let fixture = TimProviderProtocolFixture(.success)
-        let service = SportsService(session: fixture.session)
+        let service = SportsService(session: fixture.session, streamCatalog: .timStreams, timStreamAPIHosts: ["timst.top"])
         let task = Task { try await service.streams(TimProviderSnapshots.nbaGame) }
         task.cancel()
         do { _ = try await task.value; XCTFail("Cancellation must prevent handing a source to playback.") }
@@ -187,6 +244,7 @@ private enum TimProviderSnapshots {
 private final class TimProviderProtocolFixture {
     enum Mode {
         case success, unrelatedCatalog, wrongWatchItem, catalogFailure(URLError.Code), watchFailure(URLError.Code)
+        case primaryDNSFailure, primaryWatchDNSFailure, primaryClosure, bothDNSFailure, primaryCancellation
         var failureCode: URLError.Code? { switch self { case .catalogFailure(let code), .watchFailure(let code): return code; default: return nil } }
     }
     let session: URLSession
@@ -215,17 +273,30 @@ private final class TimProviderProtocolScenario {
         lock.lock(); defer { lock.unlock() }
         recorded.append(request)
         let url = try XCTUnwrap(request.url)
-        guard url.host == "timst.top", url.scheme == "https" else { throw URLError(.unsupportedURL) }
+        guard ["tim-streams.com", "timst.top"].contains(url.host ?? ""), url.scheme == "https" else { throw URLError(.unsupportedURL) }
+        if case .bothDNSFailure = mode { throw URLError(.cannotFindHost) }
+        if url.host == "tim-streams.com" {
+            if case .primaryDNSFailure = mode { throw URLError(.cannotFindHost) }
+            if case .primaryCancellation = mode { throw URLError(.cancelled) }
+            if case .primaryClosure = mode { return Data("<!doctype html><html><title>API unavailable</title></html>".utf8) }
+        }
+        var expectedSlug = TimProviderSnapshots.nbaSlug
+        if case .primaryWatchDNSFailure = mode, url.host == "timst.top" {
+            expectedSlug = "returned-by-top-" + TimProviderSnapshots.nbaGame.eventID
+        }
         let object: [String: Any]
         if url.path == "/api/live-upcoming" {
             if case .catalogFailure(let code) = mode { throw URLError(code) }
             var event = TimProviderSnapshots.item(TimProviderSnapshots.nbaGame)
+            event["url"] = expectedSlug
             if case .unrelatedCatalog = mode { event["url"] = "other-event-401909875" }
             object = ["events": [event], "genres": [["id": 7, "name": "Basketball"]]]
-        } else if url.path == "/api/watch/" + TimProviderSnapshots.nbaSlug {
+        } else if url.path == "/api/watch/" + expectedSlug {
+            if case .primaryWatchDNSFailure = mode, url.host == "tim-streams.com" { throw URLError(.cannotFindHost) }
             if case .watchFailure(let code) = mode { throw URLError(code) }
             watches += 1
             var item = TimProviderSnapshots.item(TimProviderSnapshots.nbaGame, source: "https://fixture.streamify.test/fresh-\(watches)")
+            item["url"] = expectedSlug
             if case .wrongWatchItem = mode { item["url"] = "unrelated-game-401909875" }
             object = ["item": item, "genre_name": "Basketball", "type": "event", "is_vip_user": false]
         } else { throw URLError(.unsupportedURL) }

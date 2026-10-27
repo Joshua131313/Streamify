@@ -319,7 +319,7 @@ struct RootView: View {
             // The pill overlays the scroll viewport; only scroll content gets
             // bottom padding. Reserving a sibling footer creates a solid shelf.
             if !keyboardVisible && visibleRootPages.contains(tab) && (tab != .library || libraryPath.isEmpty) {
-                FloatingNavigation(selection: rootSelection, onSelectProfile: onSelectProfile)
+                LiquidGlassBottomBar(selection: rootSelection, onSelectProfile: onSelectProfile)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
