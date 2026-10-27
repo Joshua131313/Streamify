@@ -207,21 +207,33 @@ final class NativeOfflineHLSLifecycleTests: XCTestCase, HLSDownloadSessionObserv
         }
         var count: Int64 = 0
         for case let file as URL in files {
-            // The enumerator starts at the owner's original capability URL.
-            // Apple may expose descendant URLs through another file namespace;
-            // canonical string prefixes are not an ownership/access check.
-            let type = try file.resourceValues(forKeys: [.isSymbolicLinkKey, .isRegularFileKey])
-            if type.isSymbolicLink == true {
-                files.skipDescendants()
-                throw LifecycleError.message("A symbolic link prevents a complete owned-package byte count")
-            }
-            guard type.isSymbolicLink == false else { throw LifecycleError.message("Native package member type could not be verified") }
-            if type.isRegularFile == true {
-                let values = try file.resourceValues(forKeys: [.fileSizeKey])
-                guard let fileSize = values.fileSize, fileSize >= 0 else { throw LifecycleError.message("Native package member size is unavailable") }
-                let size = Int64(fileSize)
-                guard size <= 2 * 1024 * 1024 - count else { return 2 * 1024 * 1024 + 1 }
-                count += size
+            do {
+                // The enumerator starts at the owner's original capability URL.
+                // Apple may expose descendant URLs through another file namespace;
+                // canonical string prefixes are not an ownership/access check.
+                let type = try file.resourceValues(forKeys: [.isSymbolicLinkKey, .isRegularFileKey])
+                if type.isSymbolicLink == true {
+                    files.skipDescendants()
+                    throw LifecycleError.message("A symbolic link prevents a complete owned-package byte count")
+                }
+                guard type.isSymbolicLink == false else { throw LifecycleError.message("Native package member type could not be verified") }
+                if type.isRegularFile == true {
+                    let values = try file.resourceValues(forKeys: [.fileSizeKey])
+                    guard let fileSize = values.fileSize, fileSize >= 0 else { throw LifecycleError.message("Native package member size is unavailable") }
+                    let size = Int64(fileSize)
+                    guard size <= 2 * 1024 * 1024 - count else { return 2 * 1024 * 1024 + 1 }
+                    count += size
+                }
+            } catch {
+                let value = error as NSError
+                // The native writer atomically replaces temporary metadata.
+                // Skip only this vanished child; the next poll recounts it.
+                let vanishedCocoa = value.domain == NSCocoaErrorDomain &&
+                    [NSFileReadNoSuchFileError, NSFileNoSuchFileError].contains(value.code)
+                let vanishedPOSIX = value.domain == NSPOSIXErrorDomain &&
+                    value.code == Int(POSIXErrorCode.ENOENT.rawValue)
+                if vanishedCocoa || vanishedPOSIX { continue }
+                throw error
             }
         }
         if let enumerationError { throw enumerationError }

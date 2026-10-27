@@ -201,8 +201,13 @@ final class VixSrcCompleteEpisodeResearchTests: XCTestCase, HLSDownloadSessionOb
                 }
             } catch {
                 let value = error as NSError
-                // The daemon may atomically rename an in-progress member.
-                if value.domain == NSCocoaErrorDomain && [NSFileReadNoSuchFileError, NSFileNoSuchFileError].contains(value.code) { continue }
+                // Skip only a child atomically renamed by the native writer;
+                // the next poll recounts it. Other filesystem errors still fail.
+                let vanishedCocoa = value.domain == NSCocoaErrorDomain &&
+                    [NSFileReadNoSuchFileError, NSFileNoSuchFileError].contains(value.code)
+                let vanishedPOSIX = value.domain == NSPOSIXErrorDomain &&
+                    value.code == Int(POSIXErrorCode.ENOENT.rawValue)
+                if vanishedCocoa || vanishedPOSIX { continue }
                 throw error
             }
         }
