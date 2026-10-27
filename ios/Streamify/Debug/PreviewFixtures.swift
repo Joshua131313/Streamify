@@ -134,7 +134,7 @@ enum PreviewFixtures {
         main:fullscreen{width:100vw;height:100vh}video{display:block;flex:1;min-height:0;width:100%;max-height:62%;object-fit:contain;background:#000}
         button{min-height:44px;flex-shrink:0;margin:4px;border:0;border-radius:10px;padding:8px 16px}p{margin:3px;flex-shrink:0}#playback-session,#viewport{font-size:10px;color:#aaa}
         </style></head><body><main \(playerClass)>
-        <video id="fixture-video" controls \(autoplay) muted loop playsinline src="data:video/mp4;base64,\(videoData)"></video>
+        <video id="fixture-video" controls \(autoplay) preload="\(autoplayCheck ? "none" : "auto")" muted loop playsinline src="data:video/mp4;base64,\(videoData)"></video>
         <p id="video-state" role="status">Video loading</p><p id="playback-session"></p>
         <button id="enter-fullscreen" \(buttonClass) onclick="\(action)">\(title)</button>
         \(exit)

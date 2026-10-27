@@ -15,7 +15,10 @@
       }
       if (!video.paused) attempted.add(video);
     }
-    const candidates = videos.filter(video => video.isConnected && video.readyState >= 2 && !video.ended)
+    // Safari may not preload anything until play() is called. A source address
+    // is enough to queue playback; the returned promise waits for video data.
+    const candidates = videos.filter(video => video.isConnected && !video.ended &&
+      (video.readyState >= 1 || video.currentSrc || video.src || video.querySelector('source[src]')))
       .map(video => ({video, area: video.getBoundingClientRect().width * video.getBoundingClientRect().height}))
       .filter(item => item.area > 3200).sort((a, b) => b.area - a.area);
     const video = candidates[0]?.video;

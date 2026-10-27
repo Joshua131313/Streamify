@@ -212,7 +212,7 @@ private struct SportsPlaybackOverlay: View {
                         // Updating the hosting tree during a native Menu press
                         // can cancel its selection. Only the hidden affordance
                         // needs to react to a raw video touch.
-                        if geometry.size.width > geometry.size.height && !landscapeControlsVisible {
+                        if geometry.size.width > geometry.size.height && !landscapeControlsVisible && !showChat {
                             revealLandscapeOptions()
                         }
                     }.frame(width: 0, height: 0)
@@ -478,12 +478,9 @@ private struct SportsPlayerTouchObserver: UIViewRepresentable {
     final class TouchRecorder: UIGestureRecognizer {
         var onTouch: (() -> Void)?
         override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
-            // Native menus and buttons must finish their own press unchanged.
-            var ancestor = touches.first?.view
-            while let view = ancestor {
-                if view is WKWebView { onTouch?(); break }
-                ancestor = view.superview
-            }
+            // The caller limits this to landscape with native panels closed.
+            // WebKit can hit-test to a hosting sibling rather than WKContentView.
+            onTouch?()
             state = .failed
         }
     }
