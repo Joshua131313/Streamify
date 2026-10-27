@@ -94,6 +94,8 @@ jobs:
                   -only-testing:StreamifyTests/SportsChatTests
                   -only-testing:StreamifyUITests/SportsChatFlowTests
                   -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testPlayerChatSheetKeepsTheCurrentVideoDocumentMounted
+                  -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testSportsWatchAutoplaysReadyVideoAndPreservesAnExplicitPause
+                  -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testSportsFullscreenUsesTheProvidersOwnControlAndKeepsItsDocument
                 )
                 ;;
             diamond-player)

@@ -309,6 +309,8 @@ struct ProviderPlaybackSurface: View {
     /// Sports embeds retain their provider's HTML controls in element fullscreen.
     var preferProviderControlsFullscreen = false
     var systemPiP: SportsSystemPiP? = nil
+    var loadingGame: SportsGame? = nil
+    var loadingSubtitle: String? = nil
     @State private var loading = true
     @State private var error: String?
     @State private var webFallbackURL: URL?
@@ -361,10 +363,14 @@ struct ProviderPlaybackSurface: View {
         .onChange(of: scenePhase) { _, phase in if phase != .active && !preservePlaybackOnBackground { nativePlayback.pause() } }
     }
 
-    private func loadingIndicator(_ message: String) -> some View {
-        VStack(spacing: 12) { ProgressView().tint(.white); Text(message).font(.caption) }
+    @ViewBuilder private func loadingIndicator(_ message: String) -> some View {
+        if preferProviderControlsFullscreen {
+            PlaybackConnectingView(title: "Connecting to stream", subtitle: loadingSubtitle, game: loadingGame, onVideo: true)
+        } else {
+            VStack(spacing: 12) { ProgressView().tint(.white); Text(message).font(.caption) }
             .foregroundStyle(.white).padding(20).background(.black.opacity(0.8), in: RoundedRectangle(cornerRadius: 12))
             .allowsHitTesting(false)
+        }
     }
 
     private func failureMessage(_ message: String, canTryWeb: Bool = false) -> some View {

@@ -354,7 +354,9 @@ struct RootView: View {
         }
         .overlay {
             if quickActionLoading {
-                ProgressView("Opening game…").padding(24).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 16))
+                PlaybackConnectingView(title: "Opening game", compact: true)
+                    .padding(.horizontal, 18).padding(.vertical, 14)
+                    .background(.regularMaterial, in: Capsule())
                     .allowsHitTesting(false).accessibilityIdentifier("opening-widget-game")
             }
         }

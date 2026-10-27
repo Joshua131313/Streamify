@@ -296,7 +296,8 @@ private struct SportsPlaybackOverlay: View {
         let controlsVisible = !layout.isLandscape || landscapeControlsVisible
         return ZStack(alignment: .topLeading) {
             ProviderPlaybackSurface(url: item.url, reload: session.reload, direct: session.direct,
-                preservePlaybackOnBackground: true, preferProviderControlsFullscreen: true, systemPiP: pictureInPicture)
+                preservePlaybackOnBackground: true, preferProviderControlsFullscreen: true, systemPiP: pictureInPicture,
+                loadingGame: item.game, loadingSubtitle: session.sourceTitle)
                 .id(item.id)
                 .frame(width: layout.videoFrame.width, height: layout.videoFrame.height)
                 .accessibilityElement(children: .contain).accessibilityIdentifier("sports-video-surface")
