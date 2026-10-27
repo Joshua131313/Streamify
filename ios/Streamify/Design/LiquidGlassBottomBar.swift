@@ -31,6 +31,65 @@ struct LiquidGlassBottomBar: View {
     private var restingOpacity: Double { contrast == .increased ? 0.78 : 0.58 }
 
     var body: some View {
+        Group {
+            if #available(iOS 26.0, *) {
+                nativeBar
+            } else {
+                legacyBar
+            }
+        }
+        .onChange(of: selection) { _, _ in if touch != nil { cancelTouch(animated: false) } }
+        .onChange(of: profilesOpen) { _, open in if open { cancelTouch(animated: false) } }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active {
+                cancelTouch(animated: false)
+                pendingProfile = nil; pendingOwner = nil; profilesOpen = false
+            }
+        }
+        .onDisappear {
+            cancelTouch(animated: false)
+            pendingProfile = nil; pendingOwner = nil; profilesOpen = false
+        }
+    }
+
+    @available(iOS 26.0, *)
+    private var nativeBar: some View {
+        NativeGlassTabBar(selection: selection, profile: profiles.activeProfile,
+            canSwitchProfiles: profiles.canEditProfiles,
+            select: { if !profilesOpen { select($0, feedback: true) } },
+            openProfiles: openProfiles)
+            .fixedSize(horizontal: false, vertical: true)
+            .overlay(alignment: .trailing) {
+                GeometryReader { geometry in
+                    Color.clear
+                        .frame(width: geometry.size.width / 4, height: geometry.size.height)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                        .popover(isPresented: $profilesOpen, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
+                            quickProfilePicker
+                        }
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+            }
+            .frame(maxWidth: 440)
+            .padding(.horizontal, 28)
+    }
+
+    private var quickProfilePicker: some View {
+        LiquidGlassQuickProfilePicker { profile in
+            guard profilesOpen, pendingProfile == nil else { return }
+            AppHaptics.tap(.primary)
+            if profile.id != profiles.activeProfile?.id {
+                pendingProfile = profile.id; pendingOwner = profiles.ownerUID
+            }
+            profilesOpen = false
+        }
+        .environmentObject(profiles)
+        .presentationCompactAdaptation(.popover)
+        .onDisappear(perform: finishProfileSelection)
+    }
+
+    private var legacyBar: some View {
         GeometryReader { geometry in
             let width = max(1, geometry.size.width - inset * 2)
             let cellWidth = width / CGFloat(AppTab.allCases.count)
@@ -61,18 +120,6 @@ struct LiquidGlassBottomBar: View {
         .frame(height: height).frame(maxWidth: 400)
         .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.1), radius: 14, y: 5)
         .padding(.horizontal, 50).padding(.top, 4)
-        .onChange(of: selection) { _, _ in if touch != nil { cancelTouch(animated: false) } }
-        .onChange(of: profilesOpen) { _, open in if open { cancelTouch(animated: false) } }
-        .onChange(of: scenePhase) { _, phase in
-            if phase != .active {
-                cancelTouch(animated: false)
-                pendingProfile = nil; pendingOwner = nil; profilesOpen = false
-            }
-        }
-        .onDisappear {
-            cancelTouch(animated: false)
-            pendingProfile = nil; pendingOwner = nil; profilesOpen = false
-        }
     }
 
     private var selectionLens: some View {
@@ -97,17 +144,7 @@ struct LiquidGlassBottomBar: View {
                 .accessibilityHint("Touch and hold to switch profiles.")
                 .accessibilityAction(named: Text("Switch profiles"), openProfiles)
                 .popover(isPresented: $profilesOpen, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
-                    LiquidGlassQuickProfilePicker { profile in
-                        guard profilesOpen, pendingProfile == nil else { return }
-                        AppHaptics.tap(.primary)
-                        if profile.id != profiles.activeProfile?.id {
-                            pendingProfile = profile.id; pendingOwner = profiles.ownerUID
-                        }
-                        profilesOpen = false
-                    }
-                    .environmentObject(profiles)
-                    .presentationCompactAdaptation(.popover)
-                    .onDisappear(perform: finishProfileSelection)
+                    quickProfilePicker
                 }
         } else {
             tabButton(tab, width: width)

@@ -58,7 +58,7 @@ final class LiquidGlassNavigationFlowTests: XCTestCase {
         assertOnlySelectedTab("sports")
         tab("home").tap()
         assertOnlySelectedTab("home")
-        XCTAssertFalse(app.tabBars.firstMatch.exists, "Glass navigation must not reveal a second system tab bar.")
+        assertOneFloatingBar()
         capture("Liquid Glass taps keep a single independent tab selection")
     }
 
@@ -184,6 +184,50 @@ final class LiquidGlassNavigationFlowTests: XCTestCase {
         XCTAssertLessThan(picker.frame.height, app.frame.height * 0.6,
                           "A hold must open a compact anchored picker, not a sheet.")
         return picker
+    }
+
+    func testNativeGlassAdaptsToBothAppearancesOverScrollingArtwork() {
+        assertOneFloatingBar()
+        let lightFrame = element("floating-navigation").frame
+        assertReadableItems()
+        capture("Native Apple glass in light mode")
+        app.scrollViews.firstMatch.swipeUp()
+        assertReadableItems()
+        XCTAssertEqual(element("floating-navigation").frame.minY, lightFrame.minY, accuracy: 1)
+        capture("Native light glass floating over artwork without a footer shelf")
+
+        app.terminate()
+        app.launchArguments.append("--ui-glass-dark")
+        app.launch()
+        XCTAssertTrue(tab("home").waitForExistence(timeout: 15))
+        pauseCarousel()
+        assertOneFloatingBar()
+        assertOnlySelectedTab("home")
+        assertReadableItems()
+        capture("Native Apple glass in dark mode")
+        app.scrollViews.firstMatch.swipeUp()
+        assertReadableItems()
+        capture("Native dark glass floating over artwork without a footer shelf")
+    }
+
+    private func assertReadableItems(file: StaticString = #filePath, line: UInt = #line) {
+        let bar = element("floating-navigation")
+        XCTAssertGreaterThanOrEqual(bar.frame.height, 44, file: file, line: line)
+        XCTAssertLessThan(bar.frame.height, 100, file: file, line: line)
+        for name in ["home", "sports", "search", "library"] {
+            let item = tab(name)
+            XCTAssertTrue(item.exists && item.isEnabled && item.isHittable, file: file, line: line)
+            XCTAssertTrue(app.frame.contains(item.frame), "Every native item must remain on screen.", file: file, line: line)
+            XCTAssertGreaterThanOrEqual(item.frame.width, 44, file: file, line: line)
+        }
+    }
+
+    private func assertOneFloatingBar(file: StaticString = #filePath, line: UInt = #line) {
+        if #available(iOS 26.0, *) {
+            XCTAssertEqual(app.tabBars.count, 1, "Only the visible native glass bar may be exposed.", file: file, line: line)
+        } else {
+            XCTAssertFalse(app.tabBars.firstMatch.exists, file: file, line: line)
+        }
     }
 
     private func dismissQuickProfiles() {
