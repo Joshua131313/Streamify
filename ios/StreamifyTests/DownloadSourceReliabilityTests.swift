@@ -23,7 +23,7 @@ final class DownloadSourceReliabilityTests: XCTestCase {
         XCTAssertFalse(restored.sourceNeedsRefresh(now: expiry.addingTimeInterval(-31)))
         XCTAssertTrue(restored.sourceNeedsRefresh(now: expiry.addingTimeInterval(-29)))
         let old = """
-        {"id":"\(UUID().uuidString)","title":"Old download","createdAt":0,"status":"completed"}
+        {"id":"\(UUID().uuidString)","title":"Old download","createdAt":0,"status":"completed","bytesWritten":0,"expectedBytes":0}
         """
         let legacy = try JSONDecoder().decode(DownloadItem.self, from: Data(old.utf8))
         XCTAssertNil(legacy.sourceHeaders)
