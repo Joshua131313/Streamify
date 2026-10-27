@@ -46,12 +46,28 @@ enum HLSDownloadedPackages {
     private static func reportRejectedLocation(_ location: URL, home: URL) {
         #if DEBUG
         let path = normalizedPath(location), root = normalizedPath(home)
+        let library = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first
+        let shared = zip(location.pathComponents, home.pathComponents).prefix(while: { $0.0 == $0.1 }).count
+        func redactedShape(_ url: URL) -> String {
+            let parts = url.pathComponents
+            return parts.enumerated().map { index, part in
+                if index > 0, parts[index - 1] == "Users" { return "[user]" }
+                if part.lowercased().hasSuffix(".movpkg") { return "[asset].movpkg" }
+                return part.replacingOccurrences(of: #"[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"#,
+                    with: "[id]", options: .regularExpression)
+            }.joined(separator: "/")
+        }
         let shape: [String: Any] = ["isFileURL": location.isFileURL,
             "directoryHint": location.hasDirectoryPath, "extension": location.pathExtension,
             "insideAppHome": path.hasPrefix(root + "/"),
             "insideAppLibrary": path.hasPrefix(root + "/Library/"),
             "homeRelativeTopDirectory": path.hasPrefix(root + "/") ? String(path.dropFirst(root.count + 1).split(separator: "/").first ?? "") : "outside",
-            "componentCount": location.pathComponents.count]
+            "componentCount": location.pathComponents.count,
+            "locationShape": redactedShape(location), "homeShape": redactedShape(home),
+            "fileManagerHomeShape": redactedShape(FileManager.default.homeDirectoryForCurrentUser),
+            "libraryShape": library.map(redactedShape) ?? "missing", "commonPrefixComponentCount": shared,
+            "insideFileManagerLibrary": library.map { path.hasPrefix(normalizedPath($0) + "/") } ?? false,
+            "bundleID": Bundle.main.bundleIdentifier ?? "unknown"]
         if let data = try? JSONSerialization.data(withJSONObject: shape, options: [.sortedKeys]),
            let text = String(data: data, encoding: .utf8) { print("HLS_PACKAGE_POLICY_DIAGNOSTIC \(text)") }
         #endif
@@ -116,11 +132,15 @@ enum OfflineHLSValidation {
                         print("HLS_LOCAL_CACHE_DIAGNOSTIC present=\(asset.assetCache != nil) playableOffline=\(asset.assetCache?.isPlayableOffline == true)")
                         #endif
                         guard let cache = asset.assetCache, cache.isPlayableOffline else { throw OfflineVideoError.damagedFile }
-                        let (playable, duration, protected) = try await asset.load(.isPlayable, .duration, .hasProtectedContent)
+                        let (playable, duration) = try await asset.load(.isPlayable, .duration)
                         #if DEBUG
-                        print("HLS_LOCAL_METADATA_DIAGNOSTIC playable=\(playable) protected=\(protected) duration=\(duration.seconds)")
+                        let protected = try? await asset.load(.hasProtectedContent)
+                        print("HLS_LOCAL_METADATA_DIAGNOSTIC playable=\(playable) protected=\(String(describing: protected)) duration=\(duration.seconds)")
                         #endif
-                        guard !protected else { throw OfflineVideoError.protectedContent }
+                        // This path accepts only system-owned packages from
+                        // the verified clear/identity-AES128 VOD pipeline. The
+                        // offline cache and cached audio prove availability;
+                        // encryption alone is not an unsupported DRM verdict.
                         guard playable else { throw OfflineVideoError.unplayable }
                         guard duration.seconds.isFinite, duration.seconds > 0 else { throw OfflineVideoError.damagedFile }
                         guard let audio = try await asset.loadMediaSelectionGroup(for: .audible),

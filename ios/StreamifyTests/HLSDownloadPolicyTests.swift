@@ -22,6 +22,25 @@ final class HLSDownloadPolicyTests: XCTestCase {
         XCTAssertEqual(HLSDownloadedPackages.fileURL(for: relative, home: home)?.path, directory.path)
     }
 
+    func testAnExistingOwnedPackageDirectoryRoundTripsWithItsDirectoryHint() throws {
+        let manager = FileManager.default
+        let temporary = manager.temporaryDirectory.standardizedFileURL.resolvingSymlinksInPath()
+        let home = temporary.appendingPathComponent("hls-policy-\(UUID().uuidString)", isDirectory: true)
+        XCTAssertEqual(home.deletingLastPathComponent().path, temporary.path)
+        let relative = "Library/managed-assets/existing.movpkg"
+        let package = home.appendingPathComponent(relative, isDirectory: true)
+        try manager.createDirectory(at: package, withIntermediateDirectories: true)
+        defer {
+            if home.deletingLastPathComponent().path == temporary.path { try? manager.removeItem(at: home) }
+        }
+        XCTAssertTrue(package.hasDirectoryPath)
+        let saved = try HLSDownloadedPackages.relativePath(of: package, home: home)
+        XCTAssertEqual(saved, relative)
+        let restored = try XCTUnwrap(HLSDownloadedPackages.fileURL(for: saved, home: home))
+        XCTAssertTrue(restored.hasDirectoryPath)
+        XCTAssertEqual(restored.resolvingSymlinksInPath().path, package.resolvingSymlinksInPath().path)
+    }
+
     func testPackagePathsCannotEscapeAppLibraryOrPointToOrdinaryFiles() {
         let home = URL(fileURLWithPath: "/test/container", isDirectory: true)
         for invalid in ["/Library/episode.movpkg", "Library/../Documents/episode.movpkg", "Library//episode.movpkg",

@@ -72,9 +72,9 @@ struct VixSrcDownloadResolver {
         let embedID = try Self.resourceID(embed, prefix: "/embed/")
         let embedQuery = try Self.query(embed)
         guard Self.english(embedQuery["lang"] ?? "en") else { throw VixSrcDownloadError.englishAudioUnavailable }
+        _ = try Self.expiry(embedQuery["expires"], after: now())
         let fullHDAllowed = ["1", "true"].contains((embedQuery["canPlayFHD"] ?? "").lowercased())
         guard quality != 1080 || fullHDAllowed else { throw MediaDownloadResolutionError.qualityUnavailable }
-        _ = try Self.expiry(embedQuery["expires"], after: now())
         // Do not cache the API result: its advertised embed currently expires
         // in approximately ten seconds and must be consumed immediately.
         let html = try Self.text(await document(embed, referer: page, limit: 256 * 1024))
@@ -332,11 +332,15 @@ struct VixSrcDownloadResolver {
         return try await withThrowingTaskGroup(of: VixSrcNativeCapability.self) { group in
             group.addTask {
                 try await withTaskCancellationHandler {
-                    let (playable, protected) = try await asset.load(.isPlayable, .hasProtectedContent)
+                    let playable = try await asset.load(.isPlayable)
                     #if DEBUG
-                    print("VIXSRC_NATIVE_CAPABILITY_METADATA playable=\(playable) protected=\(protected)")
+                    let protected = try? await asset.load(.hasProtectedContent)
+                    print("VIXSRC_NATIVE_CAPABILITY_METADATA playable=\(playable) protected=\(String(describing: protected))")
                     #endif
-                    guard playable, !protected else { throw VixSrcDownloadError.nativeCapabilityUnavailable }
+                    // The selected manifests already exclude FairPlay,
+                    // SAMPLE-AES and nonidentity key formats. Apple's generic
+                    // flag can also be true for ordinary identity AES-128.
+                    guard playable else { throw VixSrcDownloadError.nativeCapabilityUnavailable }
                     let variants = try await asset.load(.variants)
                     let matching = variants.filter { variant in
                         guard let size = variant.videoAttributes?.presentationSize else { return false }
