@@ -333,7 +333,7 @@ struct RootView: View {
         .sheet(isPresented: $downloadsOpen) { NavigationStack { DownloadsView() } }
         .task(id: "\(profiles.contextID)|\(settings.liveTeamAlerts)|\(library.followedTeams.sorted().joined(separator: ","))|\(scenePhase == .active)") {
             guard scenePhase == .active else { return }
-            SportsLiveAlerts.shared.configure(teams: library.followedTeams, enabled: settings.liveTeamAlerts)
+            SportsLiveAlerts.shared.configure(teams: Set(library.followedTeams), enabled: settings.liveTeamAlerts)
         }
         .streamifySearchPresentation(isPresented: $catalogSearchOpen, sourceID: catalogSearchSourceID, in: searchTransition) {
             CatalogSearchDialog()

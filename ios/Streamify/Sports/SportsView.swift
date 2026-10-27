@@ -646,7 +646,7 @@ struct SportsView: View {
             games = enriched
             scheduleCache.store(SportsSchedule(games: enriched, failedLeagues: result.failedLeagues, partial: result.partial),
                                 leagues: requestedLeagues, day: requestedDay, backend: backend, fetchedAt: fetchedAt)
-            await SportsLiveAlerts.shared.observe(enriched, teams: library.followedTeams, enabled: settings.liveTeamAlerts,
+            await SportsLiveAlerts.shared.observe(enriched, teams: Set(library.followedTeams), enabled: settings.liveTeamAlerts,
                 profile: String(describing: profiles.contextID))
         } catch is CancellationError { }
         catch { if !Task.isCancelled && requestedKey == requestKey && scheduleRequest == request { self.error = error.localizedDescription } }
