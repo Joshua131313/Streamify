@@ -2,6 +2,7 @@ import AVFoundation
 import CoreMedia
 import CoreVideo
 import Foundation
+import UIKit
 import XCTest
 
 /// Manual, live-provider feasibility test. This directory is intentionally
@@ -30,7 +31,7 @@ final class VixSrcNativeHLSDiagnosticsTests: XCTestCase {
             // a denial. This may differ from a bare Python metadata request.
             let asset = AVURLAsset(url: source.master)
             let watchdog = Task {
-                do { try await Task.sleep(nanoseconds: 20_000_000_000); asset.cancelLoading() }
+                do { try await Task.sleep(nanoseconds: 50_000_000_000); asset.cancelLoading() }
                 catch { }
             }
             defer { watchdog.cancel(); asset.cancelLoading() }
@@ -52,69 +53,153 @@ final class VixSrcNativeHLSDiagnosticsTests: XCTestCase {
             selection.select(english, in: audioGroup)
             report["englishAudioOption"] = english.displayName
             report["englishAudioLanguage"] = english.extendedLanguageTag ?? "unknown"
+            report["englishAudioOptionPlayable"] = english.isPlayable
+            report["englishAudioOptionSubTypes"] = english.mediaSubTypes.map { Self.fourCC($0.uint32Value) }
+            // HLS does not guarantee that AVAsset exposes materialized audio
+            // tracks. This capability/selection evidence remains separate
+            // from track metadata and does not claim decoded PCM samples.
+            report["actualDecodedAudioPCMProven"] = false
 
             phase = "native master playback"
-            let item = AVPlayerItem(asset: asset)
-            item.preferredForwardBufferDuration = 1
-            item.preferredPeakBitRate = max(1, fullHD.peakBitRate ?? 0)
-            item.preferredMaximumResolution = CGSize(width: 1920, height: 1080)
-            item.select(english, in: audioGroup)
-            let output = AVPlayerItemVideoOutput(pixelBufferAttributes:
-                [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA])
-            item.add(output)
-            let player = AVPlayer(playerItem: item)
-            player.isMuted = true
-            player.allowsExternalPlayback = false
-            player.automaticallyWaitsToMinimizeStalling = false
-            defer { player.pause(); player.replaceCurrentItem(with: nil) }
-            var pixelWidth = 0, pixelHeight = 0
-            var playbackSeconds = 0.0
-            var transferred: Int64 = 0
-            let deadline = Date().addingTimeInterval(8)
-            player.playImmediately(atRate: 1)
-            while Date() < deadline {
-                try Task.checkCancellation()
-                if item.status == .failed { throw item.error ?? DiagnosticError.message("AVPlayerItem failed") }
-                let time = item.currentTime()
-                if time.seconds.isFinite { playbackSeconds = time.seconds }
-                if output.hasNewPixelBuffer(forItemTime: time),
-                   let frame = output.copyPixelBuffer(forItemTime: time, itemTimeForDisplay: nil) {
-                    pixelWidth = CVPixelBufferGetWidth(frame); pixelHeight = CVPixelBufferGetHeight(frame)
+            var playbackFailure: String?
+            var playbackObservedBytes: Int64 = 0
+            do {
+                let audioSession = AVAudioSession.sharedInstance()
+                try audioSession.setCategory(.playback, mode: .moviePlayback)
+                try audioSession.setActive(true)
+                defer { try? audioSession.setActive(false, options: .notifyOthersOnDeactivation) }
+                report["audioSessionActive"] = true
+                let item = AVPlayerItem(asset: asset)
+                item.preferredForwardBufferDuration = 1
+                // These preferences are upper bounds, not a promise that adaptive
+                // playback selects 1080p. Actual decoded pixels are checked below.
+                item.preferredPeakBitRate = max(1, fullHD.peakBitRate ?? 0)
+                item.preferredMaximumResolution = CGSize(width: 1920, height: 1080)
+                report["playbackResolutionPreferenceIsCeiling"] = true
+                item.select(english, in: audioGroup)
+                let output = AVPlayerItemVideoOutput(pixelBufferAttributes:
+                    [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA])
+                item.add(output)
+                let player = AVPlayer(playerItem: item)
+                player.isMuted = false
+                player.volume = 0.1
+                player.allowsExternalPlayback = false
+                player.automaticallyWaitsToMinimizeStalling = false
+                guard let window = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) ?? UIApplication.shared.windows.first,
+                      let hostView = window.rootViewController?.view else {
+                    throw DiagnosticError.message("Research host did not expose a visible playback surface")
                 }
-                transferred = item.accessLog()?.events.reduce(Int64(0)) { $0 + max(0, $1.numberOfBytesTransferred) } ?? 0
-                if transferred >= Self.maximumObservedMediaBytes { throw DiagnosticError.message("Native playback byte budget reached") }
-                if pixelWidth == 1920 && pixelHeight == 1080 && playbackSeconds >= 1 { break }
-                try await Task.sleep(nanoseconds: 25_000_000)
-            }
-            player.pause()
-            report["pixelWidth"] = pixelWidth; report["pixelHeight"] = pixelHeight
-            report["actualVideoFrame"] = pixelWidth > 0 && pixelHeight > 0
-            report["actualPreview1080"] = pixelWidth == 1920 && pixelHeight == 1080
-            report["playbackSeconds"] = playbackSeconds
-            report["playbackObservedBytes"] = transferred
-            let selectedAudioLanguage = item.currentMediaSelection.selectedMediaOption(in: audioGroup)?.extendedLanguageTag ?? "unknown"
-            report["selectedEnglishAudio"] = selectedAudioLanguage
-            let audioTracks = try await asset.loadTracks(withMediaType: .audio)
-            report["nativeAudioTrackCount"] = audioTracks.count
-            var audioDecodable = false
-            var audioCodecs: [String] = []
-            for track in audioTracks {
-                if (try? await track.load(.isDecodable)) == true { audioDecodable = true }
-                for format in (try? await track.load(.formatDescriptions)) ?? [] {
-                    audioCodecs.append(Self.fourCC(CMFormatDescriptionGetMediaSubType(format)))
+                let playerLayer = AVPlayerLayer(player: player)
+                playerLayer.frame = hostView.bounds
+                playerLayer.videoGravity = .resizeAspect
+                hostView.layer.addSublayer(playerLayer)
+                report["visiblePlayerLayerAttached"] = !window.isHidden && !hostView.isHidden
+                defer { player.pause(); player.replaceCurrentItem(with: nil); playerLayer.removeFromSuperlayer() }
+                var pixelWidth = 0, pixelHeight = 0
+                var playbackSeconds = 0.0
+                var transferred: Int64 = 0
+                var transitions: [[String: Any]] = []
+                var previousState = ""
+                let readyDeadline = Date().addingTimeInterval(10)
+                while item.status == .unknown && Date() < readyDeadline {
+                    try Task.checkCancellation()
+                    try await Task.sleep(nanoseconds: 25_000_000)
                 }
-            }
-            report["nativeAudioDecodable"] = audioDecodable
-            report["nativeAudioCodecs"] = audioCodecs
-            guard pixelWidth == 1920, pixelHeight == 1080, playbackSeconds >= 1,
-                  selectedAudioLanguage.lowercased().hasPrefix("en"), !audioTracks.isEmpty, audioDecodable else {
-                throw DiagnosticError.message("Native player did not demonstrate real 1080p video with selected English audio and a decodable audio track within the bounded preview")
+                report["itemStatusBeforePlay"] = item.status.rawValue
+                if item.status == .readyToPlay {
+                    // Select again once the item is ready; selecting before its
+                    // media group has loaded is not used as evidence of playback.
+                    item.select(english, in: audioGroup)
+                    player.playImmediately(atRate: 1)
+                }
+                let deadline = Date().addingTimeInterval(20)
+                while Date() < deadline {
+                    try Task.checkCancellation()
+                    let state = "\(item.status.rawValue):\(player.timeControlStatus.rawValue):\(player.rate):\(player.reasonForWaitingToPlay?.rawValue ?? "")"
+                    if state != previousState {
+                        transitions.append(Self.playbackState(player, item: item))
+                        previousState = state
+                    }
+                    if item.status == .failed { break }
+                    if item.status == .readyToPlay && player.rate == 0 && playbackSeconds == 0 {
+                        player.playImmediately(atRate: 1)
+                    }
+                    let time = item.currentTime()
+                    if time.seconds.isFinite { playbackSeconds = time.seconds }
+                    if output.hasNewPixelBuffer(forItemTime: time),
+                       let frame = output.copyPixelBuffer(forItemTime: time, itemTimeForDisplay: nil) {
+                        pixelWidth = CVPixelBufferGetWidth(frame); pixelHeight = CVPixelBufferGetHeight(frame)
+                    }
+                    transferred = item.accessLog()?.events.reduce(Int64(0)) { $0 + max(0, $1.numberOfBytesTransferred) } ?? 0
+                    if transferred >= Self.maximumObservedMediaBytes { break }
+                    if pixelWidth == 1920 && pixelHeight == 1080 && playbackSeconds >= 1 { break }
+                    try await Task.sleep(nanoseconds: 25_000_000)
+                }
+                // Capture state before pausing, otherwise paused/rate-zero hides
+                // the reason that playback stalled in the native player.
+                report["playbackFinalState"] = Self.playbackState(player, item: item)
+                report["playbackStateTransitions"] = transitions
+                report["playerLayerReadyForDisplay"] = playerLayer.isReadyForDisplay
+                report["nativePlayerErrors"] = item.errorLog()?.events.map { event in
+                    ["status": event.errorStatusCode, "domain": event.errorDomain,
+                     "comment": Self.redact(event.errorComment ?? "")] as [String: Any]
+                } ?? []
+                if let error = item.error { report["nativePlayerItemError"] = Self.errorChain(error) }
+                player.pause()
+                report["pixelWidth"] = pixelWidth; report["pixelHeight"] = pixelHeight
+                report["actualVideoFrame"] = pixelWidth > 0 && pixelHeight > 0
+                report["actualPreview1080"] = pixelWidth == 1920 && pixelHeight == 1080
+                report["native1080PlaybackProven"] = pixelWidth == 1920 && pixelHeight == 1080 && playbackSeconds >= 1
+                report["playbackSeconds"] = playbackSeconds
+                report["playbackObservedBytes"] = transferred
+                report["playbackByteBudgetReached"] = transferred >= Self.maximumObservedMediaBytes
+                playbackObservedBytes = transferred
+                let selectedAudioLanguage = item.currentMediaSelection.selectedMediaOption(in: audioGroup)?.extendedLanguageTag ?? "unknown"
+                report["selectedEnglishAudio"] = selectedAudioLanguage
+                report["selectedEnglishAudioPlayable"] = item.currentMediaSelection.selectedMediaOption(in: audioGroup)?.isPlayable ?? false
+                let assetAudioTracks = (try? await asset.loadTracks(withMediaType: .audio)) ?? []
+                let materializedAudioTracks = item.tracks.compactMap { $0.assetTrack }.filter { $0.mediaType == .audio }
+                let audioTracks = assetAudioTracks + materializedAudioTracks
+                report["nativeAssetAudioTrackCount"] = assetAudioTracks.count
+                report["nativeItemAudioTrackCount"] = materializedAudioTracks.count
+                report["nativeAudioTrackCount"] = Set(audioTracks.map { $0.trackID }).count
+                report["nativeItemTracks"] = item.tracks.map { track in
+                    ["enabled": track.isEnabled, "mediaType": track.assetTrack?.mediaType.rawValue ?? "unmaterialized",
+                     "trackID": track.assetTrack?.trackID ?? 0] as [String: Any]
+                }
+                var audioDecodable = false
+                var audioCodecs: [String] = []
+                for track in audioTracks {
+                    if (try? await track.load(.isDecodable)) == true { audioDecodable = true }
+                    for format in (try? await track.load(.formatDescriptions)) ?? [] {
+                        audioCodecs.append(Self.fourCC(CMFormatDescriptionGetMediaSubType(format)))
+                    }
+                }
+                report["nativeAudioDecodable"] = audioDecodable
+                report["nativeAudioCodecs"] = Array(Set(audioCodecs)).sorted()
+                guard pixelWidth > 0, pixelHeight > 0, playbackSeconds >= 1,
+                      selectedAudioLanguage.lowercased().hasPrefix("en"), english.isPlayable,
+                      item.currentMediaSelection.selectedMediaOption(in: audioGroup)?.isPlayable == true else {
+                    throw DiagnosticError.message("Native player did not demonstrate real advancing video with a selected playable English audio option within the bounded preview")
+                }
+                report["nativePlaybackProven"] = true
+            } catch {
+                let failure = Self.errorChain(error)
+                playbackFailure = failure
+                report["playbackFailure"] = failure
+                report["nativePlaybackProven"] = false
             }
 
             phase = "bounded native download acceptance"
-            report["probeStage"] = "native playback checked; before background session creation"
+            // Download selection is an independent experiment. Adaptive
+            // playback starting at 480p is not grounds to skip Apple's exact
+            // 1080p download qualifier and media-selection resolution.
+            report["probeStage"] = "playback observation complete; independent download acceptance starts"
             Self.record(report, test: self)
-            let delegate = BoundedHLSDownloadDelegate()
+            guard playbackObservedBytes < Self.maximumObservedMediaBytes else {
+                throw DiagnosticError.message("No remaining combined byte budget for independent download observation")
+            }
+            let delegate = BoundedHLSDownloadDelegate(audioGroup: audioGroup)
             let configuration = URLSessionConfiguration.background(withIdentifier: "com.streamify.native-hls-probe.\(UUID().uuidString)")
             configuration.isDiscretionary = false
             configuration.sessionSendsLaunchEvents = false
@@ -134,7 +219,9 @@ final class VixSrcNativeHLSDiagnosticsTests: XCTestCase {
             task.resume()
             let downloadDeadline = Date().addingTimeInterval(4)
             while Date() < downloadDeadline && !delegate.finished {
-                if task.countOfBytesReceived >= 2 * 1024 * 1024 { delegate.stop(task, reason: "early byte budget") }
+                if task.countOfBytesReceived >= min(2 * 1024 * 1024, max(0, Self.maximumObservedMediaBytes - playbackObservedBytes)) {
+                    delegate.stop(task, reason: "early combined byte budget")
+                }
                 try await Task.sleep(nanoseconds: 25_000_000)
             }
             delegate.stop(task, reason: "short diagnostic deadline")
@@ -142,10 +229,16 @@ final class VixSrcNativeHLSDiagnosticsTests: XCTestCase {
             let finishDeadline = Date().addingTimeInterval(2)
             while !delegate.finished && Date() < finishDeadline { try await Task.sleep(nanoseconds: 25_000_000) }
             report["download"] = delegate.summary(task: task)
+            report["combinedObservedMediaBytes"] = playbackObservedBytes + max(0, task.countOfBytesReceived)
             delegate.removeOnlyOwnedPartialPackage()
-            guard delegate.accepted else { throw DiagnosticError.message("Native downloader did not resolve or load media within the bounded probe") }
-            guard task.countOfBytesReceived <= Self.maximumObservedMediaBytes else { throw DiagnosticError.message("Native downloader exceeded the diagnostic byte budget") }
-            report["feasibility"] = "Native video+audio and download-task acceptance; complete offline persistence remains untested"
+            guard delegate.accepted else { throw DiagnosticError.message("Native downloader did not confirm the exact 1080p variant and English audio selection within the bounded probe") }
+            guard playbackObservedBytes + max(0, task.countOfBytesReceived) <= Self.maximumObservedMediaBytes else { throw DiagnosticError.message("Native downloader exceeded the combined diagnostic byte budget") }
+            report["nativeDownloadAccepted"] = true
+            if let playbackFailure {
+                phase = "native master playback (download acceptance recorded independently)"
+                throw DiagnosticError.message(playbackFailure)
+            }
+            report["feasibility"] = "Real advancing native video with playable selected English audio; exact 1080p/English download-task selection accepted. Decoded audio PCM and complete offline persistence remain unproven."
         } catch {
             report["failurePhase"] = phase
             report["error"] = Self.errorChain(error)
@@ -265,11 +358,33 @@ final class VixSrcNativeHLSDiagnosticsTests: XCTestCase {
     private static func fourCC(_ code: FourCharCode) -> String {
         String(decoding: [UInt8((code >> 24) & 255), UInt8((code >> 16) & 255), UInt8((code >> 8) & 255), UInt8(code & 255)], as: UTF8.self)
     }
+    @MainActor
+    private static func playbackState(_ player: AVPlayer, item: AVPlayerItem) -> [String: Any] {
+        let time = item.currentTime().seconds
+        return ["itemStatus": item.status.rawValue, "timeControlStatus": player.timeControlStatus.rawValue,
+            "waitingReason": player.reasonForWaitingToPlay?.rawValue ?? "none", "rate": player.rate,
+            "currentSeconds": time.isFinite ? time : 0,
+            "bufferEmpty": item.isPlaybackBufferEmpty, "bufferFull": item.isPlaybackBufferFull,
+            "likelyToKeepUp": item.isPlaybackLikelyToKeepUp,
+            "loadedTimeRanges": item.loadedTimeRanges.map { value in
+                let range = value.timeRangeValue
+                return ["start": range.start.seconds.isFinite ? range.start.seconds : 0,
+                        "duration": range.duration.seconds.isFinite ? range.duration.seconds : 0]
+            },
+            "accessEvents": item.accessLog()?.events.map { event in
+                ["bytes": max(0, event.numberOfBytesTransferred), "stalls": event.numberOfStalls,
+                 "observedBitRate": event.observedBitrate.isFinite ? event.observedBitrate : 0,
+                 "indicatedBitRate": event.indicatedBitrate.isFinite ? event.indicatedBitrate : 0] as [String: Any]
+            } ?? []]
+    }
+    private static func redact(_ value: String) -> String {
+        value.replacingOccurrences(of: #"https?://\S+"#, with: "[source URL]", options: .regularExpression)
+    }
     fileprivate static func errorChain(_ error: Error) -> String {
         var result: [String] = [], current: NSError? = error as NSError
         for _ in 0..<6 {
             guard let value = current else { break }
-            let safe = value.localizedDescription.replacingOccurrences(of: #"https?://\S+"#, with: "[source URL]", options: .regularExpression)
+            let safe = redact(value.localizedDescription)
             result.append("\(value.domain):\(value.code) \(safe)")
             current = value.userInfo[NSUnderlyingErrorKey] as? NSError
         }
@@ -295,19 +410,38 @@ private final class ManualHLSMetadataRedirectPolicy: NSObject, URLSessionTaskDel
 
 private final class BoundedHLSDownloadDelegate: NSObject, AVAssetDownloadDelegate, @unchecked Sendable {
     private let lock = NSLock()
+    private let audioGroup: AVMediaSelectionGroup
     private var resolved = false, completed = false
+    private var selectedAudio = "unknown"
+    private var selectedVariants: [[String: Int]] = []
     private var loaded = 0.0
     private var reason = "", failure = ""
     private var destination: URL?
+    init(audioGroup: AVMediaSelectionGroup) { self.audioGroup = audioGroup }
     var finished: Bool { lock.lock(); defer { lock.unlock() }; return completed }
-    var accepted: Bool { lock.lock(); defer { lock.unlock() }; return resolved || loaded > 0 }
+    var accepted: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return resolved && selectedAudio.lowercased().hasPrefix("en")
+            && selectedVariants.contains { $0["width"] == 1920 && $0["height"] == 1080 }
+    }
     func stop(_ task: AVAssetDownloadTask, reason: String) {
         lock.lock(); if self.reason.isEmpty { self.reason = reason }; lock.unlock()
         task.cancel()
     }
     func urlSession(_ session: URLSession, assetDownloadTask: AVAssetDownloadTask, didResolve resolvedMediaSelection: AVMediaSelection) {
-        lock.lock(); resolved = true; lock.unlock()
-        stop(assetDownloadTask, reason: "media selection resolved; stop before full episode")
+        lock.lock(); resolved = true
+        selectedAudio = resolvedMediaSelection.selectedMediaOption(in: audioGroup)?.extendedLanguageTag ?? "unknown"
+        lock.unlock()
+        if accepted { stop(assetDownloadTask, reason: "exact variant and English selection resolved; stop before full episode") }
+    }
+    func urlSession(_ session: URLSession, assetDownloadTask: AVAssetDownloadTask, willDownloadVariants variants: [AVAssetVariant]) {
+        lock.lock()
+        selectedVariants = variants.compactMap { variant in
+            guard let size = variant.videoAttributes?.presentationSize else { return nil }
+            return ["width": Int(size.width), "height": Int(size.height)]
+        }
+        lock.unlock()
+        if accepted { stop(assetDownloadTask, reason: "exact variant and English selection resolved; stop before full episode") }
     }
     func urlSession(_ session: URLSession, assetDownloadTask: AVAssetDownloadTask, didLoad timeRange: CMTimeRange,
                     totalTimeRangesLoaded loadedTimeRanges: [NSValue], timeRangeExpectedToLoad: CMTimeRange) {
@@ -328,6 +462,7 @@ private final class BoundedHLSDownloadDelegate: NSObject, AVAssetDownloadDelegat
     func summary(task: AVAssetDownloadTask) -> [String: Any] {
         lock.lock(); defer { lock.unlock() }
         return ["selectionResolved": resolved, "loadedSeconds": loaded.isFinite ? loaded : 0,
+            "selectedEnglishAudio": selectedAudio, "selectedVariants": selectedVariants,
             "observedBytes": max(0, task.countOfBytesReceived), "cancelReason": reason,
             "callbackCompleted": completed, "error": failure, "completeOfflineAsset": false]
     }
