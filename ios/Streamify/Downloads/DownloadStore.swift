@@ -62,6 +62,9 @@ struct DownloadItem: Identifiable, Codable, Sendable {
     var hlsDidFinishPackage: Bool? = nil
     var hlsTransferSucceeded: Bool? = nil
     var hlsFractionCompleted: Double? = nil
+    /// One native attempt may deliver several late failure/validation events.
+    /// Persist the recovery claim so they cannot interrupt its replacement.
+    var hlsFailureHandledAttempt: UUID? = nil
     var sourceProviderID: String? = nil
     mutating func applySource(_ resolved: ResolvedMediaDownload) {
         source = resolved.url.absoluteString
@@ -98,7 +101,17 @@ struct DownloadItem: Identifiable, Codable, Sendable {
         return HLSDownloadIdentity(id: id, attempt: hlsAttempt, taskIdentifier: taskIdentifier)
     }
     func acceptsHLS(_ identity: HLSDownloadIdentity) -> Bool {
-        status == .downloading && transport == .hlsVOD && hlsIdentity == identity
+        acceptsHLSAttempt(identity.attempt) && hlsIdentity == identity
+    }
+    func acceptsHLSAttempt(_ attempt: UUID) -> Bool {
+        status == .downloading && transport == .hlsVOD && hlsAttempt == attempt
+            && hlsFailureHandledAttempt != attempt
+    }
+    mutating func claimHLSFailure(expectedAttempt: UUID?) -> Bool {
+        guard status == .downloading, transport == .hlsVOD, hlsAttempt == expectedAttempt else { return false }
+        if let expectedAttempt, hlsFailureHandledAttempt == expectedAttempt { return false }
+        hlsFailureHandledAttempt = expectedAttempt
+        return true
     }
     var progress: Double? {
         if transport == .hlsVOD {
@@ -848,7 +861,7 @@ extension DownloadStore: HLSDownloadSessionObserver {
                 guard !Task.isCancelled, self.resolutionAttempts[item.id] == attempt,
                       let current = self.items.firstIndex(where: { $0.id == item.id }),
                       self.items[current].status == .downloading else { return }
-                self.failHLS(id: item.id, message: error.localizedDescription)
+                self.failHLS(id: item.id, expectedAttempt: attempt, message: error.localizedDescription)
             }
         }
         save()
@@ -859,9 +872,11 @@ extension DownloadStore: HLSDownloadSessionObserver {
         hlsRestorationPending = false
         hlsRestoration = Task { @MainActor [weak self] in
             guard let self else { return }
+            let barrier = self.hlsSession.beginCompletionBarrier()
             defer {
                 self.hlsRestoration = nil
                 if self.hlsRestorationPending { self.reconnectHLSTasks() }
+                self.hlsSession.endCompletionBarrier(barrier)
             }
             let records = self.items.compactMap { item -> HLSDownloadRestoreRecord? in
                 guard item.status == .downloading, item.hlsTransferSucceeded != true,
@@ -881,7 +896,8 @@ extension DownloadStore: HLSDownloadSessionObserver {
                 } else if self.resolutions[item.id] == nil, self.validations[item.id] == nil,
                           item.hlsIdentity.map({ !active.contains($0) }) ?? true,
                           !self.hlsSession.isPreparing(id: item.id, attempt: item.hlsAttempt ?? UUID()) {
-                    self.failHLS(id: item.id, message: "The download was interrupted. Tap Retry to request a fresh source.", recover: false)
+                    self.failHLS(id: item.id, expectedAttempt: item.hlsAttempt,
+                        message: "The download was interrupted. Tap Retry to request a fresh source.", recover: false)
                 }
             }
             self.save()
@@ -890,19 +906,19 @@ extension DownloadStore: HLSDownloadSessionObserver {
 
     func hlsDownloadSessionOwner(_ owner: HLSDownloadSessionOwner, didReceive snapshot: HLSDownloadSnapshot) {
         let identity = snapshot.identity
-        guard let index = items.firstIndex(where: { $0.id == identity.id }), items[index].status == .downloading,
-              items[index].transport == .hlsVOD, items[index].hlsAttempt == identity.attempt else { return }
+        guard let index = items.firstIndex(where: { $0.id == identity.id }),
+              items[index].acceptsHLSAttempt(identity.attempt) else { return }
         if snapshot.event == .prepared, items[index].taskIdentifier == nil { items[index].taskIdentifier = identity.taskIdentifier }
         guard items[index].acceptsHLS(identity) else { return }
         if let reference = snapshot.packageReference {
             guard reference.identity == identity else {
-                failHLS(id: identity.id, message: HLSDownloadSessionError.unsafePackage.localizedDescription); return
+                failHLS(id: identity.id, expectedAttempt: identity.attempt, message: HLSDownloadSessionError.unsafePackage.localizedDescription); return
             }
             items[index].pendingHLSReference = reference
             items[index].pendingHLSPackagePath = nil
         } else if let package = snapshot.packageURL {
             do { items[index].pendingHLSPackagePath = try HLSDownloadedPackages.relativePath(of: package) }
-            catch { failHLS(id: identity.id, message: HLSDownloadSessionError.unsafePackage.localizedDescription); return }
+            catch { failHLS(id: identity.id, expectedAttempt: identity.attempt, message: HLSDownloadSessionError.unsafePackage.localizedDescription); return }
         }
         items[index].hlsSelectedVariants = snapshot.selectedVariants
         items[index].hlsSelectedAudioLanguage = snapshot.selectedAudioLanguage
@@ -924,32 +940,42 @@ extension DownloadStore: HLSDownloadSessionObserver {
                     try reference.makeDurable(expectedIdentity: identity)
                     items[index].pendingHLSReference = reference
                 } catch {
-                    failHLS(id: identity.id, message: error.localizedDescription); return
+                    failHLS(id: identity.id, expectedAttempt: identity.attempt, message: error.localizedDescription); return
                 }
             }
             items[index].hlsTransferSucceeded = true
             save()
             validateHLSPackage(identity: identity)
         case .failed:
-            failHLS(id: identity.id, message: snapshot.error?.localizedDescription ?? HLSDownloadSessionError.incompletePackage.localizedDescription)
+            failHLS(id: identity.id, expectedAttempt: identity.attempt,
+                message: snapshot.error?.localizedDescription ?? HLSDownloadSessionError.incompletePackage.localizedDescription)
         case .cancelled:
             // A user-initiated cancellation already changed the row status.
             // An unexpected native cancellation remains retryable.
-            failHLS(id: identity.id, message: "The download was interrupted. Tap Retry to request a fresh source.", recover: false)
+            failHLS(id: identity.id, expectedAttempt: identity.attempt,
+                message: "The download was interrupted. Tap Retry to request a fresh source.", recover: false)
         default:
             if snapshot.event != .progress || Date().timeIntervalSince(lastSave) > 3 { save() }
         }
     }
 
-    private func failHLS(id: UUID, message: String, recover: Bool = true) {
-        guard let index = items.firstIndex(where: { $0.id == id }), items[index].status == .downloading else { return }
+    private func failHLS(id: UUID, expectedAttempt: UUID?, message: String, recover: Bool = true) {
+        guard let index = items.firstIndex(where: { $0.id == id }), items[index].status == .downloading,
+              items[index].transport == .hlsVOD, items[index].hlsAttempt == expectedAttempt else { return }
+        let firstFailure = items[index].claimHLSFailure(expectedAttempt: expectedAttempt)
+        // A pending automatic replacement retains the former hlsAttempt until
+        // its new source is prepared. Late errors from that former attempt
+        // must not cancel the replacement or create another native task.
+        // A relaunched replacement may have no surviving resolver; restoration
+        // may fail that orphaned row. A live replacement still owns the row.
+        guard firstFailure || (!recover && resolutions[id] == nil && validations[id] == nil) else { return }
         let failedSource = items[index].source
         cancelHLSTransfer(items[index])
         cancelValidation(id: id)
         items[index].status = .failed; items[index].taskIdentifier = nil
         items[index].hlsTransferSucceeded = false; items[index].error = message
         save()
-        if recover, items[index].catalog != nil, (items[index].automaticSourceRefreshes ?? 0) < 1 {
+        if recover, firstFailure, items[index].catalog != nil, (items[index].automaticSourceRefreshes ?? 0) < 1 {
             retry(id: id, refreshingExpiredSource: true, excludingSource: failedSource)
         }
     }
@@ -966,7 +992,7 @@ extension DownloadStore: HLSDownloadSessionObserver {
               let variants = item.hlsSelectedVariants, !variants.isEmpty,
               variants.allSatisfy({ $0.matches(quality: quality) }),
               item.hlsSelectedAudioLanguage?.lowercased().hasPrefix("en") == true else {
-            if validations[identity.id] == nil { failHLS(id: identity.id, message: HLSDownloadSessionError.incompletePackage.localizedDescription) }
+            if validations[identity.id] == nil { failHLS(id: identity.id, expectedAttempt: identity.attempt, message: HLSDownloadSessionError.incompletePackage.localizedDescription) }
             return
         }
         let attempt = UUID(), barrier = hlsSession.beginCompletionBarrier()
@@ -1007,7 +1033,7 @@ extension DownloadStore: HLSDownloadSessionObserver {
             } catch {
                 guard !Task.isCancelled, self.validationAttempts[identity.id] == attempt,
                       self.items.contains(where: { $0.acceptsHLS(identity) }) else { return }
-                self.failHLS(id: identity.id, message: OfflineVideoError.classify(error).downloadMessage)
+                self.failHLS(id: identity.id, expectedAttempt: identity.attempt, message: OfflineVideoError.classify(error).downloadMessage)
             }
         }
     }
@@ -1020,7 +1046,7 @@ extension DownloadStore: HLSDownloadSessionObserver {
               let variants = item.hlsSelectedVariants, !variants.isEmpty,
               variants.allSatisfy({ $0.matches(quality: quality) }),
               item.hlsSelectedAudioLanguage?.lowercased().hasPrefix("en") == true else {
-            failHLS(id: identity.id, message: HLSDownloadSessionError.incompletePackage.localizedDescription)
+            failHLS(id: identity.id, expectedAttempt: identity.attempt, message: HLSDownloadSessionError.incompletePackage.localizedDescription)
             return
         }
         let attempt = UUID(), barrier = hlsSession.beginCompletionBarrier()
@@ -1065,7 +1091,7 @@ extension DownloadStore: HLSDownloadSessionObserver {
             } catch {
                 guard !Task.isCancelled, self.validationAttempts[identity.id] == attempt,
                       self.items.contains(where: { $0.acceptsHLS(identity) }) else { return }
-                self.failHLS(id: identity.id, message: OfflineVideoError.classify(error).downloadMessage)
+                self.failHLS(id: identity.id, expectedAttempt: identity.attempt, message: OfflineVideoError.classify(error).downloadMessage)
             }
         }
     }

@@ -5,6 +5,26 @@ import XCTest
 /// Public response-shaped snapshots and URLProtocol only. No provider, player,
 /// Firebase, authentication or media request reaches the network.
 final class SportsStreamProviderTests: XCTestCase {
+    func testMaintenanceCatalogTriesOfficialAlternateAndKeepsTimStreams() async throws {
+        let fixture = TimProviderProtocolFixture(.primaryMaintenance)
+        let values = try await SportsService(session: fixture.session, streamCatalog: .timStreams).streams(TimProviderSnapshots.nbaGame)
+        XCTAssertEqual(values.map(\.url.absoluteString), ["https://fixture.streamify.test/fresh-1"])
+        XCTAssertTrue(values.allSatisfy { $0.title.hasPrefix("TimStreams") })
+        XCTAssertEqual(fixture.requests.map { $0.url?.host }, ["tim-streams.com", "timst.top", "timst.top"])
+    }
+
+    func testBothMaintenanceCatalogsReportUnavailableWithoutStaleWatchURLs() async throws {
+        let fixture = TimProviderProtocolFixture(.bothMaintenance)
+        do {
+            _ = try await SportsService(session: fixture.session, streamCatalog: .timStreams).streams(TimProviderSnapshots.nbaGame)
+            XCTFail("A provider in maintenance must not publish a fictional playable source.")
+        } catch SportsServiceError.streamProviderUnavailable {
+            // The provider is still configured and is attempted again next time.
+        } catch { XCTFail("Expected provider unavailability, got \(error)") }
+        XCTAssertEqual(fixture.requests.map { $0.url?.host }, ["tim-streams.com", "timst.top"])
+        XCTAssertTrue(fixture.requests.allSatisfy { $0.url?.path == "/api/live-upcoming" })
+    }
+
     func testDefaultUsesOfficialComAPIAndRefreshesWatchWithoutCachingItsSourceURL() async throws {
         let fixture = TimProviderProtocolFixture(.success)
         let service = SportsService(session: fixture.session, streamCatalog: .timStreams)
@@ -295,7 +315,7 @@ private final class TimProviderProtocolFixture {
     enum Mode {
         case success, unrelatedCatalog, wrongWatchItem, catalogFailure(URLError.Code), watchFailure(URLError.Code)
         case primaryDNSFailure, primaryWatchDNSFailure, primaryClosure, bothDNSFailure, primaryCancellation
-        case primaryDelayedCatalog, primaryPairedDelay
+        case primaryDelayedCatalog, primaryPairedDelay, primaryMaintenance, bothMaintenance
         var failureCode: URLError.Code? { switch self { case .catalogFailure(let code), .watchFailure(let code): return code; default: return nil } }
     }
     let session: URLSession
@@ -350,6 +370,10 @@ private final class TimProviderProtocolScenario {
         let object: [String: Any]
         if url.path == "/api/live-upcoming" {
             if case .catalogFailure(let code) = mode { throw URLError(code) }
+            if case .bothMaintenance = mode { return Data("{\"events\":null,\"genres\":[]}".utf8) }
+            if case .primaryMaintenance = mode, url.host == "tim-streams.com" {
+                return Data("{\"events\":null,\"genres\":[]}".utf8)
+            }
             var event = TimProviderSnapshots.item(TimProviderSnapshots.nbaGame)
             event["url"] = expectedSlug
             if case .unrelatedCatalog = mode { event["url"] = "other-event-401909875" }

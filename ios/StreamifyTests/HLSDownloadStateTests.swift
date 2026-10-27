@@ -180,6 +180,53 @@ final class HLSDownloadStateTests: XCTestCase {
         XCTAssertEqual(item.progress, 1)
     }
 
+    func testNativeFailureRecoveryIsClaimedOncePerExactAttemptAndPersists() throws {
+        var item = activeHLS()
+        let attempt = try XCTUnwrap(item.hlsAttempt)
+        XCTAssertTrue(item.claimHLSFailure(expectedAttempt: attempt))
+        XCTAssertFalse(item.claimHLSFailure(expectedAttempt: attempt), "Duplicate terminal/validation errors must not create another replacement.")
+        var restored = try roundTrip(item)
+        XCTAssertEqual(restored.hlsFailureHandledAttempt, attempt)
+        XCTAssertFalse(restored.claimHLSFailure(expectedAttempt: attempt), "A background relaunch must retain the handled-attempt claim.")
+    }
+
+    func testLateFailureCannotClaimTheReplacementAttemptAndNewGenuineFailureIsAllowed() throws {
+        var item = activeHLS()
+        let previous = try XCTUnwrap(item.hlsAttempt)
+        XCTAssertTrue(item.claimHLSFailure(expectedAttempt: previous))
+        let replacement = UUID()
+        item.hlsAttempt = replacement
+        item.taskIdentifier = 43
+        XCTAssertFalse(item.claimHLSFailure(expectedAttempt: previous))
+        XCTAssertEqual(item.hlsFailureHandledAttempt, previous)
+        XCTAssertTrue(item.claimHLSFailure(expectedAttempt: replacement), "A real failure of a new attempt must still permit the existing bounded source-recovery path.")
+        XCTAssertEqual(item.hlsFailureHandledAttempt, replacement)
+    }
+
+    func testHandledAttemptCannotRebindPreparedTaskOrDeliverLateCancellation() throws {
+        var item = activeHLS()
+        let identity = try XCTUnwrap(item.hlsIdentity)
+        XCTAssertTrue(item.acceptsHLSAttempt(identity.attempt))
+        XCTAssertTrue(item.claimHLSFailure(expectedAttempt: identity.attempt))
+        item.taskIdentifier = nil // Replacement source resolution is still pending.
+        XCTAssertFalse(item.acceptsHLSAttempt(identity.attempt), "A late prepared callback must not rebind the old task identifier.")
+        item.taskIdentifier = identity.taskIdentifier
+        XCTAssertFalse(item.acceptsHLS(identity), "Even a previously rebound task cannot deliver cancellation into its replacement.")
+        item.hlsAttempt = UUID()
+        XCTAssertTrue(item.acceptsHLS(try XCTUnwrap(item.hlsIdentity)), "A new attempt still accepts its own native snapshots.")
+    }
+
+    func testFailureClaimCannotReviveCompletedCancelledOrProgressiveDownloads() {
+        let active = activeHLS()
+        for status in [DownloadStatus.completed, .cancelled, .failed] {
+            var item = active; item.status = status
+            XCTAssertFalse(item.claimHLSFailure(expectedAttempt: item.hlsAttempt))
+            XCTAssertNil(item.hlsFailureHandledAttempt)
+        }
+        var progressive = active; progressive.transport = .progressiveFile
+        XCTAssertFalse(progressive.claimHLSFailure(expectedAttempt: progressive.hlsAttempt))
+    }
+
     private func activeHLS() -> DownloadItem {
         var item = DownloadItem(id: UUID(), title: "Show · S1 E2", source: "https://video.example.test/master.m3u8",
             createdAt: Date(timeIntervalSince1970: 123), status: .downloading)

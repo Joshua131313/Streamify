@@ -10,6 +10,7 @@ struct MediaExploreRail: View {
     @Namespace private var transition
     @State private var selected: MediaItem?
     @State private var watching: MediaItem?
+    @State private var playbackOrigin: MediaPlaybackOrigin?
 
     var body: some View {
         if #available(iOS 18, *) {
@@ -30,6 +31,7 @@ struct MediaExploreRail: View {
         ScrollView(.horizontal) {
             LazyHStack(alignment: .top, spacing: 8) {
                 ForEach(items, id: \.key) { media in
+                    MediaPlaybackOriginCard { origin in
                     Button { selected = media } label: {
                         if #available(iOS 18, *) {
                             poster(media).matchedTransitionSource(id: media.key, in: transition)
@@ -41,7 +43,7 @@ struct MediaExploreRail: View {
                     .accessibilityIdentifier("explore-\(identifier)-media-\(media.key)")
                     .contextMenu {
                         Button("Details", systemImage: "info.circle") { selected = media }
-                        Button("Watch", systemImage: "play.fill") { watching = media }
+                        Button("Watch", systemImage: "play.fill") { playbackOrigin = origin; watching = media }
                         if !library.isSaved(media) {
                             Button("Add to My list", systemImage: "plus") { library.toggleSaved(media) }
                         }
@@ -50,6 +52,7 @@ struct MediaExploreRail: View {
                         if library.isSaved(media) {
                             Button("Remove from My list", systemImage: "bookmark.slash", role: .destructive) { library.toggleSaved(media) }
                         }
+                    }
                     }
                 }
             }.padding(.horizontal, 16)
@@ -68,6 +71,6 @@ struct MediaExploreRail: View {
 
     private func watchDestination(_ media: MediaItem) -> some View {
         let entry = library.history.first { $0.media.key == media.key }
-        return MediaPlayerView(media: media, season: entry?.season ?? 1, episode: entry?.episode ?? 1)
+        return MediaPlayerView(media: media, season: entry?.season ?? 1, episode: entry?.episode ?? 1, origin: playbackOrigin)
     }
 }

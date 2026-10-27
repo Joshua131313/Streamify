@@ -10,6 +10,7 @@ struct LibraryView: View {
     @State private var query = ""
     @State private var kind: MediaKind?
     @State private var player: WatchEntry?
+    @State private var playbackOrigin: MediaPlaybackOrigin?
     @State private var clearHistory = false
     @State private var showDownloads = false
 
@@ -65,7 +66,9 @@ struct LibraryView: View {
                     if entries.isEmpty { emptyState }
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 320, maximum: 560), spacing: 16)], spacing: 12) {
                         ForEach(entries) { entry in
-                            WatchHistoryCard(entry: entry, resume: { player = entry })
+                            MediaPlaybackOriginCard { origin in
+                                WatchHistoryCard(entry: entry, resume: { playbackOrigin = origin; player = entry })
+                            }
                         }
                     }
                 } else {
@@ -84,7 +87,7 @@ struct LibraryView: View {
             player = nil; showDownloads = false; clearHistory = false
         }
         .sheet(isPresented: $showDownloads) { NavigationStack { DownloadsView() } }
-        .fullScreenCover(item: $player) { MediaPlayerView(media: $0.media, season: $0.season, episode: $0.episode) }
+        .fullScreenCover(item: $player) { MediaPlayerView(media: $0.media, season: $0.season, episode: $0.episode, origin: playbackOrigin) }
         .confirmationDialog("Clear your watch history on this iPhone?", isPresented: $clearHistory, titleVisibility: .visible) {
             Button("Clear history", role: .destructive) { library.clearHistory() }
         }

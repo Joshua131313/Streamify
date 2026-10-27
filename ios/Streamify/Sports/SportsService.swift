@@ -721,21 +721,22 @@ struct SportsService: Sendable {
         let legacyKey = ResponseMemoryCache.key(for: URLRequest(url: URL(string: "https://streamed.pk/api/matches/all")!), session: session)
         let useLegacy = await SportsLegacySourceAvailability.shared.allows(legacyKey)
         return try await withThrowingTaskGroup(of: SportsSourceProviderResult.self) { group in
-            for provider in 0..<(useLegacy ? 4 : 3) {
+            for provider in 0..<(useLegacy ? 5 : 4) {
                 group.addTask {
                     do {
-                        let values = try await Self.withSourceDeadline(seconds: provider == 3 ? 3 : 6) {
+                        let values = try await Self.withSourceDeadline(seconds: provider == 4 ? 3 : 6) {
                             switch provider {
                             case 0: return try await self.timstStreams(game)
-                            case 1: return try await StreamFreeProvider(session: self.session).streams(game)
-                            case 2: return try await DaddyLiveProvider(session: self.session).streams(game)
+                            case 1: return try await MatchoraProvider(session: self.session).streams(game)
+                            case 2: return try await StreamFreeProvider(session: self.session).streams(game)
+                            case 3: return try await DaddyLiveProvider(session: self.session).streams(game)
                             default: return try await self.streamedStreams(game)
                             }
                         }
                         return SportsSourceProviderResult(provider: provider, streams: values, error: nil)
                     } catch {
                         try Task.checkCancellation()
-                        if provider == 3 { await SportsLegacySourceAvailability.shared.unavailable(legacyKey) }
+                        if provider == 4 { await SportsLegacySourceAvailability.shared.unavailable(legacyKey) }
                         return SportsSourceProviderResult(provider: provider, streams: [], error: error)
                     }
                 }
@@ -796,6 +797,10 @@ struct SportsService: Sendable {
 
     private func timstStreams(_ game: SportsGame, apiHost: String) async throws -> [SportsStream] {
         let catalog = try await object("https://\(apiHost)/api/live-upcoming")
+        // The provider returns an explicit null catalog during maintenance.
+        // Try its official alternate, without treating this as a removed source
+        // or inventing a watch URL from yesterday's listings.
+        if catalog["events"] is NSNull { throw SportsServiceError.streamProviderUnavailable }
         guard let events = catalog["events"] as? [[String: Any]] else { throw SportsServiceError.invalidResponse }
         guard let event = events.first(where: { Self.timstEventMatches($0, game: game) }) else { return [] }
         let key = event.sportsText("url")

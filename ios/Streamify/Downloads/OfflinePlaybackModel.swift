@@ -12,6 +12,9 @@ enum OfflinePlaybackPolicy {
               position >= 5, position < duration * 0.95 else { return 0 }
         return position
     }
+    static func isAtEnd(_ position: Double, duration: Double) -> Bool {
+        position.isFinite && duration.isFinite && duration > 0 && position >= duration - 1.0 / 600.0
+    }
 }
 
 /// Owns the precise player used to register its periodic observer. Cleanup is
@@ -40,6 +43,7 @@ final class OfflinePlaybackModel: ObservableObject {
     @Published private(set) var position: Double = 0
     @Published private(set) var duration: Double = 0
     @Published private(set) var error: String?
+    @Published private(set) var seekMessage: String?
     @Published private(set) var videoError: OfflineVideoError?
     @Published private(set) var rate: Float = 1
     @Published private(set) var finished = false
@@ -52,8 +56,7 @@ final class OfflinePlaybackModel: ObservableObject {
     private let defaults: UserDefaults
     private let observers = OfflinePlaybackObservers()
     private var generation = UUID()
-    private var seekGeneration = UUID()
-    private var pendingSeekTarget: Double?
+    private var seekController: OfflineSeekController?
     private var itemID: UUID?
     private var wantsPlayback = false
     private var restored = false
@@ -118,6 +121,26 @@ final class OfflinePlaybackModel: ObservableObject {
             let created = AVPlayer(playerItem: item)
             created.allowsExternalPlayback = true
             player = created; observers.player = created
+            seekController = OfflineSeekController(driver: AVPlayerOfflineSeekDriver(player: created)) { [weak self] result in
+                guard let self, self.generation == request else { return }
+                self.seeking = false
+                switch result {
+                case .completed(let actual):
+                    self.position = OfflinePlaybackPolicy.seek(actual, duration: self.duration)
+                    // A paused seek to EOF need not emit a play-to-end event.
+                    // Derive the ending state from the actual native playhead.
+                    if OfflinePlaybackPolicy.isAtEnd(actual, duration: self.duration) {
+                        self.finished = true; self.wantsPlayback = false; self.isPlaying = false
+                    }
+                case .failed(let actual):
+                    if let actual { self.position = OfflinePlaybackPolicy.seek(actual, duration: self.duration) }
+                    self.seekMessage = "Couldn’t seek to that point. Try again."
+                }
+                self.capture(force: true)
+                if self.wantsPlayback { self.player?.playImmediately(atRate: self.rate) }
+                else { self.player?.pause() }
+                self.isBuffering = self.player?.timeControlStatus == .waitingToPlayAtSpecifiedRate
+            }
             if let audio { selectedAudioOption = item.currentMediaSelection.selectedMediaOption(in: audio) }
             if let subtitles { selectedSubtitleOption = item.currentMediaSelection.selectedMediaOption(in: subtitles) }
             observers.observations.append(item.observe(\.status, options: [.initial, .new]) { [weak self] observed, _ in
@@ -143,7 +166,9 @@ final class OfflinePlaybackModel: ObservableObject {
             }
             observers.notifications.append(NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main) { [weak self] _ in
                 Task { @MainActor [weak self] in
-                    guard let self, self.generation == request else { return }
+                    guard let self, self.generation == request, !self.seeking,
+                          let actual = self.player?.currentTime().seconds, actual.isFinite,
+                          actual >= self.duration - 0.5 else { return }
                     self.finished = true; self.wantsPlayback = false; self.isPlaying = false
                     self.position = self.duration; self.capture(force: true)
                     if let id = self.itemID { self.defaults.removeObject(forKey: self.storageKey(id)) }
@@ -163,17 +188,12 @@ final class OfflinePlaybackModel: ObservableObject {
     }
 
     private func prepareToPlay(request: UUID) {
-        guard !restored, let player else { return }
-        restored = true; isReady = true; seeking = true; pendingSeekTarget = resumePoint
-        let seek = UUID(); seekGeneration = seek
-        player.seek(to: CMTime(seconds: resumePoint, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self, self.generation == request, self.seekGeneration == seek else { return }
-                self.pendingSeekTarget = nil
-                self.position = OfflinePlaybackPolicy.seek(self.player?.currentTime().seconds ?? 0, duration: self.duration)
-                self.isBuffering = false; self.seeking = false
-                if self.wantsPlayback { self.player?.playImmediately(atRate: self.rate) }
-            }
+        guard !restored, generation == request, let player else { return }
+        restored = true; isReady = true
+        if resumePoint > 0 { seek(to: resumePoint) }
+        else {
+            isBuffering = false
+            if wantsPlayback { player.playImmediately(atRate: rate) }
         }
     }
 
@@ -183,32 +203,24 @@ final class OfflinePlaybackModel: ObservableObject {
             wantsPlayback = false; player.pause(); capture(force: true)
         } else {
             wantsPlayback = true
-            if finished { finished = false; seek(to: 0) }
-            else { player.playImmediately(atRate: rate) }
+            if finished { replay() }
+            else if !seeking { player.playImmediately(atRate: rate) }
         }
     }
 
     func seek(to seconds: Double) {
-        guard isReady, seconds.isFinite, let player, let item = player.currentItem else { return }
+        guard isReady, seconds.isFinite, let player, player.currentItem != nil, let seekController else { return }
         let target = OfflinePlaybackPolicy.seek(seconds, duration: duration)
-        pendingSeekTarget = target
-        let request = generation, seek = UUID(); seekGeneration = seek
-        finished = false; isBuffering = true; seeking = true
-        item.cancelPendingSeeks()
-        player.seek(to: CMTime(seconds: target, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] completed in
-            Task { @MainActor [weak self] in
-                guard let self, self.generation == request, self.seekGeneration == seek else { return }
-                self.pendingSeekTarget = nil
-                self.seeking = false; self.isBuffering = false
-                guard completed else { return }
-                self.position = target; self.capture(force: true)
-                if self.wantsPlayback { self.player?.playImmediately(atRate: self.rate) }
-                else { self.player?.pause() }
-            }
-        }
+        finished = false; seekMessage = nil; isBuffering = true; seeking = true
+        player.pause()
+        seekController.seek(to: target)
     }
 
-    func skip(by seconds: Double) { guard seconds.isFinite else { return }; seek(to: (pendingSeekTarget ?? position) + seconds) }
+    func skip(by seconds: Double) { guard seconds.isFinite else { return }; seek(to: (seekController?.pendingTarget ?? position) + seconds) }
+    func replay() {
+        guard isReady else { return }
+        wantsPlayback = true; seek(to: 0)
+    }
     func setRate(_ value: Float) {
         guard value.isFinite, (0.5...2).contains(value) else { return }
         rate = value
@@ -225,7 +237,7 @@ final class OfflinePlaybackModel: ObservableObject {
 
     func teardown() {
         capture(force: true)
-        generation = UUID(); seekGeneration = UUID(); pendingSeekTarget = nil
+        generation = UUID(); seekController?.cancel(); seekController = nil
         observers.clear(); player?.pause(); player?.replaceCurrentItem(with: nil); player = nil
         isPlaying = false; isReady = false; isBuffering = false; wantsPlayback = false
         restored = false; seeking = false; resumePoint = 0; position = 0; duration = 0; finished = false
@@ -233,6 +245,7 @@ final class OfflinePlaybackModel: ObservableObject {
         checkpoint = PlaybackCheckpoint(); localSavedAt = -Double.infinity; localSavedPosition = -Double.infinity
         itemID = nil
         usesOfflinePackage = false
+        seekMessage = nil
     }
 
     private func capture(force: Bool = false) {
@@ -252,6 +265,7 @@ final class OfflinePlaybackModel: ObservableObject {
     }
     private func storageKey(_ id: UUID) -> String { "streamify.ios.offlinePlayback.\(id.uuidString)" }
     private func fail(_ problem: OfflineVideoError) {
+        seekController?.cancel(); seeking = false
         wantsPlayback = false; player?.pause(); isPlaying = false; isBuffering = false
         videoError = problem; error = problem.localizedDescription
     }

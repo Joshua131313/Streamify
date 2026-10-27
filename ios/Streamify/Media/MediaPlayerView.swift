@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MediaPlayerView: View {
     let media: MediaItem
+    private let origin: MediaPlaybackOrigin?
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var library: LibraryStore
     @Environment(\.dismiss) private var dismiss
@@ -18,8 +19,9 @@ struct MediaPlayerView: View {
     @State private var details: MediaDetails?
     @State private var showEpisodes = false
 
-    init(media: MediaItem, season: Int = 1, episode: Int = 1) {
+    init(media: MediaItem, season: Int = 1, episode: Int = 1, origin: MediaPlaybackOrigin? = nil) {
         self.media = media
+        self.origin = origin
         _season = State(initialValue: max(1, season))
         _episode = State(initialValue: max(1, episode))
     }
@@ -69,7 +71,7 @@ struct MediaPlayerView: View {
                             guard session == loadID, identity.season == season, identity.episode == episode else { return }
                             library.record(media, season: identity.season, episode: identity.episode,
                                 positionSeconds: position, durationSeconds: duration)
-                        }).id(loadID)
+                        }, autoplay: true).id(loadID)
                 } else if let error {
                     VStack(spacing: 16) {
                         Image(systemName: "play.slash").font(.largeTitle)
@@ -132,7 +134,8 @@ struct MediaPlayerView: View {
             }.font(.subheadline.weight(.medium)).padding(.horizontal, 16).padding(.bottom, 12)
         }
         .background(.black).foregroundStyle(.white).preferredColorScheme(.dark)
-        .playerSwipeToDismiss { dismiss() }
+        .mediaPlayerCardDismissal(origin: origin, sessionKey: loadID, enabled: !showEpisodes) { dismiss() }
+        .presentationBackground(.clear)
         .task(id: loadID) { await loadSource() }
         .task {
             do { details = try await settings.client.details(media) } catch { /* Playback can still use the chosen source. */ }
@@ -145,20 +148,25 @@ struct MediaPlayerView: View {
     }
 
     @MainActor private func loadSource() async {
+        let request = loadID
+        let requestedSeason = season
+        let requestedEpisode = episode
         url = nil; referer = nil; error = nil
         do {
             let resolved: URL
+            var resolvedReferer: URL?
             if media.kind == .anime {
-                let anime = try await AnikotoResolver.shared.resolve(media: media, episode: episode, source: animeSource, client: settings.client)
-                resolved = anime.url; referer = anime.referer
-            } else if let address = activeServer?.url(media: media, season: season, episode: episode) { resolved = address }
+                let anime = try await AnikotoResolver.shared.resolve(media: media, episode: requestedEpisode, source: animeSource, client: settings.client)
+                resolved = anime.url; resolvedReferer = anime.referer
+            } else if let address = activeServer?.url(media: media, season: requestedSeason, episode: requestedEpisode) { resolved = address }
             else { throw AnimePlaybackError.unavailable("No video providers are configured. Check that media-servers.json is included in the app resources.") }
             try Task.checkCancellation()
-            url = resolved
+            guard request == loadID else { return }
+            referer = resolvedReferer; url = resolved
             // Opening a provider is history, not proof that the provider's video played.
-            library.record(media, season: season, episode: episode)
+            library.record(media, season: requestedSeason, episode: requestedEpisode)
         } catch is CancellationError { return }
-        catch { if !Task.isCancelled { self.error = error.localizedDescription } }
+        catch { if !Task.isCancelled && request == loadID { self.error = error.localizedDescription } }
     }
 }
 

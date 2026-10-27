@@ -43,6 +43,36 @@ final class DaddyLiveProviderTests: XCTestCase {
         XCTAssertEqual(channels(html, game).map(\.title), ["NHL & TV"])
     }
 
+    func testCapturedCollegeFootballListingsMatchFormalSchoolNamesAndMidnightGame() throws {
+        let formatter = ISO8601DateFormatter()
+        let now = try XCTUnwrap(formatter.date(from: "2026-10-28T00:30:00Z"))
+        func game(away: String, awaySchool: String, home: String, homeSchool: String, at timestamp: String) throws -> SportsGame {
+            SportsGame(eventID: "college-capture", league: .ncaaf, date: try XCTUnwrap(formatter.date(from: timestamp)), state: "in", status: "Live",
+                home: SportsTeam(id: "h", name: home, abbreviation: "HOME", logo: "", streamNames: [homeSchool]),
+                away: SportsTeam(id: "a", name: away, abbreviation: "AWAY", logo: "", streamNames: [awaySchool]), venue: "", broadcasts: "", link: "")
+        }
+        let delaware = try game(away: "Delaware Blue Hens", awaySchool: "Delaware", home: "Western Kentucky Hilltoppers",
+            homeSchool: "Western Kentucky", at: "2026-10-27T23:00:00Z")
+        let samHouston = try game(away: "Sam Houston Bearkats", awaySchool: "Sam Houston", home: "Missouri State Bears",
+            homeSchool: "Missouri State", at: "2026-10-28T00:00:00Z")
+        let delawareChannels = DaddyLiveProvider.channels(in: DaddyFixture.capturedCollegeFootball, game: delaware, now: now)
+        XCTAssertEqual(delawareChannels.map(\.title), ["CBS Sports Network"])
+        XCTAssertEqual(delawareChannels.map(\.watchURL.absoluteString), ["https://thedaddy.pk/watch.php?id=308"])
+        let samHoustonChannels = DaddyLiveProvider.channels(in: DaddyFixture.capturedCollegeFootball, game: samHouston, now: now)
+        XCTAssertEqual(samHoustonChannels.map(\.title), ["ESPN2 USA"])
+        XCTAssertEqual(samHoustonChannels.map(\.watchURL.absoluteString), ["https://thedaddy.pk/watch.php?id=45"])
+
+        let wrongSchool = try game(away: "Delaware State Hornets", awaySchool: "Delaware State", home: "Western Kentucky Hilltoppers",
+            homeSchool: "Western Kentucky", at: "2026-10-27T23:00:00Z")
+        let wrongOpponent = try game(away: "Sam Houston Bearkats", awaySchool: "Sam Houston", home: "Missouri Tigers",
+            homeSchool: "Missouri", at: "2026-10-28T00:00:00Z")
+        let wrongDate = try game(away: "Sam Houston Bearkats", awaySchool: "Sam Houston", home: "Missouri State Bears",
+            homeSchool: "Missouri State", at: "2026-10-29T00:00:00Z")
+        for invalid in [wrongSchool, wrongOpponent, wrongDate] {
+            XCTAssertTrue(DaddyLiveProvider.channels(in: DaddyFixture.capturedCollegeFootball, game: invalid, now: now).isEmpty)
+        }
+    }
+
     func testMidnightSportsDayRollsForwardOnceAndRejectsStaleWrongOrMalformedDates() {
         let game = DaddyFixture.game(.nba)
         XCTAssertEqual(channels(DaddyFixture.home(game, heading: "Monday 26th Oct 2026 - Schedule Time UK GMT", clock: "02:00"), game).count, 1)
@@ -164,6 +194,36 @@ final class DaddyLiveProviderTests: XCTestCase {
 }
 
 private enum DaddyFixture {
+    // Narrow excerpt of the public 27 October 2026 schedule: original date,
+    // league/title/flag text, times and advertised channel links are retained.
+    static let capturedCollegeFootball = """
+    <div class="schedule__day">
+      <div class="schedule__dayTitle">Tuesday 27th Oct 2026 - Schedule Time UK GMT</div>
+      <div class="schedule__category is-expanded">
+        <div class="schedule__catHeader"><div class="card__meta">College Football 🏈</div></div>
+        <div class="schedule__categoryBody">
+          <div class="schedule__event">
+            <div class="schedule__eventHeader">
+              <span class="schedule__time" data-time="23:00">23:00</span>
+              <span class="schedule__eventTitle">🏈 College Football : University of Delaware 🇺🇸 vs Western Kentucky 🇺🇸</span>
+            </div>
+            <div class="schedule__channels">
+              <a target="_blank" href="/watch.php?id=308" title="CBS Sports Network" data-ch="cbs sports network">CBS Sports Network</a>
+            </div>
+          </div>
+          <div class="schedule__event">
+            <div class="schedule__eventHeader">
+              <span class="schedule__time" data-time="00:00">00:00</span>
+              <span class="schedule__eventTitle">🏈 College Football : Sam Houston 🇺🇸 vs Missouri State 🇺🇸</span>
+            </div>
+            <div class="schedule__channels">
+              <a target="_blank" href="/watch.php?id=45" title="ESPN2 USA" data-ch="espn2 usa">ESPN2 USA</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    """
     static var instant: Date { ISO8601DateFormatter().date(from: "2026-10-27T02:00:00Z")! }
     static func game(_ league: SportsLeague, away: String? = nil, home: String? = nil, date: Date? = nil) -> SportsGame {
         let names: (String, String)

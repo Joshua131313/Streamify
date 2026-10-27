@@ -306,6 +306,9 @@ struct ProviderPlaybackSurface: View {
     /// App-owned sports playback stays mounted for native/WebKit PiP. Other
     /// presentations retain their existing background-pause behavior.
     var preservePlaybackOnBackground = false
+    /// Watch authorizes a single attempt to start the visible provider video.
+    /// This is independent of which fullscreen controls the provider uses.
+    var autoplay = false
     /// Sports embeds retain their provider's HTML controls in element fullscreen.
     var preferProviderControlsFullscreen = false
     var systemPiP: SportsSystemPiP? = nil
@@ -339,6 +342,7 @@ struct ProviderPlaybackSurface: View {
             } else {
                 PlayerWebView(url: url, reload: reload, direct: route == .webDirect, referer: referer,
                     resumeSeconds: resumeSeconds, onProgress: onProgress, systemPiP: systemPiP,
+                    autoplay: autoplay || preferProviderControlsFullscreen,
                     preferProviderControlsFullscreen: preferProviderControlsFullscreen, loading: $loading, error: $error)
                 if loading {
                     loadingIndicator("Connecting to source…")
@@ -419,6 +423,7 @@ private struct PlayerWebView: UIViewRepresentable {
     let resumeSeconds: Double
     let onProgress: ((Double, Double) -> Void)?
     let systemPiP: SportsSystemPiP?
+    let autoplay: Bool
     let preferProviderControlsFullscreen: Bool
     @Binding var loading: Bool
     @Binding var error: String?
@@ -449,11 +454,15 @@ private struct PlayerWebView: UIViewRepresentable {
     }
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.parent = self
+        loadIfReady(webView, coordinator: context.coordinator)
+    }
+    private func loadIfReady(_ webView: WKWebView, coordinator: Coordinator) {
+        if preferProviderControlsFullscreen, !coordinator.preparePopupProtection(webView) { return }
         let key = "\(url.absoluteString)|\(reload)|\(direct)|\(referer?.absoluteString ?? "")"
-        guard context.coordinator.key != key else { return }
-        context.coordinator.key = key
-        context.coordinator.providerHost = url.host?.lowercased() ?? ""
-        context.coordinator.beginSession(webView)
+        guard coordinator.key != key else { return }
+        coordinator.key = key
+        coordinator.providerHost = url.host?.lowercased() ?? ""
+        coordinator.beginSession(webView)
         webView.stopLoading()
         // Defer bindings until after SwiftUI's representable update cycle.
         DispatchQueue.main.async { loading = true; error = nil }
@@ -498,8 +507,34 @@ private struct PlayerWebView: UIViewRepresentable {
         private var checkpoint = PlaybackCheckpoint()
         private var lastMessageAt = -Double.infinity
         private var lifecycleObservers: [NSObjectProtocol] = []
+        private var protectionStarted = false
+        private var protectionReady = false
+        private var protectionDeadline: Task<Void, Never>?
+        private var detached = false
         var pipBridge: SportsWebPiPBridge?
         init(_ parent: PlayerWebView) { self.parent = parent }
+
+        func preparePopupProtection(_ webView: WKWebView) -> Bool {
+            if protectionReady { return true }
+            guard !protectionStarted else { return false }
+            protectionStarted = true
+            // A content-rule compiler failure must not strand the video on a
+            // loading screen. Late rules can still protect subsequent requests.
+            protectionDeadline = Task { @MainActor [weak self, weak webView] in
+                do { try await Task.sleep(for: .seconds(2)) } catch { return }
+                guard let self, let webView, !self.detached else { return }
+                self.protectionReady = true
+                self.parent.loadIfReady(webView, coordinator: self)
+            }
+            ProviderPopupRuleStore.prepare { [weak self, weak webView] rules in
+                guard let self, let webView, !self.detached else { return }
+                self.protectionDeadline?.cancel(); self.protectionDeadline = nil
+                if let rules { webView.configuration.userContentController.add(rules) }
+                self.protectionReady = true
+                self.parent.loadIfReady(webView, coordinator: self)
+            }
+            return protectionReady
+        }
 
         func observeLifecycle() {
             for name in [UIApplication.willResignActiveNotification, UIApplication.didEnterBackgroundNotification] {
@@ -516,11 +551,15 @@ private struct PlayerWebView: UIViewRepresentable {
             let controller = webView.configuration.userContentController
             controller.removeAllUserScripts()
             pipBridge?.begin()
-            if parent.preferProviderControlsFullscreen {
+            if parent.autoplay {
                 if let resource = Bundle.main.url(forResource: "sports-autoplay", withExtension: "js"),
                    let autoplay = try? String(contentsOf: resource, encoding: .utf8) {
                     controller.addUserScript(WKUserScript(source: autoplay, injectionTime: .atDocumentEnd, forMainFrameOnly: false))
                 }
+            }
+            if parent.preferProviderControlsFullscreen {
+                controller.addUserScript(WKUserScript(source: ProviderPopupProtection.script,
+                    injectionTime: .atDocumentStart, forMainFrameOnly: false))
                 controller.addUserScript(WKUserScript(source: SportsProviderFullscreenScript.source,
                     injectionTime: .atDocumentStart, forMainFrameOnly: false))
             }
@@ -552,6 +591,8 @@ private struct PlayerWebView: UIViewRepresentable {
         }
 
         func finishSession() {
+            detached = true
+            protectionDeadline?.cancel(); protectionDeadline = nil
             flush()
             pipBridge?.finish(); pipBridge = nil
             token = UUID().uuidString
@@ -559,10 +600,11 @@ private struct PlayerWebView: UIViewRepresentable {
             lifecycleObservers.removeAll()
         }
 
-        deinit { lifecycleObservers.forEach { NotificationCenter.default.removeObserver($0) } }
+        deinit { protectionDeadline?.cancel(); lifecycleObservers.forEach { NotificationCenter.default.removeObserver($0) } }
 
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
             guard let address = navigationAction.request.url else { decisionHandler(.cancel); return }
+            if parent.preferProviderControlsFullscreen, ProviderPopupProtection.blocks(address) { decisionHandler(.cancel); return }
             let scheme = address.scheme?.lowercased() ?? ""
             // Provider popups never become windows or launch another app.
             guard navigationAction.targetFrame != nil else { decisionHandler(.cancel); return }

@@ -14,6 +14,7 @@ final class SportsPlaybackFlowTests: XCTestCase {
         if name.contains("testProviderElementFullscreen") || name.contains("testSwipeDownSportsPlayer") { app.launchArguments.append("--ui-element-fullscreen-fixture") }
         if name.contains("testSportsFullscreenUsesTheProvidersOwnControl") { app.launchArguments.append("--ui-provider-controls-fullscreen-fixture") }
         if name.contains("testSportsWatchAutoplaysReadyVideoAndPreservesAnExplicitPause") { app.launchArguments += ["--ui-provider-controls-fullscreen-fixture", "--ui-sports-autoplay-fixture"] }
+        if name.contains("testSportsBlocksPopupsWithoutInterceptingPlayerControls") { app.launchArguments += ["--ui-provider-controls-fullscreen-fixture", "--ui-provider-popup-fixture"] }
         if name.contains("testProviderNativeVideoFullscreen") { app.launchArguments.append("--ui-native-video-fullscreen-fixture") }
         app.launch()
         XCTAssertTrue(app.buttons["tab-home"].waitForExistence(timeout: 15))
@@ -144,6 +145,23 @@ final class SportsPlaybackFlowTests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [unwantedRestart], timeout: 3.2), .completed)
         XCTAssertEqual(playbackDocument.label, document)
         capture("Sports Watch starts the ready video once and respects Pause")
+    }
+
+    func testSportsBlocksPopupsWithoutInterceptingPlayerControls() {
+        _ = openSportsPlayerOnBravo()
+        XCTAssertTrue(app.webViews.staticTexts["Bundled H264 video ready"].waitForExistence(timeout: 12))
+        let document = playbackDocument.label
+        let popup = app.webViews.buttons["Attempt popup"]
+        XCTAssertTrue(popup.isHittable); popup.tap()
+        XCTAssertTrue(app.webViews.staticTexts["Popup blocked"].waitForExistence(timeout: 5))
+        assertSinglePlaybackSurface()
+        XCTAssertEqual(playbackDocument.label, document,
+            "Popup, hidden blank-target link and foreign top-frame redirect attempts must keep the selected sports document.")
+        let quality = app.webViews.buttons["Provider quality"]
+        XCTAssertTrue(quality.isHittable); quality.tap()
+        XCTAssertTrue(app.webViews.staticTexts["Provider quality menu visible"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["sports-player-close"].isHittable)
+        capture("Blocked provider popup leaves the video and provider controls usable")
     }
 
     func testSportsFullscreenUsesTheProvidersOwnControlAndKeepsItsDocument() {

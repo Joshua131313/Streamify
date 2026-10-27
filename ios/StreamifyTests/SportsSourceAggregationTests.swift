@@ -81,6 +81,26 @@ final class SportsSourceAggregationTests: XCTestCase {
         XCTAssertFalse(SportsSourceIdentity.sourceDateMatches(date.addingTimeInterval(-86400), game: college, now: date))
     }
 
+    func testCollegeUniversityPrefixIsAnchoredAndDoesNotEraseSchoolDistinctions() {
+        func game(_ league: SportsLeague = .ncaaf, delawareAlias: String = "Delaware") -> SportsGame {
+            SportsGame(eventID: "college-prefix", league: league, date: Date(), state: "in", status: "Live",
+                home: SportsTeam(id: "wku", name: "Western Kentucky Hilltoppers", abbreviation: "WKU", logo: "", streamNames: ["Western Kentucky"]),
+                away: SportsTeam(id: "del", name: "Delaware Blue Hens", abbreviation: "DEL", logo: "", streamNames: [delawareAlias]),
+                venue: "", broadcasts: "", link: "")
+        }
+        XCTAssertTrue(SportsSourceIdentity.teamsMatch("College Football : University of Delaware 🇺🇸 vs Western Kentucky 🇺🇸", game: game()))
+        XCTAssertTrue(SportsSourceIdentity.teamsMatch(" UNIVERSITY  OF Delaware vs Western Kentucky", game: game()))
+        XCTAssertTrue(SportsSourceIdentity.teamsMatch("Delaware vs Western Kentucky", game: game(delawareAlias: "University of Delaware")),
+            "The same formal prefix is normalized in published titles and feed aliases.")
+        for title in ["University of Delaware State vs Western Kentucky", "Delaware vs University of Kentucky",
+                      "Delaware vs Western Kentucky State", "University of Delaware vs Delaware",
+                      "Northern University of Delaware vs Western Kentucky", "University of Delaware vs Unknown School"] {
+            XCTAssertFalse(SportsSourceIdentity.teamsMatch(title, game: game()), title)
+        }
+        XCTAssertFalse(SportsSourceIdentity.teamsMatch("University of Delaware Blue Hens vs Western Kentucky Hilltoppers", game: game(.nfl)),
+            "Formal college prefixes are not removed for professional teams.")
+    }
+
     private func source(_ title: String, _ url: String) -> SportsStream { SportsStream(title: title, url: URL(string: url)!) }
 }
 

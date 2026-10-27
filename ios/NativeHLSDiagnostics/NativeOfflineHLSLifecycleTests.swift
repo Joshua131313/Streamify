@@ -26,6 +26,10 @@ final class NativeOfflineHLSLifecycleTests: XCTestCase, HLSDownloadSessionObserv
         try await exerciseCompletedPackage(fixture: "aes128")
     }
 
+    func testRepeatedRestoreKeepsTheSameNativeTaskAndCompletesItsOwnedPackage() async throws {
+        try await exerciseCompletedPackage(fixture: "clear", repeatRestoration: true)
+    }
+
     func testPreparedObserverCanCancelBeforeTaskResumes() async throws {
         var report = Self.initialReport(fixture: "clear", purpose: "prepared observer cancellation")
         defer { record(report) }
@@ -66,7 +70,7 @@ final class NativeOfflineHLSLifecycleTests: XCTestCase, HLSDownloadSessionObserv
         }
     }
 
-    private func exerciseCompletedPackage(fixture: String) async throws {
+    private func exerciseCompletedPackage(fixture: String, repeatRestoration: Bool = false) async throws {
         var report = Self.initialReport(fixture: fixture, purpose: "complete own native HLS package")
         var phase = "native source preparation"
         defer { report["lastPhase"] = phase; record(report) }
@@ -87,6 +91,26 @@ final class NativeOfflineHLSLifecycleTests: XCTestCase, HLSDownloadSessionObserv
             report["preparedSynchronous"] = preparedWasSynchronous
             XCTAssertTrue(preparedWasSynchronous)
             XCTAssertEqual(snapshots.first(where: { $0.event == .prepared })?.identity, identity)
+            if repeatRestoration {
+                // Real system task, same configured session and identity. A
+                // repeated reconnect must neither create a new native task nor
+                // revalidate expiring source metadata before keeping it alive.
+                for _ in 0..<3 {
+                    let latest = snapshots.last(where: { $0.identity == identity })
+                    let record = HLSDownloadRestoreRecord(identity: identity, quality: 1080, audioLanguage: "en",
+                        packageReference: latest?.packageReference?.isDurable == true ? latest?.packageReference : nil,
+                        selectedVariants: latest?.selectedVariants ?? [], selectedAudioLanguage: latest?.selectedAudioLanguage,
+                        didFinishPackage: latest?.didFinishPackage == true)
+                    await session.restoreTasks(records: [record], metadataTimeout: 0.1)
+                    XCTAssertTrue(session.activeIdentities.contains(identity)
+                        || snapshots.contains(where: { $0.identity == identity && $0.event == .completed }))
+                    XCTAssertEqual(Set(snapshots.map(\.identity)), [identity])
+                    XCTAssertEqual(snapshots.filter { $0.event == .prepared }.count, 1)
+                    XCTAssertFalse(snapshots.contains(where: { [.failed, .cancelled].contains($0.event) }))
+                }
+                report["sameIdentityRestorationChecks"] = 3
+                report["nativeTaskReplacementObserved"] = false
+            }
             phase = "bounded complete native download"
             var maximumPackageBytes: Int64 = 0, maximumNativeBytes: Int64 = 0
             while Date() < deadline {

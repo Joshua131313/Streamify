@@ -223,6 +223,7 @@ struct FeaturedCarousel: View {
     @State private var paused = false
     @State private var voiceOver = UIAccessibility.isVoiceOverRunning
     @State private var player: MediaItem?
+    @State private var playbackOrigin: MediaPlaybackOrigin?
     @State private var detailsPresented = false
     @State private var appeared = false
     @GestureState private var dragging = false
@@ -242,7 +243,7 @@ struct FeaturedCarousel: View {
         VStack(spacing: 4) {
             TabView(selection: $index) {
                 ForEach(Array(items.enumerated()), id: \.element.key) { offset, media in
-                    hero(media).tag(offset)
+                    MediaPlaybackOriginCard { origin in hero(media, origin: origin) }.tag(offset)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
@@ -285,7 +286,7 @@ struct FeaturedCarousel: View {
         }
         .fullScreenCover(item: $player) { media in
             let entry = library.history.first { $0.media.key == media.key }
-            MediaPlayerView(media: media, season: entry?.season ?? 1, episode: entry?.episode ?? 1)
+            MediaPlayerView(media: media, season: entry?.season ?? 1, episode: entry?.episode ?? 1, origin: playbackOrigin)
         }
     }
 
@@ -346,7 +347,7 @@ struct FeaturedCarousel: View {
         else { withAnimation(.easeInOut(duration: transitionDuration)) { index = offset } }
     }
 
-    private func hero(_ media: MediaItem) -> some View {
+    private func hero(_ media: MediaItem, origin: MediaPlaybackOrigin) -> some View {
         ZStack(alignment: .bottomLeading) {
             MediaDetailLink(media: media, onPresentationChanged: { detailsPresented = $0 }, cardCornerRadius: 16, includesCardMenu: true) {
                 RemoteArtwork(url: horizontalSizeClass == .regular ? media.heroBackdropURL : media.heroPosterURL)
@@ -364,7 +365,7 @@ struct FeaturedCarousel: View {
                     .font(.caption.weight(.medium)).foregroundStyle(Color(red: 212 / 255, green: 212 / 255, blue: 216 / 255))
                     .allowsHitTesting(false)
                 HStack(spacing: 12) {
-                    Button { player = media } label: {
+                    Button { playbackOrigin = origin; player = media } label: {
                         Label("Watch", systemImage: "play.fill")
                             .font(.subheadline.bold()).frame(maxWidth: .infinity).frame(minHeight: 44)
                             .foregroundStyle(.black).background(.white, in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
@@ -392,6 +393,7 @@ private struct ContinueWatchingRail: View {
     @EnvironmentObject private var library: LibraryStore
     @State private var selected: WatchEntry?
     @State private var selectedDetails: MediaItem?
+    @State private var playbackOrigin: MediaPlaybackOrigin?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -399,8 +401,9 @@ private struct ContinueWatchingRail: View {
             ScrollView(.horizontal) {
                 HStack(alignment: .top, spacing: 12) {
                     ForEach(Array(library.history.filter { !$0.completed }.prefix(12))) { entry in
+                        MediaPlaybackOriginCard { origin in
                         VStack(alignment: .leading, spacing: 8) {
-                            Button { selected = entry } label: {
+                            Button { playbackOrigin = origin; selected = entry } label: {
                                 WatchHistoryArtwork(media: entry.media)
                                     .aspectRatio(16.0 / 9.0, contentMode: .fit)
                                     .overlay {
@@ -428,15 +431,16 @@ private struct ContinueWatchingRail: View {
                         }.frame(width: 184)
                             .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 12))
                             .contextMenu {
-                                Button("Resume", systemImage: "play.fill") { selected = entry }
+                                Button("Resume", systemImage: "play.fill") { playbackOrigin = origin; selected = entry }
                                 Button("Details", systemImage: "info.circle") { selectedDetails = entry.media }
                                 Button("Remove from history", role: .destructive) { library.removeHistory(entry) }
                             }
+                        }
                     }
                 }.padding(.horizontal, 16)
             }.scrollIndicators(.hidden)
         }
-        .fullScreenCover(item: $selected) { MediaPlayerView(media: $0.media, season: $0.season, episode: $0.episode) }
+        .fullScreenCover(item: $selected) { MediaPlayerView(media: $0.media, season: $0.season, episode: $0.episode, origin: playbackOrigin) }
         .fullScreenCover(item: $selectedDetails) { media in
             NavigationStack { MediaDetailView(media: media) }.presentationBackground(AppTheme.canvas)
         }

@@ -16,6 +16,7 @@ struct MediaDetailView: View {
     @State private var loadingEpisodes = false
     @State private var episodeRevision = 0
     @State private var selection: PlaybackSelection?
+    @State private var playbackOrigin: MediaPlaybackOrigin?
     @State private var selectedCast: CastMember?
     @State private var previewVisible = true
     @State private var pageVisible = false
@@ -50,8 +51,9 @@ struct MediaDetailView: View {
                             }.padding(.top, 2).accessibilityElement(children: .contain).accessibilityIdentifier("detail-genre-bubbles")
                         }
                     }
+                    MediaPlaybackOriginCard { origin in
                     VStack(spacing: 12) {
-                        Button { play(season: previous?.season ?? season, episode: previous?.episode ?? 1) } label: {
+                        Button { play(season: previous?.season ?? season, episode: previous?.episode ?? 1, origin: origin) } label: {
                             Label(watchTitle, systemImage: "play.fill")
                                 .font(.headline).frame(maxWidth: .infinity).frame(minHeight: 50)
                                 .foregroundStyle(.black)
@@ -78,6 +80,7 @@ struct MediaDetailView: View {
                                 .buttonStyle(SecondaryButtonStyle())
                             }
                         }
+                    }
                     }
                     Text(title.overview.isEmpty ? "No synopsis available." : title.overview)
                         .font(.body).foregroundStyle(AppTheme.muted).textSelection(.enabled)
@@ -137,7 +140,7 @@ struct MediaDetailView: View {
         .task(id: "\(media.key):\(revision):\(settings.tmdbToken)") { await load() }
         .task(id: "\(media.key):\(season):\(episodeRevision):\(settings.tmdbToken)") { await loadEpisodes() }
         .fullScreenCover(item: $selection) { choice in
-            MediaPlayerView(media: title, season: choice.season, episode: choice.episode)
+            MediaPlayerView(media: title, season: choice.season, episode: choice.episode, origin: playbackOrigin)
         }
         // Episode rows live in a lazy stack. Their sheet presenter must remain at
         // screen scope when iOS adjusts the underlying scroll view for a modal.
@@ -196,9 +199,10 @@ struct MediaDetailView: View {
                 Text("Episodes for this season will appear when available.").foregroundStyle(AppTheme.muted)
             }
             ForEach(episodes) { episode in
+                MediaPlaybackOriginCard { origin in
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(spacing: 8) {
-                    Button { play(season: season, episode: episode.number) } label: {
+                    Button { play(season: season, episode: episode.number, origin: origin) } label: {
                         HStack(spacing: 14) {
                             ZStack {
                                 RemoteArtwork(url: episode.stillURL ?? (media.kind == .anime ? title.backdropURL : nil))
@@ -225,6 +229,7 @@ struct MediaDetailView: View {
                     if !episode.overview.isEmpty {
                         Text(episode.overview).font(.subheadline).foregroundStyle(AppTheme.muted).lineLimit(4)
                     }
+                }
                 }
                 if episode.number != episodes.last?.number { Divider().overlay(AppTheme.muted.opacity(0.1)) }
             }
@@ -272,7 +277,8 @@ struct MediaDetailView: View {
         catch { if !Task.isCancelled { episodeError = error.localizedDescription } }
         if !Task.isCancelled { loadingEpisodes = false }
     }
-    private func play(season: Int, episode: Int) {
+    private func play(season: Int, episode: Int, origin: MediaPlaybackOrigin) {
+        playbackOrigin = origin
         selection = PlaybackSelection(season: season, episode: episode)
     }
     private func presentDownload(season: Int, episode: Int, title: String? = nil) {

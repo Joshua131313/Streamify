@@ -29,14 +29,22 @@ enum SportsSourceIdentity {
         let sides = text.replacingOccurrences(of: "\\s+(?:vs\\.?|v\\.?|at|versus)\\s+|\\s*@\\s*",
             with: "\n", options: [.regularExpression, .caseInsensitive]).components(separatedBy: "\n")
         guard sides.count == 2 else { return false }
+        func teamName(_ value: String) -> String {
+            // College listings sometimes publish a school's formal prefix while
+            // ESPN's location alias omits it. Only this anchored prefix is optional;
+            // "State", "Tech" and the rest of each school's name stay significant.
+            guard game.league == .ncaaf else { return normalized(value) }
+            return normalized(value.replacingOccurrences(of: "^\\s*university\\s+of\\s+", with: "",
+                options: [.regularExpression, .caseInsensitive]))
+        }
         func aliases(_ team: SportsTeam) -> Set<String> {
-            let full = normalized(team.name)
-            return Set(([team.name] + team.streamNames).map(normalized).filter {
+            let full = teamName(team.name)
+            return Set(([team.name] + team.streamNames).map(teamName).filter {
                 !$0.isEmpty && (game.league == .ncaaf || $0 == full || full.hasSuffix($0))
             })
         }
         func names(_ side: String) -> Set<String> {
-            let name = normalized(side)
+            let name = teamName(side)
             var result: Set<String> = [name]
             if game.league == .wnba, name.hasSuffix("w") { result.insert(String(name.dropLast())) }
             return result

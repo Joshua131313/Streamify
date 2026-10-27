@@ -12,10 +12,12 @@ struct MediaDetailLink<Label: View>: View {
     @State private var presented = false
     @State private var watching = false
     @State private var menuVisible = false
+    @StateObject private var playbackOrigin = MediaPlaybackOrigin()
     @EnvironmentObject private var library: LibraryStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
+        Group {
         if #available(iOS 18, *) {
             withCardMenu(styled(Button(action: openDetails) {
                 label().contentShape(Rectangle()).matchedTransitionSource(id: media.key, in: transition)
@@ -40,6 +42,7 @@ struct MediaDetailLink<Label: View>: View {
                 .fullScreenCover(isPresented: $watching) { watchDestination }
                 .onChange(of: presented || watching || menuVisible) { _, visible in onPresentationChanged?(visible) }
         }
+        }.sportsPlaybackOrigin(playbackOrigin)
     }
 
     @ViewBuilder private func styled<Content: View>(_ content: Content) -> some View {
@@ -89,7 +92,7 @@ struct MediaDetailLink<Label: View>: View {
 
     private var watchDestination: some View {
         let entry = library.history.first { $0.media.key == media.key }
-        return MediaPlayerView(media: media, season: entry?.season ?? 1, episode: entry?.episode ?? 1)
+        return MediaPlayerView(media: media, season: entry?.season ?? 1, episode: entry?.episode ?? 1, origin: playbackOrigin)
     }
 
     private var destination: some View {

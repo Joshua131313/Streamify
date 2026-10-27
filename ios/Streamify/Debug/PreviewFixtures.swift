@@ -163,6 +163,8 @@ enum PreviewFixtures {
         let autoplayCheck = ProcessInfo.processInfo.arguments.contains("--ui-sports-autoplay-fixture")
         let autoplay = autoplayCheck ? "" : "autoplay"
         let pause = autoplayCheck ? "<button onclick=\"video.pause()\">Pause fixture video</button><p id=\"playing-state\">Video paused</p>" : ""
+        let popupCheck = ProcessInfo.processInfo.arguments.contains("--ui-provider-popup-fixture")
+        let popup = popupCheck ? "<button onclick=\"const opened=window.open('https://ads.example.invalid/popup','_blank');const fallback=document.createElement('a');fallback.href='https://ads.example.invalid/anchor';fallback.target='_blank';document.body.appendChild(fallback);fallback.click();fallback.remove();document.getElementById('popup-state').textContent=opened===null?'Popup blocked':'Popup opened';location.assign('https://ads.example.invalid/replace')\">Attempt popup</button><p id=\"popup-state\">Popup not attempted</p>" : ""
         return """
         <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
         <style>
@@ -177,6 +179,7 @@ enum PreviewFixtures {
         \(exit)
         \(quality)
         \(pause)
+        \(popup)
         <p id="fullscreen-state" role="status">Provider inline</p><p id="native-state" role="status">Video inline, entries 0, exits 0</p><p id="viewport"></p>
         </main><script>
         const video=document.getElementById('fixture-video');let entries=0,exits=0;

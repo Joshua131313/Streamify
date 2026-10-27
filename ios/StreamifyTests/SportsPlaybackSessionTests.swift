@@ -4,6 +4,35 @@ import WebKit
 @testable import Streamify
 
 final class SportsPlaybackSessionTests: XCTestCase {
+    @MainActor func testMatchoraAdvertisedEmbedsUseIframeAfterOpeningAndChangingSources() throws {
+        let game = playbackGame("matchora-routing", league: .nba)
+        let channel = "https://matchora.to/embed/channel/836356"
+        let match = "https://matchora.to/embed/match/2601717"
+        let sources = MatchoraProvider.sources([
+            "id": "2601717", "channel_count": 1, "embed_url": match,
+            "channels": [["id": "836356", "name": "Game feed", "embed_url": channel, "playing": true]]
+        ], game: game)
+        XCTAssertEqual(sources.map(\.url.absoluteString), [channel, match])
+        let first = try XCTUnwrap(sources.first), alternate = try XCTUnwrap(sources.last)
+        let session = SportsPlaybackSession()
+        session.play(title: "Previous player", url: URL(string: "https://player.example/previous")!)
+        session.toggleDirect()
+        XCTAssertTrue(session.direct)
+
+        session.play(title: "Matchora game", url: first.url, sources: sources, game: game)
+        XCTAssertFalse(session.direct, "A new advertised embed must not inherit a previous source's direct mode.")
+        XCTAssertEqual(ProviderPlaybackRoute.resolve(url: try XCTUnwrap(session.item?.url), direct: session.direct), .webEmbed)
+
+        session.toggleDirect()
+        session.selectSource(alternate)
+        XCTAssertFalse(session.direct, "Changing sources restores the provider's normal iframe embed mode.")
+        XCTAssertEqual(ProviderPlaybackRoute.resolve(url: try XCTUnwrap(session.item?.url), direct: session.direct), .webEmbed)
+        session.reloadCurrent()
+        XCTAssertFalse(session.direct)
+        XCTAssertEqual(session.item?.url.absoluteString, match)
+        session.close()
+    }
+
     @MainActor func testAutomaticInlinePiPRequiresFreshPlayingLandscapeAndConfirmedMode() {
         func eligible(_ size: CGSize = CGSize(width: 844, height: 390), playing: Bool = true,
             capable: Bool = true, age: TimeInterval = 1, fullscreen: Bool = false, active: Bool = false) -> Bool {

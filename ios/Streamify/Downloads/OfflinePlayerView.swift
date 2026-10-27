@@ -130,6 +130,11 @@ struct OfflinePlayerView: View {
                 .padding(.horizontal, 20).accessibilityIdentifier("offline-video-error")
         } else if !model.isReady || model.isBuffering {
             ProgressView().tint(.white).scaleEffect(1.3).accessibilityLabel("Loading offline video")
+        } else if let message = model.seekMessage {
+            Text(message).font(.caption.weight(.medium)).multilineTextAlignment(.center)
+                .padding(.horizontal, 14).padding(.vertical, 10)
+                .background(.black.opacity(0.72), in: Capsule())
+                .allowsHitTesting(false).accessibilityIdentifier("offline-seek-error")
         }
     }
 
@@ -427,7 +432,7 @@ struct OfflinePlayerView: View {
                 Text(nextEpisode.catalog?.episodeTitle ?? nextEpisode.title).font(.subheadline).lineLimit(2)
                 Button { play(nextEpisode) } label: { Label("Next episode", systemImage: "play.fill").padding(.horizontal, 24).frame(minHeight: 48).background(.white, in: Capsule()).foregroundStyle(.black) }
             }
-            Button { model.seek(to: 0); model.togglePlayback(); showControls() } label: { Label("Watch again", systemImage: "arrow.counterclockwise").frame(minHeight: 44) }
+            Button { model.replay(); showControls() } label: { Label("Watch again", systemImage: "arrow.counterclockwise").frame(minHeight: 44) }
             Button("Close video", action: close).frame(minHeight: 44)
         }.padding(28).frame(maxWidth: 420).background(.black.opacity(0.9), in: RoundedRectangle(cornerRadius: 20)).padding(20)
     }

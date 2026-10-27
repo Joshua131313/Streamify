@@ -36,6 +36,7 @@ targets:
       - path: NativeHLSDiagnostics/VixSrcProductionResolverDiagnosticsTests.swift
       - path: NativeHLSDiagnostics/VixSrcCompleteEpisodeResearchTests.swift
       - path: StreamifyTests/HLSOwnedPackageReferenceTests.swift
+      - path: StreamifyTests/HLSRestorationLifecycleTests.swift
     dependencies:
       - target: HLSResearchHost
     settings:

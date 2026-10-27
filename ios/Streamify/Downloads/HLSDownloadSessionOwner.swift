@@ -41,7 +41,7 @@ struct HLSDownloadedVariant: Codable, Hashable, Sendable {
 struct HLSDownloadSnapshot: Sendable {
     enum Event: String, Sendable {
         case prepared, restored, destination, selection, progress, packageFinished
-        case completed, cancelled, failed
+        case transportFinishedAwaitingMetadata, completed, cancelled, failed
     }
     let identity: HLSDownloadIdentity
     let sequence: UInt64
@@ -126,6 +126,7 @@ final class HLSDownloadSessionOwner {
 
     private var tasks: [String: AVAssetDownloadTask] = [:]
     private var preparing: [String: AVURLAsset] = [:]
+    private var restoringAudio: [HLSDownloadIdentity: Task<Void, Never>] = [:]
     private var lastSequences: [HLSDownloadIdentity: UInt64] = [:]
     /// Cancellation may arrive while getAllTasks is suspended and before an
     /// existing native task has been adopted into this process's task map.
@@ -258,7 +259,12 @@ final class HLSDownloadSessionOwner {
             // getAllTasks suspends this actor. A freshly started task may now
             // exist even though the caller's persisted-record snapshot was
             // captured earlier. Never classify our current task as orphaned.
-            if tasks[identity.attemptKey]?.taskIdentifier == identity.taskIdentifier { continue }
+            if tasks[identity.attemptKey]?.taskIdentifier == identity.taskIdentifier {
+                if let record = expected[identity], delegate.needsAudioRebinding(identity) {
+                    rebindRestoredAudio(task, identity: identity, language: record.audioLanguage, timeout: metadataTimeout)
+                }
+                continue
+            }
             guard let record = expected[identity], [360, 480, 720, 1080].contains(record.quality),
                   !record.audioLanguage.isEmpty else {
                 delegate.abandon(task); task.cancel(); continue
@@ -267,21 +273,42 @@ final class HLSDownloadSessionOwner {
             let restored = delegate.register(record, audioGroup: nil, event: .restored)
             receive(restored)
             if [.failed, .cancelled].contains(restored.event) { task.cancel(); continue }
+            // This exact native task already owns the source/quality/audio
+            // configuration verified before .prepared was persisted. A fresh
+            // metadata request is not permission to cancel/recreate it.
+            if !cancelledIdentities.contains(identity), tasks[identity.attemptKey] === task,
+               delegate.canResume(identity), task.state == .suspended {
+                task.resume()
+            }
+            if delegate.needsAudioRebinding(identity) {
+                rebindRestoredAudio(task, identity: identity, language: record.audioLanguage, timeout: metadataTimeout)
+            } else { delegate.finishPendingCompletion(identity) }
+        }
+    }
+
+    private func rebindRestoredAudio(_ task: AVAssetDownloadTask, identity: HLSDownloadIdentity,
+                                    language: String, timeout: TimeInterval) {
+        guard restoringAudio[identity] == nil, !cancelledIdentities.contains(identity),
+              tasks[identity.attemptKey] === task, delegate.needsAudioRebinding(identity) else { return }
+        let barrier = beginCompletionBarrier()
+        restoringAudio[identity] = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { self.restoringAudio[identity] = nil; self.endCompletionBarrier(barrier) }
             do {
-                let group = try await Self.audioGroup(task.urlAsset, language: record.audioLanguage, timeout: metadataTimeout)
-                guard !cancelledIdentities.contains(identity), tasks[identity.attemptKey] === task,
-                      delegate.canResume(identity) else { continue }
-                if !delegate.bindAudioGroup(group, identity: identity) { task.cancel(); continue }
-                // The process may have stopped after persisting .prepared
-                // and before resume(). Metadata must be rechecked first,
-                // then this exact still-current suspended task can resume.
-                if !cancelledIdentities.contains(identity), tasks[identity.attemptKey] === task,
-                   delegate.canResume(identity), task.state == .suspended {
-                    task.resume()
-                }
+                let group = try await Self.audioGroup(task.urlAsset, language: language, timeout: timeout)
+                try Task.checkCancellation()
+                guard !self.cancelledIdentities.contains(identity), self.tasks[identity.attemptKey] === task,
+                      self.delegate.canResume(identity) else { return }
+                if !self.delegate.bindAudioGroup(group, identity: identity) { task.cancel() }
             } catch {
-                delegate.fail(identity, error: error)
-                task.cancel()
+                guard !Task.isCancelled, !self.cancelledIdentities.contains(identity),
+                      self.tasks[identity.attemptKey] === task, self.delegate.canResume(identity) else { return }
+                // The daemon may still be transferring while this process
+                // cannot refresh an expiring remote asset's audio metadata.
+                // Preserve that exact task. Its real terminal error is still
+                // reported normally, and native success requests one final
+                // binding/verification pass before anything is completed.
+                self.delegate.metadataRebindingFailed(identity, error: error)
             }
         }
     }
@@ -290,6 +317,7 @@ final class HLSDownloadSessionOwner {
     /// library deletion uses removeOwnedPackage after the caller's own checks.
     func cancel(_ identity: HLSDownloadIdentity, removePartialPackage: Bool = true) {
         cancelledIdentities.insert(identity)
+        restoringAudio[identity]?.cancel()
         delegate.cancel(identity, removePartialPackage: removePartialPackage)
         guard let task = tasks[identity.attemptKey], task.taskIdentifier == identity.taskIdentifier else { return }
         task.cancel()
@@ -336,12 +364,18 @@ final class HLSDownloadSessionOwner {
         lastSequences[snapshot.identity] = snapshot.sequence
         switch snapshot.event {
         case .completed, .cancelled, .failed:
+            restoringAudio[snapshot.identity]?.cancel()
             if tasks[snapshot.identity.attemptKey]?.taskIdentifier == snapshot.identity.taskIdentifier {
                 tasks[snapshot.identity.attemptKey] = nil
             }
         default: break
         }
         observer?.hlsDownloadSessionOwner(self, didReceive: snapshot)
+        if snapshot.event == .transportFinishedAwaitingMetadata,
+           let task = tasks[snapshot.identity.attemptKey], task.taskIdentifier == snapshot.identity.taskIdentifier,
+           let language = delegate.requestedLanguage(snapshot.identity) {
+            rebindRestoredAudio(task, identity: snapshot.identity, language: language, timeout: 12)
+        }
     }
 
     private func finishBackgroundEventsIfPossible() {
@@ -415,7 +449,7 @@ final class HLSDownloadSessionOwner {
 
 /// All callbacks are serialized by the session's delegate queue. State also
 /// uses a lock because registration/cancellation originates on the main actor.
-private final class HLSAssetDownloadDelegate: NSObject, AVAssetDownloadDelegate, @unchecked Sendable {
+final class HLSAssetDownloadDelegate: NSObject, AVAssetDownloadDelegate, @unchecked Sendable {
     private struct State {
         let identity: HLSDownloadIdentity
         var registered = false
@@ -430,6 +464,7 @@ private final class HLSAssetDownloadDelegate: NSObject, AVAssetDownloadDelegate,
         var fraction: Double?
         var didFinish = false
         var transportComplete = false
+        var metadataCompletionRequested = false
         var terminalSent = false
         var cancelled = false
         var removePartialOnCancel = true
@@ -513,6 +548,25 @@ private final class HLSAssetDownloadDelegate: NSObject, AVAssetDownloadDelegate,
         guard let state = states[identity] else { return false }
         return !state.cancelled && !state.terminalSent
     }
+    func needsAudioRebinding(_ identity: HLSDownloadIdentity) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        guard let state = states[identity], state.registered, !state.cancelled, !state.terminalSent else { return false }
+        return state.audioGroup == nil && !Self.matchesLanguage(state.selectedLanguage, requested: state.language)
+    }
+    func requestedLanguage(_ identity: HLSDownloadIdentity) -> String? {
+        lock.lock(); defer { lock.unlock() }; return states[identity]?.language
+    }
+    func transportHasFinished(_ identity: HLSDownloadIdentity) -> Bool {
+        lock.lock(); defer { lock.unlock() }; return states[identity]?.transportComplete == true
+    }
+    func metadataRebindingFailed(_ identity: HLSDownloadIdentity, error: Error) {
+        // A remote metadata timeout is not a native transfer failure. Only an
+        // already successful transport waiting on required verification may
+        // become visibly unverified/failed here; no healthy task is cancelled.
+        guard transportHasFinished(identity), canResume(identity) else { return }
+        fail(identity, error: error)
+    }
+    func finishPendingCompletion(_ identity: HLSDownloadIdentity) { finalize(identity) }
     func registeredReference(_ url: URL, identity: HLSDownloadIdentity) -> HLSOwnedPackageReference? {
         lock.lock(); defer { lock.unlock() }
         guard let location = states[identity]?.location,
@@ -612,10 +666,7 @@ private final class HLSAssetDownloadDelegate: NSObject, AVAssetDownloadDelegate,
             } else { fail(identity, error: error) }
             return
         }
-        lock.lock()
-        if var state = states[identity] { state.transportComplete = true; states[identity] = state }
-        lock.unlock()
-        finalize(identity)
+        completedTransport(identity)
     }
     func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
         enqueueAction { [eventsFinished] in eventsFinished() }
@@ -625,6 +676,14 @@ private final class HLSAssetDownloadDelegate: NSObject, AVAssetDownloadDelegate,
         guard let identity = HLSDownloadIdentity.parse(task.taskDescription, taskIdentifier: task.taskIdentifier) else { return nil }
         lock.lock(); if states[identity] == nil { states[identity] = State(identity: identity) }; lock.unlock()
         return identity
+    }
+    /// Shared by the real nil-error transport callback and local state-contract
+    /// tests; this alone never publishes a playable/completed library item.
+    func completedTransport(_ identity: HLSDownloadIdentity) {
+        lock.lock()
+        if var state = states[identity] { state.transportComplete = true; states[identity] = state }
+        lock.unlock()
+        finalize(identity)
     }
     private func update(_ identity: HLSDownloadIdentity, event: HLSDownloadSnapshot.Event, allowTerminal: Bool = false,
                         action: (inout State) -> Void) {
@@ -638,7 +697,14 @@ private final class HLSAssetDownloadDelegate: NSObject, AVAssetDownloadDelegate,
     private func finalize(_ identity: HLSDownloadIdentity) {
         lock.lock()
         guard var state = states[identity], state.registered, state.transportComplete,
-              !state.terminalSent, let quality = state.quality, state.audioGroup != nil else { lock.unlock(); return }
+              !state.terminalSent, let quality = state.quality else { lock.unlock(); return }
+        if state.audioGroup == nil, !Self.matchesLanguage(state.selectedLanguage, requested: state.language) {
+            guard !state.metadataCompletionRequested else { lock.unlock(); return }
+            state.metadataCompletionRequested = true
+            let snapshot = Self.snapshot(&state, event: .transportFinishedAwaitingMetadata)
+            states[identity] = state; lock.unlock(); enqueue(snapshot)
+            return
+        }
         let validSelection = !state.variants.isEmpty && state.variants.allSatisfy { $0.matches(quality: quality) }
             && Self.matchesLanguage(state.selectedLanguage, requested: state.language)
         if !state.didFinish || state.location == nil { state.failure = HLSDownloadFailure(HLSDownloadSessionError.incompletePackage) }
