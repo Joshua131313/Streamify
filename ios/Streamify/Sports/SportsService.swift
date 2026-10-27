@@ -60,6 +60,7 @@ struct SportsService: Sendable {
         var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)
         request.timeoutInterval = 20
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("Streamify/1.1", forHTTPHeaderField: "User-Agent")
         let prepared = request
         let lifetime: TimeInterval = url.path.hasSuffix("/teams") || url.path.hasSuffix("/roster") ? 3600 : 30
         let data = try await ResponseMemoryCache.shared.data(key: ResponseMemoryCache.key(for: prepared, session: session),
@@ -292,7 +293,8 @@ struct SportsService: Sendable {
             ($0.home.primaryColorHex == nil || $0.away.primaryColorHex == nil ||
              ($0.league == .mlb ? $0.liveSituation?.baseball?.hasBaseData != true : $0.possessionTeam == nil))
         }
-        guard !missing.isEmpty, !Task.isCancelled else { return games }
+        guard !Task.isCancelled else { return games }
+        if missing.isEmpty { return await enrichHockey(games) }
         let utc = DateFormatter()
         utc.locale = Locale(identifier: "en_US_POSIX")
         utc.timeZone = TimeZone(secondsFromGMT: 0)
@@ -356,7 +358,69 @@ struct SportsService: Sendable {
         }
         guard !Task.isCancelled else { return games }
         enriched = Self.applyingLiveSnapshots(summaries, to: enriched)
+        enriched = await enrichHockey(enriched)
         return SportsScheduleDayPolicy.games(enriched, for: day, now: now(), calendar: calendar)
+    }
+
+    private func enrichHockey(_ games: [SportsGame]) async -> [SportsGame] {
+        let live = games.filter { $0.league == .nhl && $0.isLive }
+        guard !live.isEmpty, !Task.isCancelled else { return games }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "America/New_York")
+        formatter.dateFormat = "yyyy-MM-dd"
+        let dates = Set(live.compactMap(\.date).map { formatter.string(from: $0) })
+        var official: [[String: Any]] = []
+        for date in dates.sorted() {
+            guard !Task.isCancelled else { return games }
+            if let response = try? await object("https://api-web.nhle.com/v1/score/\(date)") {
+                official += response.sportsObjects("games")
+            }
+        }
+        return games.map { game in
+            guard game.league == .nhl, game.isLive,
+                  let match = official.first(where: { Self.matchesHockey($0, game: game) }) else { return game }
+            var updated = game
+            var live = updated.liveSituation ?? SportsLiveSituation()
+            live.hockey = Self.hockeySituation(match, game: game, observedAt: now())
+            updated.liveSituation = live
+            return updated
+        }
+    }
+
+    static func matchesHockey(_ raw: [String: Any], game: SportsGame) -> Bool {
+        func normalized(_ value: String) -> String {
+            let upper = value.uppercased()
+            return ["LA": "LAK", "NJ": "NJD", "SJ": "SJS", "TB": "TBL", "MON": "MTL", "UTAH": "UTA"][upper] ?? upper
+        }
+        guard game.league == .nhl, !game.away.abbreviation.isEmpty, !game.home.abbreviation.isEmpty,
+              normalized(raw.sportsObject("awayTeam").sportsText("abbrev")) == normalized(game.away.abbreviation),
+              normalized(raw.sportsObject("homeTeam").sportsText("abbrev")) == normalized(game.home.abbreviation),
+              let start = parseDate(raw.sportsText("startTimeUTC")), let date = game.date,
+              abs(start.timeIntervalSince(date)) < 6 * 3600 else { return false }
+        return ["LIVE", "CRIT"].contains(raw.sportsText("gameState"))
+    }
+
+    static func hockeySituation(_ raw: [String: Any], game: SportsGame, observedAt: Date) -> SportsHockeySituation? {
+        guard game.league == .nhl, game.isLive, matchesHockey(raw, game: game) else { return nil }
+        let situation = raw.sportsObject("situation")
+        let away = situation.sportsObject("awayTeam"), home = situation.sportsObject("homeTeam")
+        let code = Array(raw.sportsText("situationCode"))
+        let validCode = code.count == 4 && code.allSatisfy(\.isNumber)
+        let awaySkaters = count(away["strength"], range: 3...6) ?? (validCode ? Int(String(code[1])) : nil)
+        let homeSkaters = count(home["strength"], range: 3...6) ?? (validCode ? Int(String(code[2])) : nil)
+        guard let awaySkaters, let homeSkaters, (3...6).contains(awaySkaters), (3...6).contains(homeSkaters) else { return nil }
+        let awayTags = Set((away["situationDescriptions"] as? [String] ?? []).map { $0.uppercased() })
+        let homeTags = Set((home["situationDescriptions"] as? [String] ?? []).map { $0.uppercased() })
+        var empty = Set<String>()
+        if awayTags.contains("EN") || (validCode && code[0] == "0") { empty.insert(game.away.id) }
+        if homeTags.contains("EN") || (validCode && code[3] == "0") { empty.insert(game.home.id) }
+        let ppTeams = [(game.away.id, awayTags), (game.home.id, homeTags)].filter { $0.1.contains("PP") }.map(\.0)
+        let pp = ppTeams.count == 1 ? ppTeams[0] : nil
+        let timer = situation.sportsText("timeRemaining")
+        let time = timer.range(of: #"^[0-9]{1,2}:[0-5][0-9]$"#, options: .regularExpression) == nil ? nil : timer
+        return SportsHockeySituation(awaySkaters: awaySkaters, homeSkaters: homeSkaters,
+            powerPlayTeamID: pp, emptyNetTeamIDs: empty, strengthTime: time, observedAt: observedAt)
     }
 
     static func applyingLiveSnapshots(_ snapshots: [SportsGame], to games: [SportsGame]) -> [SportsGame] {
@@ -472,9 +536,18 @@ struct SportsService: Sendable {
         let roster = try? await object(root + "/roster" + (result.league == .ncaaf ? "?limit=1000" : ""))
         try Task.checkCancellation()
         let athletes = (roster?.sportsObjects("athletes") ?? []).flatMap { group in group["items"] == nil ? [group] : group.sportsObjects("items") }
+        let scheduledGames = (schedule?.sportsObjects("events") ?? []).compactMap { parseGame($0, league: result.league) }
+        let liveScores = await withTaskGroup(of: SportsGame?.self) { group in
+            for game in scheduledGames where game.isLive {
+                group.addTask { try? await center(game).game }
+            }
+            var values: [SportsGame] = []
+            for await value in group { if let value { values.append(value) } }
+            return values
+        }
         return SportsTeamProfile(team: parseTeam(information), location: information.sportsText("location"),
                                  venue: information.sportsObject("franchise").sportsObject("venue").sportsText("fullName"),
-                                 games: (schedule?.sportsObjects("events") ?? []).compactMap { parseGame($0, league: result.league) }.sorted { ($0.date ?? .distantFuture) < ($1.date ?? .distantFuture) },
+                                 games: Self.applyingLiveSnapshots(liveScores, to: scheduledGames).sorted { ($0.date ?? .distantFuture) < ($1.date ?? .distantFuture) },
                                  roster: athletes.enumerated().map { index, player in
             let athlete = player.sportsObject("athlete")
             let photo = [player.sportsObject("headshot").sportsText("href"), player.sportsText("headshot"),
@@ -487,7 +560,8 @@ struct SportsService: Sendable {
     func center(_ game: SportsGame) async throws -> SportsGameCenter {
         let response = try await object("\(game.league.endpoint)/summary?event=\(game.eventID)")
         let header = response.sportsObject("header")
-        let fresh = await summaryGame(response, fallback: game) ?? game
+        var fresh = await summaryGame(response, fallback: game) ?? game
+        if fresh.league == .nhl, fresh.isLive { fresh = await enrichHockey([fresh]).first ?? fresh }
         try Task.checkCancellation()
         let competitors = header.sportsObjects("competitions").first?.sportsObjects("competitors") ?? []
         let awayPeriods = competitors.first { $0.sportsText("homeAway") == "away" }?.sportsObjects("linescores") ?? []
@@ -521,7 +595,63 @@ struct SportsService: Sendable {
             return SportsStatRow(id: key, label: label, away: a?.sportsText("displayValue") ?? "—", home: h?.sportsText("displayValue") ?? "—")
         }
         let latest = response.sportsObjects("plays").last?.sportsText("text") ?? response.sportsObject("drives").sportsObject("current").sportsObjects("plays").last?.sportsText("text") ?? ""
-        return SportsGameCenter(game: fresh, scoring: scoring, statistics: statistics, latest: latest)
+        return SportsGameCenter(game: fresh, scoring: scoring, statistics: statistics, latest: latest,
+            playByPlay: Self.playByPlay(response), playerStats: Self.playerStatistics(response, game: fresh))
+    }
+
+    static func playByPlay(_ response: [String: Any]) -> [SportsPlayPeriod] {
+        let drives = response.sportsObject("drives")
+        let raw = response.sportsObjects("plays") + drives.sportsObjects("previous").flatMap { $0.sportsObjects("plays") }
+            + drives.sportsObject("current").sportsObjects("plays")
+        var seen = Set<String>()
+        let plays = raw.enumerated().compactMap { index, item -> (Double, Int, SportsGamePlay)? in
+            guard let period = Int(item.sportsObject("period").sportsText("number")), (1...50).contains(period) else { return nil }
+            let text = item.sportsText("text").trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else { return nil }
+            let id = item.sportsText("id").isEmpty ? "\(period):\(item.sportsObject("clock").sportsText("displayValue")):\(text)" : item.sportsText("id")
+            guard seen.insert(id).inserted else { return nil }
+            let play = SportsGamePlay(id: id, period: period, clock: item.sportsObject("clock").sportsText("displayValue"),
+                text: text, awayScore: item.sportsText("awayScore"), homeScore: item.sportsText("homeScore"),
+                teamID: item.sportsObject("team").sportsText("id"), scoring: explicitBool(item["scoringPlay"]) == true)
+            let sequence = Double(item.sportsText("sequenceNumber")).flatMap { $0.isFinite ? $0 : nil } ?? Double(index)
+            return (sequence, index, play)
+        }.sorted { $0.0 == $1.0 ? $0.1 < $1.1 : $0.0 < $1.0 }.map { $0.2 }
+        let grouped = Dictionary(grouping: plays, by: \.period)
+        return grouped.keys.sorted().map { SportsPlayPeriod(number: $0, plays: grouped[$0] ?? []) }
+    }
+
+    static func playerStatistics(_ response: [String: Any], game: SportsGame) -> [SportsPlayerStatGroup] {
+        var groups: [SportsPlayerStatGroup] = []
+        for side in response.sportsObject("boxscore").sportsObjects("players") {
+            let teamID = side.sportsObject("team").sportsText("id")
+            guard [game.away.id, game.home.id].contains(teamID) else { continue }
+            for (index, table) in side.sportsObjects("statistics").enumerated() {
+                let labels = table["labels"] as? [String] ?? table["names"] as? [String] ?? []
+                guard !labels.isEmpty else { continue }
+                var seen = Set<String>()
+                let players = table.sportsObjects("athletes").compactMap { row -> SportsPlayerStatLine? in
+                    let player = row.sportsObject("athlete")
+                    let id = player.sportsText("id"), name = player.sportsText("displayName")
+                    guard !id.isEmpty, !name.isEmpty, seen.insert(id).inserted else { return nil }
+                    let rawValues = row["stats"] as? [Any] ?? []
+                    let values = labels.indices.map { column -> String in
+                        guard rawValues.indices.contains(column) else { return "—" }
+                        let value = rawValues[column]
+                        let text = value as? String ?? (value as? NSNumber)?.stringValue ?? ""
+                        return text.isEmpty ? "—" : text
+                    }
+                    return SportsPlayerStatLine(id: id, name: name, number: player.sportsText("jersey"),
+                        position: player.sportsObject("position").sportsText("abbreviation"),
+                        photo: player.sportsObject("headshot").sportsText("href"), values: values,
+                        didNotPlay: explicitBool(row["didNotPlay"]) == true)
+                }
+                guard !players.isEmpty else { continue }
+                groups.append(SportsPlayerStatGroup(id: "\(teamID):\(index)", teamID: teamID,
+                    title: table.sportsText("displayName").isEmpty ? table.sportsText("name").capitalized : table.sportsText("displayName"),
+                    labels: labels, descriptions: table["descriptions"] as? [String] ?? [], players: players))
+            }
+        }
+        return groups
     }
 
     static func validEventID(_ value: String) -> Bool {

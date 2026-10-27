@@ -115,7 +115,7 @@ struct HomeView: View {
                 collections
                 Text("Film and series data by TMDB · Anime by AniList")
                     .font(.caption2).foregroundStyle(AppTheme.muted).padding(.horizontal, 16)
-            }.padding(.top, 4).padding(.bottom, 24)
+            }.padding(.top, 4).padding(.bottom, 110)
         }
         .accessibilityIdentifier("home-catalog")
         .background {

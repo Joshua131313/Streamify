@@ -40,6 +40,27 @@ final class ParityFlowTests: XCTestCase {
         capture("Game center with a compact Watch action")
     }
 
+    func testFinalGameHasGroupedPlayByPlayAndBothTeamsPlayerTables() {
+        app.buttons["tab-sports"].tap(); selectSportsLeagues(["nba"])
+        app.buttons["sports-filter-Final"].tap()
+        let finalGame = app.buttons["sports-game-nba:nba-final"]
+        XCTAssertTrue(finalGame.waitForExistence(timeout: 8)); finalGame.tap()
+        XCTAssertFalse(app.staticTexts["Teams"].exists)
+        selectGameCenterTab("Players")
+        XCTAssertTrue(element("sports-player-row-p100").waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts["Jordan Hayes"].exists)
+        app.buttons["sports-players-team-200"].tap()
+        XCTAssertTrue(element("sports-player-row-p200").waitForExistence(timeout: 5))
+        capture("Final player table switches teams and preserves aligned stat columns")
+        selectGameCenterTab("Play-by-play")
+        XCTAssertFalse(app.buttons["sports-game-tab-Latest play"].exists)
+        let second = app.buttons["sports-play-period-filter-2"]
+        XCTAssertTrue(second.waitForExistence(timeout: 5)); second.tap()
+        XCTAssertTrue(element("sports-play-play-2").waitForExistence(timeout: 5))
+        XCTAssertFalse(element("sports-play-play-1").exists)
+        capture("Final play-by-play filters and expands Quarter2")
+    }
+
     override func tearDownWithError() throws {
         if (testRun?.failureCount ?? 0) > 0, let app {
             capture("FAILURE current screen")
@@ -780,6 +801,12 @@ final class ParityFlowTests: XCTestCase {
     }
     private func element(_ identifier: String) -> XCUIElement {
         app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+    }
+    private func selectGameCenterTab(_ title: String) {
+        let button = app.buttons["sports-game-tab-\(title)"]
+        let rail = app.scrollViews["sports-game-tabs"]
+        for _ in 0..<4 { if button.isHittable { break }; rail.swipeLeft() }
+        XCTAssertTrue(button.isHittable); button.tap()
     }
     private func pauseHomeCarousel() {
         let pause = app.buttons["hero-carousel-pause"]

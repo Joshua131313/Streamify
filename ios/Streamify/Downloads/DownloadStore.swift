@@ -716,6 +716,9 @@ private final class DownloadSessionDelegate: NSObject, URLSessionDownloadDelegat
 /// Wire with @UIApplicationDelegateAdaptor(DownloadAppDelegate.self) in StreamifyApp.
 @MainActor
 final class DownloadAppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        SportsLiveAlerts.shared.setAPNSToken(deviceToken)
+    }
     func application(_ application: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession,
         options: UIScene.ConnectionOptions) -> UISceneConfiguration {
         let configuration = UISceneConfiguration(name: nil, sessionRole: connectingSceneSession.role)

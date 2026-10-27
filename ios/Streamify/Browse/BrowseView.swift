@@ -228,7 +228,7 @@ struct BrowseView: View {
                 }
                 Text(kind == .anime ? "Anime catalog by AniList" : "Film and series data by TMDB")
                     .font(.caption2).foregroundStyle(AppTheme.muted).padding(.horizontal, pageGutter)
-            }.padding(.top, 12).padding(.bottom, 24)
+            }.padding(.top, 12).padding(.bottom, 110)
         }
         .accessibilityIdentifier(category ? "category-catalog-\(kind?.rawValue ?? "all")" : "browse-catalog")
         .scrollDismissesKeyboard(.interactively)

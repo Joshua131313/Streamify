@@ -38,9 +38,48 @@ struct SportsLiveSituationView: View {
                 }
             } else if game.league == .mlb, let baseball = situation.baseball {
                 SportsBaseballSituationView(game: game, situation: baseball)
+            } else if game.league == .nhl, let hockey = situation.hockey, game.hockeySummary != nil {
+                SportsHockeySituationView(game: game, situation: hockey)
             } else if let teamLabel {
                 Text("\(teamLabel) possession").font(.system(size: 11, weight: .medium))
                     .accessibilityIdentifier("sports-possession-\(game.id)")
+            }
+        }
+    }
+}
+
+private struct SportsHockeySituationView: View {
+    let game: SportsGame
+    let situation: SportsHockeySituation
+    @State private var expanded = false
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button { withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() } } label: {
+                HStack(spacing: 6) {
+                    Text(game.hockeySummary ?? "").font(.system(size: 11, weight: .semibold))
+                    Image(systemName: expanded ? "chevron.up" : "chevron.down").font(.system(size: 9, weight: .semibold))
+                }.padding(.horizontal, 9).frame(height: 30)
+                    .background(AppTheme.foreground.opacity(0.07), in: RoundedRectangle(cornerRadius: 8))
+                    .frame(minHeight: 44).contentShape(Rectangle())
+            }.buttonStyle(HapticPlainButtonStyle()).accessibilityIdentifier("sports-hockey-tag-\(game.id)")
+                .accessibilityValue(expanded ? "Expanded" : "Collapsed")
+            if expanded {
+                VStack(alignment: .leading, spacing: 7) {
+                    ForEach([game.away, game.home]) { team in
+                        HStack {
+                            Text(team.abbreviation).fontWeight(.semibold)
+                            Spacer()
+                            let skaters = team.id == game.away.id ? situation.awaySkaters : situation.homeSkaters
+                            Text("\(skaters) skaters\(situation.emptyNetTeamIDs.contains(team.id) ? " · Empty net" : "")")
+                        }
+                    }
+                    if let timer = situation.strengthTime {
+                        HStack { Text("Strength timer").foregroundStyle(AppTheme.muted); Spacer(); Text(timer).monospacedDigit().fontWeight(.semibold) }
+                    }
+                    Text("Feed snapshot · \(game.status)").font(.caption2).foregroundStyle(AppTheme.muted)
+                }.font(.caption).padding(10)
+                    .background(AppTheme.foreground.opacity(0.035), in: RoundedRectangle(cornerRadius: 10))
+                    .accessibilityIdentifier("sports-hockey-details-\(game.id)")
             }
         }
     }

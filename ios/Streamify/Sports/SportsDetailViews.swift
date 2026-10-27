@@ -16,15 +16,19 @@ struct SportsGameView: View {
     @State private var streamsError: String?
     @State private var selectedTeam: SportsTeamResult?
     @State private var showMultiWatch = false
+    @State private var showChat = false
     private var current: SportsGame { center?.game ?? game }
+    private var tabs: [String] { ["Overview", "Scoring", "Team stats"] + (current.state == "pre" ? [] : ["Players"]) + [current.isFinal ? "Play-by-play" : "Latest play", "Chat"] }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 scoreboard
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) { ForEach(["Overview", "Scoring", "Team stats", "Latest play", "Chat"], id: \.self) { value in Pill(title: value, selected: tab == value) { tab = value }.accessibilityIdentifier(value == "Scoring" ? "sports-scoring-tab" : "sports-game-tab-\(value)") } }
-                }
+                    HStack(spacing: 8) { ForEach(tabs, id: \.self) { value in Pill(title: value, selected: tab == value) {
+                        if value == "Chat" { showChat = true } else { tab = value }
+                    }.accessibilityIdentifier(value == "Scoring" ? "sports-scoring-tab" : "sports-game-tab-\(value)") } }
+                }.accessibilityIdentifier("sports-game-tabs")
                 if let error {
                     StateMessage(symbol: "exclamationmark.circle", title: "Detailed feed unavailable", message: error, actionTitle: "Retry", action: { revision += 1 })
                 }
@@ -37,9 +41,8 @@ struct SportsGameView: View {
                 if tab == "Latest play" {
                     SportsPanel { Label("Latest play", systemImage: "waveform.path").font(.headline); Text(center.flatMap { $0.latest.isEmpty ? nil : $0.latest } ?? "Play-by-play is not available in the current feed.").foregroundStyle(AppTheme.muted) }
                 }
-                if tab == "Chat" {
-                    SportsChatView(game: current)
-                }
+                if tab == "Play-by-play" { SportsPlayByPlayView(game: current, periods: center?.playByPlay ?? []) }
+                if tab == "Players" { SportsGamePlayersView(game: current, groups: center?.playerStats ?? []) }
             }.padding(.horizontal, 16).padding(.top, 10).padding(.bottom, 24)
         }
         .background(AppTheme.canvas).foregroundStyle(AppTheme.foreground)
@@ -62,6 +65,7 @@ struct SportsGameView: View {
         .task(id: "\(game.id)-\(revision)") { await loadStreams() }
         .sheet(item: $selectedTeam) { item in NavigationStack { SportsTeamView(result: item).environmentObject(queue) } }
         .sheet(isPresented: $showMultiWatch) { NavigationStack { SportsMultiWatchView().environmentObject(queue) } }
+        .sheet(isPresented: $showChat) { SportsGameChatScreen(game: current) }
         .onChange(of: playback.isMinimized) { _, minimized in
             guard minimized else { return }
             selectedTeam = nil
@@ -121,6 +125,7 @@ struct SportsGameView: View {
         VStack(alignment: .leading, spacing: 16) {
             SportsPlaybackOriginCard { origin in
                 HStack(spacing: 10) {
+                    if !current.isFinal { SportsTrackGameButton(game: current) }
                     if current.canWatch, let first = streams.first {
                         Button { play(first, origin: origin) } label: {
                             HStack(spacing: 7) {
@@ -175,18 +180,6 @@ struct SportsGameView: View {
                     }
                 }
             }
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Teams").font(.headline).padding(.bottom, 4)
-                ForEach([current.away, current.home]) { team in
-                    Button { selectedTeam = SportsTeamResult(league: game.league, team: team) } label: {
-                        HStack(spacing: 10) {
-                            RemoteArtwork(url: team.logoURL, contentMode: .fit).frame(width: 26, height: 26)
-                            Text(team.name).font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity, alignment: .leading)
-                            Image(systemName: "chevron.right").font(.caption).foregroundStyle(AppTheme.muted)
-                        }.frame(minHeight: 48).contentShape(Rectangle())
-                    }.buttonStyle(HapticPlainButtonStyle()).accessibilityIdentifier("sports-team-profile-\(team.id)")
-                }
-            }
         }
     }
 
@@ -222,6 +215,7 @@ struct SportsTeamView: View {
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var queue: SportsWatchQueue
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @State private var profile: SportsTeamProfile?
     @State private var error: String?
     @State private var loading = true
@@ -254,12 +248,16 @@ struct SportsTeamView: View {
             }.padding(20).padding(.bottom, 24)
         }.background(AppTheme.canvas).foregroundStyle(AppTheme.foreground).navigationTitle("\(result.league.title) · Team").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
-            .task(id: revision) {
-                loading = true
+            .task(id: "\(revision)-\(scenePhase == .active)") {
+                guard scenePhase == .active else { return }
+                loading = profile == nil
                 defer { loading = false }
-                do { profile = try await SportsService().profile(result); error = nil }
-                catch is CancellationError { }
-                catch { if !Task.isCancelled { self.error = error.localizedDescription } }
+                repeat {
+                    do { profile = try await SportsService().profile(result); error = nil; loading = false }
+                    catch is CancellationError { return }
+                    catch { if !Task.isCancelled { self.error = error.localizedDescription; loading = false } }
+                    do { try await Task.sleep(for: .seconds(30)) } catch { return }
+                } while !Task.isCancelled
             }
             .sheet(item: $selectedGame) { game in NavigationStack { SportsGameView(game: game).environmentObject(queue) } }
     }

@@ -178,6 +178,9 @@ private struct SportsPlaybackOverlay: View {
     @State private var dismissing = false
     @State private var dismissalToken = UUID()
     @State private var landscapeControlsVisible = false
+    @State private var showChat = false
+    @State private var landscapeOptionsVisible = true
+    @State private var interactionToken = UUID()
     init(session: SportsPlaybackSession, activity: SportsPlaybackSceneActivity, sourceFrame: @escaping () -> CGRect?) {
         self.session = session
         self.activity = activity
@@ -202,9 +205,22 @@ private struct SportsPlaybackOverlay: View {
                 .frame(width: geometry.size.width, height: geometry.size.height)
                 .accessibilityElement(children: .contain).accessibilityIdentifier("sports-player")
                 .accessibilityValue("\(item.title), \(session.sourceTitle)")
-                .onChange(of: geometry.size) { _, _ in resetDismissal(); landscapeControlsVisible = false }
+                .onChange(of: geometry.size) { _, _ in resetDismissal(); landscapeControlsVisible = false; revealLandscapeOptions() }
+                .background { SportsPlayerTouchObserver(onTouch: revealLandscapeOptions).frame(width: 0, height: 0) }
+                .task(id: interactionToken) {
+                    guard geometry.size.width > geometry.size.height else { return }
+                    do { try await Task.sleep(for: .seconds(3)) } catch { return }
+                    guard !landscapeControlsVisible, !showChat else { return }
+                    withAnimation(reduceMotion ? nil : .easeOut(duration: 0.25)) { landscapeOptionsVisible = false }
+                }
             }
         }.ignoresSafeArea().preferredColorScheme(.dark).foregroundStyle(.white).tint(.white)
+        .sheet(isPresented: $showChat) {
+            if let game = session.item?.game {
+                SportsGameChatScreen(game: game).presentationDetents([.medium, .large])
+            }
+        }
+        .onChange(of: session.item?.game?.id) { _, _ in showChat = false }
         .onChange(of: session.item?.id) { _, _ in resetDismissal() }
         .onChange(of: session.item?.url) { _, _ in resetDismissal() }
         .onChange(of: session.presentation) { _, _ in resetDismissal() }
@@ -294,6 +310,7 @@ private struct SportsPlaybackOverlay: View {
                     Spacer()
                     Button {
                         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) { landscapeControlsVisible.toggle() }
+                        revealLandscapeOptions()
                     } label: {
                         Image(systemName: landscapeControlsVisible ? "chevron.up" : "ellipsis")
                             .font(.system(size: 17, weight: .semibold)).frame(width: 44, height: 44)
@@ -301,6 +318,9 @@ private struct SportsPlaybackOverlay: View {
                     }.buttonStyle(HapticPlainButtonStyle())
                         .accessibilityLabel(landscapeControlsVisible ? "Hide player options" : "Show player options")
                         .accessibilityIdentifier("sports-landscape-options")
+                        .opacity(landscapeOptionsVisible || landscapeControlsVisible ? 1 : 0)
+                        .allowsHitTesting(landscapeOptionsVisible || landscapeControlsVisible)
+                        .accessibilityHidden(!landscapeOptionsVisible && !landscapeControlsVisible)
                 }.padding(.trailing, max(12, session.safeAreaInsets.right))
                     .padding(.top, session.safeAreaInsets.top + 6)
             }
@@ -392,12 +412,20 @@ private struct SportsPlaybackOverlay: View {
 
     private var presentationButtons: some View {
         Group {
+            if session.item?.game != nil {
+                Button { showChat = true } label: { Image(systemName: "bubble.left.and.bubble.right").frame(width: 44, height: 44) }
+                    .accessibilityLabel("Game chat").accessibilityIdentifier("sports-player-chat")
+            }
             AirPlayButton().frame(width: 44, height: 44).accessibilityLabel("AirPlay")
             Button(action: session.requestPictureInPicture) { Image(systemName: "pip.enter").frame(width: 44, height: 44) }
                 .accessibilityLabel("Picture in Picture")
                 .accessibilityValue(pictureInPicture.isRequesting ? "Starting" : pictureInPicture.capability.rawValue)
                 .accessibilityIdentifier("sports-player-pip")
         }
+    }
+    private func revealLandscapeOptions() {
+        landscapeOptionsVisible = true
+        interactionToken = UUID()
     }
     private func footer(_ item: SportsPlaybackItem) -> some View {
         HStack(spacing: 8) {
@@ -414,5 +442,31 @@ private struct SportsPlaybackOverlay: View {
             .frame(maxWidth: .infinity, minHeight: 44)
             .background(.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
             .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(.white.opacity(0.12), lineWidth: 1) }
+    }
+}
+
+/// Records a touch without claiming it, cancelling controls or delaying WebKit.
+private struct SportsPlayerTouchObserver: UIViewRepresentable {
+    var onTouch: () -> Void
+    func makeUIView(context: Context) -> ObserverView { ObserverView(onTouch: onTouch) }
+    func updateUIView(_ view: ObserverView, context: Context) { view.recognizer.onTouch = onTouch }
+    static func dismantleUIView(_ view: ObserverView, coordinator: ()) { view.recognizer.view?.removeGestureRecognizer(view.recognizer) }
+    final class ObserverView: UIView {
+        let recognizer: TouchRecorder
+        init(onTouch: @escaping () -> Void) {
+            recognizer = TouchRecorder(); recognizer.onTouch = onTouch
+            super.init(frame: .zero)
+            isUserInteractionEnabled = false
+            recognizer.cancelsTouchesInView = false; recognizer.delaysTouchesBegan = false; recognizer.delaysTouchesEnded = false
+        }
+        required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+        override func didMoveToWindow() {
+            recognizer.view?.removeGestureRecognizer(recognizer)
+            window?.addGestureRecognizer(recognizer)
+        }
+    }
+    final class TouchRecorder: UIGestureRecognizer {
+        var onTouch: (() -> Void)?
+        override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) { onTouch?(); state = .failed }
     }
 }

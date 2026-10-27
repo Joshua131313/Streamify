@@ -18,6 +18,10 @@ struct RefreshLiveGamesIntent: AppIntent {
 }
 
 @main
+struct StreamifyWidgetsBundle: WidgetBundle {
+    var body: some Widget { StreamifyLiveGamesWidget(); TrackedGameLiveActivity() }
+}
+
 struct StreamifyLiveGamesWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: SportsWidgetPolicy.kind, provider: LiveGamesProvider()) { entry in

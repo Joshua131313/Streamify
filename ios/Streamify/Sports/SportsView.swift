@@ -34,6 +34,7 @@ struct SportsView: View {
     var searchNamespace: Namespace.ID? = nil
     var searchSourceID = "sports-search"
     @EnvironmentObject private var settings: SettingsStore
+    @EnvironmentObject private var profiles: ProfileStore
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var playback: SportsPlaybackSession
     @Environment(\.scenePhase) private var scenePhase
@@ -645,6 +646,8 @@ struct SportsView: View {
             games = enriched
             scheduleCache.store(SportsSchedule(games: enriched, failedLeagues: result.failedLeagues, partial: result.partial),
                                 leagues: requestedLeagues, day: requestedDay, backend: backend, fetchedAt: fetchedAt)
+            await SportsLiveAlerts.shared.observe(enriched, teams: library.followedTeams, enabled: settings.liveTeamAlerts,
+                profile: String(describing: profiles.contextID))
         } catch is CancellationError { }
         catch { if !Task.isCancelled && requestedKey == requestKey && scheduleRequest == request { self.error = error.localizedDescription } }
     }
@@ -734,20 +737,7 @@ struct SportsGameCard: View {
             SportsLiveSituationView(game: game)
             HStack(spacing: 10) {
                 Spacer(minLength: 2)
-                Button {
-                    guard daySwipeScope?.permitsProtectedAction != false else { return }
-                    AppHaptics.tap()
-                    action()
-                } label: {
-                    HStack(spacing: 7) {
-                        Text("Gamecast")
-                        Image(systemName: "chevron.right").font(.system(size: 9, weight: .medium))
-                    }.padding(.horizontal, 12).frame(height: 36)
-                        .background(AppTheme.foreground.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
-                        .overlay { RoundedRectangle(cornerRadius: 10).strokeBorder(AppTheme.border, lineWidth: 0.7) }
-                        .frame(minHeight: 44).contentShape(Rectangle())
-                }.buttonStyle(.plain).foregroundStyle(AppTheme.foreground).accessibilityLabel("Game Center")
-                    .sportsDaySwipeExcluded(daySwipeScope)
+                if !game.isFinal { SportsTrackGameButton(game: game).sportsDaySwipeExcluded(daySwipeScope) }
                 if game.canWatch {
                     Button {
                         guard daySwipeScope?.permitsProtectedAction != false else { return }
@@ -771,6 +761,11 @@ struct SportsGameCard: View {
             .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 12))
             .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(AppTheme.border, lineWidth: 0.7) }
             .streamifyCardDepth(cornerRadius: 12)
+            .contentShape(RoundedRectangle(cornerRadius: 12))
+            .onTapGesture {
+                guard daySwipeScope?.permitsProtectedAction != false else { return }
+                AppHaptics.tap(); action()
+            }
             .sportsPlaybackOrigin(playbackOrigin)
             .sheet(item: $selectedTeam) { result in
                 NavigationStack { SportsTeamView(result: result).environmentObject(queue) }
@@ -827,7 +822,10 @@ struct SportsGameCard: View {
 
     private func teamControl(_ team: SportsTeam) -> some View {
         let following = library.followedTeams.contains(team.key(in: game.league))
-        return Button { openTeam(team) } label: {
+        return Button {
+            guard daySwipeScope?.permitsProtectedAction != false else { return }
+            AppHaptics.tap(); action()
+        } label: {
             matchTeam(team).contentShape(Rectangle())
         }
         .buttonStyle(CardPressedButtonStyle(cornerRadius: 8, preservesContextMenuSource: true))

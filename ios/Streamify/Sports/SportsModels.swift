@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import ActivityKit
 
 enum SportsLeague: String, CaseIterable, Identifiable, Codable, Sendable {
     case nfl
@@ -49,6 +50,16 @@ struct SportsLiveSituation: Hashable, Sendable {
     var fieldPosition: String? = nil
     var fieldProgress: Double? = nil
     var baseball: SportsBaseballSituation? = nil
+    var hockey: SportsHockeySituation? = nil
+}
+
+struct SportsHockeySituation: Hashable, Sendable {
+    let awaySkaters: Int
+    let homeSkaters: Int
+    let powerPlayTeamID: String?
+    let emptyNetTeamIDs: Set<String>
+    let strengthTime: String?
+    let observedAt: Date
 }
 
 /// Stable card ends: the away team advances right; the home team advances left.
@@ -102,6 +113,19 @@ struct SportsGame: Identifiable, Hashable, Sendable {
               let progress = liveSituation?.fieldProgress, progress.isFinite else { return nil }
         return SportsFootballFieldPosition(progress: min(1, max(0, progress)), advancesRight: team.id == away.id)
     }
+    var hockeySummary: String? {
+        guard isLive, league == .nhl, let hockey = liveSituation?.hockey else { return nil }
+        let power = [away, home].first { $0.id == hockey.powerPlayTeamID }
+        let empty = [away, home].filter { hockey.emptyNetTeamIDs.contains($0.id) }
+        guard power != nil || !empty.isEmpty || hockey.awaySkaters != 5 || hockey.homeSkaters != 5 else { return nil }
+        let first = power?.id == home.id ? hockey.homeSkaters : hockey.awaySkaters
+        let second = power?.id == home.id ? hockey.awaySkaters : hockey.homeSkaters
+        var pieces = ["\(first) on \(second)"]
+        if let power { pieces.append("\(power.abbreviation) PP") }
+        for team in empty { pieces.append("\(team.abbreviation) EN") }
+        if let timer = hockey.strengthTime, power != nil { pieces.append(timer) }
+        return pieces.joined(separator: " ")
+    }
     private var finalScores: (away: Double, home: Double)? {
         let detail = status.lowercased()
         guard isFinal, !["cancel", "postpon", "suspend", "no contest", "abandon"].contains(where: detail.contains),
@@ -120,6 +144,30 @@ struct SportsGame: Identifiable, Hashable, Sendable {
     }
     var canWatch: Bool {
         isLive || (state == "pre" && date.map { (0...3600).contains($0.timeIntervalSinceNow) } == true)
+    }
+}
+
+struct SportsTrackedGameAttributes: ActivityAttributes {
+    struct ContentState: Codable, Hashable {
+        var awayScore: String
+        var homeScore: String
+        var status: String
+        var situation: String?
+        var updatedAt: Date
+        var final: Bool
+    }
+    var league: String
+    var eventID: String
+    var away: String
+    var home: String
+    var awayID: String
+    var homeID: String
+    var gameKey: String { "\(league):\(eventID)" }
+    var watchURL: URL {
+        var value = URLComponents()
+        value.scheme = "streamify"; value.host = "sports"; value.path = "/watch"
+        value.queryItems = [URLQueryItem(name: "league", value: league), URLQueryItem(name: "event", value: eventID)]
+        return value.url ?? URL(string: "streamify://sports")!
     }
 }
 
@@ -168,6 +216,53 @@ struct SportsGameCenter {
     let scoring: [SportsStatRow]
     let statistics: [SportsStatRow]
     let latest: String
+    var playByPlay: [SportsPlayPeriod] = []
+    var playerStats: [SportsPlayerStatGroup] = []
+}
+
+struct SportsGamePlay: Identifiable {
+    let id: String
+    let period: Int
+    let clock: String
+    let text: String
+    let awayScore: String
+    let homeScore: String
+    let teamID: String
+    let scoring: Bool
+}
+
+struct SportsPlayPeriod: Identifiable {
+    let number: Int
+    let plays: [SportsGamePlay]
+    var id: Int { number }
+}
+
+struct SportsPlayerStatLine: Identifiable {
+    let id: String
+    let name: String
+    let number: String
+    let position: String
+    let photo: String
+    let values: [String]
+    let didNotPlay: Bool
+}
+
+struct SportsPlayerStatGroup: Identifiable {
+    let id: String
+    let teamID: String
+    let title: String
+    let labels: [String]
+    let descriptions: [String]
+    let players: [SportsPlayerStatLine]
+}
+
+extension SportsLeague {
+    func periodTitle(_ period: Int) -> String {
+        if self == .mlb { return "Inning \(period)" }
+        let regulation = self == .nhl ? 3 : 4
+        if period > regulation { return period == regulation + 1 ? "Overtime" : "Overtime \(period - regulation)" }
+        return "\(self == .nhl ? "Period" : "Quarter") \(period)"
+    }
 }
 
 struct SportsStream: Identifiable, Hashable {

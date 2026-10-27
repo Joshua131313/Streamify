@@ -133,13 +133,14 @@ final class SettingsStore: ObservableObject {
     @Published var apiBase: String = "" { didSet { defaults.set(apiBase, forKey: "streamify.ios.apiBase") } }
     @Published var serverID: String = "vidy" { didSet { persistPreferences() } }
     @Published var appearance: String = "Dark" { didSet { persistPreferences() } }
+    @Published var liveTeamAlerts = false { didSet { persistPreferences() } }
     @Published private(set) var credentialError: String?
     var onPreferencesChange: (() -> Void)?
     private let defaults: UserDefaults
     private let profileKey: String?
     private var storageEnabled = true
     private var applyingPreferences = false
-    private struct Preferences: Codable { let appearance: String; let serverID: String }
+    private struct Preferences: Codable { let appearance: String; let serverID: String; var liveTeamAlerts: Bool? = nil }
 
     var client: TMDBClient { TMDBClient(token: tmdbToken) }
     var servers: [MediaServer] { MediaServer.bundled }
@@ -154,6 +155,7 @@ final class SettingsStore: ObservableObject {
         serverID = stored?.serverID ?? ((profileKey == nil || migrateLegacy) ? defaults.string(forKey: "streamify.ios.serverID") : nil) ?? "vidy"
         let storedAppearance = stored?.appearance ?? ((profileKey == nil || migrateLegacy) ? defaults.string(forKey: "streamify.ios.appearance") : nil) ?? "Dark"
         appearance = ["Dark", "Light", "System"].contains(storedAppearance) ? storedAppearance : "Dark"
+        liveTeamAlerts = stored?.liveTeamAlerts ?? false
         #if DEBUG
         if PreviewFixtures.enabled { tmdbToken = PreviewFixtures.token }
         #endif
@@ -180,7 +182,7 @@ final class SettingsStore: ObservableObject {
     private func persistPreferences() {
         guard storageEnabled else { return }
         if let profileKey {
-            if let data = try? JSONEncoder().encode(Preferences(appearance: appearance, serverID: serverID)) { defaults.set(data, forKey: profileKey) }
+            if let data = try? JSONEncoder().encode(Preferences(appearance: appearance, serverID: serverID, liveTeamAlerts: liveTeamAlerts)) { defaults.set(data, forKey: profileKey) }
         } else {
             defaults.set(serverID, forKey: "streamify.ios.serverID")
             defaults.set(appearance, forKey: "streamify.ios.appearance")

@@ -99,7 +99,9 @@ final class SportsPlaybackFlowTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(video.frame.width, app.frame.width - 3)
         XCTAssertEqual(playbackDocument.label, document, "Rotation must retain the provider document, not reload playback.")
         let options = app.buttons["sports-landscape-options"]
-        XCTAssertTrue(options.isHittable)
+        XCTAssertTrue(wait { !options.isHittable }, "Idle landscape options should fade away.")
+        video.coordinate(withNormalizedOffset: CGVector(dx: 0.04, dy: 0.5)).tap()
+        XCTAssertTrue(options.wait(for: \.isHittable, toEqual: true, timeout: 5), "A video touch should reveal options without intercepting the provider.")
         capture("Sports landscape video fills the canvas without portrait bars")
         options.tap()
         XCTAssertTrue(source.wait(for: \.isHittable, toEqual: true, timeout: 5))
@@ -112,6 +114,20 @@ final class SportsPlaybackFlowTests: XCTestCase {
         XCTAssertEqual(playbackDocument.label, document)
         XCTAssertEqual(source.value as? String, selectedSource)
         capture("Sports portrait rotation restores controls and the same stream")
+    }
+
+    func testPlayerChatSheetKeepsTheCurrentVideoDocumentMounted() {
+        let source = openSportsPlayerOnBravo()
+        let document = playbackDocument.label
+        let selectedSource = source.value as? String
+        let chat = app.buttons["sports-player-chat"]
+        XCTAssertTrue(chat.isHittable); chat.tap()
+        XCTAssertTrue(element("sports-chat").waitForExistence(timeout: 5))
+        capture("Game chat sheet opens above the retained sports video")
+        app.buttons["sports-chat-close"].tap()
+        XCTAssertTrue(source.wait(for: \.isHittable, toEqual: true, timeout: 5))
+        XCTAssertEqual(playbackDocument.label, document)
+        XCTAssertEqual(source.value as? String, selectedSource)
     }
 
     func testSportsFullscreenUsesTheProvidersOwnControlAndKeepsItsDocument() {

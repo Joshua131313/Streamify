@@ -74,7 +74,7 @@ struct LibraryView: View {
                     PosterGrid(items: items)
                 }
                 Text("Saved on this iPhone").font(.caption).foregroundStyle(AppTheme.muted)
-            }.padding(20)
+            }.padding(20).padding(.bottom, 90)
         }
         .scrollDismissesKeyboard(.interactively)
         .foregroundStyle(AppTheme.foreground)
@@ -107,6 +107,7 @@ struct SettingsView: View {
     @State private var serverID = ""
     @State private var error: String?
     @State private var showToken = false
+    @ObservedObject private var liveAlerts = SportsLiveAlerts.shared
 
     var body: some View {
         Form {
@@ -131,6 +132,17 @@ struct SettingsView: View {
             }.listRowBackground(AppTheme.panel)
             Section("Default video provider") {
                 Picker("Provider", selection: $serverID) { ForEach(settings.servers) { Text($0.label).tag($0.id) } }.tint(AppTheme.foreground).disabled(!profiles.canEditProfiles)
+            }.listRowBackground(AppTheme.panel)
+            Section {
+                Toggle("Followed teams go live", isOn: Binding(get: { settings.liveTeamAlerts }, set: { enabled in
+                    if !enabled { settings.liveTeamAlerts = false }
+                    else { Task { settings.liveTeamAlerts = await liveAlerts.authorize() } }
+                })).tint(AppTheme.foreground).accessibilityIdentifier("sports-live-alerts-toggle")
+                if let status = liveAlerts.status { Text(status).font(.caption).foregroundStyle(AppTheme.muted) }
+            } header: { Text("Sports alerts") } footer: {
+                if !SportsLiveAlerts.remotePushConfigured {
+                    Text("Alerts while the app is closed need Apple push signing. This sideloaded build can alert you when Streamify checks scores.")
+                }
             }.listRowBackground(AppTheme.panel)
             if let error { Section { Text(error).foregroundStyle(AppTheme.accent) }.listRowBackground(AppTheme.panel) }
             if let credentialError = settings.credentialError { Section { Text(credentialError).foregroundStyle(AppTheme.accent) }.listRowBackground(AppTheme.panel) }

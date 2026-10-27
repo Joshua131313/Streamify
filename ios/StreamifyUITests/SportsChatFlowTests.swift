@@ -42,7 +42,7 @@ final class SportsChatFlowTests: XCTestCase {
         XCTAssertFalse(app.staticTexts["Replying to Guest 2048"].exists)
         capture("Local guest reply keeps its quoted message and receives a guest identity")
         // Dismiss the keyboard without sending another message.
-        app.navigationBars["Game center"].tap()
+        app.navigationBars["Game chat"].tap()
         let react = app.buttons["React to Guest 2048"]
         reveal(react)
         react.tap()
@@ -72,7 +72,7 @@ final class SportsChatFlowTests: XCTestCase {
 
     private func openChat() {
         app.buttons["tab-sports"].tap()
-        let center = app.buttons["Game Center"].firstMatch
+        let center = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'sports-game-'")).firstMatch
         reveal(center); center.tap()
         XCTAssertTrue(app.navigationBars["Game center"].waitForExistence(timeout: 8))
         let overview = app.buttons["sports-game-tab-Overview"]
@@ -86,6 +86,7 @@ final class SportsChatFlowTests: XCTestCase {
         }
         XCTAssertTrue(chat.isHittable); chat.tap()
         XCTAssertTrue(element("sports-chat").waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Game chat"].exists)
     }
     private func element(_ id: String) -> XCUIElement { app.descendants(matching: .any).matching(identifier: id).firstMatch }
     private func wait(_ condition: @escaping () -> Bool) -> Bool {

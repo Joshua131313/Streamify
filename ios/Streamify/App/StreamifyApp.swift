@@ -9,9 +9,11 @@ struct StreamifyApp: App {
     @StateObject private var downloads = DownloadStore.shared
     @StateObject private var sportsPlayback = SportsPlaybackSession()
     @StateObject private var quickActions = AppQuickActionRouter.shared
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         SportsChatBootstrap.configure()
+        SportsLiveAlerts.shared.bootstrap()
         #if DEBUG
         if PreviewFixtures.enabled { PreviewFixtures.install() }
         let localAccount = PreviewFixtures.enabled && ProcessInfo.processInfo.arguments.contains("--ui-account-success")
@@ -57,6 +59,10 @@ struct StreamifyApp: App {
                 }
                 .tint(AppTheme.foreground)
                 .onOpenURL { if !GoogleAccountSignIn.handle($0) { quickActions.enqueue(url: $0) } }
+                .task(id: scenePhase) {
+                    guard scenePhase == .active else { return }
+                    await SportsGameTracker.shared.refreshWhileActive()
+                }
                 .onAppear {
                     #if DEBUG
                     if PreviewFixtures.enabled {
@@ -255,6 +261,7 @@ struct RootView: View {
     private enum LibraryDestination: Hashable { case downloads }
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var profiles: ProfileStore
+    @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var downloads: DownloadStore
     @EnvironmentObject private var sportsPlayback: SportsPlaybackSession
     @EnvironmentObject private var quickActions: AppQuickActionRouter
@@ -300,7 +307,7 @@ struct RootView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        ZStack(alignment: .bottom) {
             TabView(selection: rootSelection) {
                 ForEach(AppTab.allCases, id: \.self) { page in
                     rootStack(page).id(navigationRevision).tag(page)
@@ -308,9 +315,9 @@ struct RootView: View {
             }
             .toolbar(.hidden, for: .tabBar)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            // Keep the footer outside UIKit's paging surface. Its intrinsic
-            // height reserves the same space without giving a carousel's
-            // native view a hit region underneath these navigation buttons.
+            .ignoresSafeArea(.container, edges: .bottom)
+            // The pill overlays the scroll viewport; only scroll content gets
+            // bottom padding. Reserving a sibling footer creates a solid shelf.
             if !keyboardVisible && visibleRootPages.contains(tab) && (tab != .library || libraryPath.isEmpty) {
                 FloatingNavigation(selection: rootSelection, onSelectProfile: onSelectProfile)
             }
@@ -324,6 +331,10 @@ struct RootView: View {
         }
         .sheet(isPresented: $accountOpen) { NavigationStack { AccountView() } }
         .sheet(isPresented: $downloadsOpen) { NavigationStack { DownloadsView() } }
+        .task(id: "\(profiles.contextID)|\(settings.liveTeamAlerts)|\(library.followedTeams.sorted().joined(separator: ","))|\(scenePhase == .active)") {
+            guard scenePhase == .active else { return }
+            SportsLiveAlerts.shared.configure(teams: library.followedTeams, enabled: settings.liveTeamAlerts)
+        }
         .streamifySearchPresentation(isPresented: $catalogSearchOpen, sourceID: catalogSearchSourceID, in: searchTransition) {
             CatalogSearchDialog()
         }

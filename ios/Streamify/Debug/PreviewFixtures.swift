@@ -289,7 +289,18 @@ enum PreviewFixtures {
             let event = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "event" })?.value ?? ""
             var header = event.hasSuffix("-final") ? final : event.hasSuffix("-pregame") ? pregame : game
             if SportsService.validEventID(event) { header["id"] = event }
-            return ["header": header, "boxscore": ["teams": [stats(false), stats(true)]], "plays": [["text": "Toronto takes the lead with a three point shot."]]]
+            func players(_ home: Bool) -> [String: Any] {
+                ["team": team(home), "statistics": [["name": "players", "labels": ["MIN", "PTS", "REB", "AST"],
+                    "descriptions": ["Minutes", "Points", "Rebounds", "Assists"], "athletes": [[
+                        "athlete": ["id": home ? "p200" : "p100", "displayName": home ? "Sam Rivera" : "Jordan Hayes", "jersey": home ? "22" : "7", "position": ["abbreviation": "G"]],
+                        "stats": home ? ["36", "28", "9", "7"] : ["34", "24", "6", "8"]
+                    ]]]]]
+            }
+            let plays: [[String: Any]] = (1...4).map { quarter in
+                ["id": "play-\(quarter)", "sequenceNumber": quarter, "period": ["number": quarter], "clock": ["displayValue": "5:12"],
+                 "text": "Quarter \(quarter) fixture scoring play.", "awayScore": quarter * 24, "homeScore": quarter * 25, "scoringPlay": true]
+            }
+            return ["header": header, "boxscore": ["teams": [stats(false), stats(true)], "players": [players(false), players(true)]], "plays": plays]
         }
         if parts.last == "roster" {
             return ["athletes": [["items": [["id": "1", "displayName": "Jordan Hayes", "jersey": "7", "position": ["abbreviation": "G"], "displayHeight": "6' 3\""], ["id": "2", "displayName": "Sam Rivera", "jersey": "22", "position": ["abbreviation": "F"], "displayHeight": "6' 8\""]]]]]

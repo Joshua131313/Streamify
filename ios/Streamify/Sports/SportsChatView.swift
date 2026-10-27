@@ -1,5 +1,21 @@
 import SwiftUI
 
+struct SportsGameChatScreen: View {
+    let game: SportsGame
+    @Environment(\.dismiss) private var dismiss
+    var body: some View {
+        NavigationStack {
+            SportsChatView(game: game).padding(.horizontal, 16).padding(.bottom, 8)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(AppTheme.canvas)
+                .navigationTitle("Game chat").navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }.buttonStyle(HapticPlainButtonStyle()).accessibilityIdentifier("sports-chat-close")
+                } }
+        }.tint(AppTheme.foreground).presentationDragIndicator(.visible)
+    }
+}
+
 struct SportsChatView: View {
     let game: SportsGame
     @StateObject private var chat = SportsChatStore()
@@ -14,16 +30,11 @@ struct SportsChatView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 12) {
-                Image(systemName: "bubble.left.and.bubble.right").font(.title3)
-                    .foregroundStyle(AppTheme.muted).frame(width: 44, height: 44)
-                    .background(AppTheme.panel, in: Circle())
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Game chat").font(.title3.bold())
-                    Text("Join the conversation as a guest").font(.caption).foregroundStyle(AppTheme.muted)
-                }
-                Spacer(minLength: 0)
-            }
+            HStack(spacing: 6) {
+                Text("\(game.away.abbreviation) vs \(game.home.abbreviation)").font(.subheadline.weight(.semibold))
+                Spacer()
+                Text("Public game chat").font(.caption).foregroundStyle(AppTheme.muted)
+            }.padding(.top, 8)
             if chat.loading { ProgressView().frame(maxWidth: .infinity).padding(16) }
             if let error = chat.error {
                 errorRow(error) { retry += 1 }
@@ -70,7 +81,7 @@ struct SportsChatView: View {
                 }
                 .coordinateSpace(name: "sports-chat-scroll")
                 .scrollDismissesKeyboard(.interactively)
-                .frame(height: 300)
+                .frame(maxHeight: .infinity)
                 .background(GeometryReader { geometry in
                     Color.clear.onAppear { viewportHeight = geometry.size.height }
                         .onChange(of: geometry.size.height) { _, height in viewportHeight = height }
@@ -92,8 +103,7 @@ struct SportsChatView: View {
                 }
             }
         }
-        .background(AppTheme.panel.opacity(0.5), in: RoundedRectangle(cornerRadius: 18))
-        .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(AppTheme.foreground.opacity(0.07), lineWidth: 1))
+        .frame(maxHeight: .infinity)
     }
 
     private func messageBubble(_ message: SportsChatMessage) -> some View {
@@ -145,9 +155,11 @@ struct SportsChatView: View {
                     }.disabled(message.pending)
                 }
             }
-            .padding(12)
+            .padding(.horizontal, 14).padding(.vertical, 10)
             .frame(maxWidth: 310, alignment: .leading)
-            .background(AppTheme.foreground.opacity(own ? 0.10 : 0.04), in: RoundedRectangle(cornerRadius: 14))
+            .background(own ? AppTheme.foreground.opacity(0.12) : AppTheme.panel,
+                in: UnevenRoundedRectangle(topLeadingRadius: 18, bottomLeadingRadius: own ? 18 : 5,
+                    bottomTrailingRadius: own ? 5 : 18, topTrailingRadius: 18))
             if !own { Spacer(minLength: 24) }
         }.accessibilityIdentifier("sports-chat-message-\(message.id)")
     }
