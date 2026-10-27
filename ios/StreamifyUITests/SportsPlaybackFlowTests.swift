@@ -124,6 +124,8 @@ final class SportsPlaybackFlowTests: XCTestCase {
         let chat = app.buttons["sports-player-chat"]
         XCTAssertTrue(chat.isHittable); chat.tap()
         XCTAssertTrue(element("sports-chat").waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["What a game!"].waitForExistence(timeout: 5),
+            "Chat in the separately hosted player must use the actual window scene's active state.")
         capture("Game chat sheet opens above the retained sports video")
         app.buttons["sports-chat-close"].tap()
         XCTAssertTrue(source.wait(for: \.isHittable, toEqual: true, timeout: 5))

@@ -97,7 +97,7 @@ struct SportsChatMessage: Identifiable, Equatable, Sendable {
 }
 
 enum SportsChatError: LocalizedError {
-    case invalidMessage, unavailable, invalidRoom, signInUnavailable, accountChanged, reactionNeedsGuest, invalidReaction
+    case invalidMessage, unavailable, invalidRoom, signInUnavailable, accountChanged, reactionNeedsGuest, invalidReaction, connectionTimedOut
     var errorDescription: String? {
         switch self {
         case .invalidMessage: return "Use between 1 and 1,000 characters."
@@ -107,6 +107,7 @@ enum SportsChatError: LocalizedError {
         case .accountChanged: return "Your chat session changed. Please try again."
         case .reactionNeedsGuest: return "Send a message to join guest chat before adding a reaction."
         case .invalidReaction: return "This reaction could not be added."
+        case .connectionTimedOut: return "Chat isn’t responding. Check your connection and try again."
         }
     }
 }
@@ -219,8 +220,11 @@ final class SportsChatSubscription {
     private var room: String?
     private var generation = UUID()
     private var failedAction: (message: String, emoji: String)?
+    private let initialResponseTimeout: Duration
+    private var connectionTimeout: Task<Void, Never>?
 
-    init(backend: SportsChatBackend? = nil) {
+    init(backend: SportsChatBackend? = nil, initialResponseTimeout: Duration = .seconds(12)) {
+        self.initialResponseTimeout = initialResponseTimeout
         if let backend { self.backend = backend }
         else {
             #if DEBUG
@@ -231,16 +235,24 @@ final class SportsChatSubscription {
         }
     }
     func listen(room: String?, active: Bool) {
+        connectionTimeout?.cancel(); connectionTimeout = nil
         subscription?.remove(); subscription = nil; generation = UUID()
         if self.room != room { messages = []; draft = ""; reply = nil; error = nil; actionError = nil; failedAction = nil }
         self.room = room
-        guard active else { return }
+        guard active else { loading = false; return }
         guard let room else { loading = false; error = SportsChatError.invalidRoom.localizedDescription; return }
         loading = messages.isEmpty; error = nil; userID = backend.currentUserID
         let request = generation
+        connectionTimeout = Task { @MainActor [weak self, initialResponseTimeout] in
+            do { try await Task.sleep(for: initialResponseTimeout) } catch { return }
+            guard let self, !Task.isCancelled, self.generation == request, self.loading else { return }
+            self.loading = false
+            self.error = SportsChatError.connectionTimedOut.localizedDescription
+        }
         do {
             subscription = try backend.listen(room: room) { [weak self] result in
                 guard let self, self.generation == request else { return }
+                self.connectionTimeout?.cancel(); self.connectionTimeout = nil
                 self.loading = false
                 switch result {
                 case .failure(let error): self.error = error.localizedDescription
@@ -256,7 +268,7 @@ final class SportsChatSubscription {
                     self.error = nil
                 }
             }
-        } catch { loading = false; self.error = error.localizedDescription }
+        } catch { connectionTimeout?.cancel(); connectionTimeout = nil; loading = false; self.error = error.localizedDescription }
     }
     func send() async {
         guard !sending, let room else { return }
@@ -281,7 +293,7 @@ final class SportsChatSubscription {
         if let failedAction { await react(messageID: failedAction.message, emoji: failedAction.emoji) }
         else { await send() }
     }
-    deinit { subscription?.remove() }
+    deinit { connectionTimeout?.cancel(); subscription?.remove() }
 }
 
 #if DEBUG
@@ -290,8 +302,12 @@ final class SportsChatSubscription {
     private var messages = [SportsChatMessage(id: "fixture-chat-1", text: "What a game!", sender: "Guest 2048", uid: "fixture2048",
         sentAt: Date().addingTimeInterval(-120), reply: nil, votes: ["fixture-other": "🔥"], pending: false)]
     private var receive: ((Result<[SportsChatMessage], Error>) -> Void)?
+    private var listenCount = 0
     func listen(room: String, receive: @escaping (Result<[SportsChatMessage], Error>) -> Void) throws -> SportsChatSubscription {
-        self.receive = receive; receive(.success(messages))
+        self.receive = receive; listenCount += 1
+        if !ProcessInfo.processInfo.arguments.contains("--ui-chat-stalled-fixture") || listenCount > 1 {
+            receive(.success(messages))
+        }
         return SportsChatSubscription {}
     }
     func send(room: String, text: String, reply: SportsChatReply?) async throws {

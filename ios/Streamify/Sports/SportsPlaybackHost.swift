@@ -233,7 +233,7 @@ private struct SportsPlaybackOverlay: View {
         }.ignoresSafeArea().preferredColorScheme(.dark).foregroundStyle(.white).tint(.white)
         .sheet(isPresented: $showChat) {
             if let game = session.item?.game {
-                SportsGameChatScreen(game: game).presentationDetents([.medium, .large])
+                SportsGameChatScreen(game: game, sceneIsActive: activity.isActive).presentationDetents([.medium, .large])
             }
         }
         .onChange(of: session.item?.game?.id) { _, _ in showChat = false }

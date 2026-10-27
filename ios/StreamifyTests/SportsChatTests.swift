@@ -1,7 +1,42 @@
 import XCTest
+import Combine
 @testable import Streamify
 
 @MainActor final class SportsChatTests: XCTestCase {
+    func testInactiveChatDoesNotSpinAndBecomesConnectedWhenItsActualSceneActivates() {
+        let backend = ChatBackendFixture()
+        let chat = SportsChatStore(backend: backend)
+        chat.listen(room: "BOS-TOR", active: false)
+        XCTAssertFalse(chat.loading)
+        XCTAssertEqual(backend.listens, 0)
+        chat.listen(room: "BOS-TOR", active: true)
+        XCTAssertTrue(chat.loading)
+        backend.callbacks[0](.success([sample("connected")]))
+        XCTAssertFalse(chat.loading)
+        XCTAssertEqual(chat.messages.first?.id, "connected")
+    }
+
+    func testSilentChatConnectionTimesOutPreservesDraftAndCanRecoverOrRetry() async {
+        let backend = ChatBackendFixture()
+        let chat = SportsChatStore(backend: backend, initialResponseTimeout: .milliseconds(20))
+        chat.listen(room: "BOS-TOR", active: true)
+        chat.draft = "Keep my message"
+        let timedOut = expectation(description: "The silent listener stops the spinner")
+        let observation = chat.$error.compactMap { $0 }.first().sink { _ in timedOut.fulfill() }
+        await fulfillment(of: [timedOut], timeout: 2)
+        observation.cancel()
+        XCTAssertFalse(chat.loading)
+        XCTAssertEqual(chat.error, SportsChatError.connectionTimedOut.localizedDescription)
+        XCTAssertEqual(chat.draft, "Keep my message")
+        backend.callbacks[0](.success([sample("late-server")]))
+        XCTAssertNil(chat.error)
+        XCTAssertEqual(chat.messages.first?.id, "late-server")
+        chat.listen(room: "BOS-TOR", active: true)
+        backend.callbacks[1](.success([sample("retry")]))
+        XCTAssertEqual(chat.draft, "Keep my message")
+        XCTAssertEqual(chat.messages.first?.id, "retry")
+        XCTAssertEqual(backend.sends, 0)
+    }
     func testRoomsMatchAndroidAwayHomeAliasesWithoutLeagueOrDatePrefix() {
         XCTAssertEqual(SportsChatContract.room(league: .nba, away: "GSW", home: "NYK"), "GS-NY")
         XCTAssertEqual(SportsChatContract.room(league: .nba, away: "UTA", home: "NOP"), "UTAH-NO")

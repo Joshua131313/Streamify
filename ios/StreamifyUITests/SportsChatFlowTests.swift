@@ -9,6 +9,7 @@ final class SportsChatFlowTests: XCTestCase {
         XCUIDevice.shared.orientation = .portrait
         app = XCUIApplication()
         app.launchArguments = ["--ui-fixtures"]
+        if name.contains("testChatConnectionTimeout") { app.launchArguments.append("--ui-chat-stalled-fixture") }
         app.launch()
         XCTAssertTrue(app.buttons["tab-sports"].waitForExistence(timeout: 15))
     }
@@ -55,6 +56,24 @@ final class SportsChatFlowTests: XCTestCase {
             "The local rule fixture must surface rejected updates rather than invent reaction success")
         XCTAssertTrue(app.buttons["Retry"].exists)
         capture("Guest chat shows the real reaction permission failure and Retry")
+    }
+
+    func testChatConnectionTimeoutOffersRetryAndAnIconCloseButton() {
+        openChat()
+        let close = app.buttons["sports-chat-close"]
+        XCTAssertTrue(close.isHittable)
+        XCTAssertEqual(close.label, "Close chat")
+        let failure = app.staticTexts["Chat isn’t responding. Check your connection and try again."]
+        XCTAssertTrue(failure.waitForExistence(timeout: 18))
+        XCTAssertFalse(app.staticTexts["Connecting to chat…"].exists)
+        capture("Chat timeout has a clear close icon and an actionable retry")
+        let retry = app.buttons["Retry"]
+        XCTAssertTrue(retry.isHittable); retry.tap()
+        XCTAssertTrue(app.staticTexts["What a game!"].waitForExistence(timeout: 5))
+        XCTAssertFalse(failure.exists)
+        capture("Chat retry recovers without signing in or changing the game")
+        close.tap()
+        XCTAssertTrue(app.navigationBars["Game center"].waitForExistence(timeout: 5))
     }
 
     func testGuestComposerEnforcesTheThousandCharacterLimitBeforeSend() {

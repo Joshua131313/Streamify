@@ -2,15 +2,20 @@ import SwiftUI
 
 struct SportsGameChatScreen: View {
     let game: SportsGame
+    var sceneIsActive: Bool? = nil
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         NavigationStack {
-            SportsChatView(game: game).padding(.horizontal, 16).padding(.bottom, 8)
+            SportsChatView(game: game, sceneIsActive: sceneIsActive).padding(.horizontal, 16).padding(.bottom, 8)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(AppTheme.canvas)
                 .navigationTitle("Game chat").navigationBarTitleDisplayMode(.inline)
-                .toolbar { ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }.buttonStyle(HapticPlainButtonStyle()).accessibilityIdentifier("sports-chat-close")
+                .toolbar { ToolbarItem(placement: .topBarTrailing) {
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark").font(.system(size: 14, weight: .semibold))
+                            .frame(width: 32, height: 32).contentShape(Circle())
+                    }.buttonStyle(HapticPlainButtonStyle()).accessibilityLabel("Close chat")
+                        .accessibilityIdentifier("sports-chat-close")
                 } }
         }.tint(AppTheme.foreground).presentationDragIndicator(.visible)
     }
@@ -18,6 +23,7 @@ struct SportsGameChatScreen: View {
 
 struct SportsChatView: View {
     let game: SportsGame
+    var sceneIsActive: Bool? = nil
     @StateObject private var chat = SportsChatStore()
     @Environment(\.scenePhase) private var scenePhase
     @State private var retry = 0
@@ -26,7 +32,8 @@ struct SportsChatView: View {
     @FocusState private var composing: Bool
 
     private var room: String? { SportsChatContract.room(league: game.league, away: game.away.abbreviation, home: game.home.abbreviation) }
-    private var observationID: String { "\(room ?? "invalid")|\(scenePhase == .active)|\(retry)" }
+    private var active: Bool { sceneIsActive ?? (scenePhase == .active) }
+    private var observationID: String { "\(room ?? "invalid")|\(active)|\(retry)" }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -34,12 +41,19 @@ struct SportsChatView: View {
                 Text("\(game.away.abbreviation) vs \(game.home.abbreviation)").font(.subheadline.weight(.semibold))
                 Spacer()
                 Text("Public game chat").font(.caption).foregroundStyle(AppTheme.muted)
-            }.padding(.top, 8)
-            if chat.loading { ProgressView().frame(maxWidth: .infinity).padding(16) }
+            }.padding(.top, 8).padding(.bottom, 12)
+                .overlay(alignment: .bottom) { Rectangle().fill(AppTheme.foreground.opacity(0.07)).frame(height: 1) }
             if let error = chat.error {
                 errorRow(error) { retry += 1 }
             }
-            thread
+            thread.overlay {
+                if chat.loading, chat.messages.isEmpty {
+                    VStack(spacing: 10) {
+                        ProgressView()
+                        Text("Connecting to chat…").font(.caption).foregroundStyle(AppTheme.muted)
+                    }.allowsHitTesting(false)
+                }
+            }
             composer
             if let error = chat.actionError {
                 errorRow(error) { Task { await chat.retryAction() } }
@@ -50,7 +64,7 @@ struct SportsChatView: View {
         .foregroundStyle(AppTheme.foreground)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("sports-chat")
-        .task(id: observationID) { chat.listen(room: room, active: scenePhase == .active) }
+        .task(id: observationID) { chat.listen(room: room, active: active) }
         .onChange(of: chat.draft) { _, value in
             let limited = SportsChatContract.limitDraft(value)
             if limited != value { chat.draft = limited }
@@ -178,7 +192,7 @@ struct SportsChatView: View {
             HStack(alignment: .bottom, spacing: 10) {
                 TextField("Say something…", text: $chat.draft, axis: .vertical)
                     .lineLimit(1...4).font(.subheadline).focused($composing)
-                    .padding(12).background(AppTheme.canvas.opacity(0.6), in: RoundedRectangle(cornerRadius: 14))
+                    .padding(.horizontal, 10).padding(.vertical, 12)
                     .tint(AppTheme.foreground).disabled(chat.sending || room == nil)
                     .accessibilityIdentifier("sports-chat-composer")
                 Button { Task { await chat.send() } } label: {
@@ -194,7 +208,8 @@ struct SportsChatView: View {
             if chat.draft.utf16.count >= 900 {
                 Text("\(chat.draft.utf16.count)/1,000").font(.caption2).foregroundStyle(AppTheme.muted).frame(maxWidth: .infinity, alignment: .trailing)
             }
-        }.padding(10).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 18))
+        }.padding(6).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 28))
+            .overlay { RoundedRectangle(cornerRadius: 28).strokeBorder(AppTheme.foreground.opacity(0.07), lineWidth: 1) }
     }
 
     private var canSend: Bool { room != nil && !chat.sending && !chat.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
