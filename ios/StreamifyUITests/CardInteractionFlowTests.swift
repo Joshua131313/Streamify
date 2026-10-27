@@ -160,11 +160,26 @@ final class CardInteractionFlowTests: XCTestCase {
         XCTAssertEqual(away.value as? String, "Not followed", "Following the home team must not follow its opponent.")
 
         away.tap()
+        XCTAssertTrue(app.navigationBars["Game center"].waitForExistence(timeout: 8),
+            "A normal team/card tap opens the matchup's Game Center.")
+        XCTAssertTrue(element("sports-game-scoreboard").waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["sports-team-100"].exists)
+        XCTAssertTrue(app.buttons["sports-team-200"].exists)
+        XCTAssertFalse(app.buttons["sports-team-roster-tab"].exists,
+            "A normal card tap must not accidentally open the held-team destination.")
+        capture("Normal team-card tap opens the exact matchup Game Center")
+        app.navigationBars["Game center"].buttons["Close"].tap()
+        XCTAssertTrue(wait { away.isHittable && home.isHittable && !self.app.navigationBars["Game center"].exists })
+        away.press(forDuration: 1.2)
+        let viewAway = app.buttons["sports-card-open-team-nba:nba-fixture-100"]
+        XCTAssertTrue(viewAway.waitForExistence(timeout: 5))
+        XCTAssertEqual(viewAway.label, "View team")
+        viewAway.tap()
         XCTAssertTrue(app.navigationBars["NBA · Team"].waitForExistence(timeout: 8))
         XCTAssertTrue(app.buttons["sports-team-roster-tab"].waitForExistence(timeout: 8))
         XCTAssertTrue(app.staticTexts["Boston Harbor"].firstMatch.exists)
         XCTAssertTrue(app.buttons["Follow team"].exists)
-        capture("A normal tap after cancelling a hold opens the exact away team")
+        capture("The held away team's View team action opens only Boston Harbor")
         app.navigationBars["NBA · Team"].buttons["Close"].tap()
         XCTAssertTrue(wait { home.isHittable && !self.app.buttons["sports-team-roster-tab"].exists })
         app.buttons["sports-followed-teams"].tap()

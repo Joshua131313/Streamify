@@ -776,7 +776,14 @@ struct SportsService: Sendable {
         var failure: Error = SportsServiceError.streamProviderUnavailable
         for host in hosts {
             try Task.checkCancellation()
-            do { return try await timstStreams(game, apiHost: host) }
+            do {
+                // Bound the complete catalog/watch pair, not each request. A
+                // hanging primary must leave time for the official alternate
+                // inside the aggregate provider's six-second deadline.
+                return try await Self.withSourceDeadline(seconds: 3) {
+                    try await self.timstStreams(game, apiHost: host)
+                }
+            }
             catch is CancellationError { throw CancellationError() }
             catch {
                 try Task.checkCancellation()

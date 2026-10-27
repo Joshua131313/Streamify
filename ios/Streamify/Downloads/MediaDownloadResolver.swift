@@ -285,9 +285,10 @@ enum DownloadSourceHeaders {
               parts.scheme == "https", parts.host != nil, parts.user == nil, parts.password == nil,
               parts.fragment == nil, parts.port == nil || parts.port == 443 else { return nil }
         var next = request
+        next.httpShouldHandleCookies = false
         // Never forward cookies, authorization, or provider-specific context to
         // a new origin. A provider must advertise a usable direct file URL.
-        if original?.host?.lowercased() != url.host?.lowercased() || original?.port != url.port {
+        if original?.host?.lowercased() != url.host?.lowercased() || (original?.port ?? 443) != (url.port ?? 443) {
             for name in ["Authorization", "Cookie", "Referer", "Origin"] { next.setValue(nil, forHTTPHeaderField: name) }
         }
         return next

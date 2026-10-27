@@ -51,7 +51,11 @@ final class AccountFlowTests: XCTestCase {
         reveal(password)
         XCTAssertTrue(password.exists, "Passwords must use the native secure input.")
         password.tap()
+        dismissStrongPasswordSuggestion(waitForAppearance: true)
         password.typeText("x")
+        dismissStrongPasswordSuggestion(waitForAppearance: true)
+        XCTAssertEqual((password.value as? String ?? "").count, 1,
+            "The real secure field must contain exactly the one-character validation input.")
 
         let submit = app.buttons["account-submit"]
         reveal(submit)
@@ -79,6 +83,7 @@ final class AccountFlowTests: XCTestCase {
 
     private func reveal(_ target: XCUIElement) {
         for _ in 0..<15 {
+            dismissStrongPasswordSuggestion(waitForAppearance: false)
             if target.exists && target.isHittable { return }
             let bounds = app.frame
             let top = bounds.minY + bounds.height * 0.2
@@ -99,6 +104,19 @@ final class AccountFlowTests: XCTestCase {
             start.press(forDuration: 0.05, thenDragTo: end)
         }
         XCTAssertTrue(target.isHittable, "The account control must be reachable with the keyboard present.")
+    }
+
+    private func dismissStrongPasswordSuggestion(waitForAppearance: Bool) {
+        let suggestion = app.staticTexts["Use Strong Password?"]
+        guard waitForAppearance ? suggestion.waitForExistence(timeout: 0.8) : suggestion.exists else { return }
+        // iOS26's real password suggestion sheet overlays the form. Decline
+        // generation using its own Close control; keep .newPassword production
+        // semantics and the test's actual one-character secure entry intact.
+        let close = app.buttons.matching(NSPredicate(format: "identifier == 'xmark' AND label == 'Close'"))
+            .allElementsBoundByIndex.first { $0.isHittable && $0.frame.maxY < suggestion.frame.minY }
+        XCTAssertNotNil(close, "The visible native password suggestion must provide its own dismissal.")
+        close?.tap()
+        XCTAssertTrue(suggestion.waitForNonExistence(timeout: 5), "The native suggestion must close before scrolling the account form.")
     }
 
     private func capture(_ name: String) {

@@ -68,7 +68,7 @@ enum OfflineVideoValidation {
         guard [360, 480, 720, 1080].contains(quality), width > 0, height > 0 else { throw OfflineVideoError.qualityMismatch }
         let long = max(width, height), short = min(width, height)
         let expectedLong = Int((Double(quality) * 16 / 9).rounded())
-        guard long <= expectedLong + 2,
+        guard long <= expectedLong + 2, short <= quality + 2,
               abs(short - quality) <= 2 || abs(long - expectedLong) <= 2 else { throw OfflineVideoError.qualityMismatch }
     }
 

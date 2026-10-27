@@ -54,6 +54,56 @@ final class SportsStreamProviderTests: XCTestCase {
         XCTAssertEqual(fixture.requests.map { $0.url?.host }, ["tim-streams.com"])
     }
 
+    func testHangingPrimaryCatalogIsCancelledAndAlternateFinishesWithinAggregateBudget() async throws {
+        let fixture = TimProviderProtocolFixture(.primaryDelayedCatalog)
+        let service = SportsService(session: fixture.session, streamCatalog: .timStreams)
+        let began = Date()
+        let values = try await SportsService.withSourceDeadline(seconds: 6) {
+            try await service.streams(TimProviderSnapshots.nbaGame)
+        }
+        XCTAssertEqual(values.map(\.url.absoluteString), ["https://fixture.streamify.test/fresh-1"])
+        XCTAssertLessThan(Date().timeIntervalSince(began), 5.5)
+        XCTAssertEqual(fixture.requests.map { $0.url?.host }, ["tim-streams.com", "timst.top", "timst.top"])
+        XCTAssertEqual(fixture.requests.map { $0.url?.path }, ["/api/live-upcoming", "/api/live-upcoming", "/api/watch/" + TimProviderSnapshots.nbaSlug])
+        for _ in 0..<100 where !fixture.stoppedRequests.contains(where: { $0.url?.host == "tim-streams.com" }) {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        XCTAssertTrue(fixture.stoppedRequests.contains { $0.url?.host == "tim-streams.com" && $0.url?.path == "/api/live-upcoming" },
+            "The expired catalog must cancel its actual URLSession transport.")
+    }
+
+    func testCatalogAndWatchShareOneHostBudgetInsteadOfReceivingThreeSecondsEach() async throws {
+        let fixture = TimProviderProtocolFixture(.primaryPairedDelay)
+        let service = SportsService(session: fixture.session, streamCatalog: .timStreams)
+        let began = Date()
+        let values = try await SportsService.withSourceDeadline(seconds: 6) {
+            try await service.streams(TimProviderSnapshots.nbaGame)
+        }
+        XCTAssertEqual(values.map(\.url.absoluteString), ["https://fixture.streamify.test/fresh-1"])
+        XCTAssertLessThan(Date().timeIntervalSince(began), 5.5)
+        XCTAssertEqual(fixture.requests.map { $0.url?.host }, ["tim-streams.com", "tim-streams.com", "timst.top", "timst.top"])
+        XCTAssertEqual(fixture.requests.map { $0.url?.path }, ["/api/live-upcoming", "/api/watch/" + TimProviderSnapshots.nbaSlug,
+            "/api/live-upcoming", "/api/watch/returned-by-top-" + TimProviderSnapshots.nbaGame.eventID])
+        for _ in 0..<100 where !fixture.stoppedRequests.contains(where: { $0.url?.host == "tim-streams.com" && $0.url?.path.hasPrefix("/api/watch/") == true }) {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        XCTAssertTrue(fixture.stoppedRequests.contains { $0.url?.host == "tim-streams.com" && $0.url?.path.hasPrefix("/api/watch/") == true })
+    }
+
+    func testCancellingAHangingPrimaryCancelsTransportWithoutStartingAlternate() async throws {
+        let fixture = TimProviderProtocolFixture(.primaryDelayedCatalog)
+        let service = SportsService(session: fixture.session, streamCatalog: .timStreams)
+        let lookup = Task { try await service.streams(TimProviderSnapshots.nbaGame) }
+        for _ in 0..<100 where fixture.requests.isEmpty { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertFalse(fixture.requests.isEmpty, "Cancel an actual active request, not an unstarted lookup.")
+        lookup.cancel()
+        do { _ = try await lookup.value; XCTFail("Cancelled discovery cannot return a player.") }
+        catch { XCTAssertTrue(error is CancellationError || (error as? URLError)?.code == .cancelled) }
+        for _ in 0..<100 where fixture.stoppedRequests.isEmpty { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertEqual(fixture.requests.map { $0.url?.host }, ["tim-streams.com"])
+        XCTAssertTrue(fixture.stoppedRequests.contains { $0.url?.host == "tim-streams.com" })
+    }
+
     func testAValidCatalogWithoutThisEventDoesNotGuessOtherHostsOrSources() async throws {
         let fixture = TimProviderProtocolFixture(.unrelatedCatalog)
         let values = try await SportsService(session: fixture.session, streamCatalog: .timStreams).streams(TimProviderSnapshots.nbaGame)
@@ -245,12 +295,14 @@ private final class TimProviderProtocolFixture {
     enum Mode {
         case success, unrelatedCatalog, wrongWatchItem, catalogFailure(URLError.Code), watchFailure(URLError.Code)
         case primaryDNSFailure, primaryWatchDNSFailure, primaryClosure, bothDNSFailure, primaryCancellation
+        case primaryDelayedCatalog, primaryPairedDelay
         var failureCode: URLError.Code? { switch self { case .catalogFailure(let code), .watchFailure(let code): return code; default: return nil } }
     }
     let session: URLSession
     private let identifier = UUID().uuidString
     private let scenario: TimProviderProtocolScenario
     var requests: [URLRequest] { scenario.requests }
+    var stoppedRequests: [URLRequest] { scenario.stoppedRequests }
     init(_ mode: Mode) {
         scenario = TimProviderProtocolScenario(mode)
         TimProviderURLProtocol.register(scenario, id: identifier)
@@ -266,12 +318,21 @@ private final class TimProviderProtocolScenario {
     let mode: TimProviderProtocolFixture.Mode
     private let lock = NSLock()
     private var recorded: [URLRequest] = []
+    private var stopped: [URLRequest] = []
     private var watches = 0
     var requests: [URLRequest] { lock.lock(); defer { lock.unlock() }; return recorded }
+    var stoppedRequests: [URLRequest] { lock.lock(); defer { lock.unlock() }; return stopped }
     init(_ mode: TimProviderProtocolFixture.Mode) { self.mode = mode }
+    func began(_ request: URLRequest) { lock.lock(); defer { lock.unlock() }; recorded.append(request) }
+    func cancelled(_ request: URLRequest) { lock.lock(); defer { lock.unlock() }; stopped.append(request) }
+    func delay(for request: URLRequest) -> TimeInterval {
+        guard request.url?.host == "tim-streams.com" else { return 0 }
+        if case .primaryDelayedCatalog = mode, request.url?.path == "/api/live-upcoming" { return 10 }
+        if case .primaryPairedDelay = mode { return 1.7 }
+        return 0
+    }
     func response(_ request: URLRequest) throws -> Data {
         lock.lock(); defer { lock.unlock() }
-        recorded.append(request)
         let url = try XCTUnwrap(request.url)
         guard ["tim-streams.com", "timst.top"].contains(url.host ?? ""), url.scheme == "https" else { throw URLError(.unsupportedURL) }
         if case .bothDNSFailure = mode { throw URLError(.cannotFindHost) }
@@ -281,7 +342,9 @@ private final class TimProviderProtocolScenario {
             if case .primaryClosure = mode { return Data("<!doctype html><html><title>API unavailable</title></html>".utf8) }
         }
         var expectedSlug = TimProviderSnapshots.nbaSlug
-        if case .primaryWatchDNSFailure = mode, url.host == "timst.top" {
+        let differentMirrorKey: Bool
+        switch mode { case .primaryWatchDNSFailure, .primaryPairedDelay: differentMirrorKey = true; default: differentMirrorKey = false }
+        if differentMirrorKey, url.host == "timst.top" {
             expectedSlug = "returned-by-top-" + TimProviderSnapshots.nbaGame.eventID
         }
         let object: [String: Any]
@@ -307,6 +370,10 @@ private final class TimProviderProtocolScenario {
 private final class TimProviderURLProtocol: URLProtocol {
     private static let lock = NSLock()
     private static var scenarios: [String: TimProviderProtocolScenario] = [:]
+    private let stateLock = NSLock()
+    private var pending: DispatchWorkItem?
+    private var cancelled = false
+    private var activeScenario: TimProviderProtocolScenario?
     static func register(_ value: TimProviderProtocolScenario, id: String) { lock.lock(); defer { lock.unlock() }; scenarios[id] = value }
     static func unregister(_ id: String) { lock.lock(); defer { lock.unlock() }; scenarios.removeValue(forKey: id) }
     override class func canInit(with request: URLRequest) -> Bool { true }
@@ -315,8 +382,20 @@ private final class TimProviderURLProtocol: URLProtocol {
         Self.lock.lock()
         let scenario = request.value(forHTTPHeaderField: "X-Streamify-Tim-Test").flatMap { Self.scenarios[$0] }
         Self.lock.unlock()
+        guard let scenario else { client?.urlProtocol(self, didFailWithError: URLError(.unsupportedURL)); return }
+        stateLock.lock(); activeScenario = scenario; stateLock.unlock()
+        scenario.began(request)
+        let delay = scenario.delay(for: request)
+        if delay > 0 {
+            let item = DispatchWorkItem { [weak self] in self?.deliver(scenario) }
+            stateLock.lock(); pending = item; let shouldSchedule = !cancelled; stateLock.unlock()
+            if shouldSchedule { DispatchQueue.global().asyncAfter(deadline: .now() + delay, execute: item) }
+        } else { deliver(scenario) }
+    }
+    private func deliver(_ fixture: TimProviderProtocolScenario) {
+        stateLock.lock(); let stopped = cancelled; pending = nil; stateLock.unlock()
+        guard !stopped else { return }
         do {
-            let fixture = try XCTUnwrap(scenario)
             let data = try fixture.response(request)
             let response = try XCTUnwrap(HTTPURLResponse(url: try XCTUnwrap(request.url), statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "application/json"]))
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
@@ -324,5 +403,9 @@ private final class TimProviderURLProtocol: URLProtocol {
             client?.urlProtocolDidFinishLoading(self)
         } catch { client?.urlProtocol(self, didFailWithError: error) }
     }
-    override func stopLoading() {}
+    override func stopLoading() {
+        stateLock.lock(); cancelled = true; let item = pending; pending = nil; let scenario = activeScenario; stateLock.unlock()
+        item?.cancel()
+        scenario?.cancelled(request)
+    }
 }

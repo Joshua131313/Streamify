@@ -51,6 +51,10 @@ final class DownloadSourceReliabilityTests: XCTestCase {
         for name in ["Referer", "Origin", "Authorization", "Cookie"] { XCTAssertNil(crossOrigin.value(forHTTPHeaderField: name)) }
         let sameOrigin = try XCTUnwrap(DownloadSourceHeaders.redirected(request, from: url))
         XCTAssertEqual(sameOrigin.value(forHTTPHeaderField: "Referer"), request.value(forHTTPHeaderField: "Referer"))
+        var defaultPort = request
+        defaultPort.url = URL(string: "https://cdn.example.test:443/file.mp4")
+        XCTAssertEqual(DownloadSourceHeaders.redirected(defaultPort, from: url)?.value(forHTTPHeaderField: "Referer"),
+            request.value(forHTTPHeaderField: "Referer"), "An explicit default443port is the same HTTPSorigin")
         for address in ["http://other.example.test/file.mp4", "https://user:password@other.example.test/file.mp4", "https://other.example.test:8443/file.mp4"] {
             redirect.url = URL(string: address)
             XCTAssertNil(DownloadSourceHeaders.redirected(redirect, from: url))
@@ -63,12 +67,13 @@ final class DownloadSourceReliabilityTests: XCTestCase {
         }
         XCTAssertNoThrow(try OfflineVideoValidation.requireQuality(720, width: 1280, height: 534))
         XCTAssertNoThrow(try OfflineVideoValidation.requireQuality(480, width: 854, height: 480))
-        for dimensions in [(854, 480), (1280, 720), (3840, 2160), (0, 1080)] {
+        for dimensions in [(854, 480), (1280, 720), (3840, 2160), (1920, 1200), (0, 1080)] {
             XCTAssertThrowsError(try OfflineVideoValidation.requireQuality(1080, width: dimensions.0, height: dimensions.1)) {
                 XCTAssertEqual($0 as? OfflineVideoError, .qualityMismatch)
             }
         }
         XCTAssertThrowsError(try OfflineVideoValidation.requireQuality(720, width: 1920, height: 1080))
+        XCTAssertThrowsError(try OfflineVideoValidation.requireQuality(720, width: 1280, height: 960))
     }
 
     func testBundledH264MetadataAndNativeResultAgreeOnActualDimensions() async throws {

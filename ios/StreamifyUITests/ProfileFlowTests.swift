@@ -190,24 +190,31 @@ final class ProfileFlowTests: XCTestCase {
         XCTAssertTrue(tile.waitForExistence(timeout: 6))
         reveal(tile)
         tile.tap()
-        // Query each transition endpoint with XCTest's element waits. Wrapping
-        // the disappearing chooser query in another predicate can exhaust its
-        // deadline while XCTest retries an already-absent accessibility node.
-        XCTAssertTrue(element("profile-chooser").waitForNonExistence(timeout: 10),
-            "The chooser must disappear after selecting a profile.")
         XCTAssertTrue(app.buttons["tab-home"].waitForExistence(timeout: 10),
             "The selected viewer's root controls must exist.")
         XCTAssertTrue(app.buttons["tab-home"].wait(for: \.isHittable, toEqual: true, timeout: 10),
             "The selected viewer's app must become interactive.")
+        XCTAssertTrue(wait { self.chooserActions.allElementsBoundByIndex.allSatisfy { !$0.isHittable } },
+            "The retained chooser must expose no interactive actions after the handoff.")
+        XCTAssertTrue(app.buttons["tab-home"].isSelected)
+        XCTAssertTrue((app.buttons["tab-library"].value as? String ?? "").hasPrefix("Profile: \(name),"),
+            "The active root must belong to the viewer actually selected.")
     }
     private func openSwitcher() {
         app.buttons["More options"].tap()
         XCTAssertTrue(app.buttons["Switch profiles"].waitForExistence(timeout: 4))
         app.buttons["Switch profiles"].tap()
-        XCTAssertTrue(app.buttons["tab-home"].waitForNonExistence(timeout: 10),
-            "Switching profiles must remove the previous viewer's root controls.")
+        XCTAssertTrue(wait { ["home", "sports", "search", "library"].allSatisfy { !self.app.buttons["tab-\($0)"].isHittable } },
+            "The retained outgoing root must stop accepting input during profile selection.")
         XCTAssertTrue(element("profile-chooser").waitForExistence(timeout: 10),
             "Switching profiles must present the chooser.")
+        reveal(app.buttons["profile-manage"])
+        XCTAssertTrue(app.buttons["profile-manage"].isHittable,
+            "The real chooser, rather than its hidden retained container, must be interactive.")
+    }
+    private var chooserActions: XCUIElementQuery {
+        app.buttons.matching(NSPredicate(format:
+            "identifier BEGINSWITH 'profile-tile-' OR identifier IN {'profile-manage', 'profile-add', 'profile-switch-cancel'}"))
     }
     private func openSettings() {
         app.buttons["More options"].tap()
