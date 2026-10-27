@@ -32,7 +32,7 @@ final class SportsPlaybackFlowTests: XCTestCase {
     }
 
     func testGameAndStreamSelectorsSwitchIndependentlyAndKeepOnePlayer() {
-        let source = openSportsPlayerOnBravo()
+        let source = openSportsPlayerOnBravo(viaWatchLink: true)
         let game = app.buttons["sports-player-game-picker"]
         XCTAssertTrue(game.exists)
         XCTAssertTrue((game.value as? String ?? "").hasPrefix("NBA,"))
@@ -101,7 +101,7 @@ final class SportsPlaybackFlowTests: XCTestCase {
         XCTAssertEqual(playbackDocument.label, document, "Rotation must retain the provider document, not reload playback.")
         let options = app.buttons["sports-landscape-options"]
         XCTAssertTrue(wait { !options.exists }, "Idle landscape options should fade away and leave no invisible hit target.")
-        video.coordinate(withNormalizedOffset: CGVector(dx: 0.04, dy: 0.5)).tap()
+        video.coordinate(withNormalizedOffset: CGVector(dx: 0.20, dy: 0.5)).tap()
         XCTAssertTrue(options.wait(for: \.isHittable, toEqual: true, timeout: 5), "A video touch should reveal options without intercepting the provider.")
         capture("Sports landscape video fills the canvas without portrait bars")
         options.tap()
@@ -506,13 +506,19 @@ final class SportsPlaybackFlowTests: XCTestCase {
 
     /// Switch before fullscreen so a document reconnect cannot pass by silently
     /// returning to the default alpha source.
-    private func openSportsPlayerOnBravo() -> XCUIElement {
-        app.buttons["tab-sports"].tap()
-        selectNBA()
-        let watch = app.buttons["Watch BOS vs TOR"].firstMatch
-        reveal(watch)
-        XCTAssertTrue(watch.isHittable)
-        watch.tap()
+    private func openSportsPlayerOnBravo(viaWatchLink: Bool = false) -> XCUIElement {
+        if viaWatchLink {
+            // Exercise the same retained player through the Lock Screen Watch
+            // route. Other tests independently exercise the schedule Watch tap.
+            app.open(URL(string: "streamify://sports/watch?league=nba&event=401020304")!)
+        } else {
+            app.buttons["tab-sports"].tap()
+            selectNBA()
+            let watch = app.buttons["Watch BOS vs TOR"].firstMatch
+            reveal(watch)
+            XCTAssertTrue(watch.isHittable)
+            watch.tap()
+        }
         let source = app.buttons["sports-player-source-picker"]
         XCTAssertTrue(source.waitForExistence(timeout: 10))
         // A fresh simulator may need extra time to launch its first WebContent
