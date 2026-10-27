@@ -32,7 +32,7 @@ final class SportsPlaybackFlowTests: XCTestCase {
     }
 
     func testGameAndStreamSelectorsSwitchIndependentlyAndKeepOnePlayer() {
-        let source = openSportsPlayerOnBravo(viaWatchLink: true)
+        let source = openSportsPlayerOnBravo()
         let game = app.buttons["sports-player-game-picker"]
         XCTAssertTrue(game.exists)
         XCTAssertTrue((game.value as? String ?? "").hasPrefix("NBA,"))
@@ -88,7 +88,7 @@ final class SportsPlaybackFlowTests: XCTestCase {
     }
 
     func testLandscapeVideoFillsCanvasAndRotationKeepsTheSameStreamDocument() {
-        let source = openSportsPlayerOnBravo()
+        let source = openSportsPlayerOnBravo(viaWatchLink: true)
         let selectedSource = source.value as? String
         let document = playbackDocument.label
         let video = element("sports-video-surface")
