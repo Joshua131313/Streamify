@@ -155,6 +155,7 @@ struct SportsTrackedGameAttributes: ActivityAttributes {
         var situation: String?
         var updatedAt: Date
         var final: Bool
+        var pregame: Bool? = nil
     }
     var league: String
     var eventID: String
@@ -162,6 +163,12 @@ struct SportsTrackedGameAttributes: ActivityAttributes {
     var home: String
     var awayID: String
     var homeID: String
+    var awayName: String? = nil
+    var homeName: String? = nil
+    var awayRecord: String? = nil
+    var homeRecord: String? = nil
+    var venue: String? = nil
+    var start: Date? = nil
     var gameKey: String { "\(league):\(eventID)" }
     var watchURL: URL {
         var value = URLComponents()

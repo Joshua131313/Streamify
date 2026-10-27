@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import Combine
+import WebKit
 
 /// Fullscreen is an actual WebKit-owned window, not just a different player size.
 /// Remember its ownership so PiP restoration cannot raise our empty placeholder
@@ -206,7 +207,16 @@ private struct SportsPlaybackOverlay: View {
                 .accessibilityElement(children: .contain).accessibilityIdentifier("sports-player")
                 .accessibilityValue("\(item.title), \(session.sourceTitle)")
                 .onChange(of: geometry.size) { _, _ in resetDismissal(); landscapeControlsVisible = false; revealLandscapeOptions() }
-                .background { SportsPlayerTouchObserver(onTouch: revealLandscapeOptions).frame(width: 0, height: 0) }
+                .background {
+                    SportsPlayerTouchObserver {
+                        // Updating the hosting tree during a native Menu press
+                        // can cancel its selection. Only the hidden affordance
+                        // needs to react to a raw video touch.
+                        if geometry.size.width > geometry.size.height && !landscapeControlsVisible {
+                            revealLandscapeOptions()
+                        }
+                    }.frame(width: 0, height: 0)
+                }
                 .task(id: interactionToken) {
                     guard geometry.size.width > geometry.size.height else { return }
                     do { try await Task.sleep(for: .seconds(3)) } catch { return }
@@ -467,6 +477,14 @@ private struct SportsPlayerTouchObserver: UIViewRepresentable {
     }
     final class TouchRecorder: UIGestureRecognizer {
         var onTouch: (() -> Void)?
-        override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) { onTouch?(); state = .failed }
+        override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+            // Native menus and buttons must finish their own press unchanged.
+            var ancestor = touches.first?.view
+            while let view = ancestor {
+                if view is WKWebView { onTouch?(); break }
+                ancestor = view.superview
+            }
+            state = .failed
+        }
     }
 }

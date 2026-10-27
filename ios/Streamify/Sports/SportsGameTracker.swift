@@ -29,6 +29,7 @@ final class SportsGameTracker: ObservableObject {
 
     func toggle(_ game: SportsGame) async {
         guard !busy.contains(game.id) else { return }
+        error = nil
         busy.insert(game.id); defer { busy.remove(game.id) }
         if let activity = Activity<SportsTrackedGameAttributes>.activities.first(where: { $0.attributes.gameKey == game.id }) {
             await activity.end(nil, dismissalPolicy: .immediate)
@@ -41,7 +42,9 @@ final class SportsGameTracker: ObservableObject {
             return
         }
         let attributes = SportsTrackedGameAttributes(league: game.league.rawValue, eventID: game.eventID,
-            away: game.away.abbreviation, home: game.home.abbreviation, awayID: game.away.id, homeID: game.home.id)
+            away: game.away.abbreviation, home: game.home.abbreviation, awayID: game.away.id, homeID: game.home.id,
+            awayName: game.away.name, homeName: game.home.name, awayRecord: game.away.record, homeRecord: game.home.record,
+            venue: game.venue, start: game.date)
         do {
             _ = try Activity.request(attributes: attributes, content: content(game), pushType: nil)
             restore()
@@ -51,7 +54,7 @@ final class SportsGameTracker: ObservableObject {
     private func content(_ game: SportsGame) -> ActivityContent<SportsTrackedGameAttributes.ContentState> {
         let now = Date()
         return ActivityContent(state: .init(awayScore: game.away.score, homeScore: game.home.score,
-            status: game.status, situation: game.hockeySummary, updatedAt: now, final: game.isFinal),
+            status: game.status, situation: game.hockeySummary, updatedAt: now, final: game.isFinal, pregame: game.state == "pre"),
             staleDate: now.addingTimeInterval(90))
     }
 
@@ -80,9 +83,10 @@ final class SportsGameTracker: ObservableObject {
 struct SportsTrackGameButton: View {
     let game: SportsGame
     @ObservedObject private var tracker = SportsGameTracker.shared
+    @State private var error: String?
     private var selected: Bool { tracker.tracked.contains(game.id) }
     var body: some View {
-        Button { Task { await tracker.toggle(game) } } label: {
+        Button { Task { await tracker.toggle(game); error = tracker.error } } label: {
             HStack(spacing: 6) {
                 Image(systemName: selected ? "pin.fill" : "pin").font(.system(size: 11))
                 Text(selected ? "Tracking" : "Track game")
@@ -94,8 +98,8 @@ struct SportsTrackGameButton: View {
             .disabled(tracker.busy.contains(game.id))
             .accessibilityLabel(selected ? "Stop tracking game" : "Track game on Lock Screen")
             .accessibilityIdentifier("sports-track-\(game.id)")
-            .alert("Track game", isPresented: Binding(get: { tracker.error != nil }, set: { if !$0 { tracker.error = nil } })) {
-                Button("OK", role: .cancel) { tracker.error = nil }
-            } message: { Text(tracker.error ?? "") }
+            .alert("Track game", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+                Button("OK", role: .cancel) { error = nil }
+            } message: { Text(error ?? "") }
     }
 }

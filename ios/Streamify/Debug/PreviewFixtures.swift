@@ -222,6 +222,13 @@ enum PreviewFixtures {
                 ? ["Page": ["pageInfo": ["hasNextPage": false], "media": [item]] as [String: Any]] : ["Media": item]
             value = ["data": payload]
         } else if host == "site.api.espn.com" { value = sportsJSON(url) }
+        else if host == "api-web.nhle.com" {
+            let date = Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: Date()) ?? Date()
+            value = ["games": [["gameState": "LIVE", "startTimeUTC": ISO8601DateFormatter().string(from: date),
+                "awayTeam": ["abbrev": "BOS"], "homeTeam": ["abbrev": "TOR"],
+                "situation": ["awayTeam": ["strength": 5, "situationDescriptions": ["PP"]],
+                    "homeTeam": ["strength": 4], "timeRemaining": "0:42"]]]]
+        }
         else if host == "streamed.pk" {
             if path == "/api/matches/all" {
                 value = ["basketball", "american-football", "hockey", "baseball"].map { category in

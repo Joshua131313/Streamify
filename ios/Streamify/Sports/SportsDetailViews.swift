@@ -66,6 +66,7 @@ struct SportsGameView: View {
         .sheet(item: $selectedTeam) { item in NavigationStack { SportsTeamView(result: item).environmentObject(queue) } }
         .sheet(isPresented: $showMultiWatch) { NavigationStack { SportsMultiWatchView().environmentObject(queue) } }
         .sheet(isPresented: $showChat) { SportsGameChatScreen(game: current) }
+        .onChange(of: current.isFinal) { _, final in if final && tab == "Latest play" { tab = "Play-by-play" } }
         .onChange(of: playback.isMinimized) { _, minimized in
             guard minimized else { return }
             selectedTeam = nil

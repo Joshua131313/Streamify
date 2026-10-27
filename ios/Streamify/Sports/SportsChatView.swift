@@ -117,7 +117,6 @@ struct SportsChatView: View {
                         composing = true
                     } label: { Text(own ? "You" : message.sender).font(.caption.weight(.semibold)).lineLimit(1) }
                         .buttonStyle(HapticPlainButtonStyle())
-                    Spacer(minLength: 0)
                     if message.pending { Text("Sending…").font(.caption2) }
                     else if let time = message.sentAt { Text(time, format: .dateTime.hour().minute()).font(.caption2) }
                 }.foregroundStyle(AppTheme.muted)
@@ -139,7 +138,6 @@ struct SportsChatView: View {
                         }
                     } label: { Image(systemName: "face.smiling").frame(width: 32, height: 32) }
                         .accessibilityLabel("React to \(message.sender)")
-                    Spacer(minLength: 0)
                 }.font(.caption).foregroundStyle(AppTheme.muted).disabled(message.pending)
                 if !message.votes.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -156,10 +154,10 @@ struct SportsChatView: View {
                 }
             }
             .padding(.horizontal, 14).padding(.vertical, 10)
-            .frame(maxWidth: 310, alignment: .leading)
             .background(own ? AppTheme.foreground.opacity(0.12) : AppTheme.panel,
                 in: UnevenRoundedRectangle(topLeadingRadius: 18, bottomLeadingRadius: own ? 18 : 5,
                     bottomTrailingRadius: own ? 5 : 18, topTrailingRadius: 18))
+            .frame(maxWidth: 310, alignment: own ? .trailing : .leading)
             if !own { Spacer(minLength: 24) }
         }.accessibilityIdentifier("sports-chat-message-\(message.id)")
     }

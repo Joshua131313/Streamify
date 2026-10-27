@@ -61,6 +61,28 @@ final class ParityFlowTests: XCTestCase {
         capture("Final play-by-play filters and expands Quarter2")
     }
 
+    func testGameCardTeamHoldAndNHLTagDoNotTriggerCardNavigation() {
+        app.buttons["tab-sports"].tap(); selectSportsLeagues(["nhl"])
+        let tag = app.buttons["sports-hockey-tag-nhl:nhl-fixture"]
+        XCTAssertTrue(tag.waitForExistence(timeout: 8))
+        XCTAssertTrue(tag.label.contains("5 on 4 BOS PP 0:42"))
+        tag.tap()
+        XCTAssertTrue(element("sports-hockey-details-nhl:nhl-fixture").waitForExistence(timeout: 5))
+        XCTAssertFalse(app.navigationBars["Game center"].exists)
+        capture("NHL compact tag expands independently of the game card")
+        tag.tap()
+        app.buttons["sports-track-nhl:nhl-fixture"].tap()
+        XCTAssertFalse(app.navigationBars["Game center"].exists, "A tracking tap must not also open Gamecast.")
+        let team = app.buttons["sports-card-team-nhl:nhl-fixture-100"]
+        team.press(forDuration: 1.1)
+        let follow = app.buttons["sports-card-follow-nhl:nhl-fixture-100"]
+        XCTAssertTrue(follow.waitForExistence(timeout: 5)); follow.tap()
+        XCTAssertFalse(app.navigationBars["Game center"].exists)
+        XCTAssertEqual(team.value as? String, "Following")
+        team.tap()
+        XCTAssertTrue(app.navigationBars["Game center"].waitForExistence(timeout: 5))
+    }
+
     override func tearDownWithError() throws {
         if (testRun?.failureCount ?? 0) > 0, let app {
             capture("FAILURE current screen")
@@ -73,6 +95,10 @@ final class ParityFlowTests: XCTestCase {
     }
 
     func testRootTabsUseTapNavigationAndLeaveCarouselsIndependent() {
+        let homeScroll = app.scrollViews["home-catalog"].firstMatch
+        XCTAssertTrue(homeScroll.waitForExistence(timeout: 8))
+        XCTAssertGreaterThan(homeScroll.frame.maxY, app.buttons["tab-home"].frame.maxY,
+            "Home must scroll behind the floating pill instead of reserving a solid footer shelf.")
         let hero = element("hero-carousel")
         XCTAssertTrue(hero.waitForExistence(timeout: 12))
         for tab in ["sports", "search", "library", "home"] {

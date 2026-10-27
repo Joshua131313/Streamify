@@ -12,7 +12,8 @@ struct RefreshLiveGamesIntent: AppIntent {
     static var isDiscoverable: Bool = false
 
     func perform() async throws -> some IntentResult {
-        WidgetCenter.shared.reloadTimelines(ofKind: SportsWidgetPolicy.kind)
+        // WidgetKit reloads this widget's timeline after the intent finishes.
+        // Avoid a second explicit reload racing the same fresh network request.
         return .result()
     }
 }

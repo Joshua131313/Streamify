@@ -52,11 +52,9 @@ struct SportsPlayByPlayView: View {
                         }.frame(minHeight: 36)
                     }.tint(AppTheme.foreground).padding(.horizontal, 12).padding(.vertical, 5)
                         .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 12))
-                        .accessibilityIdentifier("sports-play-group-\(period.number)")
                 }
             }
         }.onAppear { if expanded.isEmpty, let first = periods.first { expanded.insert(first.number) } }
-            .accessibilityIdentifier("sports-play-by-play")
     }
 }
 
@@ -96,7 +94,7 @@ struct SportsGamePlayersView: View {
             }
             if let group = activeGroup { SportsPlayerGameTable(group: group) }
             else { StateMessage(symbol: "person.3", title: "Player stats unavailable", message: "Individual stats will appear when the game feed provides them.") }
-        }.accessibilityIdentifier("sports-game-players")
+        }
     }
 }
 
@@ -114,8 +112,11 @@ private struct SportsPlayerGameTable: View {
                     .frame(maxWidth: .infinity, alignment: .leading).frame(height: headerHeight).padding(.leading, 10)
                 ForEach(Array(group.players.enumerated()), id: \.element.id) { index, player in
                     HStack(spacing: 7) {
-                        RemoteArtwork(url: sportsHTTPSURL(player.photo), contentMode: .fit).frame(width: 28, height: 28)
-                            .background(AppTheme.controlFill, in: Circle()).clipShape(Circle()).accessibilityHidden(true)
+                        AsyncImage(url: sportsHTTPSURL(player.photo)) { phase in
+                            if let image = phase.image { image.resizable().scaledToFit() }
+                            else { Image(systemName: "person.fill").font(.system(size: 16)).foregroundStyle(AppTheme.muted) }
+                        }.frame(width: 28, height: 28).background(AppTheme.controlFill, in: Circle())
+                            .clipShape(Circle()).accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(player.name).font(.caption.weight(.semibold)).lineLimit(2)
                             Text(player.didNotPlay ? "DNP" : [player.position, player.number.isEmpty ? "" : "#\(player.number)"].filter { !$0.isEmpty }.joined(separator: " · "))
@@ -151,6 +152,5 @@ private struct SportsPlayerGameTable: View {
             .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 12))
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(AppTheme.border, lineWidth: 0.5) }
-            .accessibilityIdentifier("sports-player-stats-table")
     }
 }

@@ -164,6 +164,8 @@ Sports fullscreen uses the embedded provider’s own control and real WebKit ele
 
 In landscape, the sports video uses the entire canvas. Game/source selectors and utility controls overlay it through the options button instead of reserving top and bottom bars. Rotation retains the same provider document. Portrait retains its separate controls.
 
+The options affordance fades after three seconds without video interaction. Track game starts a local Live Activity with bundled team/league marks, scores, status, records and venue, and a Watch deep link. The app refreshes tracked scores while active; a stale snapshot is explicitly marked. Remote ActivityKit updates and closed-app iPhone alerts require Apple push signing. The scheduled followed-team alert backend is prepared and locally tested, but deployment is currently blocked by the project's missing Firebase Blaze billing plan. No billing changes or production test messages were made.
+
 Recently fetched sports schedules are retained per league, local date, timezone and backend, including known-empty results. Warm league/tab changes reuse them immediately without requesting the schedule again. Thirty-second score polling and explicit refresh can update stale cards in place. Switching the selected filter never clears a cached result first.
 
 Continue Watching and history try the poster if a backdrop fails, repair sparse catalog metadata, and preserve existing artwork when playback reports fewer fields. Artwork repair does not reset progress or change the last-watched time. Favorite genres use equal-width, equal-height cards in two columns, switching to one column at accessibility text sizes.

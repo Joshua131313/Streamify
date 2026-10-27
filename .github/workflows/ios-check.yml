@@ -93,12 +93,15 @@ jobs:
               SELECTORS=(
                 -only-testing:StreamifyTests/SportsLiveSituationTests
                 -only-testing:StreamifyTests/SportsGameDataTests
+                -only-testing:StreamifyTests/SportsTeamLiveScoreTests
                 -only-testing:StreamifyTests/SportsWidgetPolicyTests
                 -only-testing:StreamifyUITests/ParityFlowTests/testBasketballPossessionIconSitsImmediatelyBeforeTheCorrectScoreForBothLeagues
                 -only-testing:StreamifyUITests/ParityFlowTests/testGameCenterWatchActionUsesACompactButtonWithAnAccessibleTapTarget
                 -only-testing:StreamifyUITests/ParityFlowTests/testFinalSportsScoringHighlightsTheActualWinner
                 -only-testing:StreamifyUITests/ParityFlowTests/testLivePregameFinalTabsKeepLeagueAndFutureDatePolicy
                 -only-testing:StreamifyUITests/ParityFlowTests/testFinalGameHasGroupedPlayByPlayAndBothTeamsPlayerTables
+                -only-testing:StreamifyUITests/ParityFlowTests/testGameCardTeamHoldAndNHLTagDoNotTriggerCardNavigation
+                -only-testing:StreamifyUITests/ParityFlowTests/testRootTabsUseTapNavigationAndLeaveCarouselsIndependent
                 -only-testing:StreamifyUITests/SportsChatFlowTests
                 -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testLandscapeVideoFillsCanvasAndRotationKeepsTheSameStreamDocument
                 -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testPlayerChatSheetKeepsTheCurrentVideoDocumentMounted

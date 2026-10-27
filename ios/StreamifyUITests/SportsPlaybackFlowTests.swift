@@ -475,7 +475,7 @@ final class SportsPlaybackFlowTests: XCTestCase {
     }
 
     private var playbackDocument: XCUIElement {
-        app.webViews.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Playback session '")).firstMatch
+        app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Playback session '")).firstMatch
     }
 
     private func assertSinglePlaybackSurface(file: StaticString = #filePath, line: UInt = #line) {

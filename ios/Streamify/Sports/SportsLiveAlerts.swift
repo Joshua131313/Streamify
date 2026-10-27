@@ -32,6 +32,7 @@ final class SportsLiveAlerts: NSObject, ObservableObject, MessagingDelegate, UNU
         UNUserNotificationCenter.current().delegate = self
         guard Self.remotePushConfigured else { return }
         Messaging.messaging().delegate = self
+        if !applied.isEmpty { UIApplication.shared.registerForRemoteNotifications() }
     }
 
     func authorize() async -> Bool {
@@ -52,6 +53,7 @@ final class SportsLiveAlerts: NSObject, ObservableObject, MessagingDelegate, UNU
         guard Self.remotePushConfigured else { return }
         Messaging.messaging().isAutoInitEnabled = enabled
         if enabled { UIApplication.shared.registerForRemoteNotifications() }
+        if enabled && Messaging.messaging().apnsToken == nil { return }
         guard syncing == nil else { return }
         syncing = Task { [weak self] in
             guard let self else { return }
@@ -103,6 +105,7 @@ final class SportsLiveAlerts: NSObject, ObservableObject, MessagingDelegate, UNU
     func setAPNSToken(_ token: Data) {
         guard Self.remotePushConfigured else { return }
         Messaging.messaging().apnsToken = token
+        configure(teams: currentTeams, enabled: enabled)
     }
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         guard let value = response.notification.request.content.userInfo["streamify_route"] as? String, let url = URL(string: value) else { return }
