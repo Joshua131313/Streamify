@@ -156,6 +156,16 @@ final class SportsPlaybackAttachment: UIView {
 
 private final class SportsPlaybackWindow: UIWindow {
     weak var session: SportsPlaybackSession?
+    var onPlayerTouch: (() -> Void)?
+    override func sendEvent(_ event: UIEvent) {
+        super.sendEvent(event)
+        // Observe delivery instead of competing with WebKit's recognizers.
+        // A failed passive recognizer can miss later provider interactions.
+        if session?.isExpanded == true, event.type == .touches,
+           event.allTouches?.contains(where: { $0.phase == .began && $0.window === self }) == true {
+            onPlayerTouch?()
+        }
+    }
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         guard session?.isExpanded == true else { return nil }
         return super.hitTest(point, with: event)
@@ -459,29 +469,26 @@ private struct SportsPlaybackOverlay: View {
 private struct SportsPlayerTouchObserver: UIViewRepresentable {
     var onTouch: () -> Void
     func makeUIView(context: Context) -> ObserverView { ObserverView(onTouch: onTouch) }
-    func updateUIView(_ view: ObserverView, context: Context) { view.recognizer.onTouch = onTouch }
-    static func dismantleUIView(_ view: ObserverView, coordinator: ()) { view.recognizer.view?.removeGestureRecognizer(view.recognizer) }
+    func updateUIView(_ view: ObserverView, context: Context) { view.onTouch = onTouch }
+    static func dismantleUIView(_ view: ObserverView, coordinator: ()) { view.detach() }
     final class ObserverView: UIView {
-        let recognizer: TouchRecorder
+        var onTouch: () -> Void
+        private weak var playerWindow: SportsPlaybackWindow?
         init(onTouch: @escaping () -> Void) {
-            recognizer = TouchRecorder(); recognizer.onTouch = onTouch
+            self.onTouch = onTouch
             super.init(frame: .zero)
             isUserInteractionEnabled = false
-            recognizer.cancelsTouchesInView = false; recognizer.delaysTouchesBegan = false; recognizer.delaysTouchesEnded = false
         }
         required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
         override func didMoveToWindow() {
-            recognizer.view?.removeGestureRecognizer(recognizer)
-            window?.addGestureRecognizer(recognizer)
+            super.didMoveToWindow()
+            detach()
+            playerWindow = window as? SportsPlaybackWindow
+            playerWindow?.onPlayerTouch = { [weak self] in self?.onTouch() }
         }
-    }
-    final class TouchRecorder: UIGestureRecognizer {
-        var onTouch: (() -> Void)?
-        override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
-            // The caller limits this to landscape with native panels closed.
-            // WebKit can hit-test to a hosting sibling rather than WKContentView.
-            onTouch?()
-            state = .failed
+        func detach() {
+            playerWindow?.onPlayerTouch = nil
+            playerWindow = nil
         }
     }
 }

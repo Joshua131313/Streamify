@@ -63,14 +63,22 @@ struct SportsService: Sendable {
         request.setValue("Streamify/1.1", forHTTPHeaderField: "User-Agent")
         let prepared = request
         let lifetime: TimeInterval = url.path.hasSuffix("/teams") || url.path.hasSuffix("/roster") ? 3600 : 30
-        let data = try await ResponseMemoryCache.shared.data(key: ResponseMemoryCache.key(for: prepared, session: session),
-            lifetime: lifetime, reload: forceReload) {
+        let fetch: @Sendable () async throws -> Data = {
                 let (data, response) = try await session.data(for: prepared)
                 guard let http = response as? HTTPURLResponse else { throw SportsServiceError.invalidResponse }
                 guard (200...299).contains(http.statusCode) else { throw SportsServiceError.unavailable(http.statusCode) }
                 _ = try JSONSerialization.jsonObject(with: data)
                 return data
             }
+        let data: Data
+        if url.host == "streamed.pk", url.path.hasPrefix("/api/stream/") {
+            // Source addresses can expire or depend on the current connection.
+            // Resolve each Watch afresh even when browsing data stays warm.
+            data = try await fetch()
+        } else {
+            data = try await ResponseMemoryCache.shared.data(key: ResponseMemoryCache.key(for: prepared, session: session),
+                lifetime: lifetime, reload: forceReload, operation: fetch)
+        }
         try Task.checkCancellation()
         return try JSONSerialization.jsonObject(with: data)
     }

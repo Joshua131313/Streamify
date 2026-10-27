@@ -135,15 +135,11 @@ private struct SportsFootballField: View {
 private struct SportsBaseballSituationView: View {
     let game: SportsGame
     let situation: SportsBaseballSituation
-    private var battingTeam: SportsTeam? {
-        situation.half == .top ? game.away : situation.half == .bottom ? game.home : nil
-    }
 
     var body: some View {
         HStack(spacing: 14) {
             if situation.hasBaseData {
-                SportsBaseballDiamond(situation: situation, gameID: game.id,
-                    occupied: SportsTeamPalette.color(battingTeam, fallback: AppTheme.foreground))
+                SportsBaseballDiamond(situation: situation, gameID: game.id)
             }
             VStack(alignment: .leading, spacing: 7) {
                 if let inning = situation.inning, let half = situation.half {
@@ -170,30 +166,56 @@ private struct SportsBaseballSituationView: View {
 private struct SportsBaseballDiamond: View {
     let situation: SportsBaseballSituation
     let gameID: String
-    let occupied: Color
+    @Environment(\.colorScheme) private var colorScheme
+    private var occupied: Color { colorScheme == .dark
+        ? Color(red: 1, green: 0.81, blue: 0.40) : Color(red: 0.66, green: 0.35, blue: 0) }
+    private var turf: Color { Color(red: 0.20, green: 0.47, blue: 0.34) }
 
     var body: some View {
         ZStack {
+            // A small scorebug field, with equally spaced base centers. The
+            // paths sit behind the bags; team colors cannot obscure runners.
             Path { path in
                 path.move(to: CGPoint(x: 32, y: 56))
-                path.addLines([CGPoint(x: 56, y: 32), CGPoint(x: 32, y: 8), CGPoint(x: 8, y: 32), CGPoint(x: 32, y: 56)])
-            }.stroke(AppTheme.muted.opacity(0.55), lineWidth: 1)
-            base("first", value: situation.firstOccupied).position(x: 56, y: 32)
-            base("second", value: situation.secondOccupied).position(x: 32, y: 8)
-            base("third", value: situation.thirdOccupied).position(x: 8, y: 32)
-            SportsHomePlate().fill(AppTheme.panel)
-                .overlay { SportsHomePlate().stroke(AppTheme.foreground.opacity(0.7), lineWidth: 1) }
-                .frame(width: 10, height: 10).position(x: 32, y: 56)
+                path.addLine(to: CGPoint(x: 2, y: 26))
+                path.addQuadCurve(to: CGPoint(x: 62, y: 26), control: CGPoint(x: 32, y: -10))
+                path.closeSubpath()
+            }.fill(turf.opacity(colorScheme == .dark ? 0.28 : 0.13))
+            Path { path in
+                path.move(to: CGPoint(x: 32, y: 56))
+                path.addLines([CGPoint(x: 53, y: 35), CGPoint(x: 32, y: 14), CGPoint(x: 11, y: 35)])
+                path.closeSubpath()
+            }.fill(AppTheme.foreground.opacity(0.055))
+            Path { path in
+                path.move(to: CGPoint(x: 32, y: 46))
+                path.addLines([CGPoint(x: 43, y: 35), CGPoint(x: 32, y: 24), CGPoint(x: 21, y: 35)])
+                path.closeSubpath()
+            }.fill(turf.opacity(colorScheme == .dark ? 0.22 : 0.14))
+            Path { path in
+                path.move(to: CGPoint(x: 32, y: 56))
+                path.addLines([CGPoint(x: 53, y: 35), CGPoint(x: 32, y: 14), CGPoint(x: 11, y: 35)])
+                path.closeSubpath()
+            }.stroke(AppTheme.foreground.opacity(0.24), style: StrokeStyle(lineWidth: 0.8, lineJoin: .round))
+            Capsule().fill(AppTheme.foreground.opacity(0.32)).frame(width: 4, height: 1.5).position(x: 32, y: 36)
+            base("first", value: situation.firstOccupied).position(x: 53, y: 35)
+            base("second", value: situation.secondOccupied).position(x: 32, y: 14)
+            base("third", value: situation.thirdOccupied).position(x: 11, y: 35)
+            SportsHomePlate().fill(AppTheme.foreground.opacity(0.88))
+                .frame(width: 7.5, height: 8).position(x: 32, y: 56)
                 .accessibilityElement(children: .ignore).accessibilityLabel("Home plate")
                 .accessibilityIdentifier("sports-homeplate-\(gameID)")
         }.frame(width: 64, height: 64)
+            .environment(\.layoutDirection, .leftToRight)
             .accessibilityElement(children: .contain).accessibilityIdentifier("sports-diamond-\(gameID)")
     }
 
     private func base(_ name: String, value: Bool?) -> some View {
-        Rectangle().fill(value == true ? occupied : AppTheme.panel)
-            .overlay { Rectangle().stroke(value == true ? AppTheme.foreground.opacity(0.75) : AppTheme.muted.opacity(value == nil ? 0.35 : 0.9), lineWidth: 1) }
-            .frame(width: 10, height: 10).rotationEffect(.degrees(45))
+        RoundedRectangle(cornerRadius: 0.7).fill(value == true ? occupied : AppTheme.panel)
+            .overlay { RoundedRectangle(cornerRadius: 0.7).strokeBorder(
+                value == true ? occupied : AppTheme.foreground.opacity(value == nil ? 0.25 : 0.66),
+                style: StrokeStyle(lineWidth: 1, dash: value == nil ? [1.2, 1.2] : [])) }
+            .frame(width: 7.5, height: 7.5).rotationEffect(.degrees(45))
+            .shadow(color: value == true ? occupied.opacity(0.22) : .clear, radius: 2)
             .accessibilityElement(children: .ignore).accessibilityLabel("\(name.capitalized) base")
             .accessibilityValue(value.map { $0 ? "Occupied" : "Empty" } ?? "Unknown")
             .accessibilityIdentifier("sports-base-\(name)-\(gameID)")
