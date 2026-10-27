@@ -18,9 +18,11 @@ final class SportsWebPiPBridge: NSObject, WKScriptMessageHandler {
     private var elementFullscreen = false
     private var fullscreenObservation: NSKeyValueObservation?
     private var foregroundObserver: NSObjectProtocol?
+    private var backgroundObserver: NSObjectProtocol?
     private struct VideoFrame {
         let frame: WKFrameInfo
         let capable: Bool
+        let playing: Bool
         let score: Double
         let seenAt: TimeInterval
     }
@@ -42,6 +44,10 @@ final class SportsWebPiPBridge: NSObject, WKScriptMessageHandler {
         foregroundObserver = NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification,
             object: nil, queue: .main) { [weak self] _ in
                 Task { @MainActor [weak self] in self?.refreshPresentation() }
+            }
+        backgroundObserver = NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification,
+            object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.startAutomaticPiP() }
             }
     }
     func begin() {
@@ -70,6 +76,8 @@ final class SportsWebPiPBridge: NSObject, WKScriptMessageHandler {
         fullscreenObservation?.invalidate(); fullscreenObservation = nil
         if let foregroundObserver { NotificationCenter.default.removeObserver(foregroundObserver) }
         foregroundObserver = nil
+        if let backgroundObserver { NotificationCenter.default.removeObserver(backgroundObserver) }
+        backgroundObserver = nil
         pictureInPicture?.detach(owner: owner)
         webView?.configuration.userContentController.removeScriptMessageHandler(forName: Self.name, contentWorld: Self.world)
         frames.removeAll(); activeVideoID = nil; fullscreenVideoIDs.removeAll(); refreshingFrames.removeAll(); owner = UUID()
@@ -90,7 +98,7 @@ final class SportsWebPiPBridge: NSObject, WKScriptMessageHandler {
         let fullscreen = body["fullscreen"] as? Bool == true
         if fullscreen { fullscreenVideoIDs.insert(id) } else { fullscreenVideoIDs.remove(id) }
         let capable = body["capable"] as? Bool == true && area.isFinite && area > 3200
-        frames[id] = VideoFrame(frame: message.frameInfo, capable: capable,
+        frames[id] = VideoFrame(frame: message.frameInfo, capable: capable, playing: playing,
             score: min(max(0, area), 10_000_000) + (playing ? 100_000_000 : 0), seenAt: ProcessInfo.processInfo.systemUptime)
         refreshCapability()
         if active {
@@ -111,6 +119,20 @@ final class SportsWebPiPBridge: NSObject, WKScriptMessageHandler {
     }
     private func publishFullscreen() {
         pictureInPicture?.reportProviderFullscreen(elementFullscreen || !fullscreenVideoIDs.isEmpty, owner: owner)
+    }
+    static func shouldStartAutomaticPiP(size: CGSize, playing: Bool, capable: Bool, age: TimeInterval,
+        providerFullscreen: Bool, active: Bool) -> Bool {
+        size.width > size.height && playing && capable && age >= 0 && age < 3 && !providerFullscreen && !active
+    }
+    private func startAutomaticPiP() {
+        guard let webView, let pictureInPicture else { return }
+        let now = ProcessInfo.processInfo.systemUptime
+        guard frames.values.contains(where: { Self.shouldStartAutomaticPiP(size: webView.bounds.size,
+            playing: $0.playing, capable: $0.capable, age: now - $0.seenAt,
+            providerFullscreen: elementFullscreen || !fullscreenVideoIDs.isEmpty, active: pictureInPicture.isActive) }) else { return }
+        // Uses the existing provider's public PiP API. Only its confirmed mode
+        // callback can hide our retained surface; a rejected attempt is silent.
+        pictureInPicture.requestAutomatically()
     }
     private func refreshPresentation() {
         guard let webView else { return }

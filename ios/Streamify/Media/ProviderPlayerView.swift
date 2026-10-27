@@ -511,6 +511,10 @@ private struct PlayerWebView: UIViewRepresentable {
             controller.removeAllUserScripts()
             pipBridge?.begin()
             if parent.preferProviderControlsFullscreen {
+                if let resource = Bundle.main.url(forResource: "sports-autoplay", withExtension: "js"),
+                   let autoplay = try? String(contentsOf: resource, encoding: .utf8) {
+                    controller.addUserScript(WKUserScript(source: autoplay, injectionTime: .atDocumentEnd, forMainFrameOnly: false))
+                }
                 controller.addUserScript(WKUserScript(source: SportsProviderFullscreenScript.source,
                     injectionTime: .atDocumentStart, forMainFrameOnly: false))
             }

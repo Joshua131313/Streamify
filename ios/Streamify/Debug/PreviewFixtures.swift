@@ -123,6 +123,9 @@ enum PreviewFixtures {
         let playerClass = providerControls ? "class=\"jwplayer\"" : ""
         let buttonClass = providerControls ? "class=\"jw-icon-fullscreen\"" : ""
         let quality = providerControls ? "<button onclick=\"document.getElementById('quality-state').textContent='Provider quality menu visible'\">Provider quality</button><p id=\"quality-state\"></p>" : ""
+        let autoplayCheck = ProcessInfo.processInfo.arguments.contains("--ui-sports-autoplay-fixture")
+        let autoplay = autoplayCheck ? "" : "autoplay"
+        let pause = autoplayCheck ? "<button onclick=\"video.pause()\">Pause fixture video</button><p id=\"playing-state\">Video paused</p>" : ""
         return """
         <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
         <style>
@@ -131,14 +134,17 @@ enum PreviewFixtures {
         main:fullscreen{width:100vw;height:100vh}video{display:block;flex:1;min-height:0;width:100%;max-height:62%;object-fit:contain;background:#000}
         button{min-height:44px;flex-shrink:0;margin:4px;border:0;border-radius:10px;padding:8px 16px}p{margin:3px;flex-shrink:0}#playback-session,#viewport{font-size:10px;color:#aaa}
         </style></head><body><main \(playerClass)>
-        <video id="fixture-video" controls autoplay muted loop playsinline src="data:video/mp4;base64,\(videoData)"></video>
+        <video id="fixture-video" controls \(autoplay) muted loop playsinline src="data:video/mp4;base64,\(videoData)"></video>
         <p id="video-state" role="status">Video loading</p><p id="playback-session"></p>
         <button id="enter-fullscreen" \(buttonClass) onclick="\(action)">\(title)</button>
         \(exit)
         \(quality)
+        \(pause)
         <p id="fullscreen-state" role="status">Provider inline</p><p id="native-state" role="status">Video inline, entries 0, exits 0</p><p id="viewport"></p>
         </main><script>
         const video=document.getElementById('fixture-video');let entries=0,exits=0;
+        function playbackState(){const label=document.getElementById('playing-state');if(label)label.textContent=video.paused?'Video paused':'Video playing';}
+        video.addEventListener('play',playbackState);video.addEventListener('pause',playbackState);
         document.getElementById('playback-session').textContent='Playback session '+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
         function viewport(){document.getElementById('viewport').textContent='Provider viewport '+window.innerWidth+' by '+window.innerHeight;}
         function ready(){if(video.readyState>=2&&Number.isFinite(video.duration)&&video.duration>0)document.getElementById('video-state').textContent='Bundled H264 video ready';}

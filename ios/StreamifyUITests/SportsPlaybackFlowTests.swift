@@ -13,6 +13,7 @@ final class SportsPlaybackFlowTests: XCTestCase {
         if name.contains("testNativeSystemPictureInPicture") { app.launchArguments.append("--ui-native-pip-fixture") }
         if name.contains("testProviderElementFullscreen") || name.contains("testSwipeDownSportsPlayer") { app.launchArguments.append("--ui-element-fullscreen-fixture") }
         if name.contains("testSportsFullscreenUsesTheProvidersOwnControl") { app.launchArguments.append("--ui-provider-controls-fullscreen-fixture") }
+        if name.contains("testSportsWatchAutoplaysReadyVideoAndPreservesAnExplicitPause") { app.launchArguments += ["--ui-provider-controls-fullscreen-fixture", "--ui-sports-autoplay-fixture"] }
         if name.contains("testProviderNativeVideoFullscreen") { app.launchArguments.append("--ui-native-video-fullscreen-fixture") }
         app.launch()
         XCTAssertTrue(app.buttons["tab-home"].waitForExistence(timeout: 15))
@@ -99,7 +100,7 @@ final class SportsPlaybackFlowTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(video.frame.width, app.frame.width - 3)
         XCTAssertEqual(playbackDocument.label, document, "Rotation must retain the provider document, not reload playback.")
         let options = app.buttons["sports-landscape-options"]
-        XCTAssertTrue(wait { !options.isHittable }, "Idle landscape options should fade away.")
+        XCTAssertTrue(wait { !options.exists }, "Idle landscape options should fade away and leave no invisible hit target.")
         video.coordinate(withNormalizedOffset: CGVector(dx: 0.04, dy: 0.5)).tap()
         XCTAssertTrue(options.wait(for: \.isHittable, toEqual: true, timeout: 5), "A video touch should reveal options without intercepting the provider.")
         capture("Sports landscape video fills the canvas without portrait bars")
@@ -128,6 +129,19 @@ final class SportsPlaybackFlowTests: XCTestCase {
         XCTAssertTrue(source.wait(for: \.isHittable, toEqual: true, timeout: 5))
         XCTAssertEqual(playbackDocument.label, document)
         XCTAssertEqual(source.value as? String, selectedSource)
+    }
+
+    func testSportsWatchAutoplaysReadyVideoAndPreservesAnExplicitPause() {
+        _ = openSportsPlayerOnBravo()
+        let document = playbackDocument.label
+        XCTAssertTrue(app.staticTexts["Video playing"].waitForExistence(timeout: 12))
+        app.buttons["Pause fixture video"].tap()
+        XCTAssertTrue(app.staticTexts["Video paused"].waitForExistence(timeout: 5))
+        let unwantedRestart = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.app.staticTexts["Video playing"].exists }, object: nil)
+        unwantedRestart.isInverted = true
+        XCTAssertEqual(XCTWaiter.wait(for: [unwantedRestart], timeout: 3.2), .completed)
+        XCTAssertEqual(playbackDocument.label, document)
+        capture("Sports Watch starts the ready video once and respects Pause")
     }
 
     func testSportsFullscreenUsesTheProvidersOwnControlAndKeepsItsDocument() {

@@ -181,7 +181,7 @@ private struct SportsPlaybackOverlay: View {
     @State private var landscapeControlsVisible = false
     @State private var showChat = false
     @State private var landscapeOptionsVisible = true
-    @State private var interactionToken = UUID()
+    @State private var optionsHideTask: Task<Void, Never>?
     init(session: SportsPlaybackSession, activity: SportsPlaybackSceneActivity, sourceFrame: @escaping () -> CGRect?) {
         self.session = session
         self.activity = activity
@@ -217,12 +217,8 @@ private struct SportsPlaybackOverlay: View {
                         }
                     }.frame(width: 0, height: 0)
                 }
-                .task(id: interactionToken) {
-                    guard geometry.size.width > geometry.size.height else { return }
-                    do { try await Task.sleep(for: .seconds(3)) } catch { return }
-                    guard !landscapeControlsVisible, !showChat else { return }
-                    withAnimation(reduceMotion ? nil : .easeOut(duration: 0.25)) { landscapeOptionsVisible = false }
-                }
+                .onAppear(perform: revealLandscapeOptions)
+                .onDisappear { optionsHideTask?.cancel(); optionsHideTask = nil }
             }
         }.ignoresSafeArea().preferredColorScheme(.dark).foregroundStyle(.white).tint(.white)
         .sheet(isPresented: $showChat) {
@@ -231,6 +227,7 @@ private struct SportsPlaybackOverlay: View {
             }
         }
         .onChange(of: session.item?.game?.id) { _, _ in showChat = false }
+        .onChange(of: showChat) { _, open in if !open { revealLandscapeOptions() } }
         .onChange(of: session.item?.id) { _, _ in resetDismissal() }
         .onChange(of: session.item?.url) { _, _ in resetDismissal() }
         .onChange(of: session.presentation) { _, _ in resetDismissal() }
@@ -305,7 +302,7 @@ private struct SportsPlaybackOverlay: View {
                             withAnimation(reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.85)) { drag = .zero }
                         }
                     })
-            VStack(spacing: 0) {
+            if controlsVisible { VStack(spacing: 0) {
                 header(item, landscape: layout.isLandscape)
                     .padding(.trailing, layout.isLandscape ? 48 : 0)
                     .padding(.top, session.safeAreaInsets.top).frame(height: layout.headerHeight)
@@ -314,8 +311,8 @@ private struct SportsPlaybackOverlay: View {
                 footer(item).padding(.bottom, session.safeAreaInsets.bottom).frame(height: layout.footerHeight)
                     .background(.black.opacity(layout.isLandscape ? 0.65 : 1))
             }
-            .opacity(controlsVisible ? 1 : 0).allowsHitTesting(controlsVisible).accessibilityHidden(!controlsVisible)
-            if layout.isLandscape {
+            .transition(.opacity) }
+            if layout.isLandscape && (landscapeOptionsVisible || landscapeControlsVisible) {
                 HStack {
                     Spacer()
                     Button {
@@ -328,11 +325,9 @@ private struct SportsPlaybackOverlay: View {
                     }.buttonStyle(HapticPlainButtonStyle())
                         .accessibilityLabel(landscapeControlsVisible ? "Hide player options" : "Show player options")
                         .accessibilityIdentifier("sports-landscape-options")
-                        .opacity(landscapeOptionsVisible || landscapeControlsVisible ? 1 : 0)
-                        .allowsHitTesting(landscapeOptionsVisible || landscapeControlsVisible)
-                        .accessibilityHidden(!landscapeOptionsVisible && !landscapeControlsVisible)
                 }.padding(.trailing, max(12, session.safeAreaInsets.right))
                     .padding(.top, session.safeAreaInsets.top + 6)
+                    .transition(.opacity)
             }
         }
         .background(.black)
@@ -435,7 +430,12 @@ private struct SportsPlaybackOverlay: View {
     }
     private func revealLandscapeOptions() {
         landscapeOptionsVisible = true
-        interactionToken = UUID()
+        optionsHideTask?.cancel()
+        optionsHideTask = Task { @MainActor in
+            do { try await Task.sleep(for: .seconds(3)) } catch { return }
+            guard !Task.isCancelled, !landscapeControlsVisible, !showChat else { return }
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.25)) { landscapeOptionsVisible = false }
+        }
     }
     private func footer(_ item: SportsPlaybackItem) -> some View {
         HStack(spacing: 8) {

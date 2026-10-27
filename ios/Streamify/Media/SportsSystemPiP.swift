@@ -19,6 +19,7 @@ final class SportsSystemPiP: ObservableObject {
     private var requestAction: (() -> Void)?
     private var stopAction: (() -> Void)?
     private var restoreRequested = false
+    private var automaticRequest = false
     private var timeout: Task<Void, Never>?
     func owns(owner: UUID) -> Bool { self.owner == owner }
 
@@ -38,13 +39,22 @@ final class SportsSystemPiP: ObservableObject {
         providerOwnsFullscreen = value
     }
     func request() {
+        beginRequest(automatic: false)
+    }
+    func requestAutomatically() {
+        beginRequest(automatic: true)
+    }
+    private func beginRequest(automatic: Bool) {
         guard !isActive, !isRequesting else { return }
         guard capability == .available, let owner, let requestAction else {
+            if automatic { return }
             message = capability == .checking ? "Wait for the video to start, then try Picture in Picture again."
                 : "This source does not currently support iOS Picture in Picture. Try another source or use its own video controls."
             return
         }
-        message = nil; isRequesting = true; restoreRequested = false
+        automaticRequest = automatic
+        if !automatic { message = nil }
+        isRequesting = true; restoreRequested = false
         requestAction()
         timeout?.cancel()
         timeout = Task { [weak self] in
@@ -67,7 +77,9 @@ final class SportsSystemPiP: ObservableObject {
     }
     func failed(_ text: String, owner: UUID) {
         guard self.owner == owner else { return }
-        timeout?.cancel(); timeout = nil; isRequesting = false; message = text
+        timeout?.cancel(); timeout = nil; isRequesting = false
+        if !automaticRequest { message = text }
+        automaticRequest = false
     }
     func restore() {
         guard isActive else { return }
@@ -83,7 +95,7 @@ final class SportsSystemPiP: ObservableObject {
         timeout?.cancel(); timeout = nil
         let stop = stopAction
         owner = nil; requestAction = nil; stopAction = nil
-        capability = .checking; isActive = false; isRequesting = false; restoreRequested = false; message = nil
+        capability = .checking; isActive = false; isRequesting = false; restoreRequested = false; automaticRequest = false; message = nil
         providerOwnsFullscreen = false
         stop?()
     }

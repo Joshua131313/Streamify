@@ -93,6 +93,7 @@ jobs:
               SELECTORS=(
                 -only-testing:StreamifyTests/SportsLiveSituationTests
                 -only-testing:StreamifyTests/SportsGameDataTests
+                  -only-testing:StreamifyTests/SportsPlaybackSessionTests
                 -only-testing:StreamifyTests/SportsTeamLiveScoreTests
                 -only-testing:StreamifyTests/SportsWidgetPolicyTests
                 -only-testing:StreamifyUITests/ParityFlowTests/testBasketballPossessionIconSitsImmediatelyBeforeTheCorrectScoreForBothLeagues
@@ -105,6 +106,7 @@ jobs:
                 -only-testing:StreamifyUITests/SportsChatFlowTests
                 -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testLandscapeVideoFillsCanvasAndRotationKeepsTheSameStreamDocument
                 -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testPlayerChatSheetKeepsTheCurrentVideoDocumentMounted
+                  -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testSportsWatchAutoplaysReadyVideoAndPreservesAnExplicitPause
               )
               ;;
             provider-control)

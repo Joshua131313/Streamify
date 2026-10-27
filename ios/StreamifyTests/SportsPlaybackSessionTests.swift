@@ -4,6 +4,27 @@ import WebKit
 @testable import Streamify
 
 final class SportsPlaybackSessionTests: XCTestCase {
+    @MainActor func testAutomaticInlinePiPRequiresFreshPlayingLandscapeAndConfirmedMode() {
+        func eligible(_ size: CGSize = CGSize(width: 844, height: 390), playing: Bool = true,
+            capable: Bool = true, age: TimeInterval = 1, fullscreen: Bool = false, active: Bool = false) -> Bool {
+            SportsWebPiPBridge.shouldStartAutomaticPiP(size: size, playing: playing, capable: capable,
+                age: age, providerFullscreen: fullscreen, active: active)
+        }
+        XCTAssertTrue(eligible())
+        XCTAssertFalse(eligible(CGSize(width: 390, height: 844)))
+        XCTAssertFalse(eligible(playing: false)); XCTAssertFalse(eligible(capable: false))
+        XCTAssertFalse(eligible(age: 4)); XCTAssertFalse(eligible(fullscreen: true)); XCTAssertFalse(eligible(active: true))
+        let pip = SportsSystemPiP(), owner = UUID()
+        pip.requestAutomatically(); XCTAssertNil(pip.message); XCTAssertFalse(pip.isRequesting)
+        var requests = 0
+        pip.attach(owner: owner, capability: .available, request: { requests += 1 }, stop: {})
+        pip.requestAutomatically(); pip.requestAutomatically()
+        XCTAssertEqual(requests, 1); XCTAssertFalse(pip.isActive)
+        pip.failed("Unavailable", owner: owner); XCTAssertNil(pip.message)
+        pip.request(); pip.failed("Manual failure", owner: owner); XCTAssertEqual(pip.message, "Manual failure")
+        pip.requestAutomatically(); pip.didStart(owner: owner); XCTAssertTrue(pip.isActive)
+        pip.reset()
+    }
     @MainActor func testLiveGameSwitchKeepsPlayerIdentityAndRemembersEachGamesServer() async {
         let nba = playbackGame("nba-live", league: .nba)
         let nfl = playbackGame("nfl-live", league: .nfl)
