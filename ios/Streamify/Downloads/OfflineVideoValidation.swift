@@ -2,7 +2,7 @@ import Foundation
 import AVFoundation
 
 enum OfflineVideoError: LocalizedError, Hashable {
-    case missingFile, damagedFile, noVideo, incompatible, unplayable, protectedContent
+    case missingFile, damagedFile, noVideo, incompatible, unplayable, protectedContent, qualityMismatch
 
     var errorDescription: String? {
         switch self {
@@ -12,6 +12,7 @@ enum OfflineVideoError: LocalizedError, Hashable {
         case .incompatible: return "This file contains a video or audio track that this iPhone cannot play."
         case .unplayable: return "The iOS player could not play this file."
         case .protectedContent: return "This file requires protected playback that is not available for this offline download."
+        case .qualityMismatch: return "The source file does not match the download resolution you selected."
         }
     }
     var recoverySuggestion: String? {
@@ -21,6 +22,7 @@ enum OfflineVideoError: LocalizedError, Hashable {
         case .incompatible, .unplayable:
             return "Try another download source or an H.264 video with AAC audio in an MP4 file. Changing the filename or resolution alone may not fix its encoding."
         case .protectedContent: return "Choose an unprotected download that you are allowed to save and play offline."
+        case .qualityMismatch: return "Try another source at the same quality, or choose a different resolution. A lower-quality file has not been saved as your selected quality."
         }
     }
     var isCompatibilityIssue: Bool { self == .incompatible || self == .unplayable || self == .protectedContent }
@@ -54,6 +56,20 @@ enum OfflineVideoValidation {
     struct Result {
         let asset: AVURLAsset
         let duration: Double
+        let width: Int
+        let height: Int
+        let codecs: [String]
+    }
+
+    /// A cropped widescreen 1080p film may be 1920×804, while a 4:3 source may
+    /// be 1440×1080. Require the selected nominal tier without accepting a
+    /// lower-resolution file merely because its provider label says 1080p.
+    static func requireQuality(_ quality: Int, width: Int, height: Int) throws {
+        guard [360, 480, 720, 1080].contains(quality), width > 0, height > 0 else { throw OfflineVideoError.qualityMismatch }
+        let long = max(width, height), short = min(width, height)
+        let expectedLong = Int((Double(quality) * 16 / 9).rounded())
+        guard long <= expectedLong + 2,
+              abs(short - quality) <= 2 || abs(long - expectedLong) <= 2 else { throw OfflineVideoError.qualityMismatch }
     }
 
     static func validate(_ url: URL) async throws -> Result {
@@ -65,7 +81,18 @@ enum OfflineVideoValidation {
         let asset = AVURLAsset(url: url)
         return try await withTaskCancellationHandler {
             do {
-                return try await inspect(asset)
+                let result = try await inspect(asset)
+                // Metadata support alone does not prove that this file's
+                // encoded samples can be decoded. Check one real local frame;
+                // this is not a full-file corruption scan or a conversion.
+                let generator = AVAssetImageGenerator(asset: asset)
+                generator.maximumSize = CGSize(width: 160, height: 160)
+                generator.appliesPreferredTrackTransform = true
+                _ = try await withTaskCancellationHandler {
+                    try await generator.image(at: .zero)
+                } onCancel: { generator.cancelAllCGImageGeneration() }
+                try Task.checkCancellation()
+                return result
             } catch {
                 if Task.isCancelled { throw CancellationError() }
                 throw OfflineVideoError.classify(error)
@@ -121,8 +148,24 @@ enum OfflineVideoValidation {
             guard try await hasPlayableTrack(audio) else { throw OfflineVideoError.incompatible }
         }
         guard playable else { throw OfflineVideoError.unplayable }
+        var width = 0, height = 0
+        var codecs: [String] = []
+        for track in video {
+            let size = try await track.load(.naturalSize)
+            let formats = try await track.load(.formatDescriptions)
+            for format in formats {
+                let code = CMFormatDescriptionGetMediaSubType(format)
+                codecs.append(String(decoding: [UInt8((code >> 24) & 255), UInt8((code >> 16) & 255),
+                    UInt8((code >> 8) & 255), UInt8(code & 255)], as: UTF8.self))
+            }
+            if size.width.isFinite, size.height.isFinite, size.width > 0, size.height > 0,
+               size.width <= 65_535, size.height <= 65_535 {
+                let candidateWidth = Int(size.width.rounded()), candidateHeight = Int(size.height.rounded())
+                if candidateWidth * candidateHeight > width * height { width = candidateWidth; height = candidateHeight }
+            }
+        }
         try Task.checkCancellation()
-        return Result(asset: asset, duration: duration.seconds)
+        return Result(asset: asset, duration: duration.seconds, width: width, height: height, codecs: codecs)
     }
 
     private static func hasPlayableTrack(_ tracks: [AVAssetTrack]) async throws -> Bool {

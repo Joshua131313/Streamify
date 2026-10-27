@@ -41,6 +41,29 @@ struct DownloadItem: Identifiable, Codable, Sendable {
     var pendingFileName: String? = nil
     /// Persist the bound across background relaunches; manual Retry resets it.
     var automaticSourceRefreshes: Int? = nil
+    var sourceHeaders: [String: String]? = nil
+    var sourceExpiresAt: Date? = nil
+    var sourceCodec: String? = nil
+    var sourceRequiresProxy: Bool? = nil
+    var sourceID: String? = nil
+    var sourceWidth: Int? = nil
+    var sourceHeight: Int? = nil
+    var sourceCodecs: [String]? = nil
+    mutating func applySource(_ resolved: ResolvedMediaDownload) {
+        source = resolved.url.absoluteString
+        quality = resolved.quality
+        sourceHeaders = DownloadSourceHeaders.sanitized(resolved.headers)
+        sourceExpiresAt = resolved.expiresAt
+        sourceCodec = resolved.codec
+        sourceRequiresProxy = resolved.requiresProxy
+        sourceID = resolved.sourceID
+        sourceWidth = resolved.actualWidth
+        sourceHeight = resolved.actualHeight
+        sourceCodecs = resolved.actualCodecs
+    }
+    func sourceNeedsRefresh(now: Date = Date()) -> Bool {
+        sourceExpiresAt.map { $0.timeIntervalSince(now) < 30 } ?? false
+    }
     var posterFileURL: URL? {
         guard let posterFileName, let directory = try? DownloadFiles.directory() else { return nil }
         return DownloadArtworkCache.fileURL(fileName: posterFileName, itemID: id, directory: directory)
@@ -244,7 +267,7 @@ final class DownloadStore: ObservableObject {
             resolutions[id] = nil
             resolutionAttempts[id] = nil
             // Signed addresses expire; replace the URL instead of retrying the old token.
-            items[index].source = url.absoluteString
+            items[index].applySource(resolved)
             items[index].title = String(title.prefix(240))
             items[index].quality = resolved.quality
             items[index].automaticSourceRefreshes = 0
@@ -259,8 +282,9 @@ final class DownloadStore: ObservableObject {
             start(items[index])
         } else {
             id = UUID()
-            let download = DownloadItem(id: id, title: String(title.prefix(240)), source: url.absoluteString,
+            var download = DownloadItem(id: id, title: String(title.prefix(240)), source: url.absoluteString,
                                         createdAt: Date(), status: .downloading, catalogKey: key, quality: resolved.quality, catalog: descriptor, posterSource: posterSource)
+            download.applySource(resolved)
             items.insert(download, at: 0)
             start(download)
         }
@@ -290,11 +314,12 @@ final class DownloadStore: ObservableObject {
         retry(id: id, refreshingExpiredSource: false)
     }
 
-    private func retry(id: UUID, refreshingExpiredSource: Bool) {
+    private func retry(id: UUID, refreshingExpiredSource: Bool, excludingSource: String? = nil, staleBeforeStart: Bool = false) {
         guard let index = items.firstIndex(where: { $0.id == id }),
               items[index].status == .failed || items[index].status == .cancelled,
               items[index].source.flatMap(secureURL) != nil else { return }
         let failedSource = items[index].source
+        let failedHeaders = items[index].sourceHeaders ?? [:]
         let failureMessage = items[index].error
         if refreshingExpiredSource {
             guard (items[index].automaticSourceRefreshes ?? 0) < 1 else { return }
@@ -322,25 +347,28 @@ final class DownloadStore: ObservableObject {
                 }
                 do {
                     let resolved = try await MediaDownloadResolver().resolve(media: media, season: descriptor.season,
-                        episode: descriptor.episode, maximumQuality: quality)
+                        episode: descriptor.episode, maximumQuality: quality, excludingSources: Set([excludingSource].compactMap { $0 }))
                     try Task.checkCancellation()
                     guard let self, self.resolutionAttempts[id] == attempt,
                           let current = self.items.firstIndex(where: { $0.id == id }), self.items[current].status == .downloading else { return }
-                    guard !refreshingExpiredSource || resolved.url.absoluteString != failedSource else {
+                    guard !refreshingExpiredSource || resolved.url.absoluteString != failedSource || resolved.headers != failedHeaders
+                            || (staleBeforeStart && !resolved.needsRefresh) else {
                         self.items[current].status = .failed
                         self.items[current].error = failureMessage ?? "This download source is unavailable. Try again later or choose another quality."
                         self.save()
                         return
                     }
-                    self.items[current].source = resolved.url.absoluteString
-                    self.items[current].quality = resolved.quality
+                    self.items[current].applySource(resolved)
                     self.start(self.items[current]); self.save()
                 } catch is CancellationError { }
                 catch {
                     guard let self, self.resolutionAttempts[id] == attempt,
                           let current = self.items.firstIndex(where: { $0.id == id }), self.items[current].status == .downloading else { return }
                     self.items[current].status = .failed
-                    self.items[current].error = error.localizedDescription
+                    if refreshingExpiredSource, let failureMessage,
+                       (error as? MediaDownloadResolutionError) == .incompatibleSource {
+                        self.items[current].error = failureMessage + " No other compatible file is available at the selected quality."
+                    } else { self.items[current].error = error.localizedDescription }
                     self.save()
                 }
             }
@@ -543,17 +571,23 @@ final class DownloadStore: ObservableObject {
             }
             do {
                 guard let url = try DownloadFiles.pendingURL(fileName: fileName, id: id) else { throw OfflineVideoError.missingFile }
-                _ = try await OfflineVideoValidation.validate(url)
+                let validation = try await OfflineVideoValidation.validate(url)
                 try Task.checkCancellation()
                 guard let self, self.validationAttempts[id] == attempt,
                       let index = self.items.firstIndex(where: { $0.id == id }),
                       self.items[index].acceptsValidation(taskIdentifier: taskIdentifier, fileName: fileName) else { return }
+                if self.items[index].catalog != nil, let quality = self.items[index].quality {
+                    try OfflineVideoValidation.requireQuality(quality, width: validation.width, height: validation.height)
+                }
                 let oldFileName = self.items[index].fileName
                 self.items[index].fileName = fileName
                 self.items[index].pendingFileName = nil
                 self.items[index].status = .completed
                 self.items[index].taskIdentifier = nil
                 self.items[index].error = nil
+                self.items[index].sourceWidth = validation.width
+                self.items[index].sourceHeight = validation.height
+                self.items[index].sourceCodecs = validation.codecs
                 self.cacheArtwork(id: id); self.save()
                 // A failed/cancelled replacement never deletes the previous
                 // file. Only remove it after the new playable file is saved.
@@ -571,8 +605,16 @@ final class DownloadStore: ObservableObject {
                 self.items[index].pendingFileName = nil
                 self.items[index].status = .failed
                 self.items[index].taskIdentifier = nil
-                self.items[index].error = OfflineVideoError.classify(error).downloadMessage
+                let failure = OfflineVideoError.classify(error)
+                self.items[index].error = failure.downloadMessage
                 self.save()
+                if !Task.isCancelled, self.items[index].catalog?.media != nil,
+                   (self.items[index].automaticSourceRefreshes ?? 0) < 1,
+                   failure.isCompatibilityIssue || failure == .qualityMismatch {
+                    // A failed native file can only be replaced by a different
+                    // actually returned URL at the same selected resolution.
+                    self.retry(id: id, refreshingExpiredSource: true, excludingSource: self.items[index].source)
+                }
             }
         }
     }
@@ -616,8 +658,14 @@ final class DownloadStore: ObservableObject {
 
     private func start(_ item: DownloadItem) {
         guard let source = item.source, let url = secureURL(source) else { return }
-        var request = URLRequest(url: url)
-        request.setValue("video/*, application/octet-stream", forHTTPHeaderField: "Accept")
+        if item.catalog != nil, item.sourceNeedsRefresh(), let index = items.firstIndex(where: { $0.id == item.id }) {
+            items[index].status = .failed
+            items[index].error = "This download address has expired. Retry to request a fresh source."
+            items[index].taskIdentifier = nil
+            if (item.automaticSourceRefreshes ?? 0) < 1 { retry(id: item.id, refreshingExpiredSource: true, staleBeforeStart: true) }
+            return
+        }
+        let request = DownloadSourceHeaders.request(url: url, headers: item.sourceHeaders ?? [:])
         let task = session.downloadTask(with: request)
         task.taskDescription = item.id.uuidString
         tasks[item.id] = task
@@ -704,8 +752,7 @@ private final class DownloadSessionDelegate: NSObject, URLSessionDownloadDelegat
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
-        guard let address = request.url?.absoluteString, secureURL(address) != nil else { completionHandler(nil); return }
-        completionHandler(request)
+        completionHandler(DownloadSourceHeaders.redirected(request, from: response.url))
     }
 
     func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
