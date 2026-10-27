@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import AVKit
 import UniformTypeIdentifiers
 
@@ -285,28 +286,28 @@ private struct DownloadRow: View {
         }.contentShape(Rectangle())
     }
 
-    private var primaryButton: some View {
-        primaryControl
-            .buttonStyle(CardPressedButtonStyle(cornerRadius: 6, preservesContextMenuSource: item.status == .completed))
-            .disabled(item.status != .completed)
-            .foregroundStyle(AppTheme.foreground)
-            .accessibilityLabel(item.status == .completed ? "Play offline \(item.title)" : item.title)
-            .accessibilityIdentifier("download-play-\(item.id)")
-    }
-
-    @ViewBuilder private var primaryControl: some View {
+    @ViewBuilder private var primaryButton: some View {
         if item.status == .completed {
-            // Menu owns both gestures: a quick tap plays this file, while a hold
-            // opens its actions. A separate contextMenu on a List-row Button can
-            // let the primary action fire when the held touch is released.
-            Menu { downloadActions } label: { primaryLabel } primaryAction: {
-                AppHaptics.tap()
-                play()
-            }
-            .menuIndicator(.hidden)
-            .menuOrder(.fixed)
+            // One native control owns the tap and menu recognizers. A SwiftUI
+            // Menu with a primaryAction inside this List row fired playback on
+            // release of a hold instead of presenting its actions on iOS26.
+            primaryLabel
+                .foregroundStyle(AppTheme.foreground)
+                .accessibilityHidden(true)
+                .overlay {
+                    DownloadPrimaryActionsControl(
+                        title: item.title, identifier: "download-play-\(item.id)",
+                        play: play,
+                        chooseQuality: item.catalog?.media == nil ? nil : { showQuality = true },
+                        delete: { confirmDelete = true })
+                }
         } else {
             Button {} label: { primaryLabel }
+                .buttonStyle(CardPressedButtonStyle(cornerRadius: 6))
+                .disabled(true)
+                .foregroundStyle(AppTheme.foreground)
+                .accessibilityLabel(item.title)
+                .accessibilityIdentifier("download-play-\(item.id)")
         }
     }
 
@@ -336,7 +337,7 @@ private struct DownloadRow: View {
 
     @ViewBuilder private func withTransferContextMenu<Content: View>(_ content: Content) -> some View {
         // Disabled transfers need a row context menu. Completed rows use their
-        // primary-action Menu and must not also inherit an ancestor context menu.
+        // native primary-action control without an ancestor context menu.
         if item.status == .completed { content }
         else {
             content.contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 6))
@@ -406,6 +407,67 @@ private struct DownloadRow: View {
         case .completed: return "\(item.quality.map { "\($0)p · " } ?? "")\(ByteCountFormatter.string(fromByteCount: item.bytesWritten, countStyle: .file))"
         case .cancelled: return "Cancelled"
         case .failed: return "Download unavailable"
+        }
+    }
+}
+
+/// Keep the system's primary-action/menu distinction in one UIButton. The
+/// transparent native surface covers the existing SwiftUI artwork and title;
+/// it neither introduces a second row button nor intercepts List swipe actions.
+private struct DownloadPrimaryActionsControl: UIViewRepresentable {
+    let title: String
+    let identifier: String
+    let play: () -> Void
+    let chooseQuality: (() -> Void)?
+    let delete: () -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeUIView(context: Context) -> UIButton {
+        let coordinator = context.coordinator
+        let primary = UIAction { [weak coordinator] _ in coordinator?.activate() }
+        let button = UIButton(type: .custom, primaryAction: primary)
+        button.showsMenuAsPrimaryAction = false
+        button.isAccessibilityElement = true
+        button.isPointerInteractionEnabled = true
+        button.layer.cornerRadius = 6
+        return button
+    }
+
+    func updateUIView(_ button: UIButton, context: Context) {
+        let coordinator = context.coordinator
+        coordinator.control = self
+        button.accessibilityLabel = "Play offline \(title)"
+        button.accessibilityIdentifier = identifier
+        button.accessibilityHint = "Touch and hold for download actions."
+        var actions: [UIMenuElement] = [
+            UIAction(title: "Play offline", image: UIImage(systemName: "play.fill")) { [weak coordinator] _ in
+                coordinator?.activate()
+            }
+        ]
+        if chooseQuality != nil {
+            actions.append(UIAction(title: "Choose quality", image: UIImage(systemName: "slider.horizontal.3")) { [weak coordinator] _ in
+                AppHaptics.tap()
+                coordinator?.control.chooseQuality?()
+            })
+        }
+        actions.append(UIAction(title: "Delete", image: UIImage(systemName: "trash"), attributes: .destructive) { [weak coordinator] _ in
+            AppHaptics.tap()
+            coordinator?.control.delete()
+        })
+        button.menu = UIMenu(children: actions)
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UIButton, context: Context) -> CGSize? {
+        CGSize(width: proposal.width ?? 0, height: proposal.height ?? 70)
+    }
+
+    final class Coordinator {
+        var control: DownloadPrimaryActionsControl
+        init(_ control: DownloadPrimaryActionsControl) { self.control = control }
+        func activate() {
+            AppHaptics.tap()
+            control.play()
         }
     }
 }

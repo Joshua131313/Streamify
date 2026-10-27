@@ -63,8 +63,11 @@ final class MediaWatchFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Season 1 · Episode 1"].waitForExistence(timeout: 5))
         app.buttons["Episodes"].tap()
         XCTAssertTrue(app.navigationBars["Episodes"].waitForExistence(timeout: 5))
-        let season = app.buttons.matching(NSPredicate(format: "label == %@ OR label CONTAINS %@ OR value == %@", "Season", "Season 1", "Season 1")).firstMatch
+        // The underlying details surface remains mounted below this sheet and
+        // has its own Season 1 button. Select the sheet's native labeled Picker.
+        let season = app.buttons["Season, Season 1"]
         XCTAssertTrue(season.waitForExistence(timeout: 5))
+        XCTAssertTrue(season.isHittable, "The Episodes sheet's visible season picker must receive the tap.")
         season.tap()
         XCTAssertTrue(app.buttons["Season 2"].waitForExistence(timeout: 5))
         app.buttons["Season 2"].tap()

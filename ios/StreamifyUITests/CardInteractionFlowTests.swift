@@ -78,6 +78,7 @@ final class CardInteractionFlowTests: XCTestCase {
         XCTAssertTrue(playAction.waitForExistence(timeout: 5))
         XCTAssertTrue(playAction.isHittable)
         XCTAssertTrue(app.buttons["Delete"].isHittable)
+        XCTAssertFalse(element("offline-player").exists, "A held touch must open actions without presenting the player, including when its controls would be hidden.")
         XCTAssertFalse(app.buttons["offline-play-pause"].exists)
         capture("Held completed download native context menu")
 
@@ -86,6 +87,7 @@ final class CardInteractionFlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["download-play-\(downloadID)"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["download-play-\(downloadID)"].isHittable)
         XCTAssertFalse(app.buttons["offline-play-pause"].exists, "Canceling the hold must preserve the file without launching its primary tap.")
+        XCTAssertFalse(element("offline-player").exists)
         XCTAssertTrue(card.exists)
         XCTAssertEqual(card.value as? String, "Artwork saved offline")
         playFile.coordinate(withNormalizedOffset: CGVector(dx: 0.15, dy: 0.5)).press(forDuration: 1.2)
@@ -93,6 +95,7 @@ final class CardInteractionFlowTests: XCTestCase {
         XCTAssertTrue(reopenedPlayAction.waitForExistence(timeout: 5))
         XCTAssertTrue(reopenedPlayAction.isHittable)
         XCTAssertTrue(app.buttons["Delete"].isHittable)
+        XCTAssertFalse(element("offline-player").exists)
         XCTAssertFalse(app.buttons["offline-play-pause"].exists)
         capture("Same completed download holds again after menu cancellation")
 
@@ -171,7 +174,7 @@ final class CardInteractionFlowTests: XCTestCase {
         app.navigationBars["Game center"].buttons["Close"].tap()
         XCTAssertTrue(wait { away.isHittable && home.isHittable && !self.app.navigationBars["Game center"].exists })
         away.press(forDuration: 1.2)
-        let viewAway = app.buttons["sports-card-open-team-nba:nba-fixture-100"]
+        let viewAway = menuButton("View team")
         XCTAssertTrue(viewAway.waitForExistence(timeout: 5))
         XCTAssertEqual(viewAway.label, "View team")
         viewAway.tap()

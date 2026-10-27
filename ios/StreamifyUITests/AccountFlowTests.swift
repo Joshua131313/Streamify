@@ -48,9 +48,13 @@ final class AccountFlowTests: XCTestCase {
         for character in "local-review@example.invalid" { email.typeText(String(character)) }
         XCTAssertEqual(email.value as? String, "local-review@example.invalid")
         let password = app.secureTextFields["account-password"]
-        reveal(password)
+        // Use the form's real Next action. On iOS26 XCTest can throw while
+        // asking an unfocused SecureTextField for its activation point, even
+        // when the field is fully visible above the email keyboard.
+        let next = app.keyboards.buttons["Next"]
+        XCTAssertTrue(next.waitForExistence(timeout: 5))
+        next.tap()
         XCTAssertTrue(password.exists, "Passwords must use the native secure input.")
-        password.tap()
         dismissStrongPasswordSuggestion(waitForAppearance: true)
         password.typeText("x")
         dismissStrongPasswordSuggestion(waitForAppearance: true)

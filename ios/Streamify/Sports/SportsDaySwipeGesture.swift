@@ -105,7 +105,7 @@ struct SportsDaySwipeObserver: UIViewRepresentable {
         private var initialVerticalOffset: CGFloat = 0
         private var eligible = false
         private var protectedActionTouch = false
-        private var protectedDragRecognized = false
+        private var horizontalDragRecognized = false
         private var initialDirection = 0
         lazy var pan: UIPanGestureRecognizer = {
             let value = UIPanGestureRecognizer(target: self, action: #selector(handle(_:)))
@@ -131,14 +131,14 @@ struct SportsDaySwipeObserver: UIViewRepresentable {
             window = nil
             eligible = false
             protectedActionTouch = false
-            protectedDragRecognized = false
+            horizontalDragRecognized = false
             verticalScroll = nil
             parent.scope.beginTouch()
         }
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
             eligible = false
             protectedActionTouch = false
-            protectedDragRecognized = false
+            horizontalDragRecognized = false
             verticalScroll = nil
             initialDirection = 0
             parent.scope.beginTouch()
@@ -172,7 +172,10 @@ struct SportsDaySwipeObserver: UIViewRepresentable {
             guard SportsDaySwipeGate.horizontal(velocity) else { return false }
             if protectedActionTouch { return true }
             initialDirection = velocity.x < 0 ? 1 : -1
-            return initialDirection == 1 ? parent.canGoForward : parent.canGoBack
+            // Recognize even at a date boundary so this horizontal contact
+            // cannot become a card tap when it is released. The commit below
+            // still enforces both date limits.
+            return true
         }
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
             shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool { true }
@@ -187,15 +190,14 @@ struct SportsDaySwipeObserver: UIViewRepresentable {
             let translation = recognizer.translation(in: window)
             switch recognizer.state {
             case .began:
-                if protectedActionTouch {
-                    protectedDragRecognized = true
-                    parent.scope.beginProtectedDrag()
-                }
+                horizontalDragRecognized = true
+                parent.scope.beginProtectedDrag()
             case .changed:
                 if verticallyScrolled || abs(translation.y) > max(18, abs(translation.x) * 0.65) { eligible = false }
             case .ended:
+                if horizontalDragRecognized { parent.scope.endProtectedDrag() }
+                horizontalDragRecognized = false
                 if protectedActionTouch {
-                    parent.scope.endProtectedDrag()
                     eligible = false
                     return
                 }
@@ -205,7 +207,8 @@ struct SportsDaySwipeObserver: UIViewRepresentable {
                       direction == 1 ? parent.canGoForward : parent.canGoBack else { return }
                 parent.changeDay(direction)
             case .cancelled, .failed:
-                if protectedDragRecognized { parent.scope.endProtectedDrag() }
+                if horizontalDragRecognized { parent.scope.endProtectedDrag() }
+                horizontalDragRecognized = false
                 eligible = false
             default: break
             }

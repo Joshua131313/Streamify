@@ -62,6 +62,25 @@ final class LiquidGlassNavigationFlowTests: XCTestCase {
         capture("Liquid Glass taps keep a single independent tab selection")
     }
 
+    func testFirstSportsTapAndRepeatedIndependentTapsWhileTheHomeHeroAnimates() {
+        // The standard setup pauses Home for precise drag recording. Relaunch
+        // here to exercise the first real tap while its carousel is active.
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(tab("home").waitForExistence(timeout: 15))
+        tab("sports").coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        assertOnlySelectedTab("sports")
+        XCTAssertTrue(app.buttons["sports-date-picker"].waitForExistence(timeout: 8))
+        for _ in 0..<4 {
+            tab("home").tap()
+            assertOnlySelectedTab("home")
+            tab("sports").tap()
+            assertOnlySelectedTab("sports")
+            XCTAssertTrue(app.buttons["sports-date-picker"].waitForExistence(timeout: 5))
+        }
+        capture("First and repeated tab taps retain the committed visible page")
+    }
+
     func testScrubReleasedOutsideTheBarCancelsWithoutNavigatingOrOpeningProfiles() {
         let bar = element("floating-navigation")
         let originFrame = bar.frame

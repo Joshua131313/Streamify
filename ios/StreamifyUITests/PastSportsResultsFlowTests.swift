@@ -52,12 +52,15 @@ final class PastSportsResultsFlowTests: XCTestCase {
         let heading = app.descendants(matching: .any).matching(identifier: "sports-schedule-heading").firstMatch
         swipe(heading, towardNextDay: false)
         XCTAssertTrue(app.buttons["sports-game-nba:nba-past-final-2"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.navigationBars["Game center"].exists, "Changing a day must never activate the card beneath the gesture's release.")
         let oldestDate = app.buttons["sports-date-picker"].value as? String
         swipe(heading, towardNextDay: false)
+        XCTAssertFalse(app.navigationBars["Game center"].exists, "A boundary swipe must cancel, without opening a game.")
         XCTAssertEqual(app.buttons["sports-date-picker"].value as? String, oldestDate)
         XCTAssertTrue(app.buttons["sports-filter-Final"].isSelected)
         swipe(heading, towardNextDay: true)
         XCTAssertTrue(app.buttons["sports-game-nba:nba-past-final-1"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.navigationBars["Game center"].exists)
         let followed = app.buttons["sports-followed-teams"]
         followed.tap()
         XCTAssertTrue(wait { followed.isSelected })

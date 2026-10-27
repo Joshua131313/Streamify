@@ -342,6 +342,7 @@ private struct LiquidGlassQuickProfilePicker: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var rowFrames: [UUID: CGRect] = [:]
     @State private var pickerSize: CGSize = .zero
+    @State private var rowsHeight: CGFloat = 0
     @State private var contactOrigin: UUID?
     @State private var pressedProfile: UUID?
     @State private var hoveredProfile: UUID?
@@ -351,10 +352,20 @@ private struct LiquidGlassQuickProfilePicker: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Switch profile").font(.headline).padding(.horizontal, 10).padding(.top, 6)
                 .accessibilityAddTraits(.isHeader)
-            ViewThatFits(in: .vertical) {
-                profileRows
-                ScrollView { profileRows }.frame(maxHeight: 300)
+            // One rendered row list owns hit-test geometry. ViewThatFits with
+            // two copies of this list can publish the same profile frames
+            // from both its fitted and rejected candidate layouts.
+            ScrollView {
+                profileRows.background {
+                    GeometryReader { geometry in
+                        Color.clear.preference(key: LiquidGlassProfileRowsHeightKey.self, value: geometry.size.height)
+                    }
+                }
             }
+            .frame(height: min(300, rowsHeight > 0 ? rowsHeight : max(60, CGFloat(profiles.profiles.count) * 64 - 4)))
+            .scrollDisabled(rowsHeight <= 300)
+            .scrollBounceBehavior(.basedOnSize)
+            .scrollIndicators(.hidden)
         }
         .padding(10).frame(width: dynamicTypeSize.isAccessibilitySize ? 300 : 264)
         .foregroundStyle(AppTheme.foreground)
@@ -366,6 +377,7 @@ private struct LiquidGlassQuickProfilePicker: View {
         }
         .onPreferenceChange(LiquidGlassProfileFramesKey.self) { rowFrames = $0 }
         .onPreferenceChange(LiquidGlassPickerSizeKey.self) { pickerSize = $0 }
+        .onPreferenceChange(LiquidGlassProfileRowsHeightKey.self) { rowsHeight = $0 }
         .onChange(of: scenePhase) { _, phase in if phase != .active { cancelContact() } }
         .onDisappear { cancelContact(); hoveredProfile = nil }
         .accessibilityElement(children: .contain)
@@ -405,6 +417,12 @@ private struct LiquidGlassQuickProfilePicker: View {
                 .buttonStyle(LiquidGlassTabInteractionStyle(coordinateSpace: Self.coordinateSpace,
                     changed: { updateContact(origin: profile.id, location: $0.location) },
                     ended: { value in
+                        if abs(value.translation.width) < 6 && abs(value.translation.height) < 6 {
+                            // A short tap already identifies its real Button;
+                            // do not require a preference-frame lookup to fire.
+                            cancelContact()
+                            return true
+                        }
                         finishContact(origin: profile.id, location: value.location)
                         return false
                     }, cancelled: { if contactOrigin == profile.id { cancelContact() } }))
@@ -438,7 +456,10 @@ private struct LiquidGlassQuickProfilePicker: View {
     }
 
     private func finishContact(origin: UUID, location: CGPoint) {
-        guard contactOrigin == origin, scenePhase == .active else { cancelContact(); return }
+        // onEnded belongs to the row that received this contact. GestureState
+        // can clear the visual contact before this callback; that must not
+        // discard a valid release. Cancelled gestures never deliver onEnded.
+        guard profiles.profiles.contains(where: { $0.id == origin }) else { cancelContact(); return }
         let target = profileAt(location)
         cancelContact()
         guard let target, let profile = profiles.profiles.first(where: { $0.id == target }) else { return }
@@ -460,4 +481,9 @@ private struct LiquidGlassProfileFramesKey: PreferenceKey {
 private struct LiquidGlassPickerSizeKey: PreferenceKey {
     static var defaultValue: CGSize = .zero
     static func reduce(value: inout CGSize, nextValue: () -> CGSize) { value = nextValue() }
+}
+
+private struct LiquidGlassProfileRowsHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }

@@ -32,7 +32,21 @@ final class SportsMultiProviderFlowTests: XCTestCase {
                 app.buttons["sports-player-game-picker"].tap()
                 let game = app.buttons["sports-player-game-option-\(league):\(league)-fixture"]
                 XCTAssertTrue(game.waitForExistence(timeout: 8))
-                game.tap()
+                // Native menu rows can exist below its clipped viewport.
+                // Scroll inside its upper visible portion before touching one.
+                let menu = app.collectionViews.containing(.button, identifier: game.identifier).firstMatch
+                for _ in 0..<4 where !game.isHittable {
+                    XCTAssertTrue(menu.exists)
+                    let start = menu.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35))
+                    let end = menu.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.12))
+                    start.press(forDuration: 0.05, thenDragTo: end)
+                }
+                XCTAssertTrue(game.isHittable, "\(league)'s actual game row must be reachable.")
+                game.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35)).tap()
+                let title = league == "college-football" ? "NCAAF" : league.uppercased()
+                XCTAssertTrue(wait {
+                    !game.exists && (self.app.buttons["sports-player-game-picker"].value as? String ?? "").hasPrefix(title + ",")
+                }, "The menu must dismiss and commit \(league), preserving wrong-game detection.")
             }
             let picker = app.buttons["sports-player-source-picker"]
             XCTAssertTrue(picker.waitForExistence(timeout: 12))
