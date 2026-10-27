@@ -161,7 +161,7 @@ struct SportsGameView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack { Text("Watch sources").font(.title3.bold()); Spacer(); if streamsLoading { ProgressView() } }
                 if let streamsError {
-                    StateMessage(symbol: "wifi.exclamationmark", title: "Sources unavailable", message: streamsError, actionTitle: "Retry", action: { revision += 1 })
+                    SportsSourcesUnavailableView(message: streamsError) { revision += 1 }
                 } else if !streamsLoading && streams.isEmpty {
                     Text(current.canWatch ? "No matching stream is available. Sources depend on the provider and may appear closer to game time." : "Sources are available for live games and games starting within an hour.")
                         .font(.subheadline).foregroundStyle(AppTheme.muted)
@@ -208,6 +208,38 @@ struct SportsGameView: View {
         do { streams = try await SportsService().streams(game); streamsError = nil }
         catch is CancellationError { }
         catch { if !Task.isCancelled { streamsError = error.localizedDescription } }
+    }
+}
+
+private struct SportsSourcesUnavailableView: View {
+    let message: String
+    let retry: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "play.slash")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(AppTheme.muted)
+                .frame(width: 32, height: 32)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Sources unavailable").font(.subheadline.weight(.semibold))
+                Text(message).font(.footnote).foregroundStyle(AppTheme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button(action: retry) {
+                    Label("Retry", systemImage: "arrow.clockwise")
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 14).frame(height: 36)
+                        .streamifyControlSurface()
+                        .frame(minHeight: 44).contentShape(Rectangle())
+                }.buttonStyle(HapticPlainButtonStyle())
+                    .accessibilityIdentifier("sports-source-retry")
+            }.frame(maxWidth: .infinity, alignment: .leading)
+        }.padding(14)
+            .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 14))
+            .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(AppTheme.border, lineWidth: 0.5) }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("sports-source-error")
     }
 }
 

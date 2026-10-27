@@ -3,13 +3,105 @@ import XCTest
 @testable import Streamify
 
 final class SportsContractTests: XCTestCase {
+    func testProviderAPIClosureRedirectShowsTypedUnavailableAndDoesNotUseNoticeLinks() async throws {
+        let fixture = ProviderJSONFixture(.closureRedirect)
+        let service = SportsService(session: fixture.session, streamCatalog: .streamed)
+        let game = try XCTUnwrap(service.parseGame(SportsFixture.event, league: .nba))
+        do { _ = try await service.streams(game); XCTFail("A closure homepage is not a stream catalog.") }
+        catch { guard case .streamProviderUnavailable? = error as? SportsServiceError else { return XCTFail("Unexpected error: \(error)") } }
+        XCTAssertEqual(fixture.requests.map { $0.url?.path }, ["/api/matches/all"])
+        XCTAssertTrue(fixture.requests.allSatisfy { $0.url?.host == "streamed.pk" }, "A notice's links must never become guessed playback fallbacks.")
+    }
+
+    func testProviderHTMLAtAnAPIURLShowsTypedUnavailableAndIsNotCached() async throws {
+        let fixture = ProviderJSONFixture(.closureHTML)
+        let service = SportsService(session: fixture.session, streamCatalog: .streamed)
+        let game = try XCTUnwrap(service.parseGame(SportsFixture.event, league: .nba))
+        for _ in 0..<2 {
+            do { _ = try await service.streams(game); XCTFail("HTML is not a match response.") }
+            catch { guard case .streamProviderUnavailable? = error as? SportsServiceError else { return XCTFail("Unexpected error: \(error)") } }
+        }
+        XCTAssertEqual(fixture.requests.count, 2, "Closure HTML must not enter the warm catalog cache.")
+    }
+
+    func testProviderMalformedJSONHasReadableInvalidResponseWithoutClaimingClosure() async throws {
+        let fixture = ProviderJSONFixture(.invalidJSON)
+        let service = SportsService(session: fixture.session, streamCatalog: .streamed)
+        let game = try XCTUnwrap(service.parseGame(SportsFixture.event, league: .nba))
+        do { _ = try await service.streams(game); XCTFail("Malformed JSON must be rejected.") }
+        catch { guard case .invalidResponse? = error as? SportsServiceError else { return XCTFail("Unexpected error: \(error)") } }
+    }
+
+    func testSuccessfulProviderJSONStillResolvesOnlyItsMatchedSources() async throws {
+        let fixture = ProviderJSONFixture(.success)
+        let service = SportsService(session: fixture.session, streamCatalog: .streamed)
+        let game = try XCTUnwrap(service.parseGame(SportsFixture.event, league: .nba))
+        let streams = try await service.streams(game)
+        XCTAssertEqual(streams.map(\.url.absoluteString), ["https://fixture.streamify.test/alpha", "https://fixture.streamify.test/bravo"])
+        XCTAssertEqual(fixture.requests.map { $0.url?.path }, ["/api/matches/all", "/api/stream/alpha/fixture", "/api/stream/bravo/fixture"])
+    }
+
+    func testOneUnavailableProviderSourceDoesNotHideAnotherValidMatchedSource() async throws {
+        let fixture = ProviderJSONFixture(.partialSourceClosure)
+        let service = SportsService(session: fixture.session, streamCatalog: .streamed)
+        let game = try XCTUnwrap(service.parseGame(SportsFixture.event, league: .nba))
+        let streams = try await service.streams(game)
+        XCTAssertEqual(streams.map(\.url.absoluteString), ["https://fixture.streamify.test/bravo"])
+    }
+
+    func testAllMatchedSourceEndpointsReturningClosureKeepTheTypedError() async throws {
+        let fixture = ProviderJSONFixture(.allSourcesClosure)
+        let service = SportsService(session: fixture.session, streamCatalog: .streamed)
+        let game = try XCTUnwrap(service.parseGame(SportsFixture.event, league: .nba))
+        do { _ = try await service.streams(game); XCTFail("No source was served.") }
+        catch { guard case .streamProviderUnavailable? = error as? SportsServiceError else { return XCTFail("Unexpected error: \(error)") } }
+        XCTAssertEqual(fixture.requests.count, 3)
+    }
+
+    func testUnrelatedProviderGameNeverBecomesAReplacementForMissingSources() async throws {
+        let fixture = ProviderJSONFixture(.unrelatedMatch)
+        let service = SportsService(session: fixture.session, streamCatalog: .streamed)
+        let game = try XCTUnwrap(service.parseGame(SportsFixture.event, league: .nba))
+        let streams = try await service.streams(game)
+        XCTAssertTrue(streams.isEmpty)
+        XCTAssertEqual(fixture.requests.count, 1, "Do not request a different game's player merely because the provider is unavailable.")
+    }
+
+    func testProviderTransportAndCancellationErrorsArePreserved() async throws {
+        for code in [URLError.Code.notConnectedToInternet, .cancelled] {
+            let fixture = ProviderJSONFixture(.failure(code))
+            let service = SportsService(session: fixture.session, streamCatalog: .streamed)
+            let game = try XCTUnwrap(service.parseGame(SportsFixture.event, league: .nba))
+            do { _ = try await service.streams(game); XCTFail("The request must fail.") }
+            catch { XCTAssertEqual((error as? URLError)?.code, code, "Transport failures are not a provider closure.") }
+        }
+        let fixture = ProviderJSONFixture(.success)
+        let service = SportsService(session: fixture.session, streamCatalog: .streamed)
+        let game = try XCTUnwrap(service.parseGame(SportsFixture.event, league: .nba))
+        let task = Task { try await service.streams(game) }
+        task.cancel()
+        do { _ = try await task.value; XCTFail("A cancelled lookup must not start playback.") }
+        catch { XCTAssertTrue(error is CancellationError || (error as? URLError)?.code == .cancelled) }
+    }
+
+    func testHTMLDetectionDoesNotChangeESPNParsingOrRejectValidJSONWithWrongMIMEType() throws {
+        let provider = try XCTUnwrap(URL(string: "https://streamed.pk/api/matches/all"))
+        let providerResponse = try XCTUnwrap(HTTPURLResponse(url: provider, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "text/html"]))
+        XCTAssertNoThrow(try SportsService.validateJSONResponse(Data("[]".utf8), response: providerResponse, requestedURL: provider))
+        let espn = try XCTUnwrap(URL(string: "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard"))
+        let espnResponse = try XCTUnwrap(HTTPURLResponse(url: espn, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "text/html"]))
+        XCTAssertThrowsError(try SportsService.validateJSONResponse(Data("<html>Unavailable</html>".utf8), response: espnResponse, requestedURL: espn)) {
+            XCTAssertFalse($0 is SportsServiceError, "ESPN's parser behavior must remain unchanged.")
+        }
+    }
+
     func testWatchResolvesFreshSourceAddressesWhileKeepingDiscoveryResultsWarm() async throws {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [StreamDiscoveryProtocol.self]
         let session = URLSession(configuration: configuration)
         defer { session.invalidateAndCancel() }
         StreamDiscoveryProtocol.state.reset()
-        let service = SportsService(session: session)
+        let service = SportsService(session: session, streamCatalog: .streamed)
         var event = SportsFixture.event
         event["date"] = ISO8601DateFormatter().string(from: Date())
         let game = try XCTUnwrap(service.parseGame(event, league: .nba))
@@ -154,6 +246,79 @@ private final class StreamDiscoveryProtocol: URLProtocol {
             let url = try XCTUnwrap(request.url)
             let response = try XCTUnwrap(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "application/json"]))
             let data = try Self.state.data(for: url)
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: data)
+            client?.urlProtocolDidFinishLoading(self)
+        } catch { client?.urlProtocol(self, didFailWithError: error) }
+    }
+    override func stopLoading() {}
+}
+
+private final class ProviderJSONFixture {
+    enum Mode { case closureRedirect, closureHTML, invalidJSON, success, partialSourceClosure, allSourcesClosure, unrelatedMatch, failure(URLError.Code) }
+    let session: URLSession
+    private let identifier = UUID().uuidString
+    private let scenario: ProviderJSONScenario
+    var requests: [URLRequest] { scenario.requests }
+    init(_ mode: Mode) {
+        scenario = ProviderJSONScenario(mode)
+        ProviderJSONProtocol.register(scenario, id: identifier)
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [ProviderJSONProtocol.self]
+        configuration.httpAdditionalHeaders = ["X-Streamify-Provider-Test": identifier]
+        session = URLSession(configuration: configuration)
+    }
+    deinit { session.invalidateAndCancel(); ProviderJSONProtocol.unregister(identifier) }
+}
+
+private final class ProviderJSONScenario {
+    let mode: ProviderJSONFixture.Mode
+    private let lock = NSLock()
+    private var recorded: [URLRequest] = []
+    var requests: [URLRequest] { lock.lock(); defer { lock.unlock() }; return recorded }
+    init(_ mode: ProviderJSONFixture.Mode) { self.mode = mode }
+    func record(_ request: URLRequest) { lock.lock(); defer { lock.unlock() }; recorded.append(request) }
+    func response(for url: URL) throws -> (URL, String, Data) {
+        let closure = Data("<!doctype html><html><head><title>Streamed Closure</title></head><body>We are no longer operating Streamed.<a href='https://ppv.st/'>Alternative</a></body></html>".utf8)
+        switch mode {
+        case .closureRedirect: return (URL(string: "https://streamed.pk/")!, "text/html; charset=utf-8", closure)
+        case .closureHTML: return (url, "text/html; charset=utf-8", closure)
+        case .invalidJSON: return (url, "application/json", Data("{\"broken\":".utf8))
+        case .failure(let code): throw URLError(code)
+        default: break
+        }
+        let object: [[String: Any]]
+        if url.path == "/api/matches/all" {
+            let opponent = if case .unrelatedMatch = mode { "Los Angeles Clippers" } else { "Los Angeles Lakers" }
+            object = [["id": "fixture", "title": "\(opponent) at Boston Celtics", "category": "basketball", "date": Date().timeIntervalSince1970 * 1000,
+                "teams": ["home": ["name": "Boston Celtics"], "away": ["name": opponent]],
+                "sources": [["source": "alpha", "id": "fixture"], ["source": "bravo", "id": "fixture"]]]]
+        } else {
+            if case .allSourcesClosure = mode { return (URL(string: "https://streamed.pk/")!, "text/html", closure) }
+            if case .partialSourceClosure = mode, url.path.contains("/alpha/") { return (url, "text/html", closure) }
+            let source = url.path.contains("/bravo/") ? "bravo" : "alpha"
+            object = [["embedUrl": "https://fixture.streamify.test/\(source)", "streamNo": 1, "language": "English", "hd": true]]
+        }
+        return (url, "application/json", try JSONSerialization.data(withJSONObject: object))
+    }
+}
+
+private final class ProviderJSONProtocol: URLProtocol {
+    private static let lock = NSLock()
+    private static var scenarios: [String: ProviderJSONScenario] = [:]
+    static func register(_ scenario: ProviderJSONScenario, id: String) { lock.lock(); defer { lock.unlock() }; scenarios[id] = scenario }
+    static func unregister(_ id: String) { lock.lock(); defer { lock.unlock() }; scenarios.removeValue(forKey: id) }
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        Self.lock.lock()
+        let scenario = request.value(forHTTPHeaderField: "X-Streamify-Provider-Test").flatMap { Self.scenarios[$0] }
+        Self.lock.unlock()
+        do {
+            let scenario = try XCTUnwrap(scenario)
+            scenario.record(request)
+            let (url, type, data) = try scenario.response(for: XCTUnwrap(request.url))
+            let response = try XCTUnwrap(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": type]))
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
             client?.urlProtocol(self, didLoad: data)
             client?.urlProtocolDidFinishLoading(self)

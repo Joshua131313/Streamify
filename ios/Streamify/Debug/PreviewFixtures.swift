@@ -235,6 +235,13 @@ enum PreviewFixtures {
                 "situation": ["awayTeam": ["strength": 5, "situationDescriptions": ["PP"]],
                     "homeTeam": ["strength": 4], "timeRemaining": "0:42"]]]]
         }
+        else if host == "timst.top" {
+            let events = timstEvents()
+            if path == "/api/live-upcoming" { value = ["events": events, "genres": []] as [String: Any] }
+            else if path.hasPrefix("/api/watch/"), let event = events.first(where: { $0.sportsText("url") == url.lastPathComponent }) {
+                value = ["type": "event", "item": event, "is_vip_user": false] as [String: Any]
+            } else { return (404, "application/json", Data("{}".utf8)) }
+        }
         else if host == "streamed.pk" {
             if path == "/api/matches/all" {
                 value = ["basketball", "american-football", "hockey", "baseball"].map { category in
@@ -271,6 +278,20 @@ enum PreviewFixtures {
         }
         return data
     }
+    private static func timstEvents() -> [[String: Any]] {
+        var identities = SportsLeague.allCases.map { ($0, "\($0.rawValue)-fixture") }
+        identities += [(.nba, "401020304"), (.mlb, "mlb-second-base"), (.mlb, "mlb-two-outs")]
+        return identities.map { league, eventID in
+            let genre = league.sport == "football" ? 8 : league.sport == "basketball" ? 7 : league == .mlb ? 9 : 11
+            let sources: [[String: Any]] = ["alpha", "bravo"].map { source in
+                ["name": "\(source) 1 · English · HD", "vip": false,
+                 "url": usesNativePiPVideo ? "https://fixture.streamify.test/native-\(source).mp4" : "https://fixture.streamify.test/\(source)"]
+            }
+            return ["url": "fixture-\(eventID)", "name": "Boston Harbor @ Toronto Towers", "genre": genre,
+                    "isevent": true, "vip": false, "streams": sources]
+        }
+    }
+
     private static func sportsJSON(_ url: URL) -> Any {
         let parts = url.path.split(separator: "/").map(String.init)
         let league = ["nba", "wnba", "nfl", "nhl", "mlb", "college-football"].first { parts.contains($0) } ?? "nba"

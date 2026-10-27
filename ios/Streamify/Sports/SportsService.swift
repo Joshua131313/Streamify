@@ -47,13 +47,18 @@ enum SportsScheduleDayPolicy {
     }
 }
 
-/// Uses the same ESPN schedule and Streamed discovery contracts as Android.
+enum SportsStreamCatalog: Sendable, Equatable {
+    case timStreams, streamed
+}
+
+/// ESPN supplies game identities; providers supply their own actual player URLs.
 struct SportsService: Sendable {
     var backend = ""
     var session: URLSession = .shared
     var calendar: Calendar = .current
     var now: @Sendable () -> Date = { Date() }
     var forceReload = false
+    var streamCatalog: SportsStreamCatalog = .timStreams
 
     private func json(_ value: String) async throws -> Any {
         guard let url = sportsHTTPSURL(value) else { throw SportsServiceError.invalidURL }
@@ -65,15 +70,17 @@ struct SportsService: Sendable {
         let lifetime: TimeInterval = url.path.hasSuffix("/teams") || url.path.hasSuffix("/roster") ? 3600 : 30
         let fetch: @Sendable () async throws -> Data = {
                 let (data, response) = try await session.data(for: prepared)
+                try Task.checkCancellation()
                 guard let http = response as? HTTPURLResponse else { throw SportsServiceError.invalidResponse }
                 guard (200...299).contains(http.statusCode) else { throw SportsServiceError.unavailable(http.statusCode) }
-                _ = try JSONSerialization.jsonObject(with: data)
+                try Self.validateJSONResponse(data, response: http, requestedURL: url)
                 return data
             }
         let data: Data
-        if url.host == "streamed.pk", url.path.hasPrefix("/api/stream/") {
+        if (url.host == "streamed.pk" && url.path.hasPrefix("/api/stream/")) ||
+            (url.host == "timst.top" && url.path.hasPrefix("/api/watch/")) {
             // Source addresses can expire or depend on the current connection.
-            // Resolve each Watch afresh even when browsing data stays warm.
+            // Resolve fresh addresses separately from the warm browsing data.
             data = try await fetch()
         } else {
             data = try await ResponseMemoryCache.shared.data(key: ResponseMemoryCache.key(for: prepared, session: session),
@@ -81,6 +88,27 @@ struct SportsService: Sendable {
         }
         try Task.checkCancellation()
         return try JSONSerialization.jsonObject(with: data)
+    }
+
+    /// A provider can retire an API with a successful HTML homepage redirect.
+    /// Do not cache that page, expose a Cocoa parse error, or guess other sources.
+    static func validateJSONResponse(_ data: Data, response: HTTPURLResponse, requestedURL: URL) throws {
+        let providerAPI = (requestedURL.host?.lowercased() == "streamed.pk" &&
+            (requestedURL.path.hasPrefix("/api/matches/") || requestedURL.path.hasPrefix("/api/stream/"))) ||
+            (requestedURL.host?.lowercased() == "timst.top" && requestedURL.path.hasPrefix("/api/"))
+        if providerAPI, let finalURL = response.url, finalURL.path.isEmpty || finalURL.path == "/" {
+            throw SportsServiceError.streamProviderUnavailable
+        }
+        do { _ = try JSONSerialization.jsonObject(with: data) }
+        catch {
+            guard providerAPI else { throw error }
+            let prefix = String(decoding: data.prefix(512), as: UTF8.self)
+                .drop(while: { $0.isWhitespace || $0 == "\u{FEFF}" })
+            if response.mimeType?.lowercased() == "text/html" || prefix.hasPrefix("<") {
+                throw SportsServiceError.streamProviderUnavailable
+            }
+            throw SportsServiceError.invalidResponse
+        }
     }
 
     private func object(_ url: String) async throws -> [String: Any] {
@@ -679,10 +707,58 @@ struct SportsService: Sendable {
 
     func streams(_ game: SportsGame) async throws -> [SportsStream] {
         guard game.canWatch else { return [] }
+        if streamCatalog == .timStreams { return try await timstStreams(game) }
+        return try await streamedStreams(game)
+    }
+
+    private func timstStreams(_ game: SportsGame) async throws -> [SportsStream] {
+        let catalog = try await object("https://timst.top/api/live-upcoming")
+        guard let events = catalog["events"] as? [[String: Any]] else { throw SportsServiceError.invalidResponse }
+        guard let event = events.first(where: { Self.timstEventMatches($0, game: game) }) else { return [] }
+        let key = event.sportsText("url")
+        // This key and every player address come from the current provider catalog.
+        // The selected event is refreshed even while the shared catalog stays warm.
+        let response = try await object("https://timst.top/api/watch/\(key)")
+        let item = response.sportsObject("item")
+        guard response.sportsText("type") == "event", item.sportsText("url") == key,
+              Self.timstEventMatches(item, game: game) else { throw SportsServiceError.invalidResponse }
+        try Task.checkCancellation()
+        return Self.timstStreams(item, game: game)
+    }
+
+    static func timstEventMatches(_ item: [String: Any], game: SportsGame) -> Bool {
+        let expectedGenre: Int
+        switch game.league {
+        case .nba, .wnba: expectedGenre = 7
+        case .nfl, .ncaaf: expectedGenre = 8
+        case .mlb: expectedGenre = 9
+        case .nhl: expectedGenre = 11
+        }
+        let key = item.sportsText("url")
+        return !game.eventID.isEmpty && key.utf8.count <= 240 &&
+            key.range(of: "^[A-Za-z0-9-]+$", options: .regularExpression) != nil &&
+            key.hasSuffix("-\(game.eventID)") && Int(item.sportsText("genre")) == expectedGenre &&
+            explicitBool(item["isevent"]) == true && explicitBool(item["vip"]) == false
+    }
+
+    static func timstStreams(_ item: [String: Any], game: SportsGame) -> [SportsStream] {
+        guard timstEventMatches(item, game: game) else { return [] }
+        var seen = Set<URL>()
+        return item.sportsObjects("streams").enumerated().compactMap { index, source in
+            guard explicitBool(source["vip"]) == false,
+                  let url = sportsHTTPSURL(source.sportsText("url")), seen.insert(url).inserted else { return nil }
+            let name = source.sportsText("name").trimmingCharacters(in: .whitespacesAndNewlines)
+            return SportsStream(title: "TimStreams · \(name.isEmpty ? "Stream \(index + 1)" : name)",
+                url: url, stableID: "timst:\(game.eventID):\(index)")
+        }
+    }
+
+    private func streamedStreams(_ game: SportsGame) async throws -> [SportsStream] {
         guard let matches = try await json("https://streamed.pk/api/matches/all") as? [[String: Any]] else { throw SportsServiceError.invalidResponse }
         guard let match = Self.matchingStreamMatch(matches, game: game) else { return [] }
         var streams: [SportsStream] = []
         var failures = 0
+        var providerUnavailable = false
         let sources = Array(match.sportsObjects("sources").prefix(8))
         for source in sources {
             let name = source.sportsText("source").addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""
@@ -693,8 +769,13 @@ struct SportsService: Sendable {
                     guard let url = sportsHTTPSURL(item.sportsText("embedUrl")) else { return nil }
                     return SportsStream(title: "\(source.sportsText("source")) \(item.sportsText("streamNo")) · \(item.sportsText("language"))\((item["hd"] as? Bool) == true ? " · HD" : "")", url: url)
                 }
-            } catch is CancellationError { throw CancellationError() } catch { failures += 1 }
+            } catch is CancellationError { throw CancellationError() }
+            catch {
+                if let failure = error as? SportsServiceError, case .streamProviderUnavailable = failure { providerUnavailable = true }
+                failures += 1
+            }
         }
+        if streams.isEmpty && providerUnavailable { throw SportsServiceError.streamProviderUnavailable }
         if failures == sources.count && !sources.isEmpty { throw SportsServiceError.streamsUnavailable }
         var seen = Set<URL>()
         return streams.filter { seen.insert($0.url).inserted }

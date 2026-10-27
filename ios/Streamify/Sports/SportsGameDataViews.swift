@@ -123,7 +123,6 @@ private struct SportsPlayerGameTable: View {
                                 .font(.caption2).foregroundStyle(AppTheme.muted)
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }.padding(.horizontal, 8).frame(height: rowHeight)
-                        .background(index.isMultiple(of: 2) ? Color.clear : AppTheme.foreground.opacity(0.025))
                         .accessibilityElement(children: .combine).accessibilityIdentifier("sports-player-row-\(player.id)")
                 }
             }.frame(width: min(210, playerWidth))
@@ -139,7 +138,6 @@ private struct SportsPlayerGameTable: View {
                                     Text(player.values.indices.contains(column) ? player.values[column] : "—")
                                         .font(.caption.monospacedDigit().weight(.medium)).lineLimit(1).minimumScaleFactor(0.7)
                                         .frame(maxWidth: .infinity).frame(height: rowHeight)
-                                        .background(index.isMultiple(of: 2) ? Color.clear : AppTheme.foreground.opacity(0.025))
                                         .accessibilityLabel("\(player.name), \(group.labels[column])")
                                         .accessibilityIdentifier("sports-player-stat-\(player.id)-\(column)")
                                 }
@@ -149,8 +147,17 @@ private struct SportsPlayerGameTable: View {
                 }
             }
         }.frame(height: headerHeight + rowHeight * CGFloat(group.players.count))
-            .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 12))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(AppTheme.border, lineWidth: 0.5) }
+            .background {
+                VStack(spacing: 0) {
+                    Color.clear.frame(height: headerHeight)
+                    ForEach(group.players.indices, id: \.self) { index in
+                        Rectangle().fill(index.isMultiple(of: 2) ? Color.clear : AppTheme.foreground.opacity(0.025))
+                            .frame(height: rowHeight)
+                    }
+                }
+            }
+            .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 16))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay { RoundedRectangle(cornerRadius: 16).strokeBorder(AppTheme.border, lineWidth: 0.5) }
     }
 }

@@ -299,7 +299,7 @@ func sportsHTTPSURL(_ value: String) -> URL? {
 }
 
 enum SportsServiceError: LocalizedError {
-    case invalidURL, unavailable(Int), noSchedule, invalidResponse, streamsUnavailable
+    case invalidURL, unavailable(Int), noSchedule, invalidResponse, streamsUnavailable, streamProviderUnavailable
     var errorDescription: String? {
         switch self {
         case .invalidURL: return "Use a valid HTTPS address for the sports backend."
@@ -307,6 +307,7 @@ enum SportsServiceError: LocalizedError {
         case .noSchedule: return "The schedule could not be loaded. Check your connection, then retry."
         case .invalidResponse: return "The sports service returned an unreadable response."
         case .streamsUnavailable: return "Stream sources could not be loaded. Try again shortly."
+        case .streamProviderUnavailable: return "The stream provider is currently unavailable. Live scores and schedules are still available. Try again later."
         }
     }
 }
