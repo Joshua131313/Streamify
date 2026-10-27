@@ -11,7 +11,7 @@ on:
         type: choice
         required: true
         default: full
-        options: [full, native-download-research, native-hls-research, codec-diagnostics, download-provider-recheck, interaction-followup, interaction-recheck, delivery-recheck, download-source-recheck, multi-source-ui-recheck, stream-recovery-recheck, player-recheck, polish-recheck, sports-refinement, refinement-recheck, live-today-recheck, player-scene-recheck, profile-activation-recheck, native-fullscreen-recheck, football-polish-recheck, profile-picker-recheck, account-cache-recheck, cache-retap-recheck, provider-control-recheck, possession-widget-recheck, playback-start-recheck, landscape-touch-recheck, diamond-player-recheck, chat-connection-recheck]
+        options: [full, hls-delivery-recheck, native-offline-research, native-download-research, native-hls-research, codec-diagnostics, download-provider-recheck, interaction-followup, interaction-recheck, delivery-recheck, download-source-recheck, multi-source-ui-recheck, stream-recovery-recheck, player-recheck, polish-recheck, sports-refinement, refinement-recheck, live-today-recheck, player-scene-recheck, profile-activation-recheck, native-fullscreen-recheck, football-polish-recheck, profile-picker-recheck, account-cache-recheck, cache-retap-recheck, provider-control-recheck, possession-widget-recheck, playback-start-recheck, landscape-touch-recheck, diamond-player-recheck, chat-connection-recheck]
 permissions:
   contents: read
 concurrency:
@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   native-hls-research:
-    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.scope == 'native-hls-research' || inputs.scope == 'native-download-research') }}
+    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.scope == 'native-hls-research' || inputs.scope == 'native-download-research' || inputs.scope == 'native-offline-research' || inputs.scope == 'hls-delivery-recheck') }}
     name: Native HLS source feasibility
     runs-on: macos-latest
     timeout-minutes: 12
@@ -30,14 +30,18 @@ jobs:
         run: |
           brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
           xcodegen generate --spec ios/native-hls-diagnostics.yml
-      - name: Check normal native playback and bounded download acceptance
+      - name: Check native playback or complete offline packages
+        env:
+          RESEARCH_SCOPE: ${{ inputs.scope }}
         run: |
           DEVICE_ID=$(xcrun simctl list devices available --json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for devices in d["devices"].values() for x in devices if x["name"].startswith("iPhone")))')
           xcrun simctl boot "$DEVICE_ID" || true
           xcrun simctl bootstatus "$DEVICE_ID" -b
           mkdir -p ios/build/hls-research
+          RESEARCH_TESTS=(-only-testing:HLSResearchTests/VixSrcNativeHLSDiagnosticsTests)
+          if [ "$RESEARCH_SCOPE" = native-offline-research ] || [ "$RESEARCH_SCOPE" = hls-delivery-recheck ]; then RESEARCH_TESTS=(-only-testing:HLSResearchTests/NativeOfflineHLSLifecycleTests -only-testing:HLSResearchTests/VixSrcProductionResolverDiagnosticsTests); fi
           set -o pipefail
-          xcodebuild test -project ios/StreamifyHLSResearch.xcodeproj -scheme StreamifyHLSResearch -destination "platform=iOS Simulator,id=$DEVICE_ID" -derivedDataPath ios/build/HLSResearch CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY='-' -parallel-testing-enabled NO -only-testing:HLSResearchTests/VixSrcNativeHLSDiagnosticsTests -resultBundlePath ios/build/HLSResearch.xcresult | tee ios/build/hls-research/native.log
+          xcodebuild test -project ios/StreamifyHLSResearch.xcodeproj -scheme StreamifyHLSResearch -destination "platform=iOS Simulator,id=$DEVICE_ID" -derivedDataPath ios/build/HLSResearch CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY='-' -parallel-testing-enabled NO "${RESEARCH_TESTS[@]}" -resultBundlePath ios/build/HLSResearch.xcresult | tee ios/build/hls-research/native.log
       - name: Export native feasibility evidence
         if: always()
         run: |
@@ -52,7 +56,7 @@ jobs:
           path: ios/build/hls-research
           if-no-files-found: error
   codec-diagnostics:
-    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.scope == 'codec-diagnostics' || inputs.scope == 'native-download-research') }}
+    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.scope == 'codec-diagnostics' || inputs.scope == 'native-download-research' || inputs.scope == 'native-offline-research' || inputs.scope == 'hls-delivery-recheck') }}
     name: Native iPhone codec diagnostics
     runs-on: macos-latest
     timeout-minutes: 12
@@ -84,7 +88,7 @@ jobs:
           path: ios/build/codec-diagnostics
           if-no-files-found: error
   device:
-    if: ${{ inputs.scope != 'native-download-research' && inputs.scope != 'native-hls-research' && inputs.scope != 'codec-diagnostics' && inputs.scope != 'download-provider-recheck' && (github.event_name != 'workflow_dispatch' || (inputs.scope != 'profile-activation-recheck' && inputs.scope != 'native-fullscreen-recheck' && inputs.scope != 'provider-control-recheck' && inputs.scope != 'landscape-touch-recheck')) }}
+    if: ${{ inputs.scope != 'native-offline-research' && inputs.scope != 'native-download-research' && inputs.scope != 'native-hls-research' && inputs.scope != 'codec-diagnostics' && inputs.scope != 'download-provider-recheck' && (github.event_name != 'workflow_dispatch' || (inputs.scope != 'profile-activation-recheck' && inputs.scope != 'native-fullscreen-recheck' && inputs.scope != 'provider-control-recheck' && inputs.scope != 'landscape-touch-recheck')) }}
     name: iPhone test package
     runs-on: macos-latest
     timeout-minutes: 20
@@ -109,14 +113,14 @@ jobs:
           path: ios/build/Streamify-unsigned.ipa
           if-no-files-found: error
   simulator:
-    if: ${{ github.event_name != 'workflow_dispatch' || (inputs.scope != 'native-download-research' && inputs.scope != 'codec-diagnostics' && inputs.scope != 'native-hls-research') }}
+    if: ${{ github.event_name != 'workflow_dispatch' || (inputs.scope != 'native-offline-research' && inputs.scope != 'native-download-research' && inputs.scope != 'codec-diagnostics' && inputs.scope != 'native-hls-research') }}
     name: iPhone UI - ${{ matrix.suite }}
     runs-on: macos-latest
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        suite: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.scope == 'download-provider-recheck' && '["download-provider"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'interaction-followup' && '["navigation-media", "download-gesture", "download-provider"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'interaction-recheck' && '["navigation-media", "recent-sports", "download-gesture"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'delivery-recheck' && '["download-source", "source-deadline", "ui-regression"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'download-source-recheck' && '["download-source"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'multi-source-ui-recheck' && '["sources", "navigation-media"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'stream-recovery-recheck' && '["stream-recovery"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'chat-connection-recheck' && '["chat-connection"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'diamond-player-recheck' && '["diamond-player"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'landscape-touch-recheck' && '["landscape-touch"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'playback-start-recheck' && '["playback-start"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'possession-widget-recheck' && '["possession-widget"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'provider-control-recheck' && '["provider-control"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'cache-retap-recheck' && '["cache-retap"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'account-cache-recheck' && '["account-home", "cache-artwork"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'profile-picker-recheck' && '["profile-picker-recheck", "multiview-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'football-polish-recheck' && '["football-polish-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'native-fullscreen-recheck' && '["native-fullscreen-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'profile-activation-recheck' && '["profile-activation-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'player-scene-recheck' && '["scene-selector", "scene-restoration"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'live-today-recheck' && '["live-today-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'refinement-recheck' && '["profile-recheck", "game-center-recheck", "selector-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'sports-refinement' && '["sports-cards", "sports-player", "profiles-downloads"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'player-recheck' && '["player-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'polish-recheck' && '["polish-recheck"]' || '["playback", "controls", "screens", "profiles"]') }}
+        suite: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.scope == 'hls-delivery-recheck' && '["download-hls"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'download-provider-recheck' && '["download-provider"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'interaction-followup' && '["navigation-media", "download-gesture", "download-provider"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'interaction-recheck' && '["navigation-media", "recent-sports", "download-gesture"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'delivery-recheck' && '["download-source", "source-deadline", "ui-regression"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'download-source-recheck' && '["download-source"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'multi-source-ui-recheck' && '["sources", "navigation-media"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'stream-recovery-recheck' && '["stream-recovery"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'chat-connection-recheck' && '["chat-connection"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'diamond-player-recheck' && '["diamond-player"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'landscape-touch-recheck' && '["landscape-touch"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'playback-start-recheck' && '["playback-start"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'possession-widget-recheck' && '["possession-widget"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'provider-control-recheck' && '["provider-control"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'cache-retap-recheck' && '["cache-retap"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'account-cache-recheck' && '["account-home", "cache-artwork"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'profile-picker-recheck' && '["profile-picker-recheck", "multiview-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'football-polish-recheck' && '["football-polish-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'native-fullscreen-recheck' && '["native-fullscreen-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'profile-activation-recheck' && '["profile-activation-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'player-scene-recheck' && '["scene-selector", "scene-restoration"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'live-today-recheck' && '["live-today-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'refinement-recheck' && '["profile-recheck", "game-center-recheck", "selector-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'sports-refinement' && '["sports-cards", "sports-player", "profiles-downloads"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'player-recheck' && '["player-recheck"]' || github.event_name == 'workflow_dispatch' && inputs.scope == 'polish-recheck' && '["polish-recheck"]' || '["playback", "controls", "screens", "profiles"]') }}
     steps:
       - uses: actions/checkout@v4
       - name: Generate Xcode project
@@ -154,6 +158,22 @@ jobs:
           xcodebuild build-for-testing "${COMMON[@]}"
           # Keep suite assignments explicit so each screen check runs once.
           case "$TEST_SUITE" in
+            download-hls)
+                SELECTORS=(
+                  -only-testing:StreamifyTests/VixSrcDownloadResolverTests
+                  -only-testing:StreamifyTests/CatalogDownloadResolverTests
+                  -only-testing:StreamifyTests/HLSDownloadPolicyTests
+                  -only-testing:StreamifyTests/HLSDownloadStateTests
+                  -only-testing:StreamifyTests/DaraTechDownloadResolverTests
+                  -only-testing:StreamifyTests/MediaDownloadResolverTests
+                  -only-testing:StreamifyTests/DownloadSourceReliabilityTests
+                  -only-testing:StreamifyTests/OfflineVideoValidationTests
+                  -only-testing:StreamifyTests/DownloadLibraryGroupingTests
+                  -only-testing:StreamifyTests/DownloadCatalogTests
+                  -only-testing:StreamifyUITests/DownloadIndicatorFlowTests
+                  -only-testing:StreamifyUITests/NativeHLSDownloadFlowTests
+                )
+                ;;
             download-provider)
                 SELECTORS=(
                   -only-testing:StreamifyTests/DaraTechDownloadResolverTests

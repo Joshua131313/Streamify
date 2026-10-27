@@ -8,6 +8,19 @@ enum PreviewFixtures {
     static let usesNativePiPVideo = enabled && ProcessInfo.processInfo.arguments.contains("--ui-native-pip-fixture")
     static let usesDownloadStatus = enabled && ProcessInfo.processInfo.arguments.contains("--ui-download-status-fixture")
     static let usesStableOfflineControls = enabled && ProcessInfo.processInfo.arguments.contains("--ui-stable-offline-controls")
+    static let usesHLSDownloadControl = enabled && ProcessInfo.processInfo.arguments.contains("--ui-hls-download-control")
+    private static let hlsControlBase = URL(string: "https://raw.githubusercontent.com/Joshua131313/Streamify/cf27bf56346bf94f12a55a0556f1f14be048b3fd/ios/NativeHLSDiagnostics/Fixtures/offline-hls-control/clear/")!
+    /// Only this immutable, Streamify-owned synthetic control may escape the
+    /// local URLProtocol fixtures. Normal catalog/provider requests stay local.
+    fileprivate static func permitsHLSControlRequest(_ request: URLRequest) -> Bool {
+        guard usesHLSDownloadControl, let url = request.url,
+              url.scheme == "https", url.host == hlsControlBase.host,
+              url.user == nil, url.password == nil, url.fragment == nil, url.query == nil,
+              url.port == nil || url.port == 443, url.path.hasPrefix(hlsControlBase.path) else { return false }
+        let name = String(url.path.dropFirst(hlsControlBase.path.count))
+        return Set(["master.m3u8", "video.m3u8", "audio-en.m3u8", "video-00.ts", "video-01.ts", "video-02.ts",
+                    "audio-en-00.ts", "audio-en-01.ts", "audio-en-02.ts"]).contains(name)
+    }
     static let downloadStatusIDs: Set<UUID> = [143, 144].map {
         UUID(uuidString: String(format: "00000000-0000-0000-0000-%012d", $0))!
     }.reduce(into: Set<UUID>()) { $0.insert($1) }
@@ -46,7 +59,13 @@ enum PreviewFixtures {
     }
     @MainActor private static var seededDownloads = false
     @MainActor static func seedDownloads(_ store: DownloadStore) {
-        guard enabled, !seededDownloads, let source = Bundle.main.url(forResource: "offline-player", withExtension: "mp4") else { return }
+        guard enabled, !seededDownloads else { return }
+        if usesHLSDownloadControl {
+            seededDownloads = true
+            seedHLSDownloadControl(store)
+            return
+        }
+        guard let source = Bundle.main.url(forResource: "offline-player", withExtension: "mp4") else { return }
         do {
             let id = UUID(uuidString: "00000000-0000-0000-0000-000000000042")!
             let directory = try DownloadFiles.directory()
@@ -91,6 +110,22 @@ enum PreviewFixtures {
             store.installDownloadStatusFixtures(statuses)
             seededDownloads = true
         } catch { assertionFailure("Offline UI fixture could not be prepared: \(error)") }
+    }
+    @MainActor private static func seedHLSDownloadControl(_ store: DownloadStore) {
+        let media = MediaItem(id: 900043, kind: .tv, title: "Offline HLS Control", releaseDate: "2026-10-27")
+        let key = DownloadStore.catalogKey(media: media, season: 1, episode: 1)
+        if ProcessInfo.processInfo.arguments.contains("--ui-hls-reset-control") {
+            for item in store.items where item.catalogKey == key { store.remove(id: item.id) }
+        }
+        // The second process launch deliberately reuses real persisted metadata,
+        // UUID and package. It must not manufacture a completion or redownload.
+        guard !store.items.contains(where: { $0.catalogKey == key }) else { return }
+        let url = hlsControlBase.appendingPathComponent("master.m3u8")
+        var source = ResolvedMediaDownload(url: url, quality: 1080, codec: "avc1.640028", sourceID: "SyntheticHLSControl",
+            actualWidth: 1920, actualHeight: 1080, actualCodecs: ["avc1.640028", "mp4a.40.2"], transport: .hlsVOD, audioLanguage: "en")
+        source.hlsSource = HLSDownloadSource(masterURL: url, quality: 1080, audioLanguage: "en", protection: .clearOrIdentityAES128, isVOD: true)
+        do { try store.add(resolved: source, media: media, season: 1, episode: 1, episodeTitle: "Synthetic five-second English control") }
+        catch { assertionFailure("Real synthetic HLS transfer could not start: \(error)") }
     }
     private static let synopsis = "An unexpected discovery brings unlikely friends together on a journey beyond the familiar. Every choice changes the story."
     static let movie = MediaItem(id: 42, kind: .movie, title: "The Last Horizon", overview: synopsis,
@@ -412,7 +447,9 @@ enum PreviewFixtures {
 }
 
 private final class FixtureURLProtocol: URLProtocol {
-    override class func canInit(with request: URLRequest) -> Bool { PreviewFixtures.enabled }
+    override class func canInit(with request: URLRequest) -> Bool {
+        PreviewFixtures.enabled && !PreviewFixtures.permitsHLSControlRequest(request)
+    }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
         let (status, contentType, body) = PreviewFixtures.response(request)

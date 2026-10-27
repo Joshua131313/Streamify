@@ -23,6 +23,7 @@ struct DownloadSeriesGroup: Identifiable {
     /// unknown total keeps it indeterminate, as on the main Downloads button.
     var progress: Double? {
         let transfers = active
+        if transfers.count == 1 { return transfers.first?.progress }
         guard !transfers.isEmpty, transfers.allSatisfy({ $0.expectedBytes > 0 }) else { return nil }
         let total = transfers.reduce(0.0) { $0 + Double($1.expectedBytes) }
         let written = transfers.reduce(0.0) { $0 + Double(min(max(0, $1.bytesWritten), $1.expectedBytes)) }

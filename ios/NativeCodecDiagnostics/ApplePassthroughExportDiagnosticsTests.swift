@@ -206,10 +206,12 @@ final class ApplePassthroughExportDiagnosticsTests: XCTestCase {
             if let originalVideo {
                 report["compressedVideoPayloadUnchanged"] = originalVideo.digest == exportedVideo.digest
                 report["sourceVideoSamples"] = originalVideo.count; report["outputVideoSamples"] = exportedVideo.count
+                report["sourceVideoMarkerBuffers"] = originalVideo.markers; report["outputVideoMarkerBuffers"] = exportedVideo.markers
             }
             if let originalAudio {
                 report["compressedAudioPayloadUnchanged"] = originalAudio.digest == exportedAudio.digest
                 report["sourceAudioSamples"] = originalAudio.count; report["outputAudioSamples"] = exportedAudio.count
+                report["sourceAudioMarkerBuffers"] = originalAudio.markers; report["outputAudioMarkerBuffers"] = exportedAudio.markers
             }
 
             phase = "full one-second native video and audio decode"
@@ -220,6 +222,8 @@ final class ApplePassthroughExportDiagnosticsTests: XCTestCase {
             report["decodedVideoFrames"] = decodedVideo.count
             report["decodedAudioSamples"] = decodedAudio.count
             report["decodedAudioBuffers"] = decodedAudio.buffers
+            report["decodedVideoMarkerBuffers"] = decodedVideo.markers
+            report["decodedAudioMarkerBuffers"] = decodedAudio.markers
             report["decodedAudioBytes"] = decodedAudio.bytes
             report["fullVideoFramesDecoded"] = decodedVideo.count > 0 && decodedVideo.completed
             report["fullAudioSamplesDecoded"] = decodedAudio.count > 0 && decodedAudio.bytes > 0 && decodedAudio.completed
@@ -246,6 +250,7 @@ final class ApplePassthroughExportDiagnosticsTests: XCTestCase {
     private struct Samples {
         let count: Int
         let buffers: Int
+        let markers: Int
         let bytes: Int
         let digest: String
         let completed: Bool
@@ -261,7 +266,7 @@ final class ApplePassthroughExportDiagnosticsTests: XCTestCase {
         defer { watchdog.cancel(); reader.cancelReading() }
         guard reader.startReading() else { throw reader.error ?? ProbeError.message("Native reader could not start") }
         let deadline = Date().addingTimeInterval(phaseSeconds)
-        var count = 0, buffers = 0, bytes = 0
+        var count = 0, buffers = 0, markers = 0, bytes = 0
         var hasher = SHA256()
         while let sample = output.copyNextSampleBuffer() {
             try Task.checkCancellation()
@@ -271,8 +276,12 @@ final class ApplePassthroughExportDiagnosticsTests: XCTestCase {
             // frames. Bound buffer allocations separately from media samples;
             // otherwise a valid 48kHz one-second control falsely fails here.
             let sampleCount = CMSampleBufferGetNumSamples(sample)
+            // AVAssetReader can return zero-sample edit/format marker buffers.
+            // They consume the buffer/deadline budget but are not decoded
+            // media, and must never count as positive video/audio evidence.
+            if sampleCount == 0 { markers += 1; continue }
             guard sampleCount > 0, sampleCount <= 500_000, count <= 500_000 - sampleCount else {
-                throw ProbeError.message("Native media-sample budget reached")
+                throw ProbeError.message("Native media-sample budget reached (sampleCount=\(sampleCount), total=\(count), buffers=\(buffers), markerBuffers=\(markers), decodedVideo=\(decodeVideo))")
             }
             count += sampleCount
             if decodeVideo {
@@ -294,7 +303,7 @@ final class ApplePassthroughExportDiagnosticsTests: XCTestCase {
             }
         }
         guard reader.status == .completed else { throw reader.error ?? ProbeError.message("Native reader did not finish the entire one-second fixture") }
-        return Samples(count: count, buffers: buffers, bytes: bytes, digest: hasher.finalize().map { String(format: "%02x", $0) }.joined(), completed: true)
+        return Samples(count: count, buffers: buffers, markers: markers, bytes: bytes, digest: hasher.finalize().map { String(format: "%02x", $0) }.joined(), completed: true)
     }
 
     private func formats(_ tracks: [AVAssetTrack]) async throws -> [[String: Any]] {

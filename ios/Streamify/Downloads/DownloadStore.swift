@@ -49,6 +49,18 @@ struct DownloadItem: Identifiable, Codable, Sendable {
     var sourceWidth: Int? = nil
     var sourceHeight: Int? = nil
     var sourceCodecs: [String]? = nil
+    var transport: CatalogDownloadTransport? = nil
+    var sourceAudioLanguage: String? = nil
+    var hlsVerifiedVOD: Bool? = nil
+    var hlsAttempt: UUID? = nil
+    var hlsPackagePath: String? = nil
+    var pendingHLSPackagePath: String? = nil
+    var hlsSelectedVariants: [HLSDownloadedVariant]? = nil
+    var hlsSelectedAudioLanguage: String? = nil
+    var hlsDidFinishPackage: Bool? = nil
+    var hlsTransferSucceeded: Bool? = nil
+    var hlsFractionCompleted: Double? = nil
+    var sourceProviderID: String? = nil
     mutating func applySource(_ resolved: ResolvedMediaDownload) {
         source = resolved.url.absoluteString
         quality = resolved.quality
@@ -57,9 +69,14 @@ struct DownloadItem: Identifiable, Codable, Sendable {
         sourceCodec = resolved.codec
         sourceRequiresProxy = resolved.requiresProxy
         sourceID = resolved.sourceID
+        sourceProviderID = resolved.providerID
         sourceWidth = resolved.actualWidth
         sourceHeight = resolved.actualHeight
         sourceCodecs = resolved.actualCodecs
+        transport = resolved.transport
+        sourceAudioLanguage = resolved.audioLanguage
+        hlsVerifiedVOD = resolved.transport == .hlsVOD && resolved.hlsSource?.isVOD == true
+            && resolved.hlsSource?.masterURL == resolved.url && resolved.hlsSource?.quality == resolved.quality
     }
     func sourceNeedsRefresh(now: Date = Date()) -> Bool {
         sourceExpiresAt.map { $0.timeIntervalSince(now) < 30 } ?? false
@@ -69,13 +86,30 @@ struct DownloadItem: Identifiable, Codable, Sendable {
         return DownloadArtworkCache.fileURL(fileName: posterFileName, itemID: id, directory: directory)
     }
     func acceptsCallback(taskIdentifier: Int) -> Bool {
-        status == .downloading && self.taskIdentifier == taskIdentifier
+        status == .downloading && transport != .hlsVOD && self.taskIdentifier == taskIdentifier
     }
     func acceptsValidation(taskIdentifier: Int, fileName: String) -> Bool {
         acceptsCallback(taskIdentifier: taskIdentifier) && pendingFileName == fileName
     }
-    var progress: Double? { expectedBytes > 0 ? min(1, max(0, Double(bytesWritten) / Double(expectedBytes))) : nil }
+    var hlsIdentity: HLSDownloadIdentity? {
+        guard transport == .hlsVOD, let hlsAttempt, let taskIdentifier else { return nil }
+        return HLSDownloadIdentity(id: id, attempt: hlsAttempt, taskIdentifier: taskIdentifier)
+    }
+    func acceptsHLS(_ identity: HLSDownloadIdentity) -> Bool {
+        status == .downloading && transport == .hlsVOD && hlsIdentity == identity
+    }
+    var progress: Double? {
+        if transport == .hlsVOD {
+            guard let fraction = hlsFractionCompleted, fraction.isFinite else { return nil }
+            return min(1, max(0, fraction))
+        }
+        return expectedBytes > 0 ? min(1, max(0, Double(bytesWritten) / Double(expectedBytes))) : nil
+    }
     var fileURL: URL? {
+        if transport == .hlsVOD {
+            guard status == .completed, let hlsPackagePath else { return nil }
+            return HLSDownloadedPackages.fileURL(for: hlsPackagePath)
+        }
         guard status == .completed, let fileName, !fileName.contains("/"), !fileName.contains("\\") else { return nil }
         return try? DownloadFiles.directory().appendingPathComponent(fileName)
     }
@@ -184,6 +218,9 @@ final class DownloadStore: ObservableObject {
     private var artworkAttempts: [UUID: UUID] = [:]
     private var validations: [UUID: Task<Void, Never>] = [:]
     private var validationAttempts: [UUID: UUID] = [:]
+    private lazy var hlsSession = HLSDownloadSessionOwner(observer: self)
+    private var hlsRestoration: Task<Void, Never>?
+    private var hlsRestorationPending = false
     private var backgroundEventsFinished = false
     private var lastSave = Date.distantPast
     private lazy var delegate = DownloadSessionDelegate(owner: self)
@@ -204,7 +241,7 @@ final class DownloadStore: ObservableObject {
                 items = try JSONDecoder().decode([DownloadItem].self, from: Data(contentsOf: url))
                 restoredMetadata = true
                 for index in items.indices where items[index].status == .completed {
-                    if let file = items[index].fileURL, !FileManager.default.fileExists(atPath: file.path) {
+                    if items[index].fileURL == nil || items[index].fileURL.map({ !FileManager.default.fileExists(atPath: $0.path) }) == true {
                         items[index].status = .failed
                         items[index].error = "The local file is missing. Download or import it again."
                     }
@@ -251,7 +288,15 @@ final class DownloadStore: ObservableObject {
         if let existing, existing.status == .downloading || existing.status == .completed && replacingDownloadID != existing.id {
             return existing.id
         }
-        let url = try DownloadFiles.resolvedURL(resolved.url)
+        let url: URL
+        if resolved.transport == .hlsVOD {
+            guard let source = resolved.hlsSource, source.isVOD,
+                  source.masterURL == resolved.url, source.quality == resolved.quality,
+                  source.audioLanguage.lowercased().hasPrefix("en"), secureURL(resolved.url.absoluteString) == resolved.url else {
+                throw DownloadError.unsupportedFile
+            }
+            url = resolved.url
+        } else { url = try DownloadFiles.resolvedURL(resolved.url) }
         let descriptor = CatalogDownloadDescriptor(id: media.id, kind: media.kind.rawValue, title: media.title,
             season: season, episode: episode, episodeTitle: episodeTitle)
         let episodeName = episodeTitle?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -260,6 +305,7 @@ final class DownloadStore: ObservableObject {
         let id: UUID
         if let index = items.firstIndex(where: { $0.catalogKey == key }) {
             id = items[index].id
+            cancelHLSTransfer(items[index])
             cancelValidation(id: id)
             tasks[id]?.cancel()
             tasks[id] = nil
@@ -296,6 +342,7 @@ final class DownloadStore: ObservableObject {
     func cancel(id: UUID) {
         defer { finishBackgroundEventsIfPossible() }
         guard let index = items.firstIndex(where: { $0.id == id }), items[index].status == .downloading else { return }
+        cancelHLSTransfer(items[index])
         cancelValidation(id: id)
         // The cancelled row remains available for Retry. Keep its saved poster
         // and any artwork fetch; deleting the row removes that artwork instead.
@@ -320,6 +367,8 @@ final class DownloadStore: ObservableObject {
               items[index].source.flatMap(secureURL) != nil else { return }
         let failedSource = items[index].source
         let failedHeaders = items[index].sourceHeaders ?? [:]
+        let rejectedProvider: String? = excludingSource == nil ? nil : (items[index].sourceProviderID
+            ?? (items[index].transport == .hlsVOD ? "VixSrc" : "VidLink"))
         let failureMessage = items[index].error
         if refreshingExpiredSource {
             guard (items[index].automaticSourceRefreshes ?? 0) < 1 else { return }
@@ -335,6 +384,7 @@ final class DownloadStore: ObservableObject {
             // Resolve again on Retry: a saved CDN address may have expired.
             let attempt = UUID()
             let quality = items[index].quality ?? 1080
+            let hlsBarrier = items[index].transport == .hlsVOD ? hlsSession.beginCompletionBarrier() : nil
             resolutionAttempts[id] = attempt
             items[index].taskIdentifier = nil
             resolutions[id] = Task { @MainActor [weak self] in
@@ -344,10 +394,13 @@ final class DownloadStore: ObservableObject {
                         self?.resolutions[id] = nil
                     }
                     self?.finishBackgroundEventsIfPossible()
+                    if let hlsBarrier { self?.hlsSession.endCompletionBarrier(hlsBarrier) }
                 }
                 do {
-                    let resolved = try await MediaDownloadResolver().resolve(media: media, season: descriptor.season,
-                        episode: descriptor.episode, maximumQuality: quality, excludingSources: Set([excludingSource].compactMap { $0 }))
+                    let resolved = try await CatalogDownloadResolver().resolve(media: media, season: descriptor.season,
+                        episode: descriptor.episode, maximumQuality: quality,
+                        excludingSources: Set([excludingSource].compactMap { $0 }),
+                        excludingProviders: Set([rejectedProvider].compactMap { $0 }))
                     try Task.checkCancellation()
                     guard let self, self.resolutionAttempts[id] == attempt,
                           let current = self.items.firstIndex(where: { $0.id == id }), self.items[current].status == .downloading else { return }
@@ -381,6 +434,7 @@ final class DownloadStore: ObservableObject {
 
     func remove(id: UUID) {
         defer { finishBackgroundEventsIfPossible() }
+        if let item = items.first(where: { $0.id == id }) { cancelHLSTransfer(item) }
         cancelValidation(id: id)
         clearArtwork(id: id)
         resolutions[id]?.cancel()
@@ -388,6 +442,10 @@ final class DownloadStore: ObservableObject {
         resolutionAttempts[id] = nil
         tasks[id]?.cancel()
         tasks[id] = nil
+        if let path = items.first(where: { $0.id == id })?.hlsPackagePath {
+            do { try HLSDownloadedPackages.remove(relativePath: path) }
+            catch { storageError = "The local video package could not be removed. \(error.localizedDescription)"; return }
+        }
         if let item = items.first(where: { $0.id == id }), let fileName = item.fileName,
            !fileName.contains("/"), !fileName.contains("\\"), let directory = try? DownloadFiles.directory() {
             let file = directory.appendingPathComponent(fileName)
@@ -485,6 +543,7 @@ final class DownloadStore: ObservableObject {
     }
 
     func reconnectTasks() {
+        reconnectHLSTasks()
         for item in items where item.status == .downloading {
             if let pending = item.pendingFileName, let taskIdentifier = item.taskIdentifier, validations[item.id] == nil {
                 validatePending(id: item.id, taskIdentifier: taskIdentifier, fileName: pending)
@@ -501,6 +560,7 @@ final class DownloadStore: ObservableObject {
                     guard let download = task as? URLSessionDownloadTask, let description = download.taskDescription,
                           let id = UUID(uuidString: description), let index = self.items.firstIndex(where: { $0.id == id }),
                           self.items[index].status == .downloading,
+                          self.items[index].transport != .hlsVOD,
                           self.items[index].pendingFileName == nil,
                           self.items[index].taskIdentifier == nil || self.items[index].taskIdentifier == download.taskIdentifier,
                           self.tasks[id] == nil || self.tasks[id]?.taskIdentifier == download.taskIdentifier
@@ -510,7 +570,7 @@ final class DownloadStore: ObservableObject {
                     self.items[index].taskIdentifier = download.taskIdentifier
                     if task.state == .suspended { task.resume() }
                 }
-                for index in self.items.indices where self.items[index].status == .downloading && !active.contains(self.items[index].id) && self.tasks[self.items[index].id] == nil && self.resolutions[self.items[index].id] == nil && self.validations[self.items[index].id] == nil {
+                for index in self.items.indices where self.items[index].transport != .hlsVOD && self.items[index].status == .downloading && !active.contains(self.items[index].id) && self.tasks[self.items[index].id] == nil && self.resolutions[self.items[index].id] == nil && self.validations[self.items[index].id] == nil {
                     self.items[index].status = .failed
                     self.items[index].error = "The download was interrupted. Tap Retry to start again."
                 }
@@ -580,7 +640,9 @@ final class DownloadStore: ObservableObject {
                     try OfflineVideoValidation.requireQuality(quality, width: validation.width, height: validation.height)
                 }
                 let oldFileName = self.items[index].fileName
+                let oldHLSPackage = self.items[index].hlsPackagePath
                 self.items[index].fileName = fileName
+                self.items[index].hlsPackagePath = nil
                 self.items[index].pendingFileName = nil
                 self.items[index].status = .completed
                 self.items[index].taskIdentifier = nil
@@ -597,6 +659,7 @@ final class DownloadStore: ObservableObject {
                     let old = directory.appendingPathComponent(oldFileName)
                     if DownloadFiles.isSupported(old) { try? FileManager.default.removeItem(at: old) }
                 }
+                if self.storageError == nil, let oldHLSPackage { try? HLSDownloadedPackages.remove(relativePath: oldHLSPackage) }
             } catch {
                 guard let self, self.validationAttempts[id] == attempt,
                       let index = self.items.firstIndex(where: { $0.id == id }),
@@ -625,6 +688,10 @@ final class DownloadStore: ObservableObject {
         if let index = items.firstIndex(where: { $0.id == id }), let fileName = items[index].pendingFileName {
             removePendingFile(fileName, id: id)
             items[index].pendingFileName = nil
+        }
+        if let index = items.firstIndex(where: { $0.id == id }), let pending = items[index].pendingHLSPackagePath {
+            if pending != items[index].hlsPackagePath { try? HLSDownloadedPackages.remove(relativePath: pending) }
+            items[index].pendingHLSPackagePath = nil
         }
         finishBackgroundEventsIfPossible()
     }
@@ -665,6 +732,7 @@ final class DownloadStore: ObservableObject {
             if (item.automaticSourceRefreshes ?? 0) < 1 { retry(id: item.id, refreshingExpiredSource: true, staleBeforeStart: true) }
             return
         }
+        if item.transport == .hlsVOD { startHLS(item); return }
         let request = DownloadSourceHeaders.request(url: url, headers: item.sourceHeaders ?? [:])
         let task = session.downloadTask(with: request)
         task.taskDescription = item.id.uuidString
@@ -676,6 +744,187 @@ final class DownloadStore: ObservableObject {
     private func save() {
         do { try JSONEncoder().encode(items).write(to: DownloadFiles.metadata(), options: .atomic); lastSave = Date(); storageError = nil }
         catch { storageError = "Download metadata could not be saved. \(error.localizedDescription)" }
+    }
+}
+
+extension DownloadStore: HLSDownloadSessionObserver {
+    func handleHLSBackgroundEvents(_ completion: @escaping () -> Void) {
+        hlsSession.registerBackgroundCompletion(completion)
+        reconnectHLSTasks()
+    }
+
+    private func cancelHLSTransfer(_ item: DownloadItem) {
+        if let identity = item.hlsIdentity { hlsSession.cancel(identity) }
+        if let attempt = item.hlsAttempt { hlsSession.cancelPreparation(id: item.id, attempt: attempt) }
+    }
+
+    private func startHLS(_ item: DownloadItem) {
+        guard let index = items.firstIndex(where: { $0.id == item.id }), item.hlsVerifiedVOD == true,
+              let source = item.source.flatMap(secureURL), let quality = item.quality else {
+            if let index = items.firstIndex(where: { $0.id == item.id }) {
+                items[index].status = .failed; items[index].error = HLSDownloadSessionError.invalidSource.localizedDescription
+            }
+            return
+        }
+        let attempt = UUID()
+        items[index].hlsAttempt = attempt; items[index].taskIdentifier = nil
+        items[index].hlsSelectedVariants = nil; items[index].hlsSelectedAudioLanguage = nil
+        items[index].hlsDidFinishPackage = false; items[index].hlsTransferSucceeded = false
+        items[index].hlsFractionCompleted = nil
+        let descriptor = HLSDownloadSource(masterURL: source, quality: quality,
+            audioLanguage: item.sourceAudioLanguage ?? "en", protection: .clearOrIdentityAES128, isVOD: true)
+        let barrier = hlsSession.beginCompletionBarrier()
+        resolutionAttempts[item.id] = attempt
+        resolutions[item.id] = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                if self.resolutionAttempts[item.id] == attempt {
+                    self.resolutionAttempts[item.id] = nil; self.resolutions[item.id] = nil
+                }
+                self.finishBackgroundEventsIfPossible()
+                self.hlsSession.endCompletionBarrier(barrier)
+            }
+            do { try await self.hlsSession.start(id: item.id, attempt: attempt, source: descriptor, title: item.title) }
+            catch {
+                guard !Task.isCancelled, self.resolutionAttempts[item.id] == attempt,
+                      let current = self.items.firstIndex(where: { $0.id == item.id }),
+                      self.items[current].status == .downloading else { return }
+                self.failHLS(id: item.id, message: error.localizedDescription)
+            }
+        }
+        save()
+    }
+
+    private func reconnectHLSTasks() {
+        guard hlsRestoration == nil else { hlsRestorationPending = true; return }
+        hlsRestorationPending = false
+        hlsRestoration = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                self.hlsRestoration = nil
+                if self.hlsRestorationPending { self.reconnectHLSTasks() }
+            }
+            let records = self.items.compactMap { item -> HLSDownloadRestoreRecord? in
+                guard item.status == .downloading, item.hlsTransferSucceeded != true,
+                      let identity = item.hlsIdentity, let quality = item.quality else { return nil }
+                return HLSDownloadRestoreRecord(identity: identity, quality: quality,
+                    audioLanguage: item.sourceAudioLanguage ?? "en",
+                    packageURL: item.pendingHLSPackagePath.flatMap { HLSDownloadedPackages.fileURL(for: $0) },
+                    selectedVariants: item.hlsSelectedVariants ?? [], selectedAudioLanguage: item.hlsSelectedAudioLanguage,
+                    didFinishPackage: item.hlsDidFinishPackage == true)
+            }
+            await self.hlsSession.restoreTasks(records: records)
+            let active = self.hlsSession.activeIdentities
+            for item in self.items where item.transport == .hlsVOD && item.status == .downloading {
+                if item.hlsTransferSucceeded == true, let identity = item.hlsIdentity {
+                    self.validateHLSPackage(identity: identity)
+                } else if self.resolutions[item.id] == nil, self.validations[item.id] == nil,
+                          item.hlsIdentity.map({ !active.contains($0) }) ?? true,
+                          !self.hlsSession.isPreparing(id: item.id, attempt: item.hlsAttempt ?? UUID()) {
+                    self.failHLS(id: item.id, message: "The download was interrupted. Tap Retry to request a fresh source.", recover: false)
+                }
+            }
+            self.save()
+        }
+    }
+
+    func hlsDownloadSessionOwner(_ owner: HLSDownloadSessionOwner, didReceive snapshot: HLSDownloadSnapshot) {
+        let identity = snapshot.identity
+        guard let index = items.firstIndex(where: { $0.id == identity.id }), items[index].status == .downloading,
+              items[index].transport == .hlsVOD, items[index].hlsAttempt == identity.attempt else { return }
+        if snapshot.event == .prepared, items[index].taskIdentifier == nil { items[index].taskIdentifier = identity.taskIdentifier }
+        guard items[index].acceptsHLS(identity) else { return }
+        if let package = snapshot.packageURL {
+            do { items[index].pendingHLSPackagePath = try HLSDownloadedPackages.relativePath(of: package) }
+            catch { failHLS(id: identity.id, message: HLSDownloadSessionError.unsafePackage.localizedDescription); return }
+        }
+        items[index].hlsSelectedVariants = snapshot.selectedVariants
+        items[index].hlsSelectedAudioLanguage = snapshot.selectedAudioLanguage
+        items[index].hlsDidFinishPackage = snapshot.didFinishPackage
+        if let fraction = snapshot.fractionCompleted, fraction.isFinite { items[index].hlsFractionCompleted = fraction }
+        switch snapshot.event {
+        case .prepared:
+            save()
+            if let storageError {
+                owner.cancel(identity)
+                items[index].status = .failed; items[index].taskIdentifier = nil
+                items[index].error = storageError
+            }
+        case .completed:
+            items[index].hlsTransferSucceeded = true
+            save()
+            validateHLSPackage(identity: identity)
+        case .failed:
+            failHLS(id: identity.id, message: snapshot.error?.localizedDescription ?? HLSDownloadSessionError.incompletePackage.localizedDescription)
+        case .cancelled:
+            // A user-initiated cancellation already changed the row status.
+            // An unexpected native cancellation remains retryable.
+            failHLS(id: identity.id, message: "The download was interrupted. Tap Retry to request a fresh source.", recover: false)
+        default:
+            if snapshot.event != .progress || Date().timeIntervalSince(lastSave) > 3 { save() }
+        }
+    }
+
+    private func failHLS(id: UUID, message: String, recover: Bool = true) {
+        guard let index = items.firstIndex(where: { $0.id == id }), items[index].status == .downloading else { return }
+        let failedSource = items[index].source
+        cancelHLSTransfer(items[index])
+        cancelValidation(id: id)
+        items[index].status = .failed; items[index].taskIdentifier = nil
+        items[index].hlsTransferSucceeded = false; items[index].error = message
+        save()
+        if recover, items[index].catalog != nil, (items[index].automaticSourceRefreshes ?? 0) < 1 {
+            retry(id: id, refreshingExpiredSource: true, excludingSource: failedSource)
+        }
+    }
+
+    private func validateHLSPackage(identity: HLSDownloadIdentity) {
+        guard validations[identity.id] == nil,
+              let item = items.first(where: { $0.acceptsHLS(identity) }), item.hlsTransferSucceeded == true,
+              item.hlsDidFinishPackage == true, let path = item.pendingHLSPackagePath,
+              let package = HLSDownloadedPackages.fileURL(for: path), let quality = item.quality,
+              let variants = item.hlsSelectedVariants, !variants.isEmpty,
+              variants.allSatisfy({ $0.matches(quality: quality) }),
+              item.hlsSelectedAudioLanguage?.lowercased().hasPrefix("en") == true else {
+            if validations[identity.id] == nil { failHLS(id: identity.id, message: HLSDownloadSessionError.incompletePackage.localizedDescription) }
+            return
+        }
+        let attempt = UUID(), barrier = hlsSession.beginCompletionBarrier()
+        validationAttempts[identity.id] = attempt
+        validations[identity.id] = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                if self.validationAttempts[identity.id] == attempt {
+                    self.validationAttempts[identity.id] = nil; self.validations[identity.id] = nil
+                }
+                self.hlsSession.endCompletionBarrier(barrier)
+                self.finishBackgroundEventsIfPossible()
+            }
+            do {
+                _ = try await OfflineHLSValidation.validate(package, quality: quality, audioLanguage: item.sourceAudioLanguage ?? "en")
+                try Task.checkCancellation()
+                guard self.validationAttempts[identity.id] == attempt,
+                      let index = self.items.firstIndex(where: { $0.acceptsHLS(identity) }),
+                      self.items[index].pendingHLSPackagePath == path else { return }
+                let oldPackage = self.items[index].hlsPackagePath, oldFile = self.items[index].fileName
+                self.items[index].hlsPackagePath = path; self.items[index].pendingHLSPackagePath = nil
+                self.items[index].fileName = nil; self.items[index].status = .completed
+                self.items[index].taskIdentifier = nil; self.items[index].error = nil
+                self.items[index].hlsFractionCompleted = 1
+                self.cacheArtwork(id: identity.id); self.save()
+                if self.storageError == nil {
+                    if let oldPackage, oldPackage != path { try? HLSDownloadedPackages.remove(relativePath: oldPackage) }
+                    if let oldFile, !oldFile.contains("/"), !oldFile.contains("\\"), let directory = try? DownloadFiles.directory() {
+                        let old = directory.appendingPathComponent(oldFile)
+                        if DownloadFiles.isSupported(old) { try? FileManager.default.removeItem(at: old) }
+                    }
+                }
+            } catch {
+                guard !Task.isCancelled, self.validationAttempts[identity.id] == attempt,
+                      self.items.contains(where: { $0.acceptsHLS(identity) }) else { return }
+                self.failHLS(id: identity.id, message: OfflineVideoError.classify(error).downloadMessage)
+            }
+        }
     }
 }
 
@@ -774,6 +1023,10 @@ final class DownloadAppDelegate: NSObject, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String, completionHandler: @escaping () -> Void) {
+        if identifier == HLSDownloadSessionOwner.sessionIdentifier {
+            DownloadStore.shared.handleHLSBackgroundEvents(completionHandler)
+            return
+        }
         guard identifier == DownloadStore.sessionIdentifier else { completionHandler(); return }
         DownloadStore.shared.backgroundCompletion = completionHandler
         DownloadStore.shared.reconnectTasks()

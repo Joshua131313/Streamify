@@ -285,6 +285,7 @@ struct RootView: View {
     private var activeDownloads: [DownloadItem] { downloads.items.filter { $0.status == .downloading } }
     private var downloadProgress: Double? {
         let active = activeDownloads
+        if active.count == 1 { return active.first?.progress }
         guard !active.isEmpty, active.allSatisfy({ $0.expectedBytes > 0 }) else { return nil }
         let expected = active.reduce(0.0) { $0 + Double($1.expectedBytes) }
         let written = active.reduce(0.0) { $0 + Double(min(max(0, $1.bytesWritten), $1.expectedBytes)) }

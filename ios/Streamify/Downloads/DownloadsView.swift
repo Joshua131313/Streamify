@@ -102,6 +102,9 @@ private struct DownloadSeriesRow: View {
 
     private var episodeCount: String { "\(series.episodes.count) episode\(series.episodes.count == 1 ? "" : "s")" }
     private var summary: String {
+        if series.episodes.contains(where: { $0.transport == .hlsVOD }) {
+            return series.readyCount == series.episodes.count ? episodeCount : "\(episodeCount) · \(series.readyCount)/\(series.episodes.count) ready"
+        }
         let size = ByteCountFormatter.string(fromByteCount: series.bytesWritten, countStyle: .file)
         return "\(episodeCount) · " + (series.readyCount == series.episodes.count ? size : "\(series.readyCount)/\(series.episodes.count) ready · \(size)")
     }
@@ -404,7 +407,9 @@ private struct DownloadRow: View {
         // The ring carries live progress; repeating a changing percentage or
         // transfer message beneath the title makes these compact rows noisy.
         case .downloading: return item.quality.map { "\($0)p" }
-        case .completed: return "\(item.quality.map { "\($0)p · " } ?? "")\(ByteCountFormatter.string(fromByteCount: item.bytesWritten, countStyle: .file))"
+        case .completed:
+            if item.transport == .hlsVOD { return item.quality.map { "\($0)p" } ?? "Downloaded" }
+            return "\(item.quality.map { "\($0)p · " } ?? "")\(ByteCountFormatter.string(fromByteCount: item.bytesWritten, countStyle: .file))"
         case .cancelled: return "Cancelled"
         case .failed: return "Download unavailable"
         }

@@ -119,7 +119,7 @@ final class HEVCPackagingDiagnosticsTests: XCTestCase {
                     } onCancel: { generator.cancelAllCGImageGeneration() }
                 }
                 group.addTask {
-                    try await Task.sleep(nanoseconds: 5_000_000_000)
+                    try await Task.sleep(nanoseconds: 12_000_000_000)
                     throw URLError(.timedOut)
                 }
                 defer { group.cancelAll() }

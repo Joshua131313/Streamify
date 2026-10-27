@@ -12,6 +12,12 @@ targets:
     platform: iOS
     sources:
       - path: NativeHLSDiagnostics/ResearchHost.swift
+      - path: Streamify/Downloads/CatalogDownloadSource.swift
+      - path: Streamify/Downloads/OfflineVideoValidation.swift
+      - path: Streamify/Downloads/OfflineHLSValidation.swift
+      - path: Streamify/Downloads/HLSDownloadSessionOwner.swift
+      - path: Streamify/Downloads/VixSrcDownloadResolver.swift
+      - path: Streamify/Data/Models.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.streamify.hlsresearch
@@ -23,6 +29,8 @@ targets:
     platform: iOS
     sources:
       - path: NativeHLSDiagnostics/VixSrcNativeHLSDiagnosticsTests.swift
+      - path: NativeHLSDiagnostics/NativeOfflineHLSLifecycleTests.swift
+      - path: NativeHLSDiagnostics/VixSrcProductionResolverDiagnosticsTests.swift
     dependencies:
       - target: HLSResearchHost
     settings:

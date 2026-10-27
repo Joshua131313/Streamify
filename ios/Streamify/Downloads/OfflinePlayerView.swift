@@ -453,7 +453,7 @@ struct OfflinePlayerView: View {
                     List {
                         Section("Audio") {
                             if let group = model.audioGroup {
-                                ForEach(group.options, id: \.self) { option in
+                                ForEach(model.availableOptions(in: group), id: \.self) { option in
                                     Button { model.select(option: option, group: group) } label: {
                                         trackLabel(option.displayName, selected: model.selectedAudioOption == option)
                                     }
@@ -463,7 +463,7 @@ struct OfflinePlayerView: View {
                         Section("Subtitles") {
                             if let group = model.subtitleGroup {
                                 Button { disableImportedSubtitles(); model.select(option: nil, group: group) } label: { trackLabel("Off", selected: model.selectedSubtitleOption == nil && !importedEnabled) }
-                                ForEach(group.options, id: \.self) { option in
+                                ForEach(model.availableOptions(in: group), id: \.self) { option in
                                     Button { disableImportedSubtitles(); model.select(option: option, group: group) } label: {
                                         trackLabel(option.displayName, selected: model.selectedSubtitleOption == option && !importedEnabled)
                                     }

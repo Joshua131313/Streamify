@@ -62,6 +62,13 @@ final class OfflinePlaybackModel: ObservableObject {
     private var checkpoint = PlaybackCheckpoint()
     private var localSavedAt = -Double.infinity
     private var localSavedPosition = -Double.infinity
+    private var usesOfflinePackage = false
+
+    func availableOptions(in group: AVMediaSelectionGroup) -> [AVMediaSelectionOption] {
+        guard usesOfflinePackage else { return group.options }
+        guard let asset = player?.currentItem?.asset as? AVURLAsset, let cache = asset.assetCache else { return [] }
+        return cache.mediaSelectionOptions(in: group).filter { $0.isPlayable }
+    }
 
     init(defaults: UserDefaults = .standard) { self.defaults = defaults }
 
@@ -71,20 +78,36 @@ final class OfflinePlaybackModel: ObservableObject {
         isBuffering = true; error = nil; videoError = nil; finished = false; wantsPlayback = true
         guard let url = item.fileURL else { fail(.missingFile); return }
         do {
-            let validated = try await OfflineVideoValidation.validate(url)
+            let isHLSPackage = item.transport == .hlsVOD
+            let asset: AVURLAsset
+            let loadedDuration: Double
+            let preferredAudio: AVMediaSelectionOption?
+            let validatedAudioGroup: AVMediaSelectionGroup?
+            if isHLSPackage {
+                let validated = try await OfflineHLSValidation.validate(url, quality: item.quality,
+                    audioLanguage: item.sourceAudioLanguage ?? "en")
+                asset = validated.asset; loadedDuration = validated.duration; preferredAudio = validated.audioOption
+                validatedAudioGroup = validated.audioGroup
+            } else {
+                let validated = try await OfflineVideoValidation.validate(url)
+                asset = validated.asset; loadedDuration = validated.duration; preferredAudio = nil
+                validatedAudioGroup = nil
+            }
             try Task.checkCancellation()
             guard generation == request else { return }
-            let asset = validated.asset
-            let loadedDuration = validated.duration
-            let audio = try? await asset.loadMediaSelectionGroup(for: .audible)
+            let audio: AVMediaSelectionGroup?
+            if let validatedAudioGroup { audio = validatedAudioGroup }
+            else { audio = try? await asset.loadMediaSelectionGroup(for: .audible) }
             let subtitles = try? await asset.loadMediaSelectionGroup(for: .legible)
             try Task.checkCancellation()
             guard generation == request else { return }
             try PlaybackAudioSession.activate()
+            usesOfflinePackage = isHLSPackage
             duration = loadedDuration; audioGroup = audio; subtitleGroup = subtitles
             let saved = defaults.dictionary(forKey: storageKey(item.id))
             resumePoint = OfflinePlaybackPolicy.resume((saved?["position"] as? NSNumber)?.doubleValue ?? 0, duration: duration)
             let item = AVPlayerItem(asset: asset)
+            if let audio, let preferredAudio { item.select(preferredAudio, in: audio) }
             let created = AVPlayer(playerItem: item)
             created.allowsExternalPlayback = true
             player = created; observers.player = created
@@ -186,7 +209,7 @@ final class OfflinePlaybackModel: ObservableObject {
     }
     func select(option: AVMediaSelectionOption?, group: AVMediaSelectionGroup) {
         guard group === audioGroup || group === subtitleGroup,
-              option.map({ group.options.contains($0) }) ?? group.allowsEmptySelection else { return }
+              option.map({ availableOptions(in: group).contains($0) }) ?? group.allowsEmptySelection else { return }
         player?.currentItem?.select(option, in: group)
         if group === audioGroup { selectedAudioOption = option }
         if group === subtitleGroup { selectedSubtitleOption = option }
@@ -202,6 +225,7 @@ final class OfflinePlaybackModel: ObservableObject {
         audioGroup = nil; subtitleGroup = nil; selectedAudioOption = nil; selectedSubtitleOption = nil
         checkpoint = PlaybackCheckpoint(); localSavedAt = -Double.infinity; localSavedPosition = -Double.infinity
         itemID = nil
+        usesOfflinePackage = false
     }
 
     private func capture(force: Bool = false) {

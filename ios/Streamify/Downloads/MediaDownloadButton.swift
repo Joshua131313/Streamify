@@ -163,7 +163,7 @@ struct MediaDownloadSheet: View {
         task = Task { @MainActor in
             defer { resolving = false }
             do {
-                let source = try await MediaDownloadResolver().resolve(media: media, season: season, episode: episode, maximumQuality: quality)
+                let source = try await CatalogDownloadResolver().resolve(media: media, season: season, episode: episode, maximumQuality: quality)
                 try Task.checkCancellation()
                 try downloads.add(resolved: source, media: media, season: season, episode: episode,
                     episodeTitle: episodeTitle, replacingDownloadID: replacingDownloadID)
