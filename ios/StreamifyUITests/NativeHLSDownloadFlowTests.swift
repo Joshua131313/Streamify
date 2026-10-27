@@ -1,6 +1,6 @@
 import XCTest
 
-/// Downloads only our immutable, five-second synthetic control through the
+/// Downloads only our immutable, fifty-second synthetic UI control through the
 /// actual background HLS owner/store. No completed-file fixture, provider API,
 /// full TV episode or remote account is involved in this flow.
 final class NativeHLSDownloadFlowTests: XCTestCase {
@@ -66,7 +66,7 @@ final class NativeHLSDownloadFlowTests: XCTestCase {
         delete.tap()
         let confirmation = app.buttons["Delete video"]
         XCTAssertTrue(confirmation.waitForExistence(timeout: 5)); XCTAssertTrue(confirmation.isHittable)
-        XCTAssertTrue(app.staticTexts["Delete \(title) · S1 E1 · Synthetic five-second English control?"].exists,
+        XCTAssertTrue(app.staticTexts["Delete \(title) · S1 E1 · Synthetic fifty-second English control?"].exists,
             "Deletion must target only this synthetic episode.")
         capture("Actual episode swipe requires confirmation before deleting its package")
         confirmation.tap()
@@ -107,15 +107,23 @@ final class NativeHLSDownloadFlowTests: XCTestCase {
         pauseReadyPlayer(transport)
         let progress = app.sliders["offline-progress"]
         XCTAssertTrue(progress.waitForExistence(timeout: 5)); XCTAssertTrue(progress.isEnabled)
-        // Native accessibility queries can consume most of a five-second
-        // fixture. Rewind through the actual control while paused so the
-        // resume/advancement checks always measure a fresh playback interval.
+        // The longer UI control leaves time for native accessibility queries.
+        // Reset through real ten-second controls while paused, including when
+        // the restored process starts from a persisted playback checkpoint.
         let rewind = app.buttons["offline-back-10"]
-        XCTAssertTrue(rewind.isHittable); rewind.tap()
-        XCTAssertTrue(wait(timeout: 5) { (progress.value as? String ?? "").hasPrefix("0:00 of 0:05") })
+        XCTAssertTrue(rewind.isHittable)
+        for _ in 0..<5 {
+            let before = progress.value as? String ?? ""
+            if before.hasPrefix("0:00 of 0:50") { break }
+            XCTAssertEqual(transport.label, "Play")
+            rewind.tap()
+            XCTAssertTrue(wait(timeout: 5) { (progress.value as? String ?? "") != before },
+                "The real rewind control must commit a new paused playback time.")
+        }
+        XCTAssertTrue(wait(timeout: 5) { (progress.value as? String ?? "").hasPrefix("0:00 of 0:50") })
         XCTAssertEqual(transport.label, "Play", "Rewinding while paused must retain paused playback.")
         let start = progress.value as? String ?? ""
-        XCTAssertTrue(start.contains(" of 0:05"), "The saved native package must expose the real five-second media duration: \(start)")
+        XCTAssertTrue(start.contains(" of 0:50"), "The saved native package must expose the real fifty-second media duration: \(start)")
         transport.tap()
         XCTAssertTrue(wait(timeout: 5) { transport.label == "Pause" })
         XCTAssertTrue(wait(timeout: 4) { (progress.value as? String ?? "") != start },
@@ -140,8 +148,8 @@ final class NativeHLSDownloadFlowTests: XCTestCase {
 
     private func pauseReadyPlayer(_ transport: XCUIElement) {
         if transport.label == "Pause" { transport.tap() }
-        // The intentionally tiny control may finish while XCTest captures a
-        // hierarchy. Replay through the real UI before inspecting its tracks;
+        // If playback finishes while XCTest captures a hierarchy, replay
+        // through the real UI before inspecting its tracks;
         // a finished overlay must not cover the controls being asserted.
         if app.buttons["Watch again"].exists {
             app.buttons["Watch again"].tap()
