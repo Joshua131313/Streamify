@@ -11,7 +11,7 @@ on:
         type: choice
         required: true
         default: full
-        options: [full, delivery-recheck, download-source-recheck, multi-source-ui-recheck, stream-recovery-recheck, player-recheck, polish-recheck, sports-refinement, refinement-recheck, live-today-recheck, player-scene-recheck, profile-activation-recheck, native-fullscreen-recheck, football-polish-recheck, profile-picker-recheck, account-cache-recheck, cache-retap-recheck, provider-control-recheck, possession-widget-recheck, playback-start-recheck, landscape-touch-recheck, diamond-player-recheck, chat-connection-recheck]
+        options: [full, codec-diagnostics, delivery-recheck, download-source-recheck, multi-source-ui-recheck, stream-recovery-recheck, player-recheck, polish-recheck, sports-refinement, refinement-recheck, live-today-recheck, player-scene-recheck, profile-activation-recheck, native-fullscreen-recheck, football-polish-recheck, profile-picker-recheck, account-cache-recheck, cache-retap-recheck, provider-control-recheck, possession-widget-recheck, playback-start-recheck, landscape-touch-recheck, diamond-player-recheck, chat-connection-recheck]
 permissions:
   contents: read
 concurrency:
@@ -19,8 +19,40 @@ concurrency:
   group: ios-check-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: true
 jobs:
+  codec-diagnostics:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.scope == 'codec-diagnostics' }}
+    name: Native iPhone codec diagnostics
+    runs-on: macos-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate isolated project with the actual download implementation
+        run: |
+          brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
+          xcodegen generate --spec ios/codec-diagnostics.yml
+      - name: Decode and play actual codec samples on iPhone simulator
+        run: |
+          DEVICE_ID=$(xcrun simctl list devices available --json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for devices in d["devices"].values() for x in devices if x["name"].startswith("iPhone")))')
+          xcrun simctl boot "$DEVICE_ID" || true
+          xcrun simctl bootstatus "$DEVICE_ID" -b
+          mkdir -p ios/build/codec-diagnostics
+          set -o pipefail
+          xcodebuild test -project ios/StreamifyCodecDiagnostics.xcodeproj -scheme StreamifyCodecDiagnostics -destination "platform=iOS Simulator,id=$DEVICE_ID" -derivedDataPath ios/build/CodecDiagnostics CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY='-' -parallel-testing-enabled NO -resultBundlePath ios/build/CodecDiagnostics.xcresult | tee ios/build/codec-diagnostics/native.log
+      - name: Export native diagnostic evidence
+        if: always()
+        run: |
+          if test -d ios/build/CodecDiagnostics.xcresult; then
+            xcrun xcresulttool export attachments --path ios/build/CodecDiagnostics.xcresult --output-path ios/build/codec-diagnostics/attachments
+            xcrun xcresulttool get test-results summary --path ios/build/CodecDiagnostics.xcresult > ios/build/codec-diagnostics/test-summary.json
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Streamify-native-codec-diagnostics
+          path: ios/build/codec-diagnostics
+          if-no-files-found: error
   device:
-    if: ${{ github.event_name != 'workflow_dispatch' || (inputs.scope != 'profile-activation-recheck' && inputs.scope != 'native-fullscreen-recheck' && inputs.scope != 'provider-control-recheck' && inputs.scope != 'landscape-touch-recheck') }}
+    if: ${{ inputs.scope != 'codec-diagnostics' && (github.event_name != 'workflow_dispatch' || (inputs.scope != 'profile-activation-recheck' && inputs.scope != 'native-fullscreen-recheck' && inputs.scope != 'provider-control-recheck' && inputs.scope != 'landscape-touch-recheck')) }}
     name: iPhone test package
     runs-on: macos-latest
     timeout-minutes: 20
@@ -45,6 +77,7 @@ jobs:
           path: ios/build/Streamify-unsigned.ipa
           if-no-files-found: error
   simulator:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.scope != 'codec-diagnostics' }}
     name: iPhone UI - ${{ matrix.suite }}
     runs-on: macos-latest
     timeout-minutes: 45
