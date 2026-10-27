@@ -64,7 +64,6 @@ enum HLSDownloadedPackages {
             "homeRelativeTopDirectory": path.hasPrefix(root + "/") ? String(path.dropFirst(root.count + 1).split(separator: "/").first ?? "") : "outside",
             "componentCount": location.pathComponents.count,
             "locationShape": redactedShape(location), "homeShape": redactedShape(home),
-            "fileManagerHomeShape": redactedShape(FileManager.default.homeDirectoryForCurrentUser),
             "libraryShape": library.map(redactedShape) ?? "missing", "commonPrefixComponentCount": shared,
             "insideFileManagerLibrary": library.map { path.hasPrefix(normalizedPath($0) + "/") } ?? false,
             "bundleID": Bundle.main.bundleIdentifier ?? "unknown"]
