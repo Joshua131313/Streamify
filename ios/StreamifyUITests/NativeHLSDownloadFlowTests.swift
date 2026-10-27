@@ -107,6 +107,13 @@ final class NativeHLSDownloadFlowTests: XCTestCase {
         pauseReadyPlayer(transport)
         let progress = app.sliders["offline-progress"]
         XCTAssertTrue(progress.waitForExistence(timeout: 5)); XCTAssertTrue(progress.isEnabled)
+        // Native accessibility queries can consume most of a five-second
+        // fixture. Rewind through the actual control while paused so the
+        // resume/advancement checks always measure a fresh playback interval.
+        let rewind = app.buttons["offline-back-10"]
+        XCTAssertTrue(rewind.isHittable); rewind.tap()
+        XCTAssertTrue(wait(timeout: 5) { (progress.value as? String ?? "").hasPrefix("0:00 of 0:05") })
+        XCTAssertEqual(transport.label, "Play", "Rewinding while paused must retain paused playback.")
         let start = progress.value as? String ?? ""
         XCTAssertTrue(start.contains(" of 0:05"), "The saved native package must expose the real five-second media duration: \(start)")
         transport.tap()

@@ -175,7 +175,9 @@ final class DownloadIndicatorFlowTests: XCTestCase {
         else {
             let dismiss = element("PopoverDismissRegion")
             XCTAssertTrue(dismiss.waitForExistence(timeout: 5))
-            dismiss.tap()
+            // Its accessibility frame spans the screen, including the popup.
+            // The center can therefore land inside Delete instead of outside.
+            dismiss.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5)).tap()
         }
         XCTAssertTrue(wait { !confirmShow.exists && series.isHittable })
         openSeries()
