@@ -73,7 +73,8 @@ struct LiquidGlassBottomBar: View {
                      attachmentAnchor: .point(UnitPoint(x: 0.875, y: 0)), arrowEdge: .bottom) {
                 quickProfilePicker
             }
-            .frame(maxWidth: 440)
+            .frame(maxWidth: 420)
+            .padding(.horizontal, 12)
     }
 
     private var quickProfilePicker: some View {

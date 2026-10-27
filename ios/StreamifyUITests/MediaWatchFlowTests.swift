@@ -68,6 +68,8 @@ final class MediaWatchFlowTests: XCTestCase {
         let season = app.buttons["player-episode-season-picker"]
         XCTAssertTrue(season.waitForExistence(timeout: 5))
         XCTAssertTrue(season.isHittable, "The Episodes sheet's visible season picker must receive the tap.")
+        XCTAssertTrue(app.buttons["player-episode-choice-1-1"].waitForExistence(timeout: 8))
+        capture("Player episode picker shows season 1 artwork and selected episode")
         season.tap()
         let secondSeason = app.buttons["Season 2"]
         XCTAssertTrue(secondSeason.waitForExistence(timeout: 5))
@@ -77,6 +79,7 @@ final class MediaWatchFlowTests: XCTestCase {
         XCTAssertTrue(episode.waitForExistence(timeout: 8))
         XCTAssertTrue(episode.isHittable, "The selected season's visible episode row must receive the tap.")
         XCTAssertTrue(episode.label.contains("3. A New Horizon"))
+        capture("Player episode picker shows season 2 before choosing an episode")
         episode.tap()
         XCTAssertTrue(app.navigationBars["Episodes"].waitForNonExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Season 2 · Episode 3"].waitForExistence(timeout: 8))

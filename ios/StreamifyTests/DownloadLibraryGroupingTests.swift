@@ -3,6 +3,20 @@ import XCTest
 @testable import Streamify
 
 final class DownloadLibraryGroupingTests: XCTestCase {
+    func testToolbarAveragesNativeAndFileProgressAndExcludesInactiveItems() throws {
+        var file = item(show: 42, season: 1, episode: 1)
+        file.status = .downloading; file.bytesWritten = 25; file.expectedBytes = 100
+        var hls = item(show: 42, season: 1, episode: 2)
+        hls.status = .downloading; hls.transport = .hlsVOD; hls.hlsFractionCompleted = 0.75
+        let completed = item(show: 42, season: 1, episode: 3)
+        XCTAssertEqual(try XCTUnwrap(DownloadToolbarProgress.average(in: [file, hls, completed])), 0.5, accuracy: 0.0001)
+        hls.status = .cancelled
+        XCTAssertEqual(try XCTUnwrap(DownloadToolbarProgress.average(in: [file, hls, completed])), 0.25, accuracy: 0.0001)
+        file.expectedBytes = 0
+        XCTAssertNil(DownloadToolbarProgress.average(in: [file, hls]))
+        XCTAssertNil(DownloadToolbarProgress.average(in: [completed]))
+    }
+
     func testSingleEpisodeAlwaysOpensAShowGroupAndMovieWithSameIDStaysAFile() throws {
         let episode = item(show: 42, season: 1, episode: 1)
         var movie = item(show: 42, season: 1, episode: 1)

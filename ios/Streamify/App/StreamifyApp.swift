@@ -284,13 +284,7 @@ struct RootView: View {
 
     private var activeDownloads: [DownloadItem] { downloads.items.filter { $0.status == .downloading } }
     private var downloadProgress: Double? {
-        let active = activeDownloads
-        if active.count == 1 { return active.first?.progress }
-        guard !active.isEmpty, active.allSatisfy({ $0.expectedBytes > 0 }) else { return nil }
-        let expected = active.reduce(0.0) { $0 + Double($1.expectedBytes) }
-        let written = active.reduce(0.0) { $0 + Double(min(max(0, $1.bytesWritten), $1.expectedBytes)) }
-        guard expected.isFinite, written.isFinite, expected > 0 else { return nil }
-        return min(1, max(0, written / expected))
+        DownloadToolbarProgress.average(in: downloads.items)
     }
     private var downloadActivityValue: String {
         guard !activeDownloads.isEmpty else { return "No active downloads" }
@@ -305,6 +299,11 @@ struct RootView: View {
             visibleRootPages.insert(value)
             tab = value
         })
+    }
+
+    private var bottomBarContainerEdges: Edge.Set {
+        if #available(iOS 26.0, *) { return .bottom }
+        return []
     }
 
     var body: some View {
@@ -324,6 +323,10 @@ struct RootView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // UIKit already keeps the glass pill clear of the home indicator.
+        // Align its container to the screen edge rather than adding SwiftUI's
+        // bottom safe area on top of UIKit's own inset.
+        .ignoresSafeArea(.container, edges: bottomBarContainerEdges)
         // One backdrop also fills the status bar and home-indicator area.
         .background { StreamifyRootBackdrop() }
         .sheet(isPresented: $settingsOpen) {
@@ -470,13 +473,17 @@ struct RootView: View {
                 .accessibilityIdentifier(page == .sports ? "focus-sports-search" : "open-catalog-search")
                 .streamifySearchSource("root-search-\(page.rawValue)", in: searchTransition)
             Button { downloadsOpen = true } label: {
-                Image(systemName: "arrow.down.to.line").frame(width: 44, height: 44)
-                    .overlay(alignment: .topTrailing) {
-                        if !activeDownloads.isEmpty {
-                            DownloadActivityIndicator(progress: downloadProgress, size: 12, tint: AppTheme.accent)
-                                .padding(5)
-                        }
+                ZStack {
+                    if activeDownloads.isEmpty {
+                        Image(systemName: "arrow.down.to.line")
+                    } else {
+                        // An empty ring waits for real progress; it never
+                        // invents a percentage or turns into a rotating badge.
+                        DownloadActivityIndicator(progress: downloadProgress ?? 0, size: 28,
+                                                  tint: AppTheme.foreground, animated: false)
+                        Image(systemName: "arrow.down").font(.system(size: 13, weight: .semibold))
                     }
+                }.frame(width: 44, height: 44)
             }.accessibilityLabel("Downloads").accessibilityValue(downloadActivityValue).accessibilityIdentifier("open-downloads")
             Menu {
                 Button("Switch profiles", systemImage: "person.2") { profiles.showChooser() }

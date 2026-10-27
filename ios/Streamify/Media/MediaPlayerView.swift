@@ -181,38 +181,42 @@ private struct PlayerEpisodePicker: View {
         self.selectedEpisode = selectedEpisode; self.select = select
         _season = State(initialValue: selectedSeason)
     }
+
+    private var seasonName: String {
+        seasons.first { $0.number == season }?.name ?? "Season \(season)"
+    }
+
     var body: some View {
         NavigationStack {
-            List {
-                if !seasons.isEmpty {
-                    Picker("Season", selection: $season) {
-                        ForEach(seasons) { item in Text(item.name).tag(item.number) }
-                    }.tint(AppTheme.foreground)
-                        .accessibilityIdentifier("player-episode-season-picker")
-                }
-                if loading { ProgressView("Loading episodes…") }
-                if let error {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(error).foregroundStyle(AppTheme.muted)
-                        Button("Retry") { revision += 1 }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(media.title).font(.title3.bold())
+                            .fixedSize(horizontal: false, vertical: true)
+                        if !seasons.isEmpty { seasonMenu }
                     }
-                }
-                ForEach(episodes) { episode in
-                    Button { select(season, episode.number) } label: {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("\(episode.number). \(episode.title)").foregroundStyle(.primary)
-                                if !episode.overview.isEmpty { Text(episode.overview).font(.caption).foregroundStyle(AppTheme.muted).lineLimit(2) }
-                            }
-                            Spacer()
-                            if selectedSeason == season && selectedEpisode == episode.number { Image(systemName: "play.fill").foregroundStyle(AppTheme.foreground) }
-                        }.frame(minHeight: 44)
-                    }.listRowBackground(AppTheme.panel)
-                        .accessibilityIdentifier("player-episode-choice-\(season)-\(episode.number)")
-                }
-                if !loading && error == nil && episodes.isEmpty { Text("No episodes are available for this season.").foregroundStyle(AppTheme.muted) }
+                    LazyVStack(spacing: 10) {
+                        if loading {
+                            ProgressView("Loading episodes…")
+                                .frame(maxWidth: .infinity, minHeight: 100)
+                        }
+                        if let error {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text(error).font(.subheadline).foregroundStyle(AppTheme.muted)
+                                Button("Retry") { revision += 1 }.buttonStyle(SecondaryButtonStyle())
+                            }.frame(maxWidth: .infinity, alignment: .leading).padding(16)
+                                .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 16))
+                        }
+                        ForEach(episodes) { episode in episodeRow(episode) }
+                        if !loading && error == nil && episodes.isEmpty {
+                            Text("No episodes are available for this season.")
+                                .font(.subheadline).foregroundStyle(AppTheme.muted)
+                                .frame(maxWidth: .infinity, minHeight: 100)
+                        }
+                    }
+                }.padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 24)
             }
-            .scrollContentBackground(.hidden).background(AppTheme.canvas)
+            .background(AppTheme.canvas).foregroundStyle(AppTheme.foreground)
             .navigationTitle("Episodes").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
             .task(id: "\(season):\(revision)") {
@@ -224,6 +228,76 @@ private struct PlayerEpisodePicker: View {
                 catch { if !Task.isCancelled { self.error = error.localizedDescription } }
                 if !Task.isCancelled { loading = false }
             }
-        }.preferredColorScheme(.dark)
+        }.preferredColorScheme(.dark).tint(AppTheme.foreground)
+            .presentationDragIndicator(.visible).presentationCornerRadius(24)
+    }
+
+    private var seasonMenu: some View {
+        Menu {
+            ForEach(seasons) { item in
+                Button { season = item.number } label: {
+                    if item.number == season { Label(item.name, systemImage: "checkmark") }
+                    else { Text(item.name) }
+                }
+            }
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "rectangle.stack").foregroundStyle(AppTheme.muted)
+                Text(seasonName).font(.subheadline.weight(.semibold))
+                Spacer(minLength: 8)
+                if let count = seasons.first(where: { $0.number == season })?.count, count > 0 {
+                    Text("\(count) episodes").font(.caption).foregroundStyle(AppTheme.muted)
+                }
+                Image(systemName: "chevron.down").font(.caption.weight(.semibold))
+                    .foregroundStyle(AppTheme.muted)
+            }.padding(.horizontal, 14).frame(maxWidth: .infinity, minHeight: 50)
+                .streamifyControlSurface(cornerRadius: 12)
+                .contentShape(RoundedRectangle(cornerRadius: 12))
+        }.buttonStyle(HapticPlainButtonStyle())
+            .accessibilityLabel(seasonName)
+            .accessibilityHint("Choose a season")
+            .accessibilityIdentifier("player-episode-season-picker")
+    }
+
+    private func episodeRow(_ episode: MediaEpisode) -> some View {
+        let selected = selectedSeason == season && selectedEpisode == episode.number
+        return Button { select(season, episode.number) } label: {
+            HStack(alignment: .top, spacing: 12) {
+                RemoteArtwork(url: episode.stillURL ?? media.backdropURL)
+                    .frame(width: 104, height: 64)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay {
+                        if selected {
+                            Image(systemName: "play.fill").font(.caption.weight(.semibold))
+                                .foregroundStyle(.white).frame(width: 28, height: 28)
+                                .background(.black.opacity(0.65), in: Circle())
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("\(episode.number). \(episode.title)")
+                        .font(.subheadline.weight(.semibold)).foregroundStyle(AppTheme.foreground)
+                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                    if episode.runtime > 0 || !episode.airDate.isEmpty {
+                        Text(episode.runtime > 0 ? "\(episode.runtime) min" : episode.airDate)
+                            .font(.caption2).foregroundStyle(AppTheme.muted)
+                    }
+                    if !episode.overview.isEmpty {
+                        Text(episode.overview).font(.caption).foregroundStyle(AppTheme.muted)
+                            .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                    }
+                }.frame(maxWidth: .infinity, alignment: .leading)
+            }.padding(12).frame(maxWidth: .infinity, minHeight: 88, alignment: .leading)
+                .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 16))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16)
+                        .strokeBorder(selected ? AppTheme.foreground.opacity(0.28) : AppTheme.border, lineWidth: 1)
+                        .allowsHitTesting(false)
+                }
+                .contentShape(RoundedRectangle(cornerRadius: 16))
+        }.buttonStyle(HapticPlainButtonStyle())
+            .accessibilityValue(selected ? "Current episode" : "")
+            .accessibilityIdentifier("player-episode-choice-\(season)-\(episode.number)")
     }
 }

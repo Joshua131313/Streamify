@@ -1,13 +1,13 @@
 import SwiftUI
 
-/// Android's download ring: 2pt stroke, quiet track and the actual byte fraction.
+/// A quiet 2pt track and the transfer's actual reported fraction.
 /// The parent owns its action and status label; this ring is decorative.
 struct DownloadActivityIndicator: View {
     let progress: Double?
     let size: CGFloat
     var tint: Color = AppTheme.foreground
-    /// The toolbar remains visibly active even when a known fraction is steady.
-    /// Rows can disable this while still animating indeterminate transfers.
+    /// Determinate surfaces disable rotation; unknown row transfers can still
+    /// animate while their provider has not reported a usable fraction.
     var animated = true
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion

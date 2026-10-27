@@ -218,11 +218,21 @@ final class LiquidGlassNavigationFlowTests: XCTestCase {
         let bar = element("floating-navigation")
         XCTAssertGreaterThanOrEqual(bar.frame.height, 44, file: file, line: line)
         XCTAssertLessThan(bar.frame.height, 100, file: file, line: line)
+        if #available(iOS 26.0, *) {
+            XCTAssertEqual(bar.frame.maxY, app.frame.maxY, accuracy: 2,
+                           "UIKit must own the home-indicator clearance without a second SwiftUI bottom inset.", file: file, line: line)
+            XCTAssertLessThanOrEqual(bar.frame.width, app.frame.width - 24 + 1,
+                                    "The bar should keep the requested narrower horizontal footprint.", file: file, line: line)
+        }
         for name in ["home", "sports", "search", "library"] {
             let item = tab(name)
             XCTAssertTrue(item.exists && item.isEnabled && item.isHittable, file: file, line: line)
             XCTAssertTrue(app.frame.contains(item.frame), "Every native item must remain on screen.", file: file, line: line)
             XCTAssertGreaterThanOrEqual(item.frame.width, 44, file: file, line: line)
+            if #available(iOS 26.0, *) {
+                XCTAssertLessThanOrEqual(item.frame.maxY, app.frame.maxY - 20,
+                                        "Tab targets must keep clear of the home-indicator strip.", file: file, line: line)
+            }
         }
     }
 

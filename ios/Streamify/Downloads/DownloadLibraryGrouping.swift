@@ -1,5 +1,17 @@
 import Foundation
 
+/// The toolbar summarizes each active transfer equally, including native HLS
+/// transfers whose progress is reported as downloaded media time, not bytes.
+enum DownloadToolbarProgress {
+    static func average(in items: [DownloadItem]) -> Double? {
+        let active = items.filter { $0.status == .downloading }
+        guard !active.isEmpty else { return nil }
+        let fractions = active.compactMap(\.progress)
+        guard fractions.count == active.count else { return nil }
+        return fractions.reduce(0, +) / Double(fractions.count)
+    }
+}
+
 /// A presentation of the existing records, never a second download catalog.
 /// File UUIDs, transfer state and artwork remain owned by DownloadStore.
 struct DownloadSeriesGroup: Identifiable {
