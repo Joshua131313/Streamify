@@ -12,6 +12,7 @@ import XCTest
 @MainActor
 final class NativeHLSFixtureTransportDiagnosticsTests: XCTestCase {
     private static let raw = URL(string: "https://raw.githubusercontent.com/Joshua131313/Streamify/cf27bf56346bf94f12a55a0556f1f14be048b3fd/ios/NativeHLSDiagnostics/Fixtures/offline-hls-control/clear/master.m3u8")!
+    private static let rawAES128 = URL(string: "https://raw.githubusercontent.com/Joshua131313/Streamify/cf27bf56346bf94f12a55a0556f1f14be048b3fd/ios/NativeHLSDiagnostics/Fixtures/offline-hls-control/aes128/master.m3u8")!
     // Literal URL from Apple's published example HTML, retrieved normally:
     // https://developer.apple.com/streaming/examples/advanced-stream-hevc.html
     private static let apple = URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_adv_example_hevc/master.m3u8")!
@@ -19,8 +20,34 @@ final class NativeHLSFixtureTransportDiagnosticsTests: XCTestCase {
     /// A separate manual gate removes selection and session overrides. This
     /// owned five-second source has exactly one 1080p/English variant.
     func testSingleVariantDefaultNativeDownload() async {
+        await exerciseSingleVariant(fixture: "clear", content: .defaults)
+    }
+
+    func testSingleVariantQualifierOnlyNativeDownload() async {
+        await exerciseSingleVariant(fixture: "clear", content: .qualifierOnly)
+    }
+
+    func testSingleVariantEnglishSelectionOnlyNativeDownload() async {
+        await exerciseSingleVariant(fixture: "clear", content: .englishOnly)
+    }
+
+    func testSingleVariantBothContentOverridesNativeDownload() async {
+        await exerciseSingleVariant(fixture: "clear", content: .both)
+    }
+
+    func testIdentityAES128DefaultNativeDownload() async {
+        await exerciseSingleVariant(fixture: "aes128", content: .defaults)
+    }
+
+    private enum MinimalContentConfiguration: String {
+        case defaults, qualifierOnly, englishOnly, both
+        var overridesQualifier: Bool { self == .qualifierOnly || self == .both }
+        var overridesEnglish: Bool { self == .englishOnly || self == .both }
+    }
+
+    private func exerciseSingleVariant(fixture: String, content: MinimalContentConfiguration) async {
         executionTimeAllowance = 2 * 60
-        let began = Date(), asset = AVURLAsset(url: Self.raw)
+        let began = Date(), asset = AVURLAsset(url: fixture == "aes128" ? Self.rawAES128 : Self.raw)
         let delegate = NativeTransportDelegate(cancelOnFirstRange: false)
         let configuration = URLSessionConfiguration.background(withIdentifier: "com.streamify.hls.minimal.\(UUID().uuidString)")
         let session = AVAssetDownloadURLSession(configuration: configuration, assetDownloadDelegate: delegate, delegateQueue: nil)
@@ -28,9 +55,10 @@ final class NativeHLSFixtureTransportDiagnosticsTests: XCTestCase {
         var nativeBytes: Int64 = 0, packageBytes: Int64 = 0
         var phase = "verify deterministic single-variant fixture metadata"
         var report: [String: Any] = ["manualOnly": true, "providerEpisodeDownloaded": false,
+            "fixture": fixture, "contentConfiguration": content.rawValue,
             "manualKeyFetch": false, "completeOwnFixturePackageProven": false,
             "networkActuallyDisabled": false, "physicalAirplaneModeVerified": false,
-            "variantQualifiersOverridden": false, "mediaSelectionsOverridden": false,
+            "variantQualifiersOverridden": content.overridesQualifier, "mediaSelectionsOverridden": content.overridesEnglish,
             "backgroundSessionSettingsOverridden": false, "delegateQueueOverridden": false,
             "maximumTransferSeconds": 75, "maximumObservedBytes": 2 * 1024 * 1024,
             "observedAt": ISO8601DateFormatter().string(from: began)]
@@ -47,7 +75,7 @@ final class NativeHLSFixtureTransportDiagnosticsTests: XCTestCase {
             if let data = try? JSONSerialization.data(withJSONObject: report, options: [.sortedKeys]),
                let text = String(data: data, encoding: .utf8) {
                 let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")
-                attachment.name = "Single variant default native HLS download"; attachment.lifetime = .keepAlways; add(attachment)
+                attachment.name = "Single variant native HLS download \(fixture) \(content.rawValue)"; attachment.lifetime = .keepAlways; add(attachment)
                 print("NATIVE_HLS_MINIMAL_DIAGNOSTIC \(text)")
             }
         }
@@ -67,10 +95,21 @@ final class NativeHLSFixtureTransportDiagnosticsTests: XCTestCase {
             watchdog.cancel()
             report["sourceVariantCount"] = variants.count
             report["sourceAudioOptionCount"] = group.options.count
-            phase = "complete default-configured native download"
-            // Intentionally leave every primary/auxiliary content option and
-            // every background-session property at its public default.
+            phase = "complete native download with \(content.rawValue) content configuration"
+            // Session and auxiliary content properties always keep defaults.
+            // Each case changes only the named primary content selection axis.
             let download = AVAssetDownloadConfiguration(asset: asset, title: "Own five-second default HLS control")
+            if content.overridesQualifier {
+                download.primaryContentConfiguration.variantQualifiers = [AVAssetVariantQualifier(variant: variant)]
+            }
+            if content.overridesEnglish {
+                let preferred = try await asset.load(.preferredMediaSelection)
+                guard let selection = preferred.mutableCopy() as? AVMutableMediaSelection else {
+                    throw DiagnosticError.message("The explicit-English native selection could not be copied")
+                }
+                selection.select(english, in: group)
+                download.primaryContentConfiguration.mediaSelections = [selection]
+            }
             let task = session.makeAssetDownloadTask(downloadConfiguration: download)
             nativeTask = task
             let identity = HLSDownloadIdentity(id: UUID(), attempt: UUID(), taskIdentifier: task.taskIdentifier)
@@ -102,7 +141,7 @@ final class NativeHLSFixtureTransportDiagnosticsTests: XCTestCase {
             guard state["firstMediaRangeAccepted"] as? Bool == true,
                   state["didFinishPackage"] as? Bool == true,
                   state["completedSuccessfully"] as? Bool == true,
-                  let reference = delegate.ownedReference else {
+                  var reference = delegate.ownedReference else {
                 throw DiagnosticError.message("Default native download did not confirm real progress, finished package and successful completion")
             }
             guard max(nativeBytes, packageBytes) < 2 * 1024 * 1024 else {
@@ -120,6 +159,21 @@ final class NativeHLSFixtureTransportDiagnosticsTests: XCTestCase {
             report["durationSeconds"] = validation.duration
             report["freshLocalAssetUsed"] = true; report["assetCachePlayableOffline"] = true
             report["cachedEnglishAudio"] = validation.audioOption.extendedLanguageTag ?? "unknown"
+            phase = "durable bookmark round trip and second fresh local validation"
+            try reference.makeDurable(expectedIdentity: identity)
+            let restored = try JSONDecoder().decode(HLSOwnedPackageReference.self, from: JSONEncoder().encode(reference))
+            guard restored.isDurable else { throw DiagnosticError.message("The completed native fixture did not preserve its durable package bookmark") }
+            let bookmarked = try await OfflineHLSValidation.validate(reference: restored, expectedIdentity: identity,
+                quality: 1080, audioLanguage: "en", timeout: 10)
+            guard validation.asset !== bookmarked.asset, bookmarked.asset.url.isFileURL,
+                  bookmarked.asset.assetCache?.isPlayableOffline == true,
+                  bookmarked.audioOption.isPlayable,
+                  OfflineHLSValidation.isRequestedLanguage(bookmarked.audioOption, language: "en") else {
+                throw DiagnosticError.message("The restored bookmark did not independently validate cached 1080p/English media")
+            }
+            report["durableBookmarkRoundTrip"] = true
+            report["decodedReferenceReassociatedWithCallback"] = false
+            report["secondFreshLocalAssetUsed"] = true
             report["completeOwnFixturePackageProven"] = true
         } catch {
             report["error"] = Self.errorChain(error)
