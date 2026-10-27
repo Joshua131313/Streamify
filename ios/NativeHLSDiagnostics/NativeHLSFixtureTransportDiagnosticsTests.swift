@@ -16,6 +16,117 @@ final class NativeHLSFixtureTransportDiagnosticsTests: XCTestCase {
     // https://developer.apple.com/streaming/examples/advanced-stream-hevc.html
     private static let apple = URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_adv_example_hevc/master.m3u8")!
 
+    /// A separate manual gate removes selection and session overrides. This
+    /// owned five-second source has exactly one 1080p/English variant.
+    func testSingleVariantDefaultNativeDownload() async {
+        executionTimeAllowance = 2 * 60
+        let began = Date(), asset = AVURLAsset(url: Self.raw)
+        let delegate = NativeTransportDelegate(cancelOnFirstRange: false)
+        let configuration = URLSessionConfiguration.background(withIdentifier: "com.streamify.hls.minimal.\(UUID().uuidString)")
+        let session = AVAssetDownloadURLSession(configuration: configuration, assetDownloadDelegate: delegate, delegateQueue: nil)
+        var nativeTask: AVAssetDownloadTask?
+        var nativeBytes: Int64 = 0, packageBytes: Int64 = 0
+        var phase = "verify deterministic single-variant fixture metadata"
+        var report: [String: Any] = ["manualOnly": true, "providerEpisodeDownloaded": false,
+            "manualKeyFetch": false, "completeOwnFixturePackageProven": false,
+            "networkActuallyDisabled": false, "physicalAirplaneModeVerified": false,
+            "variantQualifiersOverridden": false, "mediaSelectionsOverridden": false,
+            "backgroundSessionSettingsOverridden": false, "delegateQueueOverridden": false,
+            "maximumTransferSeconds": 75, "maximumObservedBytes": 2 * 1024 * 1024,
+            "observedAt": ISO8601DateFormatter().string(from: began)]
+        defer {
+            if let nativeTask, !delegate.finished { delegate.cancel(nativeTask, reason: "final minimal diagnostic cleanup") }
+            session.invalidateAndCancel(); asset.cancelLoading()
+            report["native"] = delegate.summary()
+            report["observedNativeBytes"] = max(0, nativeBytes)
+            report["observedPackageBytes"] = packageBytes
+            report["nativeByteCounterKnown"] = nativeBytes > 0
+            report["lastPhase"] = phase; report["elapsedSeconds"] = Date().timeIntervalSince(began)
+            let cleanup = delegate.cleanup(); report["cleanup"] = cleanup
+            XCTAssertNil(cleanup["error"], "The minimal native diagnostic must remove only its own package")
+            if let data = try? JSONSerialization.data(withJSONObject: report, options: [.sortedKeys]),
+               let text = String(data: data, encoding: .utf8) {
+                let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")
+                attachment.name = "Single variant default native HLS download"; attachment.lifetime = .keepAlways; add(attachment)
+                print("NATIVE_HLS_MINIMAL_DIAGNOSTIC \(text)")
+            }
+        }
+        do {
+            let watchdog = Task { try? await Task.sleep(nanoseconds: 15_000_000_000); if !Task.isCancelled { asset.cancelLoading() } }
+            defer { watchdog.cancel() }
+            let variants = try await asset.load(.variants)
+            guard variants.count == 1, let variant = variants.first,
+                  variant.videoAttributes?.presentationSize.width == 1920,
+                  variant.videoAttributes?.presentationSize.height == 1080,
+                  variant.videoAttributes?.codecTypes.contains(kCMVideoCodecType_H264) == true,
+                  let group = try await asset.loadMediaSelectionGroup(for: .audible),
+                  group.options.count == 1, let english = group.options.first,
+                  english.isPlayable, OfflineHLSValidation.isRequestedLanguage(english, language: "en") else {
+                throw DiagnosticError.message("Default-selection fixture is no longer exactly one 1080p H.264/English configuration")
+            }
+            watchdog.cancel()
+            report["sourceVariantCount"] = variants.count
+            report["sourceAudioOptionCount"] = group.options.count
+            phase = "complete default-configured native download"
+            // Intentionally leave every primary/auxiliary content option and
+            // every background-session property at its public default.
+            let download = AVAssetDownloadConfiguration(asset: asset, title: "Own five-second default HLS control")
+            let task = session.makeAssetDownloadTask(downloadConfiguration: download)
+            nativeTask = task
+            let identity = HLSDownloadIdentity(id: UUID(), attempt: UUID(), taskIdentifier: task.taskIdentifier)
+            task.taskDescription = identity.taskDescription; delegate.register(identity)
+            task.resume()
+            let deadline = Date().addingTimeInterval(75)
+            while !delegate.finished && Date() < deadline {
+                try Task.checkCancellation()
+                nativeBytes = max(nativeBytes, task.countOfBytesReceived)
+                packageBytes = max(packageBytes, try delegate.packageBytes())
+                if max(nativeBytes, packageBytes) >= 2 * 1024 * 1024 {
+                    delegate.cancel(task, reason: "observed byte budget")
+                    throw DiagnosticError.message("The default native fixture reached its observed 2MiB byte budget")
+                }
+                try await Task.sleep(nanoseconds: 25_000_000)
+            }
+            if !delegate.finished {
+                delegate.cancel(task, reason: "minimal diagnostic deadline")
+                throw DiagnosticError.message("The default native fixture did not complete within 75 seconds")
+            }
+            nativeBytes = max(nativeBytes, task.countOfBytesReceived)
+            packageBytes = max(packageBytes, try delegate.packageBytes())
+            // Retain the public metric delegate briefly after completion.
+            try await Task.sleep(nanoseconds: 200_000_000)
+            let state = delegate.summary()
+            guard (state["failure"] as? [[String: Any]] ?? []).isEmpty else {
+                throw DiagnosticError.message("The default native download failed: \((state["failure"] as? [[String: Any]])?.first?["message"] as? String ?? "unknown native error")")
+            }
+            guard state["firstMediaRangeAccepted"] as? Bool == true,
+                  state["didFinishPackage"] as? Bool == true,
+                  state["completedSuccessfully"] as? Bool == true,
+                  let reference = delegate.ownedReference else {
+                throw DiagnosticError.message("Default native download did not confirm real progress, finished package and successful completion")
+            }
+            guard max(nativeBytes, packageBytes) < 2 * 1024 * 1024 else {
+                throw DiagnosticError.message("The completed default native fixture exceeded its observed byte budget")
+            }
+            phase = "fresh local native cache and English validation"
+            let validation = try await OfflineHLSValidation.validate(reference: reference, expectedIdentity: identity,
+                quality: 1080, audioLanguage: "en", timeout: 10)
+            guard validation.asset.url.isFileURL, validation.asset.assetCache?.isPlayableOffline == true,
+                  validation.duration >= 4.9, validation.duration <= 5.2,
+                  validation.audioOption.isPlayable,
+                  OfflineHLSValidation.isRequestedLanguage(validation.audioOption, language: "en") else {
+                throw DiagnosticError.message("Completed default package did not validate five-second 1080p/English offline cache capability")
+            }
+            report["durationSeconds"] = validation.duration
+            report["freshLocalAssetUsed"] = true; report["assetCachePlayableOffline"] = true
+            report["cachedEnglishAudio"] = validation.audioOption.extendedLanguageTag ?? "unknown"
+            report["completeOwnFixturePackageProven"] = true
+        } catch {
+            report["error"] = Self.errorChain(error)
+            XCTFail("Minimal native HLS diagnostic failed at \(phase): \(HLSDownloadFailure(error).message)")
+        }
+    }
+
     func testRawFixturePlaybackAndBoundedDownloadWithPublishedAppleControl() async {
         executionTimeAllowance = 2 * 60
         var report: [String: Any] = ["manualOnly": true, "providerEpisodeDownloaded": false,
@@ -176,13 +287,16 @@ final class NativeHLSFixtureTransportDiagnosticsTests: XCTestCase {
 
 private final class NativeTransportDelegate: NSObject, AVAssetDownloadDelegate, @unchecked Sendable {
     private let lock = NSLock()
+    private let cancelOnFirstRange: Bool
     private var identity: HLSDownloadIdentity?
     private var reference: HLSOwnedPackageReference?
-    private var done = false, accepted = false
+    private var done = false, accepted = false, packageFinished = false, succeeded = false
     private var failure: [[String: Any]] = [], metrics: [[String: Any]] = []
     private var cancelReason = ""
+    init(cancelOnFirstRange: Bool = true) { self.cancelOnFirstRange = cancelOnFirstRange; super.init() }
     func register(_ identity: HLSDownloadIdentity) { lock.lock(); self.identity = identity; lock.unlock() }
     var finished: Bool { lock.lock(); defer { lock.unlock() }; return done }
+    var ownedReference: HLSOwnedPackageReference? { lock.lock(); defer { lock.unlock() }; return reference }
     func cancel(_ task: AVAssetDownloadTask, reason: String) {
         lock.lock(); if cancelReason.isEmpty { cancelReason = reason }; lock.unlock(); task.cancel()
     }
@@ -195,14 +309,19 @@ private final class NativeTransportDelegate: NSObject, AVAssetDownloadDelegate, 
         guard let identity = checked(task), let owned = try? HLSOwnedPackageReference.nativeCallback(location: location, identity: identity) else { return }
         lock.lock(); reference = owned; lock.unlock()
     }
+    func urlSession(_ session: URLSession, assetDownloadTask task: AVAssetDownloadTask, didFinishDownloadingTo location: URL) {
+        guard let identity = checked(task), let owned = try? HLSOwnedPackageReference.nativeCallback(location: location, identity: identity) else { return }
+        lock.lock(); reference = owned; packageFinished = true; lock.unlock()
+    }
     func urlSession(_ session: URLSession, assetDownloadTask task: AVAssetDownloadTask, didLoad timeRange: CMTimeRange,
                     totalTimeRangesLoaded ranges: [NSValue], timeRangeExpectedToLoad expected: CMTimeRange) {
         guard checked(task) != nil, ranges.contains(where: { $0.timeRangeValue.duration.seconds > 0 }) else { return }
-        lock.lock(); accepted = true; lock.unlock(); cancel(task, reason: "first actual media range accepted")
+        lock.lock(); accepted = true; lock.unlock()
+        if cancelOnFirstRange { cancel(task, reason: "first actual media range accepted") }
     }
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         guard let download = task as? AVAssetDownloadTask, checked(download) != nil else { return }
-        lock.lock(); done = true
+        lock.lock(); done = true; succeeded = error == nil
         if let error, (error as NSError).domain != NSURLErrorDomain || (error as NSError).code != NSURLErrorCancelled {
             failure = NativeHLSFixtureTransportDiagnosticsTests.errorChain(error)
         }
@@ -221,6 +340,7 @@ private final class NativeTransportDelegate: NSObject, AVAssetDownloadDelegate, 
     func summary() -> [String: Any] {
         lock.lock(); defer { lock.unlock() }
         return ["firstMediaRangeAccepted": accepted, "callbackCompleted": done, "failure": failure,
+            "didFinishPackage": packageFinished, "completedSuccessfully": succeeded,
             "metrics": metrics, "cancelReason": cancelReason, "completeOfflinePackageProven": false]
     }
     func packageBytes() throws -> Int64 {
