@@ -9,6 +9,7 @@ final class ParityFlowTests: XCTestCase {
         continueAfterFailure = false
         app = XCUIApplication()
         app.launchArguments = ["--ui-fixtures"]
+        if name.contains("testBaseballDiamondUsesLiveBaseStates") { app.launchArguments.append("--ui-mlb-count-fixtures") }
         app.launch()
         XCTAssertTrue(app.buttons["tab-home"].waitForExistence(timeout: 15))
     }
@@ -554,20 +555,38 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertEqual(first.value as? String, "Occupied")
         XCTAssertEqual(second.value as? String, "Empty")
         XCTAssertEqual(third.value as? String, "Occupied")
-        XCTAssertTrue(home.exists)
-        // First is right, third is left, second is above, and home is below:
-        // equal distances keep the four actual field positions on a diamond.
+        XCTAssertFalse(home.exists)
+        // Only the three actual runner positions are shown, without a plate.
         XCTAssertGreaterThan(first.frame.midX, second.frame.midX)
         XCTAssertLessThan(third.frame.midX, second.frame.midX)
         XCTAssertEqual(first.frame.midY, third.frame.midY, accuracy: 2)
         XCTAssertLessThan(second.frame.midY, first.frame.midY)
-        XCTAssertGreaterThan(home.frame.midY, first.frame.midY)
-        XCTAssertEqual(home.frame.midX, second.frame.midX, accuracy: 2)
         XCTAssertEqual(first.frame.midX - second.frame.midX, second.frame.midX - third.frame.midX, accuracy: 2)
-        XCTAssertEqual(first.frame.midY - second.frame.midY, home.frame.midY - first.frame.midY, accuracy: 2)
+        let balls = element("sports-baseball-balls-mlb:mlb-fixture")
+        let strikes = element("sports-baseball-strikes-mlb:mlb-fixture")
+        let outs = element("sports-baseball-outs-mlb:mlb-fixture")
+        XCTAssertEqual(balls.value as? String, "2")
+        XCTAssertEqual(strikes.value as? String, "1")
+        XCTAssertEqual(outs.value as? String, "1")
+        XCTAssertLessThan(balls.frame.midY, strikes.frame.midY)
+        XCTAssertLessThan(strikes.frame.midY, outs.frame.midY)
+        for label in ["Balls", "Strikes", "Outs"] { XCTAssertFalse(app.staticTexts[label].exists) }
         XCTAssertFalse(element("sports-ball-mlb:mlb-fixture-100").exists)
         XCTAssertFalse(element("sports-ball-mlb:mlb-fixture-200").exists)
-        capture("Baseball diamond places first third and home correctly with actual occupied bases")
+        capture("MLB unconnected bases and stacked count dots show actual runners without labels or home plate")
+        for (id, secondOccupied, outs) in [("mlb-second-base", true, "0"), ("mlb-two-outs", false, "2")] {
+            let card = app.buttons["sports-game-mlb:\(id)"]
+            reveal(card)
+            XCTAssertEqual(element("sports-base-first-mlb:\(id)").value as? String, "Empty")
+            XCTAssertEqual(element("sports-base-second-mlb:\(id)").value as? String, secondOccupied ? "Occupied" : "Empty")
+            XCTAssertEqual(element("sports-base-third-mlb:\(id)").value as? String, "Empty")
+            XCTAssertEqual(element("sports-baseball-outs-mlb:\(id)").value as? String, outs)
+            if secondOccupied {
+                XCTAssertEqual(element("sports-baseball-balls-mlb:\(id)").value as? String, "0")
+                XCTAssertEqual(element("sports-baseball-strikes-mlb:\(id)").value as? String, "0")
+            }
+            capture("MLB \(id) uses its own runners and \(outs) filled out circles")
+        }
     }
 
     func testScheduleDaySwipesKeepToolbarAndRootTabStationary() {

@@ -294,7 +294,22 @@ enum PreviewFixtures {
         let game: [String: Any] = ["id": "\(league)-fixture", "date": date, "competitions": [["date": date, "competitors": [competitor(false), competitor(true)], "status": liveStatus, "situation": situation, "venue": ["fullName": "Streamify Arena"], "broadcasts": [["names": [league == "nba" ? "NBA League Pass" : "ESPN"]]]]]]
         let final: [String: Any] = ["id": "\(league)-final", "date": date, "competitions": [["date": date, "competitors": [competitor(false), competitor(true)], "status": ["type": ["state": "post", "shortDetail": "Final", "description": "Final"]], "venue": ["fullName": "Streamify Arena"], "broadcasts": [["names": ["ESPN"]]]]]]
         let pregame: [String: Any] = ["id": "\(league)-pregame", "date": date, "competitions": [["date": date, "competitors": [competitor(false), competitor(true)], "status": ["type": ["state": "pre", "shortDetail": "Scheduled", "description": "Scheduled"]], "venue": ["fullName": "Streamify Arena"], "broadcasts": [["names": ["ESPN"]]]]]]
-        if parts.last == "scoreboard" || parts.last == "schedule" { return ["events": league == "nba" ? [game, final, pregame] : [game]] }
+        if parts.last == "scoreboard" || parts.last == "schedule" {
+            if league == "mlb", ProcessInfo.processInfo.arguments.contains("--ui-mlb-count-fixtures") {
+                func countGame(_ id: String, first: Bool, second: Bool, third: Bool, balls: Int, strikes: Int, outs: Int) -> [String: Any] {
+                    var event = game
+                    event["id"] = id
+                    var competition = game.sportsObjects("competitions")[0]
+                    competition["situation"] = ["onFirst": first, "onSecond": second, "onThird": third, "balls": balls, "strikes": strikes, "outs": outs]
+                    event["competitions"] = [competition]
+                    return event
+                }
+                return ["events": [game,
+                    countGame("mlb-second-base", first: false, second: true, third: false, balls: 0, strikes: 0, outs: 0),
+                    countGame("mlb-two-outs", first: false, second: false, third: false, balls: 1, strikes: 2, outs: 2)]]
+            }
+            return ["events": league == "nba" ? [game, final, pregame] : [game]]
+        }
         if parts.last == "summary" {
             func stats(_ home: Bool) -> [String: Any] {
                 ["team": team(home), "statistics": [["name": "fieldGoals", "label": "Field Goals", "displayValue": home ? "41-80" : "39-83"], ["name": "rebounds", "label": "Rebounds", "displayValue": home ? "46" : "41"]]]

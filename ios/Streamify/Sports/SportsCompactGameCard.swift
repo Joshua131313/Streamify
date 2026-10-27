@@ -135,31 +135,39 @@ private struct SportsFootballField: View {
 private struct SportsBaseballSituationView: View {
     let game: SportsGame
     let situation: SportsBaseballSituation
+    @Environment(\.colorScheme) private var colorScheme
+    private var ballColor: Color { colorScheme == .dark
+        ? Color(red: 77/255, green: 207/255, blue: 149/255) : Color(red: 22/255, green: 129/255, blue: 91/255) }
+    private var pitchColor: Color { colorScheme == .dark
+        ? Color(red: 250/255, green: 117/255, blue: 129/255) : Color(red: 199/255, green: 71/255, blue: 85/255) }
 
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 16) {
             if situation.hasBaseData {
                 SportsBaseballDiamond(situation: situation, gameID: game.id)
             }
-            VStack(alignment: .leading, spacing: 7) {
-                if let inning = situation.inning, let half = situation.half {
-                    Text("\(half.rawValue) \(inning)").font(.caption.weight(.semibold))
-                }
-                HStack(spacing: 12) {
-                    if let balls = situation.balls { count("Balls", value: balls) }
-                    if let strikes = situation.strikes { count("Strikes", value: strikes) }
-                    if let outs = situation.outs { count("Outs", value: outs) }
-                }
+            VStack(alignment: .leading, spacing: 10) {
+                dots("balls", value: situation.balls, maximum: 4, color: ballColor)
+                dots("strikes", value: situation.strikes, maximum: 3, color: pitchColor)
+                dots("outs", value: situation.outs, maximum: 2, color: pitchColor, slots: 2)
             }
             Spacer(minLength: 0)
         }.padding(.vertical, 4)
     }
 
-    private func count(_ title: String, value: Int) -> some View {
-        HStack(spacing: 4) {
-            Text(title).foregroundStyle(AppTheme.muted)
-            Text(String(value)).fontWeight(.semibold).monospacedDigit()
-        }.font(.caption2).accessibilityElement(children: .combine)
+    private func dots(_ name: String, value: Int?, maximum: Int, color: Color, slots: Int? = nil) -> some View {
+        let filled = min(maximum, max(0, value ?? 0))
+        return HStack(spacing: 6) {
+            ForEach(0..<(slots ?? filled), id: \.self) { index in
+                Circle().fill(index < filled ? color : .clear)
+                    .overlay { Circle().strokeBorder(index < filled ? .clear : AppTheme.foreground.opacity(value == nil ? 0.25 : 0.55), lineWidth: 1.2) }
+                    .frame(width: 10, height: 10)
+            }
+        }.frame(minWidth: 10, minHeight: 10, alignment: .leading)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(name.capitalized)
+            .accessibilityValue(value.map(String.init) ?? "Unknown")
+            .accessibilityIdentifier("sports-baseball-\(name)-\(game.id)")
     }
 }
 
@@ -169,42 +177,13 @@ private struct SportsBaseballDiamond: View {
     @Environment(\.colorScheme) private var colorScheme
     private var occupied: Color { colorScheme == .dark
         ? Color(red: 1, green: 0.81, blue: 0.40) : Color(red: 0.66, green: 0.35, blue: 0) }
-    private var turf: Color { Color(red: 0.20, green: 0.47, blue: 0.34) }
 
     var body: some View {
         ZStack {
-            // A small scorebug field, with equally spaced base centers. The
-            // paths sit behind the bags; team colors cannot obscure runners.
-            Path { path in
-                path.move(to: CGPoint(x: 32, y: 56))
-                path.addLine(to: CGPoint(x: 2, y: 26))
-                path.addQuadCurve(to: CGPoint(x: 62, y: 26), control: CGPoint(x: 32, y: -10))
-                path.closeSubpath()
-            }.fill(turf.opacity(colorScheme == .dark ? 0.28 : 0.13))
-            Path { path in
-                path.move(to: CGPoint(x: 32, y: 56))
-                path.addLines([CGPoint(x: 53, y: 35), CGPoint(x: 32, y: 14), CGPoint(x: 11, y: 35)])
-                path.closeSubpath()
-            }.fill(AppTheme.foreground.opacity(0.055))
-            Path { path in
-                path.move(to: CGPoint(x: 32, y: 46))
-                path.addLines([CGPoint(x: 43, y: 35), CGPoint(x: 32, y: 24), CGPoint(x: 21, y: 35)])
-                path.closeSubpath()
-            }.fill(turf.opacity(colorScheme == .dark ? 0.22 : 0.14))
-            Path { path in
-                path.move(to: CGPoint(x: 32, y: 56))
-                path.addLines([CGPoint(x: 53, y: 35), CGPoint(x: 32, y: 14), CGPoint(x: 11, y: 35)])
-                path.closeSubpath()
-            }.stroke(AppTheme.foreground.opacity(0.24), style: StrokeStyle(lineWidth: 0.8, lineJoin: .round))
-            Capsule().fill(AppTheme.foreground.opacity(0.32)).frame(width: 4, height: 1.5).position(x: 32, y: 36)
             base("first", value: situation.firstOccupied).position(x: 53, y: 35)
             base("second", value: situation.secondOccupied).position(x: 32, y: 14)
             base("third", value: situation.thirdOccupied).position(x: 11, y: 35)
-            SportsHomePlate().fill(AppTheme.foreground.opacity(0.88))
-                .frame(width: 7.5, height: 8).position(x: 32, y: 56)
-                .accessibilityElement(children: .ignore).accessibilityLabel("Home plate")
-                .accessibilityIdentifier("sports-homeplate-\(gameID)")
-        }.frame(width: 64, height: 64)
+        }.frame(width: 64, height: 48)
             .environment(\.layoutDirection, .leftToRight)
             .accessibilityElement(children: .contain).accessibilityIdentifier("sports-diamond-\(gameID)")
     }
@@ -219,16 +198,5 @@ private struct SportsBaseballDiamond: View {
             .accessibilityElement(children: .ignore).accessibilityLabel("\(name.capitalized) base")
             .accessibilityValue(value.map { $0 ? "Occupied" : "Empty" } ?? "Unknown")
             .accessibilityIdentifier("sports-base-\(name)-\(gameID)")
-    }
-}
-
-private struct SportsHomePlate: Shape {
-    func path(in rect: CGRect) -> Path {
-        Path { path in
-            path.move(to: CGPoint(x: rect.minX, y: rect.minY))
-            path.addLines([CGPoint(x: rect.maxX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.midY),
-                           CGPoint(x: rect.midX, y: rect.maxY), CGPoint(x: rect.minX, y: rect.midY)])
-            path.closeSubpath()
-        }
     }
 }
