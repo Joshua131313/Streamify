@@ -13,6 +13,7 @@ final class DownloadIndicatorFlowTests: XCTestCase {
         app = XCUIApplication()
         app.launchArguments = ["--ui-fixtures", "--ui-download-status-fixture"]
         app.launch()
+        pauseHomeCarouselIfVisible()
     }
 
     override func tearDownWithError() throws {
@@ -252,6 +253,11 @@ final class DownloadIndicatorFlowTests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Downloads"].waitForExistence(timeout: 5))
         XCTAssertTrue(card.exists)
         XCTAssertTrue(playFile.isHittable)
+    }
+
+    private func pauseHomeCarouselIfVisible() {
+        let pause = app.buttons["hero-carousel-pause"]
+        if pause.exists && pause.isHittable && pause.label == "Pause carousel" { pause.tap() }
     }
 
     private func element(_ identifier: String) -> XCUIElement {

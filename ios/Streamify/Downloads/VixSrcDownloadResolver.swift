@@ -354,6 +354,13 @@ struct VixSrcDownloadResolver {
                     if #available(iOS 26.0, *) {
                         #if DEBUG
                         print("VIXSRC_NATIVE_CAPABILITY_URL_MATCH exact=\(matching.contains(where: { $0.url == selected.videoURL }))")
+                        if let observed = matching.first {
+                            let wanted = URLComponents(url: selected.videoURL, resolvingAgainstBaseURL: false)
+                            let actual = URLComponents(url: observed.url, resolvingAgainstBaseURL: false)
+                            let wantedQuery = wanted?.queryItems ?? [], actualQuery = actual?.queryItems ?? []
+                            func value(_ name: String, in items: [URLQueryItem]) -> String? { items.first(where: { $0.name == name })?.value }
+                            print("VIXSRC_NATIVE_CAPABILITY_URL_IDENTITY sameScheme=\(wanted?.scheme == actual?.scheme) sameHost=\(wanted?.host == actual?.host) samePath=\(wanted?.path == actual?.path) sameQueryNames=\(wantedQuery.map(\.name).sorted() == actualQuery.map(\.name).sorted()) sameToken=\(value("token", in: wantedQuery) == value("token", in: actualQuery)) sameExpiry=\(value("expires", in: wantedQuery) == value("expires", in: actualQuery)) sameRendition=\(value("rendition", in: wantedQuery) == value("rendition", in: actualQuery)) sameType=\(value("type", in: wantedQuery) == value("type", in: actualQuery))")
+                        }
                         #endif
                         guard let variant = matching.first(where: { $0.url == selected.videoURL }) else {
                             throw VixSrcDownloadError.nativeCapabilityUnavailable

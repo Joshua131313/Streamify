@@ -15,6 +15,7 @@ final class NativeHLSDownloadFlowTests: XCTestCase {
         app = XCUIApplication()
         app.launchArguments = arguments + ["--ui-hls-reset-control"]
         app.launch()
+        pauseHomeCarouselIfVisible()
     }
 
     override func tearDownWithError() throws {
@@ -47,6 +48,7 @@ final class NativeHLSDownloadFlowTests: XCTestCase {
         app.terminate()
         app.launchArguments = arguments // No reset, fake file installation or second transfer.
         app.launch()
+        pauseHomeCarouselIfVisible()
         openDownloadsAndSeries()
         let restored = app.buttons["download-play-\(downloadID)"]
         XCTAssertTrue(wait(timeout: 15) { restored.exists && restored.isEnabled && restored.isHittable && restored.label.hasPrefix("Play offline") },
@@ -72,6 +74,11 @@ final class NativeHLSDownloadFlowTests: XCTestCase {
         XCTAssertFalse(app.buttons["download-series-900043"].exists)
         XCTAssertFalse(app.buttons["download-play-\(downloadID)"].exists)
         capture("Native package deletion removes only the tested episode from Downloads")
+    }
+
+    private func pauseHomeCarouselIfVisible() {
+        let pause = app.buttons["hero-carousel-pause"]
+        if pause.exists && pause.isHittable && pause.label == "Pause carousel" { pause.tap() }
     }
 
     private func openDownloadsAndSeries() {
