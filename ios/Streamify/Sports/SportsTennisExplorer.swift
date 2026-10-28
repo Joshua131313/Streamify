@@ -1,5 +1,185 @@
 import Foundation
 
+/// Published scoreboard state supplements schedule-only Challenger rows. A
+/// scheduled start time is never evidence that a match has actually started.
+enum TennisLiveFeed {
+    static func runtime(_ html: String) throws -> [String: Any] {
+        guard html.utf8.count <= 4 * 1024 * 1024,
+              let body = captures("<script\\b[^>]*>\\s*window\\.TENNISLIVE_RUNTIME\\s*=\\s*([\\s\\S]*?)</script>", html).first?.first,
+              let end = body.lastIndex(of: "}"),
+              let object = try JSONSerialization.jsonObject(with: Data(body[...end].utf8)) as? [String: Any]
+        else { throw SportsServiceError.invalidResponse }
+        return object
+    }
+
+    static func parse(_ html: String) throws -> [SportsGame] {
+        let raw = try runtime(html)
+        guard raw["homepageTournaments"] is [[String: Any]] else { throw SportsServiceError.invalidResponse }
+        return raw.sportsObjects("homepageTournaments").flatMap { group -> [SportsGame] in
+            let path = group.sportsText("url"), tour = group.sportsText("tour")
+            guard ["atp", "wta"].contains(tour), group["junior"] as? Bool != true,
+                  path.range(of: "^/(atp-men|wta-women)/[a-z0-9-]+-[0-9]{4}/$", options: .regularExpression) != nil,
+                  group.sportsText("name").range(of: "\\b[MW][0-9]{2,3}\\b|junior", options: [.regularExpression, .caseInsensitive]) == nil
+            else { return [] }
+            return group.sportsObjects("matches").compactMap { match in
+                let players = match.sportsObjects("players")
+                let state = ["live": "in", "finished": "post", "scheduled": "pre", "upcoming": "pre"][match.sportsText("state")]
+                guard players.count == 2, let state,
+                      let start = match["startTimestamp"] as? NSNumber, start.doubleValue > 0,
+                      let route = historyURL(match.sportsText("url")),
+                      let a = player(players[0], tour: tour), let b = player(players[1], tour: tour), a.id != b.id else { return nil }
+                let tournament = group.sportsText("tournamentId")
+                guard tournament.range(of: "^[0-9]{1,18}$", options: .regularExpression) != nil else { return nil }
+                var metadata = SportsTennisMatch(tour: tour == "wta" ? .wta : path.contains("challenger") || group["rank"] as? Int == 1 ? .challenger : .atp,
+                    tournament: group.sportsText("name").replacingOccurrences(of: "^(ATP|WTA) ", with: "", options: .regularExpression),
+                    tournamentID: "tl-\(tour)-\(tournament)", discipline: match["doubles"] as? Bool == true ? "Doubles" : "Singles",
+                    awaySets: sets(players[0]), homeSets: sets(players[1]), source: "tennislive", historyURL: route)
+                let point = match["points"] as? [String] ?? []
+                if state == "in" {
+                    metadata.awayPoint = point.indices.contains(0) ? point[0] : nil
+                    metadata.homePoint = point.indices.contains(1) ? point[1] : nil
+                    if let index = match["server"] as? Int, [0, 1].contains(index) { metadata.servingID = index == 0 ? a.id : b.id }
+                }
+                if state == "post", let winner = match["winnerId"] as? NSNumber {
+                    metadata.winnerID = players[0].sportsText("id") == winner.stringValue ? a.id : players[1].sportsText("id") == winner.stringValue ? b.id : nil
+                }
+                return SportsGame(eventID: "tennislive-\(tour)-\(tournament)-\(players[0].sportsText("id"))-\(players[1].sportsText("id"))",
+                    league: .tennis, date: Date(timeIntervalSince1970: start.doubleValue), state: state,
+                    status: state == "post" ? "Final" : state == "in" ? match.sportsText("setLabel") : "Scheduled",
+                    home: b, away: a, venue: "", broadcasts: "", link: route, tennis: metadata)
+            }
+        }
+    }
+
+    static func merge(_ scheduled: [SportsGame], live: [SportsGame]) -> [SportsGame] {
+        var result = SportsScheduleDayPolicy.canonicalGames(scheduled)
+        for snapshot in SportsScheduleDayPolicy.canonicalGames(live) {
+            let candidates = result.indices.filter { sameMatch(result[$0], snapshot) }
+            guard candidates.count == 1, let index = candidates.first else {
+                if candidates.isEmpty { result.append(snapshot) }; continue
+            }
+            let original = result[index]
+            guard var metadata = original.tennis, let fresh = snapshot.tennis else { continue }
+            let aligned = samePlayer(original.away.name, snapshot.away.name)
+            let away = aligned ? snapshot.away : snapshot.home, home = aligned ? snapshot.home : snapshot.away
+            metadata.awaySets = aligned ? fresh.awaySets : fresh.homeSets
+            metadata.homeSets = aligned ? fresh.homeSets : fresh.awaySets
+            metadata.awayPoint = aligned ? fresh.awayPoint : fresh.homePoint
+            metadata.homePoint = aligned ? fresh.homePoint : fresh.awayPoint
+            metadata.servingID = fresh.servingID == away.id ? original.away.id : fresh.servingID == home.id ? original.home.id : nil
+            metadata.winnerID = fresh.winnerID == away.id ? original.away.id : fresh.winnerID == home.id ? original.home.id : nil
+            metadata.historyURL = fresh.historyURL
+            var a = original.away, b = original.home
+            a.score = away.score; b.score = home.score
+            // Preserve the ESPN/Challenger identity used by tracking and sources.
+            result[index] = SportsGame(eventID: original.eventID, league: .tennis, date: original.date ?? snapshot.date,
+                state: snapshot.state, status: snapshot.status, home: b, away: a, venue: original.venue,
+                broadcasts: original.broadcasts, link: original.link, tennis: metadata)
+        }
+        return SportsScheduleDayPolicy.canonicalGames(result)
+    }
+
+    static func sameMatch(_ a: SportsGame, _ b: SportsGame) -> Bool {
+        guard let at = a.tennis, let bt = b.tennis, at.isDoubles == bt.isDoubles,
+              let ad = a.date, let bd = b.date, abs(ad.timeIntervalSince(bd)) < 18 * 3600,
+              tournament(at.tournament) == tournament(bt.tournament) else { return false }
+        return (samePlayer(a.away.name, b.away.name) && samePlayer(a.home.name, b.home.name)) ||
+            (samePlayer(a.away.name, b.home.name) && samePlayer(a.home.name, b.away.name))
+    }
+
+    static func samePlayer(_ a: String, _ b: String) -> Bool {
+        let x = words(a), y = words(b)
+        if x == y { return !x.isEmpty }
+        func abbreviated(_ short: [String], _ full: [String]) -> Bool {
+            guard short.count >= 2, full.count >= 2, short.dropFirst().allSatisfy({ $0.count == 1 }),
+                  short[0] == full.last, short[1].first == full.first?.first else { return false }
+            return true
+        }
+        return abbreviated(x, y) || abbreviated(y, x)
+    }
+
+    static func historyURL(_ value: String) -> String? {
+        let path = value.hasPrefix("https://www.tennislive.net/") ? String(value.dropFirst("https://www.tennislive.net".count)) : value
+        guard path.range(of: "^/(atp|wta)/match/[A-Za-z0-9-]+-VS-[A-Za-z0-9-]+/[a-z0-9-]+-[0-9]{4}/$", options: .regularExpression) != nil else { return nil }
+        return "https://www.tennislive.net\(path)"
+    }
+
+    static func pointWinner(previous: String, current: String) -> Int? {
+        let a = previous.components(separatedBy: "–"), b = current.components(separatedBy: "–")
+        guard a.count == 2, b.count == 2 else { return nil }
+        if a == ["A", "40"], b == ["40", "40"] { return 1 }
+        if a == ["40", "A"], b == ["40", "40"] { return 0 }
+        for index in 0...1 where a[1 - index] == b[1 - index] {
+            if ["0:15", "15:30", "30:40", "40:A"].contains("\(a[index]):\(b[index])") { return index }
+            if let old = Int(a[index]), let new = Int(b[index]), new == old + 1 { return index }
+        }
+        return nil
+    }
+
+    static func history(_ html: String, game: SportsGame) throws -> [TennisHistorySet] {
+        let raw = try runtime(html), names = raw["matchDetailPlayerNames"] as? [String] ?? []
+        guard names.count == 2,
+              (samePlayer(names[0], game.away.name) && samePlayer(names[1], game.home.name)) ||
+              (samePlayer(names[1], game.away.name) && samePlayer(names[0], game.home.name)),
+              let timestamp = raw["matchDetailReferenceTimestamp"] as? NSNumber, let date = game.date,
+              abs(date.timeIntervalSince1970 - timestamp.doubleValue) < 36 * 3600 else { throw SportsServiceError.invalidResponse }
+        let reversed = !samePlayer(names[0], game.away.name)
+        func orient(_ value: String) -> String {
+            let pair = value.components(separatedBy: "–")
+            return reversed && pair.count == 2 ? pair.reversed().joined(separator: "–") : value
+        }
+        return captures("<section\\b[^>]*data-set-panel=[\"']([1-5])[\"'][^>]*>([\\s\\S]*?)</section>", html).compactMap { panel in
+            guard let number = Int(panel[0]) else { return nil }
+            let chunks = panel[1].components(separatedBy: "class=\"tl-progress-game").dropFirst()
+            let games = chunks.enumerated().map { index, chunk in
+                let score = captures("<strong\\b[^>]*>([\\s\\S]*?)</strong>", chunk).first.map { plain($0[0]) } ?? ""
+                let server = captures("data-progress-server-ball[^>]*data-player-index=[\"']([01])[\"']", chunk).first.flatMap { Int($0[0]) }.map { names[$0] }
+                let winner = captures("data-progress-outcome[^>]*>([\\s\\S]*?)</span>", chunk).first.map { plain($0[0]).replacingOccurrences(of: " wins the game", with: "") }
+                // Only scores published inside this game's point summary.
+                let summary = chunk.components(separatedBy: "text-xs text-black/45").dropFirst().first ?? ""
+                let text = plain(summary.components(separatedBy: "</div>").first ?? "")
+                let points = captures("(?<![0-9A-Za-z])([0-9]{1,2}|A)-(0|15|30|40|A|[0-9]{1,2})(?![0-9A-Za-z])", text).map { "\($0[0])–\($0[1])" }
+                return TennisHistoryGame(number: index + 1, score: orient(score.replacingOccurrences(of: "-", with: "–")), server: server, winner: winner,
+                    isBreak: chunk.contains(">Serve lost</span>"), points: points.map(orient))
+            }
+            return games.isEmpty ? nil : TennisHistorySet(number: number, games: games)
+        }
+    }
+
+    private static func tournament(_ value: String) -> String {
+        var seen = Set<String>()
+        return words(value).filter { !["atp", "wta", "challenger", "open", "tennis", "125"].contains($0) && seen.insert($0).inserted }.joined()
+    }
+    private static func words(_ value: String) -> [String] {
+        value.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+            .components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }
+    }
+    private static func player(_ raw: [String: Any], tour: String) -> SportsTeam? {
+        let id = raw.sportsText("id"), name = raw.sportsText("name")
+        guard id.range(of: "^[0-9]{1,18}$", options: .regularExpression) != nil, !name.isEmpty else { return nil }
+        return SportsTeam(id: "tl-\(tour)-\(id)", name: name, abbreviation: name, logo: "", score: raw.sportsText("setsWon"),
+            record: Int(raw.sportsText("seed")).map { "Seed \($0)" } ?? "", streamNames: [name])
+    }
+    private static func sets(_ raw: [String: Any]) -> [String] {
+        (raw["sets"] as? [Any] ?? []).prefix(5).map { value in
+            let number = value as? NSNumber ?? (value as? [String: Any])?["score"] as? NSNumber
+            return number.map { (0...99).contains($0.intValue) ? $0.stringValue : "—" } ?? "—"
+        }
+    }
+    private static func captures(_ pattern: String, _ text: String) -> [[String]] {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return [] }
+        let source = text as NSString
+        return regex.matches(in: text, range: NSRange(location: 0, length: source.length)).map { match in
+            (1..<match.numberOfRanges).map { match.range(at: $0).location == NSNotFound ? "" : source.substring(with: match.range(at: $0)) }
+        }
+    }
+    private static func plain(_ value: String) -> String {
+        value.replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: "&nbsp;", with: " ").replacingOccurrences(of: "&amp;", with: "&")
+            .components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.joined(separator: " ")
+    }
+}
+
 /// Challenger listings are published as paired HTML rows. Parsing stays inside
 /// dated result tables; unrelated players, prices and advertising are ignored.
 enum SportsTennisExplorer {

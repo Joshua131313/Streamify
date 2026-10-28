@@ -20,6 +20,8 @@ struct LiquidGlassBottomBar: View {
     @State private var holdTask: Task<Void, Never>?
     @State private var profilesOpen = false
     @State private var pendingProfile: UUID?
+    @State private var lastTapTab: AppTab?
+    @State private var lastTapTime: TimeInterval = 0
     @State private var pendingOwner: String?
 
     private static let coordinateSpace = "streamify-liquid-bottom-bar"
@@ -247,6 +249,14 @@ struct LiquidGlassBottomBar: View {
     }
 
     private func select(_ tab: AppTab, feedback: Bool) {
+        let stamp = ProcessInfo.processInfo.systemUptime
+        if selection == tab && lastTapTab == tab && stamp - lastTapTime <= 0.35 {
+            NotificationCenter.default.post(name: .rootTabDoubleTap, object: tab.rawValue)
+            lastTapTab = nil; lastTapTime = 0
+            if feedback { AppHaptics.tap(.selection) }
+            return
+        }
+        lastTapTab = tab; lastTapTime = stamp
         guard tab != selection else { return }
         if feedback { AppHaptics.tap(.selection) }
         // Root content changes immediately, including taps during a previous

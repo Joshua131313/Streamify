@@ -148,7 +148,7 @@ struct SportsView: View {
                     } else {
                         scheduleDayContent
                     }
-                    Text(selectedLeague == .tennis ? "ATP and WTA scores by ESPN. Challenger schedules and results by TennisExplorer; live Challenger scores may be unavailable. Times are local." : "Scores refresh every 30 seconds. Times are local. Scores and schedules by ESPN.").font(.caption).foregroundStyle(AppTheme.muted).padding(.horizontal, 20)
+                    Text(selectedLeague == .tennis ? "Tennis scores by ESPN, TennisExplorer and TennisLive. Times are local. Live coverage varies by tournament." : "Scores refresh every 30 seconds. Times are local. Scores and schedules by ESPN.").font(.caption).foregroundStyle(AppTheme.muted).padding(.horizontal, 20)
                 }
             }.padding(.top, 4).padding(.bottom, 110)
         }

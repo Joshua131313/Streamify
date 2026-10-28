@@ -59,10 +59,25 @@ final class TennisFlowTests: XCTestCase {
         let card = app.buttons["sports-game-tennis:espn-atp-185682"]
         XCTAssertTrue(card.waitForExistence(timeout: 8)); card.tap()
         let sets = app.buttons["sports-game-tab-Sets"]
+        let setOne = app.buttons["tennis-history-set-1"]
+        XCTAssertTrue(setOne.waitForExistence(timeout: 10)); setOne.tap()
+        let firstGame = app.buttons["tennis-history-set-1-game-1"]
+        XCTAssertTrue(firstGame.waitForExistence(timeout: 5)); firstGame.tap()
+        XCTAssertTrue(app.staticTexts["Point 1"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Break"].exists)
         XCTAssertTrue(sets.waitForExistence(timeout: 8)); sets.tap()
         XCTAssertTrue(app.scrollViews["sports-scoring-periods"].waitForExistence(timeout: 8) || app.otherElements["sports-scoring-periods"].exists)
         XCTAssertFalse(app.buttons["sports-game-tab-Team stats"].exists)
         let screenshot = XCTAttachment(screenshot: app.screenshot()); screenshot.name = "Tennis set scoring"; screenshot.lifetime = .keepAlways
         add(screenshot)
+    }
+
+    func testDoubleTapActiveHomeTabReturnsToTopWithoutChangingTab() {
+        let home = app.buttons["tab-home"]
+        XCTAssertTrue(home.waitForExistence(timeout: 15))
+        app.swipeUp(); app.swipeUp()
+        home.doubleTap()
+        XCTAssertTrue(app.staticTexts["The game is on."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["tab-home"].isSelected)
     }
 }

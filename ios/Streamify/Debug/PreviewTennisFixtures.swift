@@ -5,6 +5,26 @@ enum PreviewTennisFixtures {
     static func response(_ request: URLRequest) -> (Int, String, Data)? {
         guard let url = request.url else { return nil }
         let enabled = ProcessInfo.processInfo.arguments.contains("--ui-tennis-fixture")
+        if url.host == "www.tennislive.net" {
+            let route = "/atp/match/jannik-sinner-VS-carlos-alcaraz/vienna-open-2026/"
+            let start = Date().addingTimeInterval(-900).timeIntervalSince1970
+            if url.path.contains("/match/") {
+                let raw: [String: Any] = ["matchDetailPlayerNames": ["Jannik Sinner", "Carlos Alcaraz"], "matchDetailReferenceTimestamp": start]
+                let json = String(data: try! JSONSerialization.data(withJSONObject: raw), encoding: .utf8)!
+                let html = """
+                <script>window.TENNISLIVE_RUNTIME = \(json);</script>
+                <section data-set-panel="1"><div class="tl-progress-game"><strong>1-0</strong><span data-progress-server-ball data-player-index="1"></span><div class="text-xs text-black/45">15-0 · 30-0 · 40-0 <span data-progress-outcome>Jannik Sinner wins the game</span></div><span>Serve lost</span></div></section>
+                <section data-set-panel="2"><div class="tl-progress-game"><strong>Current game</strong><span data-progress-server-ball data-player-index="0"></span><div class="text-xs text-black/45">15-0 · 15-15</div></div></section>
+                """
+                return (200, "text/html", Data(html.utf8))
+            }
+            let match: [String: Any] = ["url": route, "state": "live", "startTimestamp": start, "setLabel": "2nd Set", "server": 0,
+                "points": ["15", "15"], "players": [["id": 1, "name": "Jannik Sinner", "setsWon": 1, "sets": [6, 3]], ["id": 2, "name": "Carlos Alcaraz", "setsWon": 0, "sets": [4, 2]]]]
+            let group: [String: Any] = ["tour": "atp", "tournamentId": 10, "name": "Vienna Open", "url": "/atp-men/vienna-open-2026/", "rank": 2, "matches": [match]]
+            let data = try! JSONSerialization.data(withJSONObject: ["homepageTournaments": enabled ? [group] : []])
+            let json = String(data: data, encoding: .utf8)!
+            return (200, "text/html", Data("<script>window.TENNISLIVE_RUNTIME = \(json);</script>".utf8))
+        }
         if url.host == "site.api.espn.com", url.path.contains("/sports/tennis/") {
             let tour = url.path.contains("/wta/") ? "wta" : "atp"
             let games = enabled ? [tournament(tour)] : []

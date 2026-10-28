@@ -1,5 +1,60 @@
 import SwiftUI
 
+struct TennisHistoryView: View {
+    let game: SportsGame
+    let sets: [TennisHistorySet]
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Match overview").font(.title3.bold())
+            if sets.isEmpty {
+                Text("Game and point history is not supplied for this match yet.")
+                    .font(.subheadline).foregroundStyle(AppTheme.muted)
+            }
+            ForEach(sets) { set in
+                DisclosureGroup {
+                    VStack(spacing: 0) {
+                        ForEach(set.games) { item in
+                            DisclosureGroup {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    if let server = item.server { Label("\(server) serving", systemImage: "tennis.racket").font(.caption).foregroundStyle(AppTheme.muted) }
+                                    if item.points.isEmpty { Text("Point detail unavailable").font(.caption).foregroundStyle(AppTheme.muted) }
+                                    ForEach(Array(item.points.enumerated()), id: \.offset) { index, score in
+                                        HStack {
+                                            Text("Point \(index + 1)").foregroundStyle(AppTheme.muted)
+                                            Spacer()
+                                            if let won = TennisLiveFeed.pointWinner(previous: index == 0 ? "0–0" : item.points[index - 1], current: score) {
+                                                Text(won == 0 ? game.away.abbreviation : game.home.abbreviation).lineLimit(1)
+                                            }
+                                            Text(score).monospacedDigit().fontWeight(.semibold)
+                                        }.font(.subheadline)
+                                    }
+                                    if let winner = item.winner {
+                                        Label("\(winner) won the game", systemImage: "checkmark").font(.caption.weight(.semibold))
+                                    }
+                                    Text("Scores are shown as \(game.away.abbreviation) – \(game.home.abbreviation).")
+                                        .font(.caption2).foregroundStyle(AppTheme.muted)
+                                }.padding(.vertical, 10)
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Text(item.score.localizedCaseInsensitiveContains("current") ? "Current game" : "Game \(item.number)").font(.subheadline.weight(.medium))
+                                    Spacer()
+                                    if item.isBreak { Text("Break").font(.caption2.bold()).padding(.horizontal, 7).padding(.vertical, 4).background(AppTheme.foreground.opacity(0.1), in: Capsule()) }
+                                    if !item.score.localizedCaseInsensitiveContains("current") { Text(item.score).font(.subheadline.monospacedDigit().weight(.semibold)) }
+                                }.foregroundStyle(AppTheme.foreground).padding(.vertical, 8)
+                            }.accessibilityIdentifier("tennis-history-set-\(set.number)-game-\(item.number)")
+                            if item.id != set.games.last?.id { Divider().overlay(AppTheme.border) }
+                        }
+                    }
+                } label: {
+                    Text("Set \(set.number)").font(.headline).foregroundStyle(AppTheme.foreground).padding(.vertical, 4)
+                }.padding(14).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 14))
+                    .accessibilityIdentifier("tennis-history-set-\(set.number)")
+            }
+            if !sets.isEmpty { Text("Point history by TennisLive. Coverage may be incomplete.").font(.caption2).foregroundStyle(AppTheme.muted) }
+        }.tint(AppTheme.foreground).accessibilityIdentifier("tennis-match-overview")
+    }
+}
+
 struct SportsLeagueIcon: View {
     let league: SportsLeague
     var body: some View {

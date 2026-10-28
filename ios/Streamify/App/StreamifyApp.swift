@@ -442,6 +442,7 @@ struct RootView: View {
 
     private func rootPage<Content: View>(_ page: AppTab, @ViewBuilder content: () -> Content) -> some View {
         content()
+            .background { RootTabScrollToTop(tab: page) }
             .navigationTitle(page.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .tabBar)

@@ -80,7 +80,7 @@ enum SportsTennisFeed {
 
 extension SportsService {
     static func validTennisEventID(_ value: String) -> Bool {
-        value.range(of: "^(?:espn-(atp|wta)-[0-9]{1,32}|challenger-[0-9]{1,18})$", options: .regularExpression) != nil
+        value.range(of: "^(?:espn-(atp|wta)-[0-9]{1,32}|challenger-[0-9]{1,18}|tennislive-(atp|wta)-[0-9]{1,18}-[0-9]{1,18}-[0-9]{1,18})$", options: .regularExpression) != nil
     }
     func tennisSchedule(day: Date, now reference: Date) async throws -> SportsSchedule {
         let raw = try await tennisEvents(around: day)
@@ -101,6 +101,12 @@ extension SportsService {
             let parts = utc.dateComponents([.year, .month, .day], from: date)
             jobs.append((.challenger, "https://www.tennisexplorer.com/matches/?type=all&year=\(parts.year!)&month=\(parts.month!)&day=\(parts.day!)"))
         }
+        let liveDate = DateFormatter(); liveDate.locale = Locale(identifier: "en_US_POSIX"); liveDate.timeZone = TimeZone(secondsFromGMT: 0); liveDate.dateFormat = "yyyy-MM-dd"
+        for offset in -1...1 {
+            if let date = calendar.date(byAdding: .day, value: offset, to: day) {
+                jobs.append((.other, "https://www.tennislive.net/\(liveDate.string(from: date))/"))
+            }
+        }
         let requests = jobs
         let batches = try await withThrowingTaskGroup(of: TennisBatch.self, returning: [TennisBatch].self) { group in
             for worker in 0..<3 {
@@ -110,7 +116,9 @@ extension SportsService {
                         try Task.checkCancellation()
                         let job = requests[index]
                         do {
-                            if job.tour == .challenger {
+                            if job.tour == .other {
+                                batch.live += try TennisLiveFeed.parse(await tennisHTML(job.address))
+                            } else if job.tour == .challenger {
                                 let html = try await tennisHTML(job.address)
                                 batch.games += try SportsTennisExplorer.parse(html)
                             }
@@ -131,7 +139,7 @@ extension SportsService {
         }
         let failures = batches.reduce(0) { $0 + $1.failures }
         guard failures < jobs.count else { throw SportsServiceError.noSchedule }
-        return SportsSchedule(games: SportsScheduleDayPolicy.canonicalGames(batches.flatMap(\.games)), failedLeagues: [], partial: failures > 0)
+        return SportsSchedule(games: TennisLiveFeed.merge(batches.flatMap(\.games), live: batches.flatMap(\.live)), failedLeagues: [], partial: failures > 0)
     }
 
     func tennisGame(eventID: String, around day: Date? = nil) async throws -> SportsGame {
@@ -148,11 +156,16 @@ extension SportsService {
             SportsStatRow(id: String(index + 1), label: "Set \(index + 1)", away: away.indices.contains(index) ? away[index] : "—",
                 home: home.indices.contains(index) ? home[index] : "—", period: index + 1)
         }
-        return SportsGameCenter(game: fresh, scoring: scoring, statistics: [], latest: "")
+        var history: [TennisHistorySet] = []
+        if fresh.state != "pre", let address = fresh.tennis?.historyURL.flatMap(TennisLiveFeed.historyURL) {
+            do { history = try TennisLiveFeed.history(await tennisHTML(address), game: fresh) }
+            catch { try Task.checkCancellation() }
+        }
+        return SportsGameCenter(game: fresh, scoring: scoring, statistics: [], latest: "", tennisHistory: history)
     }
 
     private func tennisHTML(_ address: String) async throws -> String {
-        guard let url = sportsHTTPSURL(address) else { throw SportsServiceError.invalidURL }
+        guard let url = sportsHTTPSURL(address), ["www.tennisexplorer.com", "www.tennislive.net"].contains(url.host ?? "") else { throw SportsServiceError.invalidURL }
         var request = URLRequest(url: url); request.timeoutInterval = 15
         request.setValue("text/html", forHTTPHeaderField: "Accept")
         request.setValue("Streamify/1.1", forHTTPHeaderField: "User-Agent")
@@ -161,8 +174,8 @@ extension SportsService {
             reload: forceReload, operation: {
                 let (data, response) = try await session.data(for: prepared)
                 guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode),
-                      http.url?.scheme == "https", http.url?.host == "www.tennisexplorer.com",
-                      data.count <= 2 * 1024 * 1024 else { throw SportsServiceError.invalidResponse }
+                      http.url?.scheme == "https", http.url?.host == url.host,
+                      data.count <= 4 * 1024 * 1024 else { throw SportsServiceError.invalidResponse }
                 return data
             })
         guard let html = String(data: data, encoding: .utf8) else { throw SportsServiceError.invalidResponse }
@@ -170,4 +183,4 @@ extension SportsService {
     }
 }
 
-private struct TennisBatch: Sendable { var games: [SportsGame] = []; var failures = 0 }
+private struct TennisBatch: Sendable { var games: [SportsGame] = []; var live: [SportsGame] = []; var failures = 0 }

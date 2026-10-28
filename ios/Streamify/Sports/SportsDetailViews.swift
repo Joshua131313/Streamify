@@ -170,6 +170,7 @@ struct SportsGameView: View {
                         .accessibilityLabel("Add to multi-watch")
                 }
             }
+            if current.league == .tennis, current.state != "pre" { TennisHistoryView(game: current, sets: center?.tennisHistory ?? []) }
             if let scoring = center?.scoring, !scoring.isEmpty { SportsScoringTable(game: current, periods: scoring) }
             VStack(alignment: .leading, spacing: 12) {
                 HStack { Text("Watch sources").font(.title3.bold()); Spacer(); if streamsLoading { ProgressView() } }

@@ -48,6 +48,7 @@ struct SportsTennisMatch: Hashable, Sendable {
     var source = "espn"
     var competitionID = ""
     var timeConfirmed = true
+    var historyURL: String? = nil
     var groupID: String { "\(tour.rawValue):\(tournamentID):\(discipline)" }
     var isDoubles: Bool { discipline.localizedCaseInsensitiveContains("doubles") }
 }
@@ -260,6 +261,23 @@ struct SportsGameCenter {
     let latest: String
     var playByPlay: [SportsPlayPeriod] = []
     var playerStats: [SportsPlayerStatGroup] = []
+    var tennisHistory: [TennisHistorySet] = []
+}
+
+struct TennisHistorySet: Identifiable, Sendable {
+    let number: Int
+    let games: [TennisHistoryGame]
+    var id: Int { number }
+}
+
+struct TennisHistoryGame: Identifiable, Sendable {
+    let number: Int
+    let score: String
+    let server: String?
+    let winner: String?
+    let isBreak: Bool
+    let points: [String]
+    var id: Int { number }
 }
 
 struct SportsGamePlay: Identifiable {
