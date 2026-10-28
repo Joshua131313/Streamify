@@ -640,13 +640,14 @@ struct SportsView: View {
                             .background(AppTheme.foreground.opacity(0.07), in: RoundedRectangle(cornerRadius: 6))
                         VStack(alignment: .leading, spacing: 2) {
                             Text(group.tournament).font(.subheadline.weight(.semibold))
+                                .accessibilityAddTraits(.isHeader).accessibilityIdentifier("tennis-group-\(group.id)")
                             Text(group.discipline).font(.caption2).foregroundStyle(AppTheme.muted)
                         }
                         Spacer(minLength: 0)
                         Text("\(group.games.count)").font(.caption).foregroundStyle(AppTheme.muted)
                     }.padding(.horizontal, 6).padding(.top, 8)
                     ForEach(group.games) { game in SportsGameCard(game: game, daySwipeScope: daySwipeScope) { selectedGame = game } }
-                }.padding(.horizontal, 8).accessibilityIdentifier("tennis-group-\(group.id)")
+                }.padding(.horizontal, 8)
             }
         } else if layout == .slider && !filteredGames.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
