@@ -51,7 +51,7 @@ struct TennisHistoryView: View {
                     .accessibilityIdentifier("tennis-history-set-\(set.number)")
             }
             if !sets.isEmpty { Text("Point history by TennisLive. Coverage may be incomplete.").font(.caption2).foregroundStyle(AppTheme.muted) }
-        }.tint(AppTheme.foreground).accessibilityIdentifier("tennis-match-overview")
+        }.tint(AppTheme.foreground)
     }
 }
 

@@ -59,9 +59,9 @@ final class TennisFlowTests: XCTestCase {
         let card = app.buttons["sports-game-tennis:espn-atp-185682"]
         XCTAssertTrue(card.waitForExistence(timeout: 8)); card.tap()
         let sets = app.buttons["sports-game-tab-Sets"]
-        let setOne = app.buttons["tennis-history-set-1"]
+        let setOne = app.buttons["Set 1"]
         XCTAssertTrue(setOne.waitForExistence(timeout: 10)); setOne.tap()
-        let firstGame = app.buttons["tennis-history-set-1-game-1"]
+        let firstGame = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Game 1")).firstMatch
         XCTAssertTrue(firstGame.waitForExistence(timeout: 5)); firstGame.tap()
         XCTAssertTrue(app.staticTexts["Point 1"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Break"].exists)
