@@ -980,7 +980,7 @@ struct SportsTeamScore: View {
 }
 
 /// Reserve the same small score gutter on both rows so the scores stay aligned.
-private struct SportsWinnerChevron: View {
+struct SportsWinnerChevron: View {
     let visible: Bool
     var body: some View {
         Image(systemName: "chevron.left").font(.system(size: 8, weight: .heavy))
