@@ -36,7 +36,12 @@ final class TennisFlowTests: XCTestCase {
         XCTAssertTrue(app.images["Jannik Sinner serving"].exists)
         app.buttons["sports-menu"].tap()
         app.buttons["sports-filter-picker"].tap()
-        app.switches["tennis-show-doubles"].tap()
+        let doublesToggle = app.switches["tennis-show-doubles"]
+        XCTAssertTrue(doublesToggle.waitForExistence(timeout: 5))
+        XCTAssertEqual(doublesToggle.value as? String, "0")
+        // The switch accessibility frame includes its noninteractive row label.
+        doublesToggle.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
+        XCTAssertEqual(doublesToggle.value as? String, "1")
         app.buttons["sports-filter-done"].tap()
         app.swipeUp()
         XCTAssertTrue(app.staticTexts["Doubles Player One / Partner"].waitForExistence(timeout: 5))

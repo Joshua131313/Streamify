@@ -881,8 +881,13 @@ final class ParityFlowTests: XCTestCase {
         let option = app.buttons["sports-league-option-\(league)"]
         let rail = app.scrollViews["sports-league-rail"].firstMatch
         for _ in 0..<4 {
-            if option.isHittable { break }
-            rail.swipeLeft()
+            // Asking hittability for a completely clipped SwiftUI button can
+            // throw instead of returning false. Reveal its frame first.
+            if rail.frame.contains(CGPoint(x: option.frame.midX, y: option.frame.midY)) { break }
+            let towardRight = option.frame.midX < rail.frame.minX
+            let start = rail.coordinate(withNormalizedOffset: CGVector(dx: towardRight ? 0.15 : 0.85, dy: 0.5))
+            let end = rail.coordinate(withNormalizedOffset: CGVector(dx: towardRight ? 0.85 : 0.15, dy: 0.5))
+            start.press(forDuration: 0.05, thenDragTo: end)
         }
         XCTAssertTrue(option.isHittable)
         option.tap()
