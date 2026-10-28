@@ -43,7 +43,7 @@ final class SportsChatFlowTests: XCTestCase {
         XCTAssertFalse(app.staticTexts["Replying to Guest 2048"].exists)
         capture("Local guest reply keeps its quoted message and receives a guest identity")
         // Dismiss the keyboard without sending another message.
-        app.navigationBars["Game chat"].tap()
+        dismissKeyboard()
         let react = app.buttons["React to Guest 2048"]
         reveal(react)
         react.tap()
@@ -99,7 +99,7 @@ final class SportsChatFlowTests: XCTestCase {
         app.buttons["Cancel reply"].tap()
         XCTAssertFalse(element("sports-chat-reply-preview").exists)
         XCTAssertEqual(composer.value as? String, "Nice play!")
-        app.navigationBars["Game chat"].tap()
+        dismissKeyboard()
         reveal(reply); reply.tap()
         capture("Compact reply composer preserves the draft")
         app.buttons["sports-chat-send"].tap()
@@ -137,13 +137,19 @@ final class SportsChatFlowTests: XCTestCase {
         for _ in 0..<12 {
             if target.exists && target.isHittable { return }
             let up = !(target.exists && target.frame.maxY < app.frame.midY)
-            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: up ? 0.55 : 0.25))
-            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: up ? 0.25 : 0.55))
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: up ? 0.55 : 0.25))
+            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: up ? 0.25 : 0.55))
             start.press(forDuration: 0.05, thenDragTo: end)
         }
         XCTAssertTrue(target.isHittable)
     }
     private func capture(_ name: String) {
         let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = name; shot.lifetime = .keepAlways; add(shot)
+    }
+
+    private func dismissKeyboard() {
+        guard app.keyboards.firstMatch.exists else { return }
+        app.scrollViews["sports-chat-thread"].swipeDown()
+        XCTAssertTrue(wait { !self.app.keyboards.firstMatch.exists })
     }
 }

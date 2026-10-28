@@ -135,6 +135,7 @@ struct SportsChatView: View {
                                 value: geometry.frame(in: .named("sports-chat-scroll")).maxY)
                         })
                 }.coordinateSpace(name: "sports-chat-scroll").scrollDismissesKeyboard(.interactively)
+                    .accessibilityIdentifier("sports-chat-thread")
                     .frame(maxHeight: .infinity)
                     .background(GeometryReader { geometry in
                         Color.clear.onAppear { viewportHeight = geometry.size.height }

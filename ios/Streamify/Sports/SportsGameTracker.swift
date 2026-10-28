@@ -36,7 +36,7 @@ final class SportsGameTracker: ObservableObject {
             tracked.remove(game.id)
             return
         }
-        guard SportsService.validEventID(game.eventID), !game.isFinal else { return }
+        guard (game.league == .tennis ? SportsService.validTennisEventID(game.eventID) : SportsService.validEventID(game.eventID)), !game.isFinal else { return }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
             error = "Allow Live Activities for Streamify in iPhone Settings to track a game on your Lock Screen."
             return
