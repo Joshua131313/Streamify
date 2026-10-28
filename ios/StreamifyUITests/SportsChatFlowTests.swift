@@ -149,6 +149,8 @@ final class SportsChatFlowTests: XCTestCase {
 
     private func dismissKeyboard() {
         guard app.keyboards.firstMatch.exists else { return }
+        let keyboardTip = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH 'Speed up your typing'")).firstMatch
+        if keyboardTip.exists { app.buttons["Continue"].tap() }
         app.scrollViews["sports-chat-thread"].swipeDown()
         XCTAssertTrue(wait { !self.app.keyboards.firstMatch.exists })
     }

@@ -1,14 +1,32 @@
 import XCTest
 
 final class TennisFlowTests: XCTestCase {
-    func testTennisShowsAllToursThenFiltersAndOpensSetScoring() {
-        let app = XCUIApplication()
+    private var app: XCUIApplication!
+
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
+        app = XCUIApplication()
         app.launchArguments = ["--ui-fixtures", "--ui-tennis-fixture"]
         app.launch()
+    }
+
+    override func tearDownWithError() throws {
+        if (testRun?.failureCount ?? 0) > 0, let app {
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "FAILURE tennis flow"; screenshot.lifetime = .keepAlways; add(screenshot)
+            let hierarchy = XCTAttachment(string: app.debugDescription)
+            hierarchy.name = "FAILURE tennis hierarchy"; hierarchy.lifetime = .keepAlways; add(hierarchy)
+        }
+        app?.terminate()
+    }
+
+    func testTennisShowsAllToursThenFiltersAndOpensSetScoring() {
         XCTAssertTrue(app.buttons["tab-sports"].waitForExistence(timeout: 15))
         app.buttons["tab-sports"].tap()
         let tennis = app.buttons["sports-league-option-tennis"]
         let rail = app.scrollViews["sports-league-rail"]
+        XCTAssertTrue(rail.waitForExistence(timeout: 10))
         for _ in 0..<6 where !tennis.isHittable { rail.swipeLeft() }
         XCTAssertTrue(tennis.isHittable); tennis.tap()
         XCTAssertTrue(app.buttons["tennis-tour-challenger"].waitForExistence(timeout: 15))
@@ -28,6 +46,5 @@ final class TennisFlowTests: XCTestCase {
         XCTAssertFalse(app.buttons["sports-game-tab-Team stats"].exists)
         let screenshot = XCTAttachment(screenshot: app.screenshot()); screenshot.name = "Tennis set scoring"; screenshot.lifetime = .keepAlways
         add(screenshot)
-        app.terminate()
     }
 }

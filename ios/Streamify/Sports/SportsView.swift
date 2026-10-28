@@ -289,7 +289,7 @@ struct SportsView: View {
                     }
                     leagueScopeButton(title: "All", symbol: "square.grid.2x2", league: nil,
                         selected: selectedLeague == nil && !followedTeamsOnly, identifier: "sports-league-picker") { chooseLeague(nil) }
-                    ForEach([SportsLeague.nfl, .nba, .ncaaf, .wnba, .nhl, .mlb]) { league in
+                    ForEach(SportsLeague.allCases) { league in
                         leagueScopeButton(title: league == .ncaaf ? "CFB" : league.title, symbol: nil, league: league,
                             selected: selectedLeague == league && !followedTeamsOnly, identifier: "sports-league-option-\(league.rawValue)") { chooseLeague(league) }
                     }

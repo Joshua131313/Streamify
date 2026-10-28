@@ -42,7 +42,11 @@ final class SportsMultiProviderFlowTests: XCTestCase {
                     start.press(forDuration: 0.05, thenDragTo: end)
                 }
                 XCTAssertTrue(game.isHittable, "\(league)'s actual game row must be reachable.")
-                game.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35)).tap()
+                capture("\(league) live game row before selection")
+                // Let XCTest use the native menu row's hittable point. A custom
+                // normalized point can miss UIKit's interactive region after a
+                // section layout or viewport change even while isHittable is true.
+                game.tap()
                 let title = league == "college-football" ? "NCAAF" : league.uppercased()
                 XCTAssertTrue(wait {
                     !game.exists && (self.app.buttons["sports-player-game-picker"].value as? String ?? "").hasPrefix(title + ",")

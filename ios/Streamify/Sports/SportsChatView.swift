@@ -134,7 +134,8 @@ struct SportsChatView: View {
                             Color.clear.preference(key: SportsChatBottom.self,
                                 value: geometry.frame(in: .named("sports-chat-scroll")).maxY)
                         })
-                }.coordinateSpace(name: "sports-chat-scroll").scrollDismissesKeyboard(.interactively)
+                }.coordinateSpace(name: "sports-chat-scroll").scrollDismissesKeyboard(.immediately)
+                    .scrollBounceBehavior(.always)
                     .accessibilityIdentifier("sports-chat-thread")
                     .frame(maxHeight: .infinity)
                     .background(GeometryReader { geometry in
