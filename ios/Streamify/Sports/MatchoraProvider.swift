@@ -15,10 +15,14 @@ struct MatchoraProvider: Sendable {
             // Tennis has an exact ESPN-backed event identity. The global
             // watchable catalogue can lag behind its individual event page.
             do {
-                let event = try await object("\(Self.origin)/api/v1/events/\(id)", cached: false)
+                guard let event = try await tennisEvent(id) else { return [] }
                 guard Self.matches(event, game: game, now: now()) else { return [] }
                 return Self.sources(event, game: game)
-            } catch SportsServiceError.unavailable(404) { return [] }
+            } catch SportsServiceError.unavailable(let status) where (500...599).contains(status) {
+                // A gateway failure must not hide channels already published
+                // for this exact fixture in the provider's current catalogue.
+                return try await tennisCatalogueFallback(game)
+            }
         }
         let catalog = try await object("\(Self.origin)/api/v1/schedule?watchable=1", cached: true)
         guard let events = catalog["events"] as? [[String: Any]] else { throw SportsServiceError.invalidResponse }
@@ -41,6 +45,48 @@ struct MatchoraProvider: Sendable {
         guard game.league == .tennis, let tennis = game.tennis, tennis.source == "espn",
               validID(tennis.competitionID) else { return nil }
         return "es\(tennis.competitionID)"
+    }
+
+    static func missingTennisEvent(status: Int, data: Data, id: String) -> Bool {
+        if status == 404 { return true }
+        guard status == 502, data.count <= 8192,
+              let raw = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let message = raw["error"] as? String else { return false }
+        let prefix = "edge /sports/event/\(id) -> 404 "
+        guard message.hasPrefix(prefix),
+              let detail = try? JSONSerialization.jsonObject(with: Data(message.dropFirst(prefix.count).utf8)) as? [String: Any]
+        else { return false }
+        return detail["detail"] as? String == "unknown fixture"
+    }
+
+    private func tennisEvent(_ id: String) async throws -> [String: Any]? {
+        let url = URL(string: "\(Self.origin)/api/v1/events/\(id)")!
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)
+        request.timeoutInterval = 8
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("Streamify/1.1", forHTTPHeaderField: "User-Agent")
+        let (data, response) = try await session.data(for: request)
+        try Task.checkCancellation()
+        guard let http = response as? HTTPURLResponse, http.url == url, data.count <= 2 * 1024 * 1024
+        else { throw SportsServiceError.invalidResponse }
+        if Self.missingTennisEvent(status: http.statusCode, data: data, id: id) { return nil }
+        guard (200...299).contains(http.statusCode) else { throw SportsServiceError.unavailable(http.statusCode) }
+        try SportsService.validateJSONResponse(data, response: http, requestedURL: url)
+        guard let event = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { throw SportsServiceError.invalidResponse }
+        return event
+    }
+
+    private func tennisCatalogueFallback(_ game: SportsGame) async throws -> [SportsStream] {
+        do {
+            let catalogue = try await object("\(Self.origin)/api/v1/schedule?watchable=1", cached: true)
+            guard let event = catalogue.sportsObjects("events").first(where: { Self.matches($0, game: game, now: now()) })
+            else { throw SportsServiceError.streamProviderUnavailable }
+            return Self.sources(event, game: game)
+        } catch {
+            try Task.checkCancellation()
+            throw SportsServiceError.streamProviderUnavailable
+        }
     }
 
     static func matches(_ event: [String: Any], game: SportsGame, now: Date) -> Bool {

@@ -3,6 +3,80 @@ import XCTest
 
 final class SportsTennisTests: XCTestCase {
     private let start = SportsService.parseDate("2026-10-28T14:30:00Z")!
+    private func sourceData(_ name: String) throws -> Data {
+        let bundle = Bundle(for: Self.self)
+        let url = try XCTUnwrap(bundle.url(forResource: name, withExtension: "json") ?? bundle.url(forResource: name, withExtension: "json", subdirectory: "Fixtures"))
+        return try Data(contentsOf: url)
+    }
+    private func sourceSession(_ key: String, replies: [String: (Int, Data)]) -> URLSession {
+        TennisSourceProtocol.register(key, replies: replies)
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [TennisSourceProtocol.self]
+        configuration.httpAdditionalHeaders = ["X-Tennis-Test": key]
+        return URLSession(configuration: configuration)
+    }
+
+    func testCapturedMonnetHereaMissingFixtureIsNotShownAsGatewayFailure() async throws {
+        let raw = try JSONSerialization.jsonObject(with: sourceData("tennis-monnet-herea-scoreboard")) as! [String: Any]
+        let game = try XCTUnwrap(SportsTennisFeed.parse(raw, tour: .wta).first)
+        XCTAssertTrue(game.isLive)
+        let key = UUID().uuidString
+        let session = sourceSession(key, replies: ["/api/v1/events/es185797": (502, try sourceData("tennis-monnet-herea-502"))])
+        defer { session.invalidateAndCancel(); TennisSourceProtocol.remove(key) }
+        let sources = try await MatchoraProvider(session: session, now: { game.date! }).streams(game)
+        XCTAssertTrue(sources.isEmpty, "A provider's unknown fixture cannot create a player URL")
+        XCTAssertEqual(TennisSourceProtocol.paths(key), ["/api/v1/events/es185797"])
+    }
+
+    func testTemporaryTennisGatewayFailureRetainsPublishedExactFixtureSources() async throws {
+        let raw = try JSONSerialization.jsonObject(with: sourceData("tennis-mensik-scoreboard")) as! [String: Any]
+        let game = try XCTUnwrap(SportsTennisFeed.parse(raw, tour: .atp).first)
+        let event = try JSONSerialization.jsonObject(with: sourceData("tennis-mensik-matchora"))
+        let key = UUID().uuidString
+        let session = sourceSession(key, replies: [
+            "/api/v1/events/es185185": (502, Data("{\"error\":\"upstream timeout\"}".utf8)),
+            "/api/v1/schedule": (200, try JSONSerialization.data(withJSONObject: ["events": [event]]))])
+        defer { session.invalidateAndCancel(); TennisSourceProtocol.remove(key) }
+        let sources = try await MatchoraProvider(session: session, now: { game.date! }).streams(game)
+        XCTAssertGreaterThan(sources.count, 3)
+        XCTAssertTrue(sources.contains { $0.title.contains("TENNIS CHANNEL") })
+        XCTAssertEqual(TennisSourceProtocol.paths(key), ["/api/v1/events/es185185", "/api/v1/schedule"])
+    }
+
+    func testGatewayFallbackCannotSubstituteAnotherTennisMatch() async throws {
+        let game = try XCTUnwrap(SportsTennisFeed.parse(scoreboard(), tour: .atp).first)
+        let key = UUID().uuidString
+        let otherEvent = try JSONSerialization.jsonObject(with: sourceData("tennis-mensik-matchora"))
+        let session = sourceSession(key, replies: [
+            "/api/v1/events/es185682": (503, Data("{}".utf8)),
+            "/api/v1/schedule": (200, try JSONSerialization.data(withJSONObject: ["events": [otherEvent]]))])
+        defer { session.invalidateAndCancel(); TennisSourceProtocol.remove(key) }
+        do {
+            _ = try await MatchoraProvider(session: session, now: { game.date! }).streams(game)
+            XCTFail("A gateway failure with no matching published source must remain retryable")
+        } catch { guard case .streamProviderUnavailable? = error as? SportsServiceError else { return XCTFail("Unexpected \(error)") } }
+        XCTAssertEqual(TennisSourceProtocol.paths(key).count, 2)
+    }
+
+    func testMissingFixtureEnvelopeMustNameTheRequestedMatchAndExact404Reason() throws {
+        let body = try sourceData("tennis-monnet-herea-502")
+        XCTAssertTrue(MatchoraProvider.missingTennisEvent(status: 502, data: body, id: "es185797"))
+        XCTAssertFalse(MatchoraProvider.missingTennisEvent(status: 502, data: body, id: "es185798"))
+        XCTAssertFalse(MatchoraProvider.missingTennisEvent(status: 503, data: body, id: "es185797"))
+        XCTAssertFalse(MatchoraProvider.missingTennisEvent(status: 502, data: Data("Bad Gateway".utf8), id: "es185797"))
+        let denied = try JSONSerialization.data(withJSONObject: ["error": "edge /sports/event/es185797 -> 404 {\"detail\":\"access denied\"}"])
+        XCTAssertFalse(MatchoraProvider.missingTennisEvent(status: 502, data: denied, id: "es185797"))
+    }
+
+    func testDeniedTennisLookupDoesNotUseTheGatewayFallback() async throws {
+        let game = try XCTUnwrap(SportsTennisFeed.parse(scoreboard(), tour: .atp).first)
+        let key = UUID().uuidString
+        let session = sourceSession(key, replies: ["/api/v1/events/es185682": (403, Data("{}".utf8))])
+        defer { session.invalidateAndCancel(); TennisSourceProtocol.remove(key) }
+        do { _ = try await MatchoraProvider(session: session, now: { game.date! }).streams(game); XCTFail("Denied lookup must stay denied") }
+        catch { guard case .unavailable(403)? = error as? SportsServiceError else { return XCTFail("Unexpected \(error)") } }
+        XCTAssertEqual(TennisSourceProtocol.paths(key).count, 1)
+    }
     private func scoreboard(state: String = "in", timeKnown: Bool = true) -> [String: Any] {
         let away: [String: Any] = ["id": "11", "homeAway": "away", "winner": state == "post",
             "athlete": ["displayName": "Jannik Sinner", "shortName": "J. Sinner"],
@@ -139,18 +213,19 @@ final class SportsTennisTests: XCTestCase {
 
 private final class TennisSourceProtocol: URLProtocol {
     private static let lock = NSLock()
-    private static var fixtures: [String: Data] = [:]
+    private static var fixtures: [String: [String: (Int, Data)]] = [:]
     private static var requests: [String: [String]] = [:]
-    static func register(_ key: String, data: Data) { lock.lock(); defer { lock.unlock() }; fixtures[key] = data; requests[key] = [] }
+    static func register(_ key: String, data: Data) { register(key, replies: ["/api/v1/events/es185185": (200, data)]) }
+    static func register(_ key: String, replies: [String: (Int, Data)]) { lock.lock(); defer { lock.unlock() }; fixtures[key] = replies; requests[key] = [] }
     static func remove(_ key: String) { lock.lock(); defer { lock.unlock() }; fixtures.removeValue(forKey: key); requests.removeValue(forKey: key) }
     static func paths(_ key: String) -> [String] { lock.lock(); defer { lock.unlock() }; return requests[key] ?? [] }
     override class func canInit(with request: URLRequest) -> Bool { request.value(forHTTPHeaderField: "X-Tennis-Test") != nil }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
         let key = request.value(forHTTPHeaderField: "X-Tennis-Test") ?? ""
-        Self.lock.lock(); let data = Self.fixtures[key]; Self.requests[key, default: []].append(request.url!.path); Self.lock.unlock()
-        guard let data, request.url?.path == "/api/v1/events/es185185" else { client?.urlProtocol(self, didFailWithError: URLError(.badURL)); return }
-        client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!, cacheStoragePolicy: .notAllowed)
+        Self.lock.lock(); let reply = Self.fixtures[key]?[request.url!.path]; Self.requests[key, default: []].append(request.url!.path); Self.lock.unlock()
+        guard let (status, data) = reply else { client?.urlProtocol(self, didFailWithError: URLError(.badURL)); return }
+        client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: data); client?.urlProtocolDidFinishLoading(self)
     }
     override func stopLoading() {}
