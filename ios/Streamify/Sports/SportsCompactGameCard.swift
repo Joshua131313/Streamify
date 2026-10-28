@@ -142,28 +142,28 @@ private struct SportsBaseballSituationView: View {
         ? Color(red: 250/255, green: 117/255, blue: 129/255) : Color(red: 199/255, green: 71/255, blue: 85/255) }
 
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 10) {
             if situation.hasBaseData {
                 SportsBaseballDiamond(situation: situation, gameID: game.id)
             }
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
                 dots("balls", value: situation.balls, maximum: 4, color: ballColor)
                 dots("strikes", value: situation.strikes, maximum: 3, color: pitchColor)
                 dots("outs", value: situation.outs, maximum: 2, color: pitchColor, slots: 2)
             }
-            Spacer(minLength: 0)
-        }.padding(.vertical, 4)
+        }.padding(8).background(AppTheme.foreground.opacity(0.035), in: RoundedRectangle(cornerRadius: 10))
+            .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 3)
     }
 
     private func dots(_ name: String, value: Int?, maximum: Int, color: Color, slots: Int? = nil) -> some View {
         let filled = min(maximum, max(0, value ?? 0))
-        return HStack(spacing: 6) {
+        return HStack(spacing: 4) {
             ForEach(0..<(slots ?? filled), id: \.self) { index in
                 Circle().fill(index < filled ? color : .clear)
                     .overlay { Circle().strokeBorder(index < filled ? .clear : AppTheme.foreground.opacity(value == nil ? 0.25 : 0.55), lineWidth: 1.2) }
-                    .frame(width: 10, height: 10)
+                    .frame(width: 7, height: 7)
             }
-        }.frame(minWidth: 10, minHeight: 10, alignment: .leading)
+        }.frame(minWidth: 29, minHeight: 7, alignment: .leading)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(name.capitalized)
             .accessibilityValue(value.map(String.init) ?? "Unknown")
@@ -175,15 +175,14 @@ private struct SportsBaseballDiamond: View {
     let situation: SportsBaseballSituation
     let gameID: String
     @Environment(\.colorScheme) private var colorScheme
-    private var occupied: Color { colorScheme == .dark
-        ? Color(red: 1, green: 0.81, blue: 0.40) : Color(red: 0.66, green: 0.35, blue: 0) }
+    private var occupied: Color { colorScheme == .dark ? .white : AppTheme.foreground }
 
     var body: some View {
         ZStack {
-            base("first", value: situation.firstOccupied).position(x: 53, y: 35)
-            base("second", value: situation.secondOccupied).position(x: 32, y: 14)
-            base("third", value: situation.thirdOccupied).position(x: 11, y: 35)
-        }.frame(width: 64, height: 48)
+            base("first", value: situation.firstOccupied).position(x: 39, y: 26)
+            base("second", value: situation.secondOccupied).position(x: 24, y: 11)
+            base("third", value: situation.thirdOccupied).position(x: 9, y: 26)
+        }.frame(width: 48, height: 36)
             .environment(\.layoutDirection, .leftToRight)
             .accessibilityElement(children: .contain).accessibilityIdentifier("sports-diamond-\(gameID)")
     }
@@ -193,8 +192,7 @@ private struct SportsBaseballDiamond: View {
             .overlay { RoundedRectangle(cornerRadius: 0.7).strokeBorder(
                 value == true ? occupied : AppTheme.foreground.opacity(value == nil ? 0.25 : 0.66),
                 style: StrokeStyle(lineWidth: 1, dash: value == nil ? [1.2, 1.2] : [])) }
-            .frame(width: 7.5, height: 7.5).rotationEffect(.degrees(45))
-            .shadow(color: value == true ? occupied.opacity(0.22) : .clear, radius: 2)
+            .frame(width: 11, height: 11).rotationEffect(.degrees(45))
             .accessibilityElement(children: .ignore).accessibilityLabel("\(name.capitalized) base")
             .accessibilityValue(value.map { $0 ? "Occupied" : "Empty" } ?? "Unknown")
             .accessibilityIdentifier("sports-base-\(name)-\(gameID)")

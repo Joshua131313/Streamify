@@ -556,6 +556,8 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertEqual(second.value as? String, "Empty")
         XCTAssertEqual(third.value as? String, "Occupied")
         XCTAssertFalse(home.exists)
+        XCTAssertGreaterThanOrEqual(first.frame.width, 14, "Runner bases must use the enlarged design")
+        XCTAssertLessThan(first.frame.midX - second.frame.midX, 20, "Runner bases must sit close together")
         // Only the three actual runner positions are shown, without a plate.
         XCTAssertGreaterThan(first.frame.midX, second.frame.midX)
         XCTAssertLessThan(third.frame.midX, second.frame.midX)
