@@ -49,6 +49,7 @@ struct SportsTennisMatch: Hashable, Sendable {
     var competitionID = ""
     var timeConfirmed = true
     var groupID: String { "\(tour.rawValue):\(tournamentID):\(discipline)" }
+    var isDoubles: Bool { discipline.localizedCaseInsensitiveContains("doubles") }
 }
 
 struct SportsTeam: Identifiable, Hashable, Sendable {
@@ -59,8 +60,13 @@ struct SportsTeam: Identifiable, Hashable, Sendable {
     var score = ""
     var record = ""
     var streamNames: [String] = []
+    var portrait: String? = nil
     var primaryColorHex: String? = nil
     var logoURL: URL? { sportsHTTPSURL(logo) }
+    var tennisDisplayName: String {
+        let seed = record.replacingOccurrences(of: "Seed ", with: "")
+        return Int(seed).map { "\(name) (\($0))" } ?? name
+    }
     func key(in league: SportsLeague) -> String { "\(league.rawValue):\(id)" }
 }
 
@@ -196,6 +202,8 @@ struct SportsTrackedGameAttributes: ActivityAttributes {
     var homeRecord: String? = nil
     var venue: String? = nil
     var start: Date? = nil
+    var awayPortrait: Data? = nil
+    var homePortrait: Data? = nil
     var gameKey: String { "\(league):\(eventID)" }
     var watchURL: URL {
         var value = URLComponents()

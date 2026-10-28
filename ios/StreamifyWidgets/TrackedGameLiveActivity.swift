@@ -3,7 +3,7 @@ import WidgetKit
 import ActivityKit
 import UIKit
 
-/// Logos are bundled: a Live Activity cannot fetch images.
+/// Team logos are bundled; bounded Tennis portraits are supplied by the app.
 struct TrackedGameLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: SportsTrackedGameAttributes.self) { context in
@@ -89,8 +89,15 @@ struct TrackedGameScoreCard: View {
 @ViewBuilder
 private func teamLogo(_ attributes: SportsTrackedGameAttributes, home: Bool, size: CGFloat) -> some View {
     let id = home ? attributes.homeID : attributes.awayID
-    if let image = UIImage(named: "team-\(attributes.league)-\(id)") {
+    let portrait = home ? attributes.homePortrait : attributes.awayPortrait
+    if let portrait, let image = UIImage(data: portrait) {
         Image(uiImage: image).resizable().scaledToFit().frame(width: size, height: size)
+            .clipShape(RoundedRectangle(cornerRadius: size * 0.18))
+    } else if let image = UIImage(named: "team-\(attributes.league)-\(id)") {
+        Image(uiImage: image).resizable().scaledToFit().frame(width: size, height: size)
+    } else if attributes.league == "tennis" {
+        Image(systemName: "person.crop.circle.fill").resizable().scaledToFit().frame(width: size, height: size)
+            .foregroundStyle(.white.opacity(0.5))
     } else {
         Text(home ? attributes.home : attributes.away).font(.system(size: size * 0.28, weight: .bold))
             .frame(width: size, height: size).background(.white.opacity(0.08), in: Circle())

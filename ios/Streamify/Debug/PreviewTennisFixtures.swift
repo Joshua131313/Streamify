@@ -31,14 +31,20 @@ enum PreviewTennisFixtures {
         let players = atp ? ["Jannik Sinner", "Carlos Alcaraz"] : ["Iga Swiatek", "Coco Gauff"]
         let competitors: [[String: Any]] = players.enumerated().map { index, name in
             ["id": "\(atp ? 100 : 200)\(index)", "homeAway": index == 0 ? "away" : "home",
+             "possession": index == 0, "curatedRank": ["current": index == 0 ? 8 : 0],
              "athlete": ["displayName": name, "shortName": name], "linescores": atp ? [["value": index == 0 ? 6 : 4], ["value": index == 0 ? 3 : 2]] : []]
         }
         let start = Date().addingTimeInterval(atp ? -900 : 1800)
         let competition: [String: Any] = ["id": atp ? "185682" : "185708", "date": ISO8601DateFormatter().string(from: start), "timeValid": true,
             "status": ["type": ["state": atp ? "in" : "pre", "detail": atp ? "2nd Set" : "Scheduled"]],
             "competitors": competitors, "round": ["displayName": "Round of 16"]]
+        var doubles = competition
+        doubles["id"] = atp ? "185683" : "185709"
+        doubles["competitors"] = [["id": "double-away", "homeAway": "away", "athlete": ["displayName": "Doubles Player One / Partner"]],
+                                  ["id": "double-home", "homeAway": "home", "athlete": ["displayName": "Doubles Player Two / Partner"]]]
         return ["id": atp ? "10-2026" : "232-2026", "name": atp ? "Vienna Open" : "Guangzhou Open",
-                "groupings": [["grouping": ["displayName": atp ? "Men's Singles" : "Women's Singles"], "competitions": [competition]]]]
+                "groupings": [["grouping": ["displayName": atp ? "Men's Singles" : "Women's Singles"], "competitions": [competition]],
+                              ["grouping": ["displayName": atp ? "Men's Doubles" : "Women's Doubles"], "competitions": [doubles]]]]
     }
 }
 #endif

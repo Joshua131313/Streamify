@@ -26,6 +26,59 @@ final class SportsTennisTests: XCTestCase {
         XCTAssertEqual(game.tennis?.round, "Round of 16")
     }
 
+    func testServingRequiresOneExplicitLiveCompetitorAndDoublesAreIdentified() throws {
+        var raw = scoreboard()
+        var tournament = raw.sportsObjects("events")[0]
+        var grouping = tournament.sportsObjects("groupings")[0]
+        var match = grouping.sportsObjects("competitions")[0]
+        var players = match.sportsObjects("competitors")
+        players[0]["possession"] = false; players[1]["possession"] = true
+        match["competitors"] = players; grouping["competitions"] = [match]
+        tournament["groupings"] = [grouping]; raw["events"] = [tournament]
+        let live = try XCTUnwrap(SportsTennisFeed.parse(raw, tour: .atp).first)
+        XCTAssertEqual(live.tennis?.servingID, live.home.id)
+        XCTAssertFalse(live.tennis!.isDoubles)
+        players[0]["possession"] = true; match["competitors"] = players
+        grouping["grouping"] = ["displayName": "Men's Doubles"]
+        grouping["competitions"] = [match]; tournament["groupings"] = [grouping]; raw["events"] = [tournament]
+        let conflict = try XCTUnwrap(SportsTennisFeed.parse(raw, tour: .atp).first)
+        XCTAssertNil(conflict.tennis?.servingID)
+        XCTAssertTrue(conflict.tennis!.isDoubles)
+    }
+
+    func testCapturedMensikMatchLoadsPublishedChannelsWithoutGlobalCatalogue() async throws {
+        let bundle = Bundle(for: Self.self)
+        func fixture(_ name: String) throws -> Data {
+            let url = try XCTUnwrap(bundle.url(forResource: name, withExtension: "json") ?? bundle.url(forResource: name, withExtension: "json", subdirectory: "Fixtures"))
+            return try Data(contentsOf: url)
+        }
+        let raw = try JSONSerialization.jsonObject(with: fixture("tennis-mensik-scoreboard")) as! [String: Any]
+        let game = try XCTUnwrap(SportsTennisFeed.parse(raw, tour: .atp).first)
+        let event = try fixture("tennis-mensik-matchora")
+        let key = UUID().uuidString
+        TennisSourceProtocol.register(key, data: event)
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [TennisSourceProtocol.self]
+        configuration.httpAdditionalHeaders = ["X-Tennis-Test": key]
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel(); TennisSourceProtocol.remove(key) }
+        let provider = MatchoraProvider(session: session, now: { game.date! })
+        let sources = try await provider.streams(game)
+        XCTAssertGreaterThan(sources.count, 3)
+        XCTAssertTrue(sources.contains { $0.title.contains("TENNIS CHANNEL") })
+        XCTAssertTrue(sources.allSatisfy { $0.url.host == "matchora.to" })
+        XCTAssertEqual(TennisSourceProtocol.paths(key), ["/api/v1/events/es185185"])
+    }
+
+    func testTrackedPortraitsRemainInsideActivityPayloadBudget() throws {
+        let attributes = SportsTrackedGameAttributes(league: "tennis", eventID: "espn-atp-185185",
+            away: "A. Mannarino", home: "J. Mensik", awayID: "atp-1266", homeID: "atp-10319",
+            awayName: "Adrian Mannarino", homeName: "Jakub Mensik", awayPortrait: Data(repeating: 1, count: 900), homePortrait: Data(repeating: 2, count: 900))
+        let data = try JSONEncoder().encode(attributes)
+        XCTAssertLessThan(data.count, 3300)
+        XCTAssertEqual(try JSONDecoder().decode(SportsTrackedGameAttributes.self, from: data).homePortrait?.count, 900)
+    }
+
     func testUnknownTimeAndMissingLivePointsStayUnknownAndTourIDsDoNotCollide() throws {
         let game = try XCTUnwrap(SportsTennisFeed.parse(scoreboard(state: "pre", timeKnown: false), tour: .atp).first)
         XCTAssertFalse(game.tennis!.timeConfirmed); XCTAssertFalse(game.canWatch)
@@ -82,4 +135,23 @@ final class SportsTennisTests: XCTestCase {
         XCTAssertFalse(SportsService.validTennisEventID("185682"))
         XCTAssertFalse(SportsService.validTennisEventID("espn-atp-../185682"))
     }
+}
+
+private final class TennisSourceProtocol: URLProtocol {
+    private static let lock = NSLock()
+    private static var fixtures: [String: Data] = [:]
+    private static var requests: [String: [String]] = [:]
+    static func register(_ key: String, data: Data) { lock.lock(); defer { lock.unlock() }; fixtures[key] = data; requests[key] = [] }
+    static func remove(_ key: String) { lock.lock(); defer { lock.unlock() }; fixtures.removeValue(forKey: key); requests.removeValue(forKey: key) }
+    static func paths(_ key: String) -> [String] { lock.lock(); defer { lock.unlock() }; return requests[key] ?? [] }
+    override class func canInit(with request: URLRequest) -> Bool { request.value(forHTTPHeaderField: "X-Tennis-Test") != nil }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        let key = request.value(forHTTPHeaderField: "X-Tennis-Test") ?? ""
+        Self.lock.lock(); let data = Self.fixtures[key]; Self.requests[key, default: []].append(request.url!.path); Self.lock.unlock()
+        guard let data, request.url?.path == "/api/v1/events/es185185" else { client?.urlProtocol(self, didFailWithError: URLError(.badURL)); return }
+        client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: data); client?.urlProtocolDidFinishLoading(self)
+    }
+    override func stopLoading() {}
 }

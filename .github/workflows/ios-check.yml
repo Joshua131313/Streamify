@@ -167,7 +167,7 @@ jobs:
           # Keep suite assignments explicit so each screen check runs once.
           case "$TEST_SUITE" in
             tennis-recheck)
-              SELECTORS=(-only-testing:StreamifyTests -only-testing:StreamifyUITests/TennisFlowTests)
+              SELECTORS=(-only-testing:StreamifyTests -only-testing:StreamifyUITests/TennisFlowTests -only-testing:StreamifyUITests/ParityFlowTests/testBaseballDiamondUsesLiveBaseStatesAndSymmetricFieldLayout -only-testing:StreamifyUITests/ParityFlowTests/testBasketballPossessionIconSitsImmediatelyBeforeTheCorrectScoreForBothLeagues)
               ;;
             tennis-chat)
               SELECTORS=(-only-testing:StreamifyTests -only-testing:StreamifyUITests/TennisFlowTests -only-testing:StreamifyUITests/SportsChatFlowTests -only-testing:StreamifyUITests/SportsMultiProviderFlowTests)

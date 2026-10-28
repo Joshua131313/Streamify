@@ -168,10 +168,10 @@ struct SportsService: Sendable {
             .merging(raw.sportsObject("situation")) { _, latest in latest }
             .merging(situationOverride ?? [:]) { _, latest in latest }
         // ESPN summary headers can publish a possession flag per competitor.
-        // Both false (or both true), and explicitly unsupported arrows, are unknown.
+        // The alternating-possession arrow is separate from the current ball.
+        // Both false (or both true) remain unknown.
         let possessing = competitors.filter { Self.explicitBool($0["possession"]) == true }
-        if ["football", "basketball"].contains(league.sport), possessing.count == 1,
-           Self.explicitBool(competition["possessionArrowAvailable"]) != false {
+        if ["football", "basketball"].contains(league.sport), possessing.count == 1 {
             situation["competitorPossessionTeamID"] = possessing[0].sportsObject("team").sportsText("id")
         }
         return SportsGame(eventID: raw.sportsText("id"), league: league, date: Self.parseDate(dateText), state: type.sportsText("state"),

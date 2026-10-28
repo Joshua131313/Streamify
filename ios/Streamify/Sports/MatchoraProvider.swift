@@ -11,6 +11,15 @@ struct MatchoraProvider: Sendable {
 
     func streams(_ game: SportsGame) async throws -> [SportsStream] {
         guard game.canWatch else { return [] }
+        if let id = Self.tennisEventID(game) {
+            // Tennis has an exact ESPN-backed event identity. The global
+            // watchable catalogue can lag behind its individual event page.
+            do {
+                let event = try await object("\(Self.origin)/api/v1/events/\(id)", cached: false)
+                guard Self.matches(event, game: game, now: now()) else { return [] }
+                return Self.sources(event, game: game)
+            } catch SportsServiceError.unavailable(404) { return [] }
+        }
         let catalog = try await object("\(Self.origin)/api/v1/schedule?watchable=1", cached: true)
         guard let events = catalog["events"] as? [[String: Any]] else { throw SportsServiceError.invalidResponse }
         let reference = now()
@@ -26,6 +35,12 @@ struct MatchoraProvider: Sendable {
         }
         try Task.checkCancellation()
         return Self.sources(event, game: game)
+    }
+
+    static func tennisEventID(_ game: SportsGame) -> String? {
+        guard game.league == .tennis, let tennis = game.tennis, tennis.source == "espn",
+              validID(tennis.competitionID) else { return nil }
+        return "es\(tennis.competitionID)"
     }
 
     static func matches(_ event: [String: Any], game: SportsGame, now: Date) -> Bool {

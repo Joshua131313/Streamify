@@ -62,7 +62,14 @@ struct SportsGameView: View {
                 do { try await Task.sleep(for: .seconds(60)) } catch { return }
             } while !Task.isCancelled
         }
-        .task(id: "\(game.id)-\(revision)") { await loadStreams() }
+        .task(id: "\(game.id)-\(revision)-\(current.canWatch)-\(scenePhase == .active)") {
+            guard scenePhase == .active else { return }
+            repeat {
+                await loadStreams()
+                guard current.canWatch, streams.isEmpty else { return }
+                do { try await Task.sleep(for: .seconds(30)) } catch { return }
+            } while !Task.isCancelled
+        }
         .sheet(item: $selectedTeam) { item in NavigationStack { SportsTeamView(result: item).environmentObject(queue) } }
         .sheet(isPresented: $showMultiWatch) { NavigationStack { SportsMultiWatchView().environmentObject(queue) } }
         .sheet(isPresented: $showChat) { SportsGameChatScreen(game: current) }
@@ -211,7 +218,7 @@ struct SportsGameView: View {
     private func loadStreams() async {
         streamsLoading = true
         defer { streamsLoading = false }
-        do { streams = try await SportsService().streams(game); streamsError = nil }
+        do { streams = try await SportsService().streams(current); streamsError = nil }
         catch is CancellationError { }
         catch { if !Task.isCancelled { streamsError = error.localizedDescription } }
     }

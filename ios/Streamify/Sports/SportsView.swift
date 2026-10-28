@@ -53,6 +53,7 @@ struct SportsView: View {
     @StateObject private var daySwipeScope = SportsDaySwipeScope()
     @State private var selectedLeague: SportsLeague?
     @State private var tennisTour: SportsTennisTour?
+    @State private var showTennisDoubles = false
     @State private var followedTeamsOnly = false
     @State private var day = Calendar.current.startOfDay(for: Date())
     @State private var currentToday = Calendar.current.startOfDay(for: Date())
@@ -98,6 +99,7 @@ struct SportsView: View {
         games.filter { game in
             guard selectedLeague == nil || selectedLeague == game.league else { return false }
             if selectedLeague == .tennis, let tennisTour, game.tennis?.tour != tennisTour { return false }
+            if !showTennisDoubles, game.tennis?.isDoubles == true { return false }
             if followedTeamsOnly && !library.followedTeams.contains(game.home.key(in: game.league)) && !library.followedTeams.contains(game.away.key(in: game.league)) { return false }
             let status: Bool
             switch filter {
@@ -297,7 +299,7 @@ struct SportsView: View {
             }.accessibilityIdentifier("sports-league-rail")
             Rectangle().fill(AppTheme.border).frame(height: 0.5)
             HStack(spacing: 0) {
-                ForEach(SportsFilter.allCases.filter { selectedLeague == .tennis || $0 != .all }) { item in
+                ForEach(SportsFilter.allCases.filter { $0 != .all }) { item in
                     statusTab(item)
                 }
                 Spacer(minLength: 2)
@@ -394,6 +396,10 @@ struct SportsView: View {
         NavigationStack {
             List {
                 Section("Display") {
+                    if selectedLeague == .tennis {
+                        Toggle("Show doubles", isOn: $showTennisDoubles)
+                            .tint(AppTheme.foreground).accessibilityIdentifier("tennis-show-doubles")
+                    }
                     ForEach(SportsLayout.allCases) { item in
                         Button { layout = item; home = false } label: {
                             HStack {
@@ -603,8 +609,7 @@ struct SportsView: View {
         let cached = scheduleCache.snapshot(leagues: value.map { [$0] } ?? SportsLeague.allCases, day: day, backend: settings.apiBase)
         selectedLeague = value
         tennisTour = nil
-        if value == .tennis { filter = .all }
-        else if filter == .all { filter = day < today ? .final : day > today ? .pregame : .live }
+        if filter == .all { filter = day < today ? .final : day > today ? .pregame : .live }
         followedTeamsOnly = false
         home = showHome; channels = false
         games = cached?.games ?? []

@@ -23,11 +23,13 @@ enum SportsTennisFeed {
                     let type = competition.sportsObject("status").sportsObject("type")
                     let state = type.sportsText("state")
                     guard ["pre", "in", "post"].contains(state) else { continue }
+                    let serving = [(awayRaw, away), (homeRaw, home)].filter { explicitBool($0.0["possession"]) == true }
                     let winners = [(awayRaw, away), (homeRaw, home)].filter { explicitBool($0.0["winner"]) == true }
                     let metadata = SportsTennisMatch(tour: tour, tournament: title, tournamentID: tournamentID,
                         discipline: discipline.isEmpty ? "Singles" : discipline,
                         round: competition.sportsObject("round").sportsText("displayName"),
                         awaySets: sets(awayRaw), homeSets: sets(homeRaw),
+                        servingID: state == "in" && serving.count == 1 ? serving.first?.1.id : nil,
                         winnerID: winners.count == 1 ? winners.first?.1.id : nil, competitionID: competitionID,
                         timeConfirmed: explicitBool(competition["timeValid"]) == true)
                     let venue = competition.sportsObject("venue")
@@ -53,7 +55,8 @@ enum SportsTennisFeed {
         return SportsTeam(id: "\(tour.rawValue.lowercased())-\(id)", name: name, abbreviation: short.isEmpty ? name : short,
             logo: athlete.sportsObject("flag").sportsText("href"),
             score: scores.isEmpty ? "" : String(scores.filter { explicitBool($0["winner"]) == true }.count),
-            record: Int(rank).map { $0 > 0 ? "Seed \($0)" : "" } ?? "", streamNames: [name, short].filter { !$0.isEmpty })
+            record: Int(rank).map { $0 > 0 ? "Seed \($0)" : "" } ?? "", streamNames: [name, short].filter { !$0.isEmpty },
+            portrait: athlete.sportsObject("headshot").sportsText("href").isEmpty ? nil : athlete.sportsObject("headshot").sportsText("href"))
     }
 
     private static func sets(_ raw: [String: Any]) -> [String] {

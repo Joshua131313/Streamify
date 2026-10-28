@@ -242,7 +242,8 @@ final class SportsLiveSituationTests: XCTestCase {
         }
         XCTAssertNil(SportsService().parseGame(event, league: .nba, situationOverride: ["possession": "19"])?.possessionTeam)
         competition["possessionArrowAvailable"] = false; event["competitions"] = [competition]
-        XCTAssertNil(SportsService().parseGame(event, league: .nba)?.possessionTeam)
+        XCTAssertEqual(SportsService().parseGame(event, league: .nba)?.possessionTeam?.id, "34")
+        XCTAssertEqual(SportsService().parseGame(event, league: .wnba)?.possessionTeam?.id, "34")
         competition["possessionArrowAvailable"] = true; teams[1]["possession"] = true
         competition["competitors"] = teams; event["competitions"] = [competition]
         XCTAssertNil(SportsService().parseGame(event, league: .nba)?.possessionTeam)
