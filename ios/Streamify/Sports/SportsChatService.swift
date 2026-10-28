@@ -279,7 +279,10 @@ final class SportsChatSubscription {
         defer { sending = false; userID = backend.currentUserID }
         do {
             try await backend.send(room: room, text: original, reply: quote)
-            if self.room == room, draft == original { draft = ""; reply = nil }
+            if self.room == room, draft == original {
+                draft = ""
+                if reply == quote { reply = nil }
+            }
         } catch is CancellationError { /* Preserve the unsent composer. */ }
         catch { if self.room == room { actionError = error.localizedDescription } }
     }

@@ -131,6 +131,40 @@ import Combine
         XCTAssertFalse(chat.sending)
     }
 
+    func testPendingSendPreservesANewlySelectedReply() async {
+        let backend = ChatBackendFixture()
+        let chat = SportsChatStore(backend: backend)
+        chat.listen(room: "BOS-TOR", active: true)
+        chat.draft = "First reply"; chat.reply = sample("first").quote
+        backend.suspend = true
+        let send = Task { await chat.send() }
+        for _ in 0..<20 { if backend.continuation != nil { break }; await Task.yield() }
+        XCTAssertNotNil(backend.continuation)
+        chat.reply = sample("next").quote
+        backend.continuation?.resume(); backend.continuation = nil
+        await send.value
+        XCTAssertEqual(backend.lastReply?.id, "first")
+        XCTAssertEqual(chat.draft, "")
+        XCTAssertEqual(chat.reply?.id, "next")
+    }
+
+    func testPendingSendPreservesANewMentionAndReply() async {
+        let backend = ChatBackendFixture()
+        let chat = SportsChatStore(backend: backend)
+        chat.listen(room: "BOS-TOR", active: true)
+        chat.draft = "First message"; chat.reply = sample("first").quote
+        backend.suspend = true
+        let send = Task { await chat.send() }
+        for _ in 0..<20 { if backend.continuation != nil { break }; await Task.yield() }
+        XCTAssertNotNil(backend.continuation)
+        chat.draft = "@nextfan "
+        chat.reply = sample("next").quote
+        backend.continuation?.resume(); backend.continuation = nil
+        await send.value
+        XCTAssertEqual(chat.draft, "@nextfan ")
+        XCTAssertEqual(chat.reply?.id, "next")
+    }
+
     func testRejectedReactionReportsErrorWithoutOptimisticallyChangingVotes() async {
         let backend = ChatBackendFixture()
         let store = SportsChatStore(backend: backend)
