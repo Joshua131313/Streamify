@@ -26,7 +26,7 @@ struct SportsLeaguePicker: View {
                                 else { draft.insert(league) }
                             } label: {
                                 HStack(spacing: 12) {
-                                    Image("league-\(league.rawValue)").resizable().scaledToFit().frame(width: 24, height: 24)
+                                    SportsLeagueIcon(league: league).frame(width: 24, height: 24)
                                     VStack(alignment: .leading, spacing: 3) {
                                         Text(league.title).font(.subheadline.weight(.semibold))
                                         Text(league.subtitle).font(.caption).foregroundStyle(AppTheme.muted)

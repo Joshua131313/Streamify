@@ -5,7 +5,7 @@ import XCTest
 /// Captured response shapes and intercepted HTTP only; no live player or API.
 final class StreamFreeProviderTests: XCTestCase {
     func testAllSixLeaguesRequireTheirOwnLeagueBothTeamsAndDate() {
-        for league in SportsLeague.allCases {
+        for league in SportsLeague.allCases where league != .tennis {
             let game = StreamFreeSnapshots.game(league)
             let item = StreamFreeSnapshots.item(game)
             XCTAssertTrue(StreamFreeProvider.matches(item, game: game, now: StreamFreeSnapshots.now), "Missing \(league)")
@@ -164,6 +164,7 @@ private enum StreamFreeSnapshots {
         case .ncaaf: teams = ("Georgia Bulldogs", "Alabama Crimson Tide")
         case .nhl: teams = ("Edmonton Oilers", "Detroit Red Wings")
         case .mlb: teams = ("Tampa Bay Rays", "Milwaukee Brewers")
+        case .tennis: teams = ("Jannik Sinner", "Carlos Alcaraz")
         }
         return SportsGame(eventID: "401909876", league: league, date: start, state: "in", status: "Live",
             home: SportsTeam(id: "home", name: teams.0, abbreviation: "HOME", logo: "", streamNames: league == .ncaaf ? ["Georgia"] : []),

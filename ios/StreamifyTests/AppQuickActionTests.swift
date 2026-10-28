@@ -36,10 +36,12 @@ final class AppQuickActionTests: XCTestCase {
         let router = AppQuickActionRouter()
         XCTAssertTrue(router.enqueue(url: try XCTUnwrap(URL(string: "streamify://sports"))))
         XCTAssertEqual(router.takePending()?.destination, .sports)
-        for league in SportsLeague.allCases {
+        for league in SportsLeague.allCases where league != .tennis {
             XCTAssertTrue(router.enqueue(url: try XCTUnwrap(URL(string: "streamify://sports/watch?league=\(league.rawValue)&event=401020304"))))
             XCTAssertEqual(router.takePending()?.destination, .watchSports(league: league, eventID: "401020304"))
         }
+        XCTAssertTrue(router.enqueue(url: try XCTUnwrap(URL(string: "streamify://sports/watch?league=tennis&event=espn-atp-185682"))))
+        XCTAssertEqual(router.takePending()?.destination, .watchSports(league: .tennis, eventID: "espn-atp-185682"))
         for value in [
             "https://sports/watch?league=nba&event=1", "streamify://other/watch?league=nba&event=1",
             "streamify://sports/unknown", "streamify://sports?league=nba",

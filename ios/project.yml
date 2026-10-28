@@ -70,6 +70,8 @@ targets:
           - Info.plist
       - path: Streamify/Sports/SportsModels.swift
       - path: Streamify/Sports/SportsService.swift
+      - path: Streamify/Sports/SportsTennisService.swift
+      - path: Streamify/Sports/SportsTennisExplorer.swift
       - path: Streamify/Sports/SportsSourceIdentity.swift
       - path: Streamify/Sports/StreamFreeProvider.swift
       - path: Streamify/Sports/MatchoraProvider.swift

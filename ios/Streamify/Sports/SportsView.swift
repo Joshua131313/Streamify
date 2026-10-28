@@ -20,7 +20,7 @@ final class SportsWatchQueue: ObservableObject {
 }
 
 private enum SportsFilter: String, CaseIterable, Identifiable {
-    case live = "Live", pregame = "Pregame", final = "Final"
+    case all = "All", live = "Live", pregame = "Pregame", final = "Final"
     var id: String { rawValue }
 }
 
@@ -52,6 +52,7 @@ struct SportsView: View {
     @StateObject private var scheduleCache = SportsScheduleCache()
     @StateObject private var daySwipeScope = SportsDaySwipeScope()
     @State private var selectedLeague: SportsLeague?
+    @State private var tennisTour: SportsTennisTour?
     @State private var followedTeamsOnly = false
     @State private var day = Calendar.current.startOfDay(for: Date())
     @State private var currentToday = Calendar.current.startOfDay(for: Date())
@@ -96,9 +97,11 @@ struct SportsView: View {
     private var filteredGames: [SportsGame] {
         games.filter { game in
             guard selectedLeague == nil || selectedLeague == game.league else { return false }
+            if selectedLeague == .tennis, let tennisTour, game.tennis?.tour != tennisTour { return false }
             if followedTeamsOnly && !library.followedTeams.contains(game.home.key(in: game.league)) && !library.followedTeams.contains(game.away.key(in: game.league)) { return false }
             let status: Bool
             switch filter {
+            case .all: status = true
             case .live: status = game.isLive
             case .final: status = game.isFinal
             case .pregame: status = game.state == "pre"
@@ -110,6 +113,7 @@ struct SportsView: View {
     private var emptyScheduleMessage: String {
         if followedTeamsOnly && library.followedTeams.isEmpty { return "Follow teams from their team pages to see their games here." }
         switch filter {
+        case .all: return "No tennis matches are scheduled for this date. Try another day."
         case .live: return "No games are live right now. Check Pregame for the next tip-off or kickoff."
         case .pregame: return "No games are waiting to start on this date. Try another day or league."
         case .final: return "No final results for this selection yet. Try another league."
@@ -120,6 +124,18 @@ struct SportsView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 12) {
                 compactToolbar
+                if selectedLeague == .tennis {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            Pill(title: "All tours", selected: tennisTour == nil) { tennisTour = nil }
+                                .accessibilityIdentifier("tennis-tour-all")
+                            ForEach([SportsTennisTour.atp, .wta, .challenger], id: \.rawValue) { tour in
+                                Pill(title: tour.rawValue, selected: tennisTour == tour) { tennisTour = tour }
+                                    .accessibilityIdentifier("tennis-tour-\(tour.rawValue.lowercased())")
+                            }
+                        }.padding(.horizontal, 14)
+                    }.sportsDaySwipeExcluded(daySwipeScope)
+                }
                 if channels {
                     SportsChannelsView()
                 } else {
@@ -130,7 +146,7 @@ struct SportsView: View {
                     } else {
                         scheduleDayContent
                     }
-                    Text("Scores refresh every 30 seconds. Times are local. Scores and schedules by ESPN.").font(.caption).foregroundStyle(AppTheme.muted).padding(.horizontal, 20)
+                    Text(selectedLeague == .tennis ? "ATP and WTA scores by ESPN. Challenger schedules and results by TennisExplorer; live Challenger scores may be unavailable. Times are local." : "Scores refresh every 30 seconds. Times are local. Scores and schedules by ESPN.").font(.caption).foregroundStyle(AppTheme.muted).padding(.horizontal, 20)
                 }
             }.padding(.top, 4).padding(.bottom, 110)
         }
@@ -281,7 +297,7 @@ struct SportsView: View {
             }.accessibilityIdentifier("sports-league-rail")
             Rectangle().fill(AppTheme.border).frame(height: 0.5)
             HStack(spacing: 0) {
-                ForEach(SportsFilter.allCases) { item in
+                ForEach(SportsFilter.allCases.filter { selectedLeague == .tennis || $0 != .all }) { item in
                     statusTab(item)
                 }
                 Spacer(minLength: 2)
@@ -308,7 +324,7 @@ struct SportsView: View {
             VStack(spacing: 5) {
                 Group {
                     if let league {
-                        Image("league-\(league.rawValue)").resizable().scaledToFit().frame(width: 23, height: 23)
+                        SportsLeagueIcon(league: league).frame(width: 23, height: 23)
                     } else {
                         Image(systemName: selected ? "\(symbol ?? "sportscourt").fill" : symbol ?? "sportscourt")
                             .font(.system(size: 21, weight: .regular))
@@ -462,7 +478,7 @@ struct SportsView: View {
                     let selected = selectedLeague == item && !followedTeamsOnly
                     Button { toggleCalendarLeague(item) } label: {
                         HStack(spacing: 6) {
-                            Image("league-\(item.rawValue)").resizable().scaledToFit().frame(width: 18, height: 18).accessibilityHidden(true)
+                            SportsLeagueIcon(league: item).frame(width: 18, height: 18).accessibilityHidden(true)
                             Circle().fill(leagueDotColor(item)).frame(width: 5, height: 5)
                             Text(item.title).font(.caption2.weight(selected ? .semibold : .regular))
                             if selected { Image(systemName: "checkmark").font(.system(size: 9, weight: .semibold)) }
@@ -497,6 +513,7 @@ struct SportsView: View {
         case .wnba: return Color(red: 0.86, green: 0.40, blue: 0.71)
         case .nhl: return Color(red: 0.27, green: 0.74, blue: 0.70)
         case .mlb: return Color(red: 0.58, green: 0.45, blue: 0.91)
+        case .tennis: return Color(red: 0.70, green: 0.82, blue: 0.38)
         }
     }
 
@@ -585,6 +602,9 @@ struct SportsView: View {
         scheduleRequest = UUID()
         let cached = scheduleCache.snapshot(leagues: value.map { [$0] } ?? SportsLeague.allCases, day: day, backend: settings.apiBase)
         selectedLeague = value
+        tennisTour = nil
+        if value == .tennis { filter = .all }
+        else if filter == .all { filter = day < today ? .final : day > today ? .pregame : .live }
         followedTeamsOnly = false
         home = showHome; channels = false
         games = cached?.games ?? []
@@ -598,7 +618,7 @@ struct SportsView: View {
         ForEach(SportsHomeOrder.leagues(withGames: Set(filteredGames.map(\.league)))) { item in
             VStack(spacing: 14) {
                 HStack(spacing: 12) {
-                    Image("league-\(item.rawValue)").resizable().scaledToFit().frame(width: 24, height: 24)
+                    SportsLeagueIcon(league: item).frame(width: 24, height: 24)
                     Text(item.title).font(.headline)
                     Spacer()
                     Button("View all") { chooseLeague(item) }.font(.caption.weight(.semibold)).padding(.horizontal, 14).frame(minHeight: 44).streamifyControlSurface()
@@ -612,7 +632,23 @@ struct SportsView: View {
     }
 
     @ViewBuilder private var gameList: some View {
-        if layout == .slider && !filteredGames.isEmpty {
+        if selectedLeague == .tennis {
+            ForEach(SportsTennisGroup.groups(filteredGames)) { group in
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        Text(group.tour.rawValue).font(.caption.weight(.bold)).padding(.horizontal, 8).padding(.vertical, 5)
+                            .background(AppTheme.foreground.opacity(0.07), in: RoundedRectangle(cornerRadius: 6))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(group.tournament).font(.subheadline.weight(.semibold))
+                            Text(group.discipline).font(.caption2).foregroundStyle(AppTheme.muted)
+                        }
+                        Spacer(minLength: 0)
+                        Text("\(group.games.count)").font(.caption).foregroundStyle(AppTheme.muted)
+                    }.padding(.horizontal, 6).padding(.top, 8)
+                    ForEach(group.games) { game in SportsGameCard(game: game, daySwipeScope: daySwipeScope) { selectedGame = game } }
+                }.padding(.horizontal, 8).accessibilityIdentifier("tennis-group-\(group.id)")
+            }
+        } else if layout == .slider && !filteredGames.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) { ForEach(filteredGames) { game in SportsGameCard(game: game, daySwipeScope: daySwipeScope) { selectedGame = game }.frame(width: 300) } }.padding(.horizontal, 20)
             }
@@ -673,7 +709,7 @@ struct SportsView: View {
         let calendar = Calendar.current
         let jobs: [(SportsLeague, Date, String)] = {
             var result: [(SportsLeague, Date, String)] = []
-            for item in SportsLeague.allCases {
+            for item in SportsLeague.allCases where item != .tennis {
                 for offset in -3...14 {
                     guard let date = calendar.date(byAdding: .day, value: offset, to: referenceToday) else { continue }
                     for parameters in item.scoreboardParameters { result.append((item, date, parameters)) }
@@ -712,7 +748,9 @@ struct SportsView: View {
             try Task.checkCancellation()
             guard referenceToday == today, start == firstDay else { return }
             var markers: [Date: Set<SportsLeague>] = [:]
-            for game in SportsScheduleDayPolicy.canonicalGames(batches.flatMap(\.games)) {
+            // Tennis's nested tournament feeds are already loaded by the page;
+            // calendar dots must not trigger dozens of additional HTML requests.
+            for game in SportsScheduleDayPolicy.canonicalGames(batches.flatMap(\.games) + games.filter { $0.league == .tennis }) {
                 guard let date = SportsScheduleDayPolicy.markerDay(for: game, now: referenceTime, calendar: calendar), date >= start, date <= end else { continue }
                 markers[date, default: []].insert(game.league)
             }
@@ -743,6 +781,10 @@ struct SportsGameCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             gameHeader
+            if let tennis = game.tennis {
+                Text([tennis.tournament, tennis.round].filter { !$0.isEmpty }.joined(separator: " · "))
+                    .font(.caption2).foregroundStyle(AppTheme.muted).padding(.bottom, 4)
+            }
             VStack(spacing: 0) {
                 teamControl(game.away)
                 teamControl(game.home)
@@ -822,7 +864,7 @@ struct SportsGameCard: View {
             action()
         } label: {
             HStack(spacing: 7) {
-                Image("league-\(game.league.rawValue)").resizable().scaledToFit()
+                SportsLeagueIcon(league: game.league)
                     .frame(width: 16, height: 16).frame(width: 20, height: 20).accessibilityHidden(true)
                 Text(game.league == .ncaaf ? "CFB" : game.league.title).foregroundStyle(AppTheme.muted)
                 Spacer(minLength: 8)
@@ -849,8 +891,10 @@ struct SportsGameCard: View {
                 library.toggleTeam(team.key(in: game.league))
             } label: { Label("\(following ? "Unfollow" : "Follow") \(team.name)", systemImage: following ? "star.slash" : "star") }
                 .accessibilityIdentifier("sports-card-follow-\(game.id)-\(team.id)")
-            Button("View team", systemImage: "person.3") { openTeam(team) }
-                .accessibilityIdentifier("sports-card-open-team-\(game.id)-\(team.id)")
+            if game.league != .tennis {
+                Button("View team", systemImage: "person.3") { openTeam(team) }
+                    .accessibilityIdentifier("sports-card-open-team-\(game.id)-\(team.id)")
+            }
         } preview: {
             matchTeam(team, preview: true).padding(.horizontal, 12).padding(.vertical, 5).frame(width: 320)
                 .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 10))
@@ -869,6 +913,7 @@ struct SportsGameCard: View {
     }
 
     private var clockLabel: String {
+        if game.state == "pre", game.tennis?.timeConfirmed == false { return "Time TBA" }
         guard game.isLive else { return game.isFinal ? "FINAL" : game.date?.formatted(date: .omitted, time: .shortened) ?? "Time TBD" }
         if game.league != .mlb, !game.status.lowercased().contains("half"),
            let situation = game.liveSituation, let period = situation.period, period > 0,
@@ -879,15 +924,17 @@ struct SportsGameCard: View {
         return game.status
     }
 
-    private func matchTeam(_ team: SportsTeam, preview: Bool = false) -> some View {
-        HStack(spacing: 7) {
+    @ViewBuilder private func matchTeam(_ team: SportsTeam, preview: Bool = false) -> some View {
+        if game.tennis != nil {
+            SportsTennisScoreRow(game: game, player: team, preview: preview)
+        } else { HStack(spacing: 7) {
             RemoteArtwork(url: team.logoURL, contentMode: .fit).frame(width: 25, height: 25)
             Text(team.name.isEmpty ? team.abbreviation : team.name)
                 .font(.system(size: 14, weight: .semibold)).lineLimit(preview ? 2 : 1)
                 .foregroundStyle(!preview && game.winner != nil && game.winner?.id != team.id ? AppTheme.muted : AppTheme.foreground)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if !preview && game.state != "pre" { score(team) }
-        }.frame(minHeight: 44)
+        }.frame(minHeight: 44) }
     }
 
     private func score(_ team: SportsTeam) -> some View {

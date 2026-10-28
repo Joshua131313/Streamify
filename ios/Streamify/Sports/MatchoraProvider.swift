@@ -29,16 +29,19 @@ struct MatchoraProvider: Sendable {
     }
 
     static func matches(_ event: [String: Any], game: SportsGame, now: Date) -> Bool {
-        guard let id = event["id"] as? String, validID(id), event["finished"] as? Bool != true,
+        guard let id = event["id"] as? String, validEventID(id, tennis: game.league == .tennis), event["finished"] as? Bool != true,
               let home = event["home"] as? String, let away = event["away"] as? String,
-              SportsSourceIdentity.leagueMatches(event.sportsText("league"), game: game),
               SportsSourceIdentity.teamsMatch("\(home) vs \(away)", game: game),
               let start = start(event) else { return false }
+        if game.league == .tennis {
+            guard let tennis = game.tennis, tennis.source == "espn", !tennis.competitionID.isEmpty,
+                  id == "es\(tennis.competitionID)", event.sportsText("sport").lowercased() == "tennis" else { return false }
+        } else if !SportsSourceIdentity.leagueMatches(event.sportsText("league"), game: game) { return false }
         return SportsSourceIdentity.sourceDateMatches(start, game: game, now: now)
     }
 
     static func sources(_ event: [String: Any], game: SportsGame) -> [SportsStream] {
-        guard let eventID = event["id"] as? String, validID(eventID) else { return [] }
+        guard let eventID = event["id"] as? String, validEventID(eventID, tennis: game.league == .tennis) else { return [] }
         let channels = (event["channels"] as? [[String: Any]] ?? []).enumerated().compactMap { index, channel -> Channel? in
             guard channel["dead"] as? Bool != true, let id = channel["id"] as? String,
                   let raw = channel["embed_url"] as? String,
@@ -74,7 +77,7 @@ struct MatchoraProvider: Sendable {
     /// usable. Do not trust another event ID, encoded traversal, credential URL,
     /// arbitrary host, or a request for a nonstandard network port.
     static func embed(_ raw: String, kind: String, id: String) -> URL? {
-        guard ["match", "channel"].contains(kind), validID(id),
+        guard ["match", "channel"].contains(kind), (kind == "match" ? (validID(id) || validEventID(id, tennis: true)) : validID(id)),
               let value = URLComponents(string: raw), value.scheme?.lowercased() == "https",
               value.host?.lowercased() == "matchora.to", value.user == nil, value.password == nil,
               value.port == nil || value.port == 443, value.query == nil, value.fragment == nil,
@@ -94,6 +97,9 @@ struct MatchoraProvider: Sendable {
 
     private static func validID(_ id: String) -> Bool {
         !id.isEmpty && id.utf8.count <= 18 && id.utf8.allSatisfy { (48...57).contains($0) }
+    }
+    private static func validEventID(_ id: String, tennis: Bool) -> Bool {
+        tennis ? (id.hasPrefix("es") && validID(String(id.dropFirst(2)))) : validID(id)
     }
     private static func start(_ event: [String: Any]) -> Date? {
         guard let seconds = event["kickoff"] as? NSNumber, CFGetTypeID(seconds) != CFBooleanGetTypeID(),

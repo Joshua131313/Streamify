@@ -229,6 +229,7 @@ enum PreviewFixtures {
          MediaItem(id: 53, kind: .tv, title: "Northbound", overview: synopsis, posterPath: "/fixture-pirates.jpg", backdropPath: "/fixture-pirates.jpg", rating: 8.3, releaseDate: "2024-12-10", genreIDs: [18])].map(mediaJSON)
     }
     fileprivate static func response(_ request: URLRequest) -> (Int, String, Data) {
+        if let tennis = PreviewTennisFixtures.response(request) { return tennis }
         guard let url = request.url else { return (404, "application/json", Data("{}".utf8)) }
         let host = url.host ?? "", path = url.path
         var value: Any = [String: Any]()

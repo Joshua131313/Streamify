@@ -89,6 +89,28 @@ final class SportsChatFlowTests: XCTestCase {
         capture("Guest composer caps input at the Android compatible thousand character limit")
     }
 
+    func testReplyPreviewCancelAndQuotedMessageNavigationKeepDraft() {
+        openChat()
+        let reply = app.buttons["Reply to Guest 2048"]
+        reveal(reply); reply.tap()
+        let composer = element("sports-chat-composer")
+        XCTAssertTrue(element("sports-chat-reply-preview").exists)
+        composer.tap(); composer.typeText("Nice play!")
+        app.buttons["Cancel reply"].tap()
+        XCTAssertFalse(element("sports-chat-reply-preview").exists)
+        XCTAssertEqual(composer.value as? String, "Nice play!")
+        app.navigationBars["Game chat"].tap()
+        reveal(reply); reply.tap()
+        capture("Compact reply composer preserves the draft")
+        app.buttons["sports-chat-send"].tap()
+        let quote = app.buttons["View reply to Guest 2048"]
+        XCTAssertTrue(quote.waitForExistence(timeout: 5))
+        XCTAssertFalse(element("sports-chat-reply-preview").exists)
+        quote.tap()
+        XCTAssertTrue(element("sports-chat-message-fixture-chat-1").isHittable)
+        capture("Sent quote returns to its original message")
+    }
+
     private func openChat() {
         app.buttons["tab-sports"].tap()
         let center = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'sports-game-'")).firstMatch

@@ -3,13 +3,13 @@ import SwiftUI
 import ActivityKit
 
 enum SportsLeague: String, CaseIterable, Identifiable, Codable, Sendable {
-    case nfl
+    case nhl, nba, wnba, nfl
     case ncaaf = "college-football"
-    case nba, wnba, nhl, mlb
+    case tennis, mlb
     var id: String { rawValue }
-    var title: String { self == .ncaaf ? "NCAAF" : rawValue.uppercased() }
+    var title: String { self == .tennis ? "Tennis" : self == .ncaaf ? "NCAAF" : rawValue.uppercased() }
     var sport: String {
-        switch self { case .nfl, .ncaaf: return "football"; case .nba, .wnba: return "basketball"; case .nhl: return "hockey"; case .mlb: return "baseball" }
+        switch self { case .nfl, .ncaaf: return "football"; case .nba, .wnba: return "basketball"; case .nhl: return "hockey"; case .mlb: return "baseball"; case .tennis: return "tennis" }
     }
     var category: String { self == .nfl || self == .ncaaf ? "american-football" : sport }
     var subtitle: String { self == .ncaaf ? "College football" : self == .nfl ? "American football" : sport.capitalized }
@@ -19,11 +19,36 @@ enum SportsLeague: String, CaseIterable, Identifiable, Codable, Sendable {
         case .nba: return Color(red: 0.96, green: 0.64, blue: 0.36)
         case .wnba: return Color(red: 0.98, green: 0.53, blue: 0.45)
         case .nhl: return Color(red: 0.48, green: 0.78, blue: 0.95)
-        case .mlb: return Color(red: 0.44, green: 0.79, blue: 0.65) }
+        case .mlb: return Color(red: 0.44, green: 0.79, blue: 0.65)
+        case .tennis: return Color(red: 0.70, green: 0.82, blue: 0.38) }
     }
     var endpoint: String { "https://site.api.espn.com/apis/site/v2/sports/\(sport)/\(rawValue)" }
     /// ESPN's unfiltered college feed omits games; merge FBS and FCS explicitly.
     var scoreboardParameters: [String] { self == .ncaaf ? ["&groups=80&limit=1000", "&groups=81&limit=1000"] : ["&limit=100"] }
+}
+
+enum SportsTennisTour: String, CaseIterable, Hashable, Sendable {
+    case atp = "ATP", wta = "WTA", challenger = "Challenger", other = "Other tennis"
+}
+
+/// Tournament and per-match scoring are separate from team-sport periods.
+/// Missing point/serve data stays absent rather than being inferred from a score.
+struct SportsTennisMatch: Hashable, Sendable {
+    let tour: SportsTennisTour
+    let tournament: String
+    let tournamentID: String
+    var discipline = "Singles"
+    var round = ""
+    var awaySets: [String] = []
+    var homeSets: [String] = []
+    var awayPoint: String? = nil
+    var homePoint: String? = nil
+    var servingID: String? = nil
+    var winnerID: String? = nil
+    var source = "espn"
+    var competitionID = ""
+    var timeConfirmed = true
+    var groupID: String { "\(tour.rawValue):\(tournamentID):\(discipline)" }
 }
 
 struct SportsTeam: Identifiable, Hashable, Sendable {
@@ -100,6 +125,7 @@ struct SportsGame: Identifiable, Hashable, Sendable {
     let broadcasts: String
     let link: String
     var liveSituation: SportsLiveSituation? = nil
+    var tennis: SportsTennisMatch? = nil
     var id: String { "\(league.rawValue):\(eventID)" }
     var isLive: Bool { state == "in" }
     var isFinal: Bool { state == "post" }
@@ -134,6 +160,7 @@ struct SportsGame: Identifiable, Hashable, Sendable {
         return (awayScore, homeScore)
     }
     var winner: SportsTeam? {
+        if let tennis { return isFinal ? [away, home].first { $0.id == tennis.winnerID } : nil }
         guard let scores = finalScores, scores.away != scores.home else { return nil }
         return scores.away > scores.home ? away : home
     }
@@ -143,7 +170,7 @@ struct SportsGame: Identifiable, Hashable, Sendable {
         return isTied ? "Tied game" : nil
     }
     var canWatch: Bool {
-        isLive || (state == "pre" && date.map { (0...3600).contains($0.timeIntervalSinceNow) } == true)
+        isLive || (state == "pre" && tennis?.timeConfirmed != false && date.map { (0...3600).contains($0.timeIntervalSinceNow) } == true)
     }
 }
 

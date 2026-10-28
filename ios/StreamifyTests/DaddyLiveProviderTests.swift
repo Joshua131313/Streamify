@@ -6,7 +6,7 @@ import XCTest
 /// No protected API, player document, authentication or video is requested.
 final class DaddyLiveProviderTests: XCTestCase {
     func testAllSixLeaguesUseBothFullTeamsAndPublishedChannelLinks() throws {
-        for league in SportsLeague.allCases {
+        for league in SportsLeague.allCases where league != .tennis {
             let game = DaddyFixture.game(league)
             let suffix = league == .wnba ? " W" : ""
             let title = "🏀 \(league == .ncaaf ? "NCAAF" : league.title) : \(game.home.name)\(suffix) 🇺🇸 vs \(game.away.name)\(suffix) 🇨🇦"
@@ -234,6 +234,7 @@ private enum DaddyFixture {
         case .ncaaf: names = ("Alabama Crimson Tide", "Georgia Bulldogs")
         case .nhl: names = ("Detroit Red Wings", "Edmonton Oilers")
         case .mlb: names = ("Milwaukee Brewers", "Tampa Bay Rays")
+        case .tennis: names = ("Jannik Sinner", "Carlos Alcaraz")
         }
         return SportsGame(eventID: "401020304", league: league, date: date ?? instant, state: "in", status: "Live",
                           home: SportsTeam(id: "h", name: home ?? names.1, abbreviation: "HOME", logo: ""),

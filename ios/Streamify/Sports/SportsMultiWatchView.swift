@@ -128,7 +128,7 @@ private struct SportsLiveGamePicker: View {
                 ForEach(games) { game in
                     Button { loadStream(game) } label: {
                         HStack(spacing: 12) {
-                            Image("league-\(game.league.rawValue)").resizable().scaledToFit().frame(width: 32, height: 32)
+                            SportsLeagueIcon(league: game.league).frame(width: 32, height: 32)
                             VStack(alignment: .leading, spacing: 5) {
                                 Text("\(game.away.abbreviation) vs \(game.home.abbreviation)").font(.subheadline.weight(.semibold))
                                 Text(game.isLive ? "Live · \(game.status)" : game.date?.formatted(date: .omitted, time: .shortened) ?? "TBD").font(.caption).foregroundStyle(AppTheme.muted)

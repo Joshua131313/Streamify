@@ -20,6 +20,10 @@ enum SportsSourceIdentity {
         case .wnba: aliases = ["wnba", "womensnationalbasketballassociation"]
         case .nhl: aliases = ["nhl", "nationalhockeyleague", "nhlicehockey"]
         case .mlb: aliases = ["mlb", "majorleaguebaseball"]
+        case .tennis:
+            // Tennis providers name tournaments, not a shared team league.
+            // Exact competition-ID matching is handled by their tennis adapter.
+            return game.tennis.map { normalized(label) == normalized($0.tournament) } ?? false
         }
         return aliases.contains(normalized(label))
     }
@@ -40,7 +44,7 @@ enum SportsSourceIdentity {
         func aliases(_ team: SportsTeam) -> Set<String> {
             let full = teamName(team.name)
             return Set(([team.name] + team.streamNames).map(teamName).filter {
-                !$0.isEmpty && (game.league == .ncaaf || $0 == full || full.hasSuffix($0))
+                !$0.isEmpty && (game.league == .ncaaf || game.league == .tennis || $0 == full || full.hasSuffix($0))
             })
         }
         func names(_ side: String) -> Set<String> {

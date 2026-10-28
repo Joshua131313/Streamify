@@ -18,7 +18,7 @@ struct SportsGameView: View {
     @State private var showMultiWatch = false
     @State private var showChat = false
     private var current: SportsGame { center?.game ?? game }
-    private var tabs: [String] { ["Overview", "Scoring", "Team stats"] + (current.state == "pre" ? [] : ["Players"]) + [current.isFinal ? "Play-by-play" : "Latest play", "Chat"] }
+    private var tabs: [String] { current.league == .tennis ? ["Overview", "Sets", "Chat"] : ["Overview", "Scoring", "Team stats"] + (current.state == "pre" ? [] : ["Players"]) + [current.isFinal ? "Play-by-play" : "Latest play", "Chat"] }
 
     var body: some View {
         ScrollView {
@@ -33,7 +33,7 @@ struct SportsGameView: View {
                     StateMessage(symbol: "exclamationmark.circle", title: "Detailed feed unavailable", message: error, actionTitle: "Retry", action: { revision += 1 })
                 }
                 if tab == "Overview" { overview }
-                if tab == "Scoring" {
+                if tab == "Scoring" || tab == "Sets" {
                     if let scoring = center?.scoring, !scoring.isEmpty { SportsScoringTable(game: current, periods: scoring) }
                     else { StateMessage(symbol: "chart.bar.xaxis", title: "Awaiting scoring", message: "A breakdown is not available in the current feed.") }
                 }
@@ -50,7 +50,7 @@ struct SportsGameView: View {
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
             ToolbarItem(placement: .primaryAction) {
-                if let url = sportsHTTPSURL(game.link) { Link(destination: url) { Text("ESPN ↗").font(.caption.bold()) }.accessibilityLabel("Open game on ESPN") }
+                if let url = sportsHTTPSURL(game.link) { Link(destination: url) { Text(game.tennis?.source == "tennisexplorer" ? "Details ↗" : "ESPN ↗").font(.caption.bold()) }.accessibilityLabel("Open match source") }
             }
         }
         .task(id: "\(game.id)-\(revision)-\(scenePhase == .active)") {
@@ -83,7 +83,13 @@ struct SportsGameView: View {
                 Spacer(minLength: 6)
                 if current.isLive { Text(current.league.title).font(.caption2.weight(.semibold)).foregroundStyle(AppTheme.muted) }
             }
-            VStack(spacing: 0) {
+            if let tennis = current.tennis {
+                Text([tennis.tour.rawValue, tennis.tournament, tennis.discipline, tennis.round].filter { !$0.isEmpty }.joined(separator: " · "))
+                    .font(.caption).foregroundStyle(AppTheme.muted)
+                ForEach([current.away, current.home]) { player in
+                    HStack { SportsTennisScoreRow(game: current, player: player); followButton(player) }
+                }
+            } else { VStack(spacing: 0) {
                 ForEach([current.away, current.home]) { team in
                     HStack(spacing: 0) {
                         Button { selectedTeam = SportsTeamResult(league: game.league, team: team) } label: {
@@ -111,9 +117,9 @@ struct SportsGameView: View {
                     }
                     if team.id == current.away.id { Rectangle().fill(AppTheme.border.opacity(0.6)).frame(height: 0.5).accessibilityHidden(true) }
                 }
-            }
+            } }
             if current.isLive { SportsLiveSituationView(game: current) }
-            Text([current.date?.formatted(date: .abbreviated, time: .shortened) ?? "Time to be announced", current.venue]
+            Text([current.tennis?.timeConfirmed == false ? (current.date?.formatted(date: .abbreviated, time: .omitted) ?? "") + " · Time TBA" : current.date?.formatted(date: .abbreviated, time: .shortened) ?? "Time to be announced", current.venue]
                 .filter { !$0.isEmpty }.joined(separator: " · "))
                 .font(.caption2).foregroundStyle(AppTheme.muted).lineLimit(2)
         }.padding(14).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 16))
@@ -330,7 +336,7 @@ struct SportsScoringTable: View {
     @ScaledMetric(relativeTo: .title2) private var totalSize: CGFloat = 20
 
     private var subtitle: String {
-        "\(game.league.title) · " + (game.league == .mlb ? "Inning by inning" : game.league == .nhl ? "Period by period" : "Quarter by quarter")
+        "\(game.league.title) · " + (game.league == .tennis ? "Set by set" : game.league == .mlb ? "Inning by inning" : game.league == .nhl ? "Period by period" : "Quarter by quarter")
     }
     private var teamColumnWidth: CGFloat { min(116, teamWidth) }
     private var totalColumnWidth: CGFloat { min(84, totalWidth) }
@@ -340,11 +346,11 @@ struct SportsScoringTable: View {
             HStack {
                 Text("Scoring").font(.subheadline.bold())
                 Spacer()
-                Text(game.league == .mlb ? "Innings" : game.league == .nhl ? "Periods" : "Quarters").font(.caption2).foregroundStyle(AppTheme.muted)
+                Text(game.league == .tennis ? "Sets" : game.league == .mlb ? "Innings" : game.league == .nhl ? "Periods" : "Quarters").font(.caption2).foregroundStyle(AppTheme.muted)
             }
             HStack(spacing: 0) {
                 VStack(spacing: 0) {
-                    heading("TEAM").frame(width: teamColumnWidth, alignment: .leading)
+                    heading(game.league == .tennis ? "PLAYER" : "TEAM").frame(width: teamColumnWidth, alignment: .leading)
                     teamLabel(game.away, side: "Away", stripe: false)
                     teamLabel(game.home, side: "Home", stripe: true)
                 }
@@ -362,7 +368,7 @@ struct SportsScoringTable: View {
                             }
                         }
                     }
-                    .accessibilityLabel(game.league == .mlb ? "Inning scores" : game.league == .nhl ? "Period scores" : "Quarter scores")
+                    .accessibilityLabel(game.league == .tennis ? "Set scores" : game.league == .mlb ? "Inning scores" : game.league == .nhl ? "Period scores" : "Quarter scores")
                     .accessibilityIdentifier("sports-scoring-periods")
                 }
                 VStack(spacing: 0) {
@@ -423,6 +429,7 @@ struct SportsScoringTable: View {
         case .mlb: return String(index + 1)
         case .nhl: return index < 3 ? "P\(index + 1)" : index == 3 ? "OT" : "OT\(index - 2)"
         case .nba, .wnba, .nfl, .ncaaf: return index < 4 ? "Q\(index + 1)" : index == 4 ? "OT" : "OT\(index - 3)"
+        case .tennis: return "S\(index + 1)"
         }
     }
 

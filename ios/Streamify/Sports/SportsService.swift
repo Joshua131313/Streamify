@@ -116,7 +116,7 @@ struct SportsService: Sendable {
         }
     }
 
-    private func object(_ url: String) async throws -> [String: Any] {
+    func object(_ url: String) async throws -> [String: Any] {
         guard let result = try await json(url) as? [String: Any] else { throw SportsServiceError.invalidResponse }
         return result
     }
@@ -514,6 +514,7 @@ struct SportsService: Sendable {
     }
 
     private func schedule(league: SportsLeague, day: Date, now: Date) async throws -> SportsSchedule {
+        if league == .tennis { return try await tennisSchedule(day: day, now: now) }
         let date = DateFormatter()
         date.locale = Locale(identifier: "en_US_POSIX")
         date.timeZone = calendar.timeZone
@@ -564,6 +565,7 @@ struct SportsService: Sendable {
     }
 
     func teams(league: SportsLeague) async throws -> [SportsTeamResult] {
+        if league == .tennis { return [] }
         let response = try await object("\(league.endpoint)/teams?limit=1000")
         return response.sportsObjects("sports").flatMap { $0.sportsObjects("leagues") }.flatMap { $0.sportsObjects("teams") }
             .map { SportsTeamResult(league: league, team: parseTeam($0.sportsObject("team"))) }.filter { !$0.team.id.isEmpty }
@@ -599,6 +601,7 @@ struct SportsService: Sendable {
     }
 
     func center(_ game: SportsGame) async throws -> SportsGameCenter {
+        if game.league == .tennis { return try await tennisCenter(game) }
         let response = try await object("\(game.league.endpoint)/summary?event=\(game.eventID)")
         let header = response.sportsObject("header")
         var fresh = await summaryGame(response, fallback: game) ?? game
@@ -702,6 +705,7 @@ struct SportsService: Sendable {
     /// Widget links contain ESPN identities, never an arbitrary player URL.
     /// Fetch fresh status and teams before discovering any playable source.
     func game(league: SportsLeague, eventID: String) async throws -> SportsGame {
+        if league == .tennis { return try await tennisGame(eventID: eventID) }
         guard Self.validEventID(eventID) else { throw SportsServiceError.invalidURL }
         let response = try await object("\(league.endpoint)/summary?event=\(eventID)")
         guard let game = parseGame(response.sportsObject("header"), league: league), game.eventID == eventID else {
@@ -712,6 +716,7 @@ struct SportsService: Sendable {
 
     func streams(_ game: SportsGame) async throws -> [SportsStream] {
         guard game.canWatch else { return [] }
+        if game.league == .tennis { return try await MatchoraProvider(session: session).streams(game) }
         if streamCatalog == .timStreams { return try await timstStreams(game) }
         if streamCatalog == .streamed { return try await streamedStreams(game) }
         return try await combinedStreams(game)
@@ -821,6 +826,7 @@ struct SportsService: Sendable {
         case .nfl, .ncaaf: expectedGenre = 8
         case .mlb: expectedGenre = 9
         case .nhl: expectedGenre = 11
+        case .tennis: return false // No verified TimStreams tennis genre contract.
         }
         let key = item.sportsText("url")
         return !game.eventID.isEmpty && key.utf8.count <= 240 &&

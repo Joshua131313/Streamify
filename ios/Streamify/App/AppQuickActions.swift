@@ -35,7 +35,7 @@ enum AppQuickActionDestination: Equatable, Sendable {
               let leagueText = query.first(where: { $0.name == "league" })?.value,
               let league = SportsLeague(rawValue: leagueText),
               let event = query.first(where: { $0.name == "event" })?.value,
-              Self.validEventID(event) else { return nil }
+              (league == .tennis ? SportsService.validTennisEventID(event) : Self.validEventID(event)) else { return nil }
         self = .watchSports(league: league, eventID: event)
     }
 
