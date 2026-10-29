@@ -90,6 +90,15 @@ enum TennisLiveFeed {
     static func samePlayer(_ a: String, _ b: String) -> Bool {
         let x = words(a), y = words(b)
         if x == y { return !x.isEmpty }
+        // Some feeds omit middle given names (Leylah Annie Fernandez vs
+        // Leylah Fernandez). Keep both the full given name and surname exact;
+        // initials alone or two different supplied middle names are not enough.
+        if !a.contains("/"), !b.contains("/"), !a.contains("&"), !b.contains("&"),
+           min(x.count, y.count) == 2, max(x.count, y.count) > 2,
+           x.first == y.first, x.last == y.last,
+           let given = x.first, given.count > 1, let surname = x.last, surname.count > 1 {
+            return true
+        }
         func abbreviated(_ short: [String], _ full: [String]) -> Bool {
             guard short.count >= 2, full.count >= 2, short.dropFirst().allSatisfy({ $0.count == 1 }),
                   short[0] == full.last, short[1].first == full.first?.first else { return false }

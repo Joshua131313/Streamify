@@ -64,6 +64,40 @@ final class TennisCoverageTests: XCTestCase {
         XCTAssertEqual(TennisLiveFeed.pointWinner(previous: "A–40", current: "40–40"), 1)
         XCTAssertNil(TennisLiveFeed.pointWinner(previous: "0–0", current: "30–0"))
     }
+    func testOptionalMiddleNameMergesReversedTokyoFeedsAndRetainsESPNIdentity() throws {
+        let date = SportsService.parseDate("2026-10-29T03:05:00Z")!
+        let leylah = SportsTeam(id: "wta-3641", name: "Leylah Fernandez", abbreviation: "L. Fernandez", logo: "https://example.com/ca.png", portrait: "https://example.com/leylah.jpg")
+        let elise = SportsTeam(id: "wta-2221", name: "Elise Mertens", abbreviation: "E. Mertens", logo: "https://example.com/be.png", record: "Seed 5")
+        let original = SportsGame(eventID: "espn-wta-185678", league: .tennis, date: date, state: "in", status: "1st Set", home: leylah, away: elise,
+            venue: "", broadcasts: "", link: "", tennis: SportsTennisMatch(tour: .wta, tournament: "Toray Pan Pacific Open Tennis", tournamentID: "1056-2026", competitionID: "185678"))
+        let freshLeylah = SportsTeam(id: "tl-wta-1", name: "Leylah Annie Fernandez", abbreviation: "Leylah Annie Fernandez", logo: "", score: "0")
+        let freshElise = SportsTeam(id: "tl-wta-2", name: "Elise Mertens", abbreviation: "Elise Mertens", logo: "", score: "0")
+        let live = SportsGame(eventID: "tennislive-wta-1-1-2", league: .tennis, date: date.addingTimeInterval(300), state: "in", status: "1. set", home: freshElise, away: freshLeylah,
+            venue: "", broadcasts: "", link: "", tennis: SportsTennisMatch(tour: .wta, tournament: "Toray Pan Pacific Open - Tokyo", tournamentID: "tl-wta-1",
+                awaySets: ["3"], homeSets: ["2"], awayPoint: "30", homePoint: "40", servingID: freshElise.id, source: "tennislive",
+                historyURL: "https://www.tennislive.net/wta/match/leylah-annie-fernandez-VS-elise-mertens/toray-pan-pacific-open-tokyo-2026/"))
+        let merged = TennisLiveFeed.merge([original], live: [live])
+        XCTAssertEqual(merged.count, 1)
+        let result = try XCTUnwrap(merged.first)
+        XCTAssertEqual(result.eventID, original.eventID)
+        XCTAssertEqual(result.tennis?.competitionID, "185678")
+        XCTAssertEqual(result.tennis?.source, "espn")
+        XCTAssertEqual(result.tennis?.awaySets, ["2"])
+        XCTAssertEqual(result.tennis?.homeSets, ["3"])
+        XCTAssertEqual(result.tennis?.awayPoint, "40")
+        XCTAssertEqual(result.tennis?.homePoint, "30")
+        XCTAssertEqual(result.tennis?.servingID, elise.id)
+        XCTAssertEqual(result.home.portrait, leylah.portrait)
+        XCTAssertEqual(result.away.logo, elise.logo)
+    }
+    func testMiddleNameMatchingDoesNotCombineDifferentPeopleOrDoublesPartners() {
+        XCTAssertTrue(TennisLiveFeed.samePlayer("Leylah Annie Fernandez", "Leylah Fernandez"))
+        XCTAssertTrue(TennisLiveFeed.samePlayer("Leylah Fernandez", "Leylah Annie Fernandez"))
+        XCTAssertFalse(TennisLiveFeed.samePlayer("Leylah Annie Fernandez", "Leanne Fernandez"))
+        XCTAssertFalse(TennisLiveFeed.samePlayer("Leylah Annie Fernandez", "Leylah Marie Fernandez"))
+        XCTAssertFalse(TennisLiveFeed.samePlayer("L. Fernandez", "Leylah Annie Fernandez"))
+        XCTAssertFalse(TennisLiveFeed.samePlayer("Joe Salisbury / Neal Skupski", "Joe / Skupski"))
+    }
     func testShortPlayerNamesRequireSurnameAndInitialAndRoutesRemainBounded() {
         XCTAssertTrue(TennisLiveFeed.samePlayer("Rottgering M.", "Mees Rottgering"))
         XCTAssertFalse(TennisLiveFeed.samePlayer("Rottgering M.", "Mark Bigun"))
