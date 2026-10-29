@@ -143,8 +143,9 @@ jobs:
           if [[ "$TEST_SUITE" == ipad-* ]]; then
             # The user's 12.9-inch Pro is 1024 x 1366 points. Create that exact
             # display instead of substituting a smaller iPad or a 13-inch model.
-            DEVICE_TYPE=$(xcrun simctl list devicetypes --json | python3 -c 'import json,sys; d=json.load(sys.stdin); print([x["identifier"] for x in d["devicetypes"] if "iPad Pro" in x["name"] and "12.9" in x["name"]][-1])')
+            DEVICE_TYPE=$(xcrun simctl list devicetypes --json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["identifier"] for x in d["devicetypes"] if "iPad Pro" in x["name"] and "12.9" in x["name"] and "6th generation" in x["name"]))')
             RUNTIME=$(xcrun simctl list runtimes --json | python3 -c 'import json,sys; d=json.load(sys.stdin); print([x["identifier"] for x in d["runtimes"] if x.get("isAvailable") and "iOS" in x["name"]][-1])')
+            echo "Review model: $DEVICE_TYPE; runtime: $RUNTIME"
             DEVICE_ID=$(xcrun simctl create 'Streamify iPad Pro 12.9 review' "$DEVICE_TYPE" "$RUNTIME")
           else
             DEVICE_ID=$(xcrun simctl list devices available --json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for devices in d["devices"].values() for x in devices if x["name"].startswith("iPhone")))')
