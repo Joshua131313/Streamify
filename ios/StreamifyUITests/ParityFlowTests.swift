@@ -262,9 +262,9 @@ final class ParityFlowTests: XCTestCase {
         reveal(app.buttons["start-media-download"])
         app.buttons["start-media-download"].tap()
         XCTAssertTrue(element("download-error").waitForExistence(timeout: 10))
-        XCTAssertTrue(element("download-error").label.contains("streaming only"))
+        XCTAssertEqual(element("download-error").label, "No compatible 720p download is available from the current sources. Please try again later or choose another quality.")
         reveal(element("download-error"))
-        capture("12 Honest stream-only download result")
+        capture("12 Unavailable selected quality keeps an honest retry state")
         app.buttons["Close"].firstMatch.tap()
         reveal(app.buttons["cast-91"])
         app.buttons["cast-91"].tap()
@@ -405,8 +405,11 @@ final class ParityFlowTests: XCTestCase {
         let firstGame = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'sports-game-' AND identifier CONTAINS ':'")).firstMatch
         XCTAssertTrue(firstGame.waitForExistence(timeout: 10))
         XCTAssertLessThan(firstGame.frame.minY, app.frame.height * 0.55)
-        XCTAssertGreaterThan(firstGame.frame.width, app.frame.width * 0.85, "Compact game cards use the screen width.")
-        capture("Compact Live full-width games below a small league rail")
+        if app.frame.width >= 900 {
+            XCTAssertGreaterThan(firstGame.frame.width, 400, "iPad cards need enough room for both teams and their actions.")
+            XCTAssertLessThan(firstGame.frame.width, app.frame.width * 0.7, "The iPad schedule uses multiple columns.")
+        } else { XCTAssertGreaterThan(firstGame.frame.width, app.frame.width * 0.85, "Compact game cards use the screen width.") }
+        capture("Compact Live games below a small league rail")
         let nfl = app.buttons["sports-league-option-nfl"]
         let nba = app.buttons["sports-league-option-nba"]
         nfl.tap()
@@ -830,8 +833,9 @@ final class ParityFlowTests: XCTestCase {
         tileOptions.tap()
         XCTAssertTrue(app.buttons["Select stream"].waitForExistence(timeout: 5))
         app.buttons["Select stream"].tap()
-        XCTAssertTrue(app.buttons["bravo 1 · English · HD"].waitForExistence(timeout: 5))
-        app.buttons["bravo 1 · English · HD"].tap()
+        let alternate = app.buttons.matching(NSPredicate(format: "label ENDSWITH %@", "bravo 1 · English · HD")).firstMatch
+        XCTAssertTrue(alternate.waitForExistence(timeout: 5))
+        alternate.tap()
         XCTAssertTrue(tileOptions.waitForExistence(timeout: 5), "Changing a tile source must preserve its game and queue slot.")
         tileOptions.tap()
         app.buttons["Fullscreen"].tap()

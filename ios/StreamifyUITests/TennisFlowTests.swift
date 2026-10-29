@@ -40,7 +40,9 @@ final class TennisFlowTests: XCTestCase {
         XCTAssertTrue(doublesToggle.waitForExistence(timeout: 5))
         XCTAssertEqual(doublesToggle.value as? String, "0")
         // The switch accessibility frame includes its noninteractive row label.
-        doublesToggle.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
+        let nativeSwitch = doublesToggle.switches.firstMatch
+        if nativeSwitch.exists { nativeSwitch.tap() }
+        else { doublesToggle.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap() }
         XCTAssertEqual(doublesToggle.value as? String, "1")
         app.buttons["sports-filter-done"].tap()
         app.swipeUp()
