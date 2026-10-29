@@ -345,6 +345,25 @@ struct SportsStream: Identifiable, Hashable, Sendable {
     }
 }
 
+/// Remember a server's label, never an expiring event URL. When a channel name
+/// changes between games, the same provider remains the preferred fallback.
+enum SportsServerPreference {
+    static func key(_ title: String) -> String {
+        title.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.joined(separator: " ").lowercased()
+    }
+
+    static func source(in sources: [SportsStream], preference: String?) -> SportsStream? {
+        guard let preference, !key(preference).isEmpty else { return sources.first }
+        let saved = key(preference)
+        if let exact = sources.first(where: { key($0.title) == saved }) { return exact }
+        if saved.contains("·"), let provider = saved.components(separatedBy: "·").first?.trimmingCharacters(in: .whitespaces),
+           let sameProvider = sources.first(where: { $0.title.contains("·") && key($0.title).components(separatedBy: "·").first?.trimmingCharacters(in: .whitespaces) == provider }) {
+            return sameProvider
+        }
+        return sources.first
+    }
+}
+
 func sportsHTTPSURL(_ value: String) -> URL? {
     guard let url = URL(string: value), url.scheme?.lowercased() == "https", let host = url.host, !host.isEmpty,
           url.user == nil, url.password == nil else { return nil }

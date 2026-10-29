@@ -4,6 +4,59 @@ import WebKit
 @testable import Streamify
 
 final class SportsPlaybackSessionTests: XCTestCase {
+    @MainActor func testSavedServerSurvivesClosingAndNewEventURLsWithoutOverwritingOnFallback() throws {
+        let suite = "sports-server-test-" + UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = SettingsStore(defaults: defaults, profileKey: "profile-one")
+        let tim = SportsStream(title: "TimStreams · HD", url: URL(string: "https://example.com/tim-one")!)
+        let selected = SportsStream(title: "Matchora · Game feed", url: URL(string: "https://example.com/match-one")!)
+        let session = SportsPlaybackSession()
+        session.configureSourcePreference(read: { settings.sportsServerPreference }, write: { settings.sportsServerPreference = $0 })
+        XCTAssertEqual(session.preferredSource(in: [tim, selected]), tim)
+        session.play(title: "Game one", url: tim.url, sources: [tim, selected])
+        session.selectSource(selected)
+        session.close()
+
+        let restored = SettingsStore(defaults: defaults, profileKey: "profile-one")
+        let next = SportsPlaybackSession()
+        next.configureSourcePreference(read: { restored.sportsServerPreference }, write: { restored.sportsServerPreference = $0 })
+        let otherFeed = SportsStream(title: "Matchora · Court 2", url: URL(string: "https://example.com/match-two")!)
+        XCTAssertEqual(next.preferredSource(in: [tim, otherFeed]), otherFeed)
+        XCTAssertEqual(next.preferredSource(in: [tim]), tim)
+        next.play(title: "Fallback game", url: tim.url, sources: [tim])
+        next.close()
+        XCTAssertEqual(restored.sportsServerPreference, selected.title, "A temporarily unavailable provider must not erase the user's choice.")
+        XCTAssertEqual(next.preferredSource(in: [tim, otherFeed]), otherFeed)
+        XCTAssertNil(SettingsStore(defaults: defaults, profileKey: "profile-two").sportsServerPreference)
+        restored.discardProfilePreferences()
+        XCTAssertNil(defaults.string(forKey: "profile-one.sportsServer.v1"))
+    }
+
+    @MainActor func testExplicitWatchSourceAndSelectingCurrentSourceUpdatePreference() {
+        var saved: String?
+        let first = SportsStream(title: "TimStreams · HD", url: URL(string: "https://example.com/first")!)
+        let second = SportsStream(title: "Matchora · HD", url: URL(string: "https://example.com/second")!)
+        let session = SportsPlaybackSession()
+        session.configureSourcePreference(read: { saved }, write: { saved = $0 })
+        session.play(title: "Game", url: second.url, sources: [first, second], rememberSource: true)
+        XCTAssertEqual(saved, second.title)
+        session.selectSource(first)
+        saved = nil
+        session.selectSource(first)
+        XCTAssertEqual(saved, first.title)
+        XCTAssertEqual(session.preferredSource(in: [second, first]), first)
+        session.close()
+    }
+
+    func testServerPreferencePrefersExactChannelOverProviderAndNeverReusesOldURL() {
+        let a = SportsStream(title: "Matchora · Court 1", url: URL(string: "https://example.com/a")!)
+        let b = SportsStream(title: "Matchora · Court 2", url: URL(string: "https://example.com/b")!)
+        XCTAssertEqual(SportsServerPreference.source(in: [a, b], preference: "  MATCHORA · Court 2  "), b)
+        XCTAssertNil(SportsServerPreference.source(in: [], preference: b.title))
+        XCTAssertEqual(SportsServerPreference.source(in: [a], preference: "Unknown · HD"), a)
+    }
+
     @MainActor func testMatchoraAdvertisedEmbedsUseIframeAfterOpeningAndChangingSources() throws {
         let game = playbackGame("matchora-routing", league: .nba)
         let channel = "https://matchora.to/embed/channel/836356"

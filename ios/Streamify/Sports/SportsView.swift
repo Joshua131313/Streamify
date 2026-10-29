@@ -852,7 +852,7 @@ struct SportsGameCard: View {
                     let streams = try await SportsService().streams(game)
                     try Task.checkCancellation()
                     guard watchRevision == request, daySwipeScope?.generation == scheduleGeneration else { return }
-                    if let first = streams.first {
+                    if let first = playback.preferredSource(in: streams) {
                         playback.play(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: first.url, sources: streams, origin: requestOrigin, game: game)
                     }
                     else { watchError = "No source is available for this game yet. Try again closer to game time." }

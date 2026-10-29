@@ -31,6 +31,8 @@ final class SportsPlaybackSession: ObservableObject {
     private var selectionToken = UUID()
     private var scheduleToken = UUID()
     private var rememberedSources: [String: URL] = [:]
+    private var readPreferredServer: () -> String? = { nil }
+    private var savePreferredServer: (String) -> Void = { _ in }
     private let loadSchedule: (SportsService) async throws -> SportsSchedule
     private let loadStreams: (SportsService, SportsGame) async throws -> [SportsStream]
     let pictureInPicture = SportsSystemPiP()
@@ -56,11 +58,20 @@ final class SportsPlaybackSession: ObservableObject {
         }
     }
 
-    func play(title: String, url: URL, sources: [SportsStream] = [], origin: SportsPlaybackOrigin? = nil, game: SportsGame? = nil) {
+    func configureSourcePreference(read: @escaping () -> String?, write: @escaping (String) -> Void) {
+        readPreferredServer = read; savePreferredServer = write
+    }
+
+    func preferredSource(in sources: [SportsStream]) -> SportsStream? {
+        SportsServerPreference.source(in: sources, preference: readPreferredServer())
+    }
+
+    func play(title: String, url: URL, sources: [SportsStream] = [], origin: SportsPlaybackOrigin? = nil, game: SportsGame? = nil, rememberSource: Bool = false) {
         guard sportsHTTPSURL(url.absoluteString) != nil else { return }
         var seen = Set<URL>()
         var choices = sources.flatMap(\.availableSources).filter { seen.insert($0.url).inserted }
         if !seen.contains(url) { choices.insert(SportsStream(title: "Current source", url: url), at: 0) }
+        if rememberSource, let selected = choices.first(where: { $0.url == url }) { savePreferredServer(selected.title) }
         if item?.url == url, item?.title == title, item?.game?.id == game?.id {
             if let origin { self.origin = origin }
             expand(); return
@@ -74,8 +85,10 @@ final class SportsPlaybackSession: ObservableObject {
     }
 
     func selectSource(_ source: SportsStream) {
-        guard var current = item, current.url != source.url,
+        guard var current = item,
               current.sources.contains(where: { $0.url == source.url }) else { return }
+        savePreferredServer(source.title)
+        guard current.url != source.url else { return }
         current.url = source.url
         if let game = current.game { rememberedSources[game.id] = source.url }
         pictureInPicture.reset()
@@ -128,7 +141,7 @@ final class SportsPlaybackSession: ObservableObject {
                 gameSelectionError = "This game is no longer live. Your current stream is still playing."
                 return
             }
-            guard let source = choices.first(where: { $0.url == rememberedSources[game.id] }) ?? choices.first else {
+            guard let source = choices.first(where: { $0.url == rememberedSources[game.id] }) ?? preferredSource(in: choices) else {
                 gameSelectionError = "No stream is available for this game yet. Your current stream is still playing."
                 return
             }

@@ -140,7 +140,7 @@ struct SportsGameView: View {
             SportsPlaybackOriginCard { origin in
                 HStack(spacing: 10) {
                     if !current.isFinal { SportsTrackGameButton(game: current) }
-                    if current.canWatch, let first = streams.first {
+                    if current.canWatch, let first = playback.preferredSource(in: streams) {
                         Button { play(first, origin: origin) } label: {
                             HStack(spacing: 7) {
                                 Text("Watch")
@@ -184,7 +184,7 @@ struct SportsGameView: View {
                     SportsPlaybackOriginCard { origin in
                         HStack(spacing: 10) {
                             Text(stream.title).font(.subheadline.weight(.semibold)).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
-                                Button { play(stream, origin: origin) } label: { Image(systemName: "play.fill").frame(width: 44, height: 44).streamifyControlSurface() }
+                                Button { play(stream, origin: origin, rememberSource: true) } label: { Image(systemName: "play.fill").frame(width: 44, height: 44).streamifyControlSurface() }
                                     .buttonStyle(HapticPlainButtonStyle()).accessibilityLabel("Watch \(stream.title)")
                                 Button {
                                     queue.add(SportsStream(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: stream.url, alternatives: streams))
@@ -198,8 +198,8 @@ struct SportsGameView: View {
         }
     }
 
-    private func play(_ stream: SportsStream, origin: SportsPlaybackOrigin) {
-        playback.play(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: stream.url, sources: streams, origin: origin, game: current)
+    private func play(_ stream: SportsStream, origin: SportsPlaybackOrigin, rememberSource: Bool = false) {
+        playback.play(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: stream.url, sources: streams, origin: origin, game: current, rememberSource: rememberSource)
     }
 
     private func followButton(_ team: SportsTeam) -> some View {

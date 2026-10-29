@@ -64,6 +64,9 @@ struct StreamifyApp: App {
                     await SportsGameTracker.shared.refreshWhileActive()
                 }
                 .onAppear {
+                    sportsPlayback.configureSourcePreference(
+                        read: { profiles.settings.sportsServerPreference },
+                        write: { profiles.settings.sportsServerPreference = $0 })
                     #if DEBUG
                     if PreviewFixtures.enabled {
                         PreviewFixtures.seedDownloads(downloads)
@@ -426,7 +429,7 @@ struct RootView: View {
             try Task.checkCancellation()
             guard quickActionRequest?.id == request.id, scenePhase == .active, tab == .sports,
                   !settingsOpen, !accountOpen, !downloadsOpen, !catalogSearchOpen else { return }
-            guard let first = sources.first else {
+            guard let first = sportsPlayback.preferredSource(in: sources) else {
                 quickActionError = game.isFinal ? "This game has finished. Choose a live game in Sports."
                     : "No stream is available for this game right now. Try its Game Center or another live game in Sports."
                 return

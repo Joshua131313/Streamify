@@ -140,6 +140,15 @@ final class SettingsStore: ObservableObject {
     private let profileKey: String?
     private var storageEnabled = true
     private var applyingPreferences = false
+    // Device-local per-profile playback choice; temporary signed URLs are not saved.
+    var sportsServerPreference: String? {
+        get { defaults.string(forKey: sportsServerKey) }
+        set {
+            guard storageEnabled else { return }
+            defaults.set(newValue.map { String($0.prefix(256)) }, forKey: sportsServerKey)
+        }
+    }
+    private var sportsServerKey: String { (profileKey ?? "streamify.ios.preferences") + ".sportsServer.v1" }
     private struct Preferences: Codable { let appearance: String; let serverID: String; var liveTeamAlerts: Bool? = nil }
 
     var client: TMDBClient { TMDBClient(token: tmdbToken) }
@@ -177,6 +186,7 @@ final class SettingsStore: ObservableObject {
     }
     func discardProfilePreferences() {
         storageEnabled = false
+        defaults.removeObject(forKey: sportsServerKey)
         if let profileKey { defaults.removeObject(forKey: profileKey) }
     }
     private func persistPreferences() {
