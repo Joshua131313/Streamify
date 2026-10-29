@@ -627,7 +627,14 @@ final class SportsPlaybackFlowTests: XCTestCase {
 
     private func backgroundAndReturn() {
         XCUIDevice.shared.press(.home)
-        XCTAssertTrue(wait(timeout: 8) { self.app.state != .runningForeground })
+        // iPadOS keeps this app's native PiP window in its foreground AX
+        // process even on the actual Home Screen. Verify SpringBoard as well
+        // instead of confusing the active video window with the app page.
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        XCTAssertTrue(wait(timeout: 8) {
+            self.app.state != .runningForeground || springboard.icons["Streamify"].isHittable
+        })
+        capture("System Home keeps the active native video in PiP")
         app.activate()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
     }
