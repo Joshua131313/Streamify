@@ -6,6 +6,7 @@ struct MediaExploreRail: View {
     let identifier: String
     let items: [MediaItem]
     @EnvironmentObject private var library: LibraryStore
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var transition
     @State private var selected: MediaItem?
@@ -62,7 +63,7 @@ struct MediaExploreRail: View {
     }
 
     private func poster(_ media: MediaItem) -> some View {
-        PosterContent(media: media).frame(width: 112).clipped().contentShape(Rectangle())
+        PosterContent(media: media).frame(width: sizeClass == .regular ? 152 : 112).clipped().contentShape(Rectangle())
     }
 
     private func destination(_ media: MediaItem) -> some View {

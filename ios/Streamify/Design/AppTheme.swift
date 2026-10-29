@@ -293,6 +293,7 @@ struct PosterRail: View {
     let title: String
     let items: [MediaItem]
     var ranked = false
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
         if !items.isEmpty {
@@ -301,7 +302,7 @@ struct PosterRail: View {
                 ScrollView(.horizontal) {
                     LazyHStack(alignment: .top, spacing: 8) {
                         ForEach(Array(items.enumerated()), id: \.element.key) { index, media in
-                            PosterCard(media: media, rank: ranked ? index + 1 : nil).frame(width: 112)
+                            PosterCard(media: media, rank: ranked ? index + 1 : nil).frame(width: sizeClass == .regular ? 152 : 112)
                         }
                     }.padding(.horizontal, 16)
                 }.scrollIndicators(.hidden)
@@ -313,8 +314,9 @@ struct PosterRail: View {
 struct PosterGrid: View {
     let items: [MediaItem]
     @ScaledMetric(relativeTo: .body) private var minimumWidth: CGFloat = 104
+    @Environment(\.horizontalSizeClass) private var sizeClass
     var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: minimumWidth, maximum: 180), spacing: 12)], alignment: .leading, spacing: 24) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: max(minimumWidth, sizeClass == .regular ? 150 : 104), maximum: 220), spacing: 16)], alignment: .leading, spacing: 24) {
             ForEach(items, id: \.key) { PosterCard(media: $0, roomy: true) }
         }
     }

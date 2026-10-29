@@ -76,7 +76,7 @@ struct LibraryView: View {
                     if items.isEmpty { emptyState }
                     PosterGrid(items: items)
                 }
-                Text("Saved on this iPhone").font(.caption).foregroundStyle(AppTheme.muted)
+                Text("Saved on this \(AdaptiveLayout.deviceName)").font(.caption).foregroundStyle(AppTheme.muted)
             }.padding(20).padding(.bottom, 90)
         }
         .scrollDismissesKeyboard(.interactively)
@@ -88,7 +88,7 @@ struct LibraryView: View {
         }
         .sheet(isPresented: $showDownloads) { NavigationStack { DownloadsView() } }
         .fullScreenCover(item: $player) { MediaPlayerView(media: $0.media, season: $0.season, episode: $0.episode, origin: playbackOrigin) }
-        .confirmationDialog("Clear your watch history on this iPhone?", isPresented: $clearHistory, titleVisibility: .visible) {
+        .confirmationDialog("Clear your watch history on this \(AdaptiveLayout.deviceName)?", isPresented: $clearHistory, titleVisibility: .visible) {
             Button("Clear history", role: .destructive) { library.clearHistory() }
         }
     }
@@ -131,7 +131,7 @@ struct SettingsView: View {
                 Link("Get a TMDB API key", destination: URL(string: "https://www.themoviedb.org/settings/api")!)
                 TextField("Sports backend URL (optional)", text: $api).keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
             } header: { Text("Catalog & connections") } footer: {
-                Text("Your catalog key is stored in the iPhone Keychain. Leave the sports backend empty to use ESPN directly.")
+                Text("Your catalog key is stored in the device Keychain. Leave the sports backend empty to use ESPN directly.")
             }.listRowBackground(AppTheme.panel)
             Section("Default video provider") {
                 Picker("Provider", selection: $serverID) { ForEach(settings.servers) { Text($0.label).tag($0.id) } }.tint(AppTheme.foreground).disabled(!profiles.canEditProfiles)
@@ -208,10 +208,10 @@ struct AccountView: View {
                         accountCount(library.followedTeams.count, "Teams")
                     }.padding(.top, 4)
                     HStack(alignment: .top, spacing: 9) {
-                        Image(systemName: "iphone").font(.subheadline).foregroundStyle(AppTheme.muted)
+                        Image(systemName: AdaptiveLayout.deviceSymbol).font(.subheadline).foregroundStyle(AppTheme.muted)
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(account.identity == nil ? "Saved on this iPhone" : "Your account, your profiles").font(.caption.weight(.semibold))
-                            Text(account.identity == nil ? "Sign in to sync profiles, appearance, video provider, favorite genres, and followed teams." : "Profiles, appearance, video provider, favorite genres, and followed teams sync with your account. Your list, history, and downloads stay on this iPhone.")
+                            Text(account.identity == nil ? "Saved on this \(AdaptiveLayout.deviceName)" : "Your account, your profiles").font(.caption.weight(.semibold))
+                            Text(account.identity == nil ? "Sign in to sync profiles, appearance, video provider, favorite genres, and followed teams." : "Profiles, appearance, video provider, favorite genres, and followed teams sync with your account. Your list, history, and downloads stay on this device.")
                                 .font(.caption).foregroundStyle(AppTheme.muted)
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }.padding(.top, 4)
@@ -229,7 +229,7 @@ struct AccountView: View {
                         .overlay { RoundedRectangle(cornerRadius: 16).strokeBorder(AppTheme.border, lineWidth: 1) }
                 }.buttonStyle(HapticPlainButtonStyle()).disabled(!profiles.canEditProfiles)
                 Text("Follow teams from Sports to find their games in the Following filter.").font(.subheadline).foregroundStyle(AppTheme.muted)
-            }.padding(20)
+            }.padding(20).streamifyReadableWidth()
         }
         .background(AppTheme.canvas).foregroundStyle(AppTheme.foreground).navigationTitle("Account").navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
@@ -359,7 +359,7 @@ struct PreferencesView: View {
                             .accessibilityIdentifier("favorite-genre-\(genre.0)")
                     }
                 }
-            }.padding(20)
+            }.padding(20).streamifyReadableWidth(900)
         }.background(AppTheme.canvas).navigationTitle("Favorite genres").navigationBarTitleDisplayMode(.inline)
             .accessibilityIdentifier("favorite-genres-screen")
     }

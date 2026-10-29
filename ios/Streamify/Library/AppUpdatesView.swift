@@ -247,7 +247,7 @@ struct AppUpdatesView: View {
                     }
                     Link("SideStore setup guide", destination: URL(string: "https://docs.sidestore.io/docs/installation/prerequisites")!)
                 }.font(.subheadline).padding(20).streamifyControlSurface(cornerRadius: 16)
-            }.padding(20)
+            }.padding(20).streamifyReadableWidth()
         }
         .background(AppTheme.canvas).foregroundStyle(AppTheme.foreground)
         .navigationTitle("App updates").navigationBarTitleDisplayMode(.inline)

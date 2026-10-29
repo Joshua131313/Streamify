@@ -127,7 +127,7 @@ struct PersonDetailView: View {
                                 .font(.subheadline.weight(.semibold)).padding(.horizontal, 16).frame(minHeight: 44)
                                 .streamifyControlSurface().buttonStyle(HapticPlainButtonStyle())
                         }
-                    }.padding(.horizontal, 20)
+                    }.padding(.horizontal, 20).streamifyReadableWidth(900)
                     if !person.credits.isEmpty { DetailMediaRail(title: "Known for", items: person.credits) }
                 }
                 if loading { ProgressView("Loading profile…").frame(maxWidth: .infinity).padding() }

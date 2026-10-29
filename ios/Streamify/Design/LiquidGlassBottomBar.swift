@@ -7,6 +7,7 @@ struct LiquidGlassBottomBar: View {
     @Binding var selection: AppTab
     let onSelectProfile: (UUID) -> Void
     @EnvironmentObject private var profiles: ProfileStore
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
@@ -75,7 +76,7 @@ struct LiquidGlassBottomBar: View {
                      attachmentAnchor: .point(UnitPoint(x: 0.875, y: 0)), arrowEdge: .bottom) {
                 quickProfilePicker
             }
-            .frame(maxWidth: 420)
+            .frame(maxWidth: sizeClass == .regular ? 520 : 420)
             .padding(.horizontal, 12)
     }
 
@@ -123,7 +124,7 @@ struct LiquidGlassBottomBar: View {
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("floating-navigation")
         }
-        .frame(height: height).frame(maxWidth: 400)
+        .frame(height: height).frame(maxWidth: sizeClass == .regular ? 500 : 400)
         .shadow(color: .black.opacity(colorScheme == .dark ? 0.24 : 0.1), radius: 14, y: 5)
         .padding(.horizontal, 50).padding(.top, 4)
     }

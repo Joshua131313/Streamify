@@ -48,6 +48,7 @@ struct SportsView: View {
     @EnvironmentObject private var playback: SportsPlaybackSession
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @StateObject private var queue = SportsWatchQueue()
     @StateObject private var scheduleCache = SportsScheduleCache()
     @StateObject private var daySwipeScope = SportsDaySwipeScope()
@@ -206,12 +207,12 @@ struct SportsView: View {
             await loadCalendarMarkers()
         }
         .sheet(item: $selectedGame) { game in
-            NavigationStack { SportsGameView(game: game).environmentObject(queue) }
+            NavigationStack { SportsGameView(game: game).environmentObject(queue) }.streamifyPageSheet()
         }
         .streamifySearchPresentation(isPresented: $showSportsSearch, sourceID: searchSourceID, in: searchNamespace) {
             SportsSearchDialog(day: day, initialGames: games).environmentObject(queue)
         }
-        .sheet(isPresented: $showMultiWatch) { NavigationStack { SportsMultiWatchView().environmentObject(queue) } }
+        .sheet(isPresented: $showMultiWatch) { NavigationStack { SportsMultiWatchView().environmentObject(queue) }.streamifyPageSheet() }
         .sheet(isPresented: $showCalendar) {
             NavigationStack {
                 ScrollView {
@@ -656,7 +657,7 @@ struct SportsView: View {
                         Spacer(minLength: 0)
                         Text("\(group.games.count)").font(.caption).foregroundStyle(AppTheme.muted)
                     }.padding(.horizontal, 6).padding(.top, 8)
-                    ForEach(group.games) { game in SportsGameCard(game: game, daySwipeScope: daySwipeScope) { selectedGame = game } }
+                    gameGrid(group.games)
                 }.padding(.horizontal, 8)
             }
         } else if layout == .slider && !filteredGames.isEmpty {
@@ -664,8 +665,14 @@ struct SportsView: View {
                 HStack(spacing: 12) { ForEach(filteredGames) { game in SportsGameCard(game: game, daySwipeScope: daySwipeScope) { selectedGame = game }.frame(width: 300) } }.padding(.horizontal, 20)
             }
         } else {
-            ForEach(filteredGames) { game in SportsGameCard(game: game, daySwipeScope: daySwipeScope) { selectedGame = game }.padding(.horizontal, 8) }
+            gameGrid(filteredGames).padding(.horizontal, 8)
         }
+    }
+
+    private func gameGrid(_ games: [SportsGame]) -> some View {
+        LazyVGrid(columns: sizeClass == .regular ? [GridItem(.adaptive(minimum: 420), spacing: 16, alignment: .top)] : [GridItem(.flexible())], alignment: .leading, spacing: 12) {
+            ForEach(games) { game in SportsGameCard(game: game, daySwipeScope: daySwipeScope) { selectedGame = game } }
+        }.accessibilityIdentifier("sports-game-grid")
     }
 
     private func loadSchedule(forceReload: Bool = false) async {

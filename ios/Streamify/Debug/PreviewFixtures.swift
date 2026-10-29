@@ -259,7 +259,12 @@ enum PreviewFixtures {
                 value = detail
             } else {
                 let kind = pieces.contains("tv") ? "tv" : pieces.contains("movie") ? "movie" : "all"
-                value = ["page": 1, "total_pages": 1, "results": kind == "tv" ? shows : kind == "movie" ? movies : [movies[0], shows[0], movies[1], shows[1], movies[2]]]
+                var results = kind == "tv" ? shows : kind == "movie" ? movies : [movies[0], shows[0], movies[1], shows[1], movies[2]]
+                if ProcessInfo.processInfo.arguments.contains("--ui-movie-pick"), kind == "movie" {
+                    results += [mediaJSON(MediaItem(id: 47, kind: .movie, title: "The Next Chapter", overview: synopsis, posterPath: "/fixture-pirates.jpg", rating: 7.8, releaseDate: "2024-06-15", genreIDs: [18])),
+                        mediaJSON(MediaItem(id: 48, kind: .movie, title: "An Old Film", posterPath: "/fixture-matrix.jpg", rating: 8, releaseDate: "1975-01-01", genreIDs: [18]))]
+                }
+                value = ["page": 1, "total_pages": 1, "results": results]
             }
         } else if host == "graphql.anilist.co" {
             let body = requestBody(request).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]

@@ -65,7 +65,7 @@ struct SportsSearchDialog: View {
                     LazyVStack(alignment: .leading, spacing: 22) {
                         if search.isEmpty { suggestions }
                         else { results }
-                    }.padding(20).padding(.bottom, 24)
+                    }.padding(20).padding(.bottom, 24).streamifyReadableWidth(960)
                 }.scrollDismissesKeyboard(.interactively)
             }
             .background(AppTheme.canvas).foregroundStyle(AppTheme.foreground)

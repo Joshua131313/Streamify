@@ -6,13 +6,14 @@ struct TrailerPreview: View {
     let url: URL?
     let poster: URL?
     let active: Bool
+    var height: CGFloat = 240
 
     var body: some View {
         Group {
             if let identifier = TrailerDocument.videoID(from: url) {
-                TrailerPreviewPlayer(videoID: identifier, poster: poster, active: active).id(identifier)
+                TrailerPreviewPlayer(videoID: identifier, poster: poster, active: active, height: height).id(identifier)
             } else {
-                RemoteArtwork(url: poster).frame(height: 240).clipped().accessibilityHidden(true)
+                RemoteArtwork(url: poster).frame(height: height).clipped().accessibilityHidden(true)
             }
         }
         .accessibilityElement(children: .contain)
@@ -24,6 +25,7 @@ private struct TrailerPreviewPlayer: View {
     let videoID: String
     let poster: URL?
     let active: Bool
+    let height: CGFloat
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var model = TrailerPreviewModel()
     @State private var visible = false
@@ -35,7 +37,7 @@ private struct TrailerPreviewPlayer: View {
             RemoteArtwork(url: poster).accessibilityHidden(true)
             TrailerWebView(videoID: videoID, active: shouldPlay, model: model)
         }
-        .frame(height: 240).clipped()
+        .frame(height: height).clipped()
         .onAppear { visible = true }
         .onDisappear { visible = false }
     }

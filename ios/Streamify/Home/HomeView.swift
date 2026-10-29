@@ -108,6 +108,7 @@ struct HomeView: View {
                 PosterRail(title: "Top rated movies", items: model.movies)
                 if !settings.tmdbToken.isEmpty {
                     DiscoveryRail(title: "For you", mode: .forYou)
+                    MoviePickShortcut()
                     DiscoveryRail(title: "Trending Today", mode: .trending)
                     DiscoveryRail(title: "Only on", mode: .provider)
                     DiscoveryRail(title: "Explore genres", mode: .genre)
@@ -248,7 +249,7 @@ struct FeaturedCarousel: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .aspectRatio(horizontalSizeClass == .regular ? 16.0 / 9.0 : 0.82, contentMode: .fit)
-            .frame(maxHeight: horizontalSizeClass == .regular ? 320 : 620)
+            .frame(maxHeight: horizontalSizeClass == .regular ? 460 : 620)
             .padding(.horizontal, 16)
             .accessibilityIdentifier("hero-carousel")
             .simultaneousGesture(DragGesture(minimumDistance: 5)

@@ -68,7 +68,7 @@ struct DownloadsView: View {
             }
         }.listStyle(.plain).listSectionSpacing(8)
             .environment(\.defaultMinListRowHeight, 0)
-            .scrollContentBackground(.hidden).background(AppTheme.canvas)
+            .streamifyReadableWidth(960).scrollContentBackground(.hidden).background(AppTheme.canvas)
             .accessibilityIdentifier("downloads-list")
             .task { downloads.refreshArtwork(token: settings.tmdbToken) }
             .navigationTitle("Downloads").navigationBarTitleDisplayMode(.inline)
@@ -224,7 +224,7 @@ private struct DownloadSeriesView: View {
             }
         }.listStyle(.plain).listSectionSpacing(12)
             .environment(\.defaultMinListRowHeight, 0)
-            .scrollContentBackground(.hidden).background(AppTheme.canvas)
+            .streamifyReadableWidth(960).scrollContentBackground(.hidden).background(AppTheme.canvas)
             .navigationTitle(series?.title ?? initialTitle).navigationBarTitleDisplayMode(.inline)
             .accessibilityIdentifier("download-series-page-\(seriesID)")
             .fullScreenCover(item: $selected) { item in OfflineVideoView(item: item) }
@@ -501,7 +501,7 @@ private struct AddDownloadView: View {
                 } label: { Label("Start download", systemImage: "arrow.down.circle.fill").frame(maxWidth: .infinity, minHeight: 32) }
                     .disabled(address.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-        }.scrollContentBackground(.hidden).background(AppTheme.canvas)
+        }.streamifyReadableWidth(960).scrollContentBackground(.hidden).background(AppTheme.canvas)
             .navigationTitle("Add video").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
     }

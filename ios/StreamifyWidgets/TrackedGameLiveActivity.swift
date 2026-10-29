@@ -12,18 +12,11 @@ struct TrackedGameLiveActivity: Widget {
                 .widgetURL(context.attributes.watchURL)
         } dynamicIsland: { context in
             DynamicIsland(expanded: {
-                DynamicIslandExpandedRegion(.leading) {
-                    HStack(spacing: 5) { teamLogo(context.attributes, home: false, size: 24); Text(score(context.state.awayScore)).bold().monospacedDigit() }
-                }
-                DynamicIslandExpandedRegion(.trailing) {
-                    HStack(spacing: 5) { Text(score(context.state.homeScore)).bold().monospacedDigit(); teamLogo(context.attributes, home: true, size: 24) }
-                }
                 DynamicIslandExpandedRegion(.bottom) {
-                    HStack {
-                        Text(context.isStale ? "Last score received" : context.state.situation ?? context.state.status).font(.caption).lineLimit(1)
-                        Spacer()
-                        Link(destination: context.attributes.watchURL) { Label("Watch", systemImage: "play.fill").font(.caption.weight(.semibold)) }
-                    }
+                    // Preserve the same complete scoreboard as the Lock Screen
+                    // instead of replacing it with a sparse two-line strip.
+                    TrackedGameScoreCard(attributes: context.attributes, state: context.state,
+                        stale: context.isStale, island: true)
                 }
             }, compactLeading: { HStack(spacing: 3) { teamLogo(context.attributes, home: false, size: 18); Text(score(context.state.awayScore)).font(.caption2.monospacedDigit()) } },
               compactTrailing: { HStack(spacing: 3) { Text(score(context.state.homeScore)).font(.caption2.monospacedDigit()); teamLogo(context.attributes, home: true, size: 18) } },
@@ -37,6 +30,7 @@ struct TrackedGameScoreCard: View {
     let attributes: SportsTrackedGameAttributes
     let state: SportsTrackedGameAttributes.ContentState
     var stale = false
+    var island = false
     private var pregame: Bool { state.pregame == true }
 
     var body: some View {
@@ -60,7 +54,7 @@ struct TrackedGameScoreCard: View {
                 Text(score(state.homeScore)).font(.system(size: 27, weight: .bold, design: .rounded).monospacedDigit())
                     .frame(minWidth: 34).contentTransition(.numericText())
                 team(home: true)
-            }.padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 12)
+            }.padding(.horizontal, 16).padding(.top, island ? 4 : 14).padding(.bottom, island ? 8 : 12)
             Rectangle().fill(.white.opacity(0.09)).frame(height: 0.5)
             HStack(spacing: 8) {
                 if let logo = UIImage(named: "league-\(attributes.league)") {
@@ -70,14 +64,16 @@ struct TrackedGameScoreCard: View {
                 if let venue = attributes.venue, !venue.isEmpty { Text(venue).font(.system(size: 11, weight: .medium)).lineLimit(1) }
                 else { Text("Streamify").font(.system(size: 11)).foregroundStyle(.white.opacity(0.7)) }
                 Spacer(minLength: 0)
-                Image(systemName: "play.circle.fill").font(.system(size: 20)).accessibilityLabel("Watch game")
-            }.padding(.horizontal, 16).padding(.vertical, 10)
+                Link(destination: attributes.watchURL) {
+                    HStack(spacing: 5) { Text("Watch").font(.caption.weight(.semibold)); Image(systemName: "play.fill").font(.system(size: 10)) }
+                }.accessibilityLabel("Watch game")
+            }.padding(.horizontal, 16).padding(.vertical, island ? 7 : 10)
         }.foregroundStyle(.white).background(.black)
     }
     private func score(_ value: String) -> String { pregame || value.isEmpty ? "–" : value }
     private func team(home: Bool) -> some View {
         VStack(spacing: 4) {
-            teamLogo(attributes, home: home, size: 40)
+            teamLogo(attributes, home: home, size: island ? 32 : 40)
             Text((home ? attributes.homeName : attributes.awayName) ?? (home ? attributes.home : attributes.away))
                 .font(.system(size: 11, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.8)
             let record = (home ? attributes.homeRecord : attributes.awayRecord) ?? ""

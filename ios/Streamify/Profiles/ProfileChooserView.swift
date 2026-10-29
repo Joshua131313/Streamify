@@ -12,6 +12,7 @@ struct ProfileChooserView: View {
     @EnvironmentObject private var settings: SettingsStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @ScaledMetric(relativeTo: .body) private var preferredAvatarSize: CGFloat = 76
     @State private var editing = false
     @State private var editor: ProfileEditorTarget?
@@ -82,9 +83,9 @@ struct ProfileChooserView: View {
     }
 
     private func profileScroll(size: CGSize) -> some View {
-        let width = max(1, min(size.width - 56, 460))
+        let width = max(1, min(size.width - 56, sizeClass == .regular ? 660 : 460))
         let tileWidth = max(1, (width - CGFloat(columnCount - 1) * 18) / CGFloat(columnCount))
-        let avatarSize = min(tileWidth, preferredAvatarSize)
+        let avatarSize = min(tileWidth, sizeClass == .regular ? max(112, preferredAvatarSize) : preferredAvatarSize)
         return ScrollView {
             VStack(spacing: 0) {
                 Spacer(minLength: size.width > size.height ? 16 : max(80, size.height * 0.28))

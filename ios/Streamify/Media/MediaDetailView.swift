@@ -6,6 +6,8 @@ struct MediaDetailView: View {
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var downloads: DownloadStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var details: MediaDetails?
     @State private var error: String?
     @State private var loading = false
@@ -31,61 +33,17 @@ struct MediaDetailView: View {
         GeometryReader { viewport in
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 28) {
-                hero
-                    .background { GeometryReader { geometry in
-                        Color.clear.preference(key: DetailHeroPositionKey.self, value: geometry.frame(in: .global))
-                    } }
-                VStack(alignment: .leading, spacing: 20) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(title.title).font(.largeTitle.bold()).fixedSize(horizontal: false, vertical: true)
-                        Text(metadata).font(.subheadline).foregroundStyle(AppTheme.muted)
-                        if let genres = details?.genres, !genres.isEmpty {
-                            DetailTagFlow(spacing: 8) {
-                                ForEach(genres) { genre in
-                                    Text(genre.name).font(.caption.weight(.medium)).foregroundStyle(.white)
-                                        .lineLimit(1).padding(.horizontal, 12).padding(.vertical, 7)
-                                        .background(Color(red: 0.16, green: 0.16, blue: 0.18), in: Capsule())
-                                        .overlay { Capsule().strokeBorder(.white.opacity(0.08), lineWidth: 0.5) }
-                                        .accessibilityIdentifier("detail-genre-\(genre.id)")
-                                }
-                            }.padding(.top, 2).accessibilityElement(children: .contain).accessibilityIdentifier("detail-genre-bubbles")
-                        }
-                    }
-                    MediaPlaybackOriginCard { origin in
-                    VStack(spacing: 12) {
-                        Button { play(season: previous?.season ?? season, episode: previous?.episode ?? 1, origin: origin) } label: {
-                            Label(watchTitle, systemImage: "play.fill")
-                                .font(.headline).frame(maxWidth: .infinity).frame(minHeight: 50)
-                                .foregroundStyle(.black)
-                                .background(.white, in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
-                                // A plain button must own the entire visible surface,
-                                // including the space beside its centered play label.
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(HapticPlainButtonStyle())
-                        .accessibilityIdentifier("detail-watch-\(media.key)")
-                        MediaDownloadButton(media: title, season: previous?.season ?? season, episode: previous?.episode ?? 1,
-                            onRequestDownload: { presentDownload(season: previous?.season ?? season, episode: previous?.episode ?? 1) })
-                        HStack(spacing: 12) {
-                            Button { library.toggleSaved(title) } label: {
-                                Label(library.isSaved(title) ? "Saved" : "My list", systemImage: library.isSaved(title) ? "checkmark" : "plus")
-                                    .frame(maxWidth: .infinity).frame(minHeight: 48)
-                            }
-                            .buttonStyle(SecondaryButtonStyle())
-                            if let trailer = details?.trailer {
-                                Link(destination: trailer) {
-                                    Label("Trailer", systemImage: "play.rectangle")
-                                        .frame(maxWidth: .infinity).frame(minHeight: 48)
-                                }
-                                .buttonStyle(SecondaryButtonStyle())
-                            }
-                        }
-                    }
-                    }
-                    Text(title.overview.isEmpty ? "No synopsis available." : title.overview)
-                        .font(.body).foregroundStyle(AppTheme.muted).textSelection(.enabled)
+                if AdaptiveLayout.usesDetailColumns(width: viewport.size.width, accessibility: typeSize.isAccessibilitySize) {
+                    HStack(alignment: .top, spacing: 8) {
+                        trackedHero(height: min(440, viewport.size.width * 0.55 * 9 / 16))
+                            .frame(width: viewport.size.width * 0.55 - 24)
+                            .clipShape(RoundedRectangle(cornerRadius: 20))
+                        summary.frame(maxWidth: .infinity)
+                    }.padding(.horizontal, 20).padding(.top, 20)
+                } else {
+                    trackedHero(height: sizeClass == .regular ? min(440, viewport.size.width * 9 / 16) : 240)
+                    summary
                 }
-                .padding(.horizontal, 20)
 
                 if loading { ProgressView("Loading details…").frame(maxWidth: .infinity).padding() }
                 if let error {
@@ -147,7 +105,7 @@ struct MediaDetailView: View {
         .sheet(item: $downloadSelection) { request in
             NavigationStack { MediaDownloadSheet(media: title, season: request.season, episode: request.episode, episodeTitle: request.title) }
         }
-        .sheet(isPresented: $downloadsOpen) { NavigationStack { DownloadsView() } }
+        .sheet(isPresented: $downloadsOpen) { NavigationStack { DownloadsView() }.streamifyPageSheet() }
         .sheet(item: $selectedCast) { person in
             NavigationStack {
                 PersonDetailView(id: person.id)
@@ -158,9 +116,69 @@ struct MediaDetailView: View {
         }
     }
 
-    private var hero: some View {
+    private var summary: some View {
+                VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(title.title).font(.largeTitle.bold()).fixedSize(horizontal: false, vertical: true)
+                        Text(metadata).font(.subheadline).foregroundStyle(AppTheme.muted)
+                        if let genres = details?.genres, !genres.isEmpty {
+                            DetailTagFlow(spacing: 8) {
+                                ForEach(genres) { genre in
+                                    Text(genre.name).font(.caption.weight(.medium)).foregroundStyle(.white)
+                                        .lineLimit(1).padding(.horizontal, 12).padding(.vertical, 7)
+                                        .background(Color(red: 0.16, green: 0.16, blue: 0.18), in: Capsule())
+                                        .overlay { Capsule().strokeBorder(.white.opacity(0.08), lineWidth: 0.5) }
+                                        .accessibilityIdentifier("detail-genre-\(genre.id)")
+                                }
+                            }.padding(.top, 2).accessibilityElement(children: .contain).accessibilityIdentifier("detail-genre-bubbles")
+                        }
+                    }
+                    MediaPlaybackOriginCard { origin in
+                    VStack(spacing: 12) {
+                        Button { play(season: previous?.season ?? season, episode: previous?.episode ?? 1, origin: origin) } label: {
+                            Label(watchTitle, systemImage: "play.fill")
+                                .font(.headline).frame(maxWidth: .infinity).frame(minHeight: 50)
+                                .foregroundStyle(.black)
+                                .background(.white, in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
+                                // A plain button must own the entire visible surface,
+                                // including the space beside its centered play label.
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(HapticPlainButtonStyle())
+                        .accessibilityIdentifier("detail-watch-\(media.key)")
+                        MediaDownloadButton(media: title, season: previous?.season ?? season, episode: previous?.episode ?? 1,
+                            onRequestDownload: { presentDownload(season: previous?.season ?? season, episode: previous?.episode ?? 1) })
+                        HStack(spacing: 12) {
+                            Button { library.toggleSaved(title) } label: {
+                                Label(library.isSaved(title) ? "Saved" : "My list", systemImage: library.isSaved(title) ? "checkmark" : "plus")
+                                    .frame(maxWidth: .infinity).frame(minHeight: 48)
+                            }
+                            .buttonStyle(SecondaryButtonStyle())
+                            if let trailer = details?.trailer {
+                                Link(destination: trailer) {
+                                    Label("Trailer", systemImage: "play.rectangle")
+                                        .frame(maxWidth: .infinity).frame(minHeight: 48)
+                                }
+                                .buttonStyle(SecondaryButtonStyle())
+                            }
+                        }
+                    }
+                    }
+                    Text(title.overview.isEmpty ? "No synopsis available." : title.overview)
+                        .font(.body).foregroundStyle(AppTheme.muted).textSelection(.enabled)
+                }
+                .padding(.horizontal, 20)
+    }
+
+    private func trackedHero(height: CGFloat) -> some View {
+        hero(height: height).background { GeometryReader { geometry in
+            Color.clear.preference(key: DetailHeroPositionKey.self, value: geometry.frame(in: .global))
+        } }
+    }
+
+    private func hero(height: CGFloat) -> some View {
         TrailerPreview(url: details?.trailer, poster: title.backdropURL,
-            active: pageVisible && previewVisible && selection == nil && selectedCast == nil && !downloadPresented)
+            active: pageVisible && previewVisible && selection == nil && selectedCast == nil && !downloadPresented, height: height)
             .contentShape(Rectangle())
     }
 
@@ -198,6 +216,7 @@ struct MediaDetailView: View {
             if !loadingEpisodes && episodeError == nil && episodes.isEmpty {
                 Text("Episodes for this season will appear when available.").foregroundStyle(AppTheme.muted)
             }
+            LazyVGrid(columns: sizeClass == .regular ? [GridItem(.adaptive(minimum: 380), spacing: 24, alignment: .top)] : [GridItem(.flexible())], alignment: .leading, spacing: 18) {
             ForEach(episodes) { episode in
                 MediaPlaybackOriginCard { origin in
                 VStack(alignment: .leading, spacing: 12) {
@@ -231,9 +250,10 @@ struct MediaDetailView: View {
                     }
                 }
                 }
-                if episode.number != episodes.last?.number { Divider().overlay(AppTheme.muted.opacity(0.1)) }
+                if sizeClass != .regular && episode.number != episodes.last?.number { Divider().overlay(AppTheme.muted.opacity(0.1)) }
             }
-        }.padding(.horizontal, 20)
+            }
+        }.padding(.horizontal, 20).streamifyReadableWidth(1100)
     }
 
     private func castSection(_ cast: [CastMember]) -> some View {

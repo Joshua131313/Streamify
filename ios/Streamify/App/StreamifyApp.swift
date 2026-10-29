@@ -338,7 +338,7 @@ struct RootView: View {
                 .preferredColorScheme(settings.appearance == "System" ? nil : settings.appearance == "Light" ? .light : .dark)
         }
         .sheet(isPresented: $accountOpen) { NavigationStack { AccountView() } }
-        .sheet(isPresented: $downloadsOpen) { NavigationStack { DownloadsView() } }
+        .sheet(isPresented: $downloadsOpen) { NavigationStack { DownloadsView() }.streamifyPageSheet() }
         .task(id: "\(profiles.contextID)|\(settings.liveTeamAlerts)|\(library.followedTeams.sorted().joined(separator: ","))|\(scenePhase == .active)") {
             guard scenePhase == .active else { return }
             SportsLiveAlerts.shared.configure(teams: Set(library.followedTeams), enabled: settings.liveTeamAlerts)

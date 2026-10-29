@@ -43,7 +43,7 @@ struct SportsGameView: View {
                 }
                 if tab == "Play-by-play" { SportsPlayByPlayView(game: current, periods: center?.playByPlay ?? []) }
                 if tab == "Players" { SportsGamePlayersView(game: current, groups: center?.playerStats ?? []) }
-            }.padding(.horizontal, 16).padding(.top, 10).padding(.bottom, 24)
+            }.padding(.horizontal, 16).padding(.top, 10).padding(.bottom, 24).streamifyReadableWidth(1200)
         }
         .background(AppTheme.canvas).foregroundStyle(AppTheme.foreground)
         .navigationTitle("Game center").navigationBarTitleDisplayMode(.inline)
@@ -70,8 +70,8 @@ struct SportsGameView: View {
                 do { try await Task.sleep(for: .seconds(30)) } catch { return }
             } while !Task.isCancelled
         }
-        .sheet(item: $selectedTeam) { item in NavigationStack { SportsTeamView(result: item).environmentObject(queue) } }
-        .sheet(isPresented: $showMultiWatch) { NavigationStack { SportsMultiWatchView().environmentObject(queue) } }
+        .sheet(item: $selectedTeam) { item in NavigationStack { SportsTeamView(result: item).environmentObject(queue) }.streamifyPageSheet() }
+        .sheet(isPresented: $showMultiWatch) { NavigationStack { SportsMultiWatchView().environmentObject(queue) }.streamifyPageSheet() }
         .sheet(isPresented: $showChat) { SportsGameChatScreen(game: current) }
         .onChange(of: current.isFinal) { _, final in if final && tab == "Latest play" { tab = "Play-by-play" } }
         .onChange(of: playback.isMinimized) { _, minimized in
@@ -292,7 +292,7 @@ struct SportsTeamView: View {
                 if let profile {
                     if tab == "Roster" { roster(profile) } else { schedule(profile) }
                 }
-            }.padding(20).padding(.bottom, 24)
+            }.padding(20).padding(.bottom, 24).streamifyReadableWidth(1200)
         }.background(AppTheme.canvas).foregroundStyle(AppTheme.foreground).navigationTitle("\(result.league.title) · Team").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
             .task(id: "\(revision)-\(scenePhase == .active)") {

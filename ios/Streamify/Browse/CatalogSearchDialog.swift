@@ -5,6 +5,7 @@ struct CatalogSearchDialog: View {
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var library: LibraryStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var model = BrowseModel()
     @State private var kind: MediaKind?
@@ -44,7 +45,7 @@ struct CatalogSearchDialog: View {
                                 ProgressView("Searching titles…").frame(maxWidth: .infinity).padding(.vertical, 28)
                                     .accessibilityIdentifier("catalog-search-loading")
                             }
-                            LazyVGrid(columns: [GridItem(.adaptive(minimum: posterWidth, maximum: 180), spacing: 12)], alignment: .leading, spacing: 20) {
+                            LazyVGrid(columns: [GridItem(.adaptive(minimum: max(posterWidth, sizeClass == .regular ? 150 : 104), maximum: 220), spacing: 16)], alignment: .leading, spacing: 20) {
                                 ForEach(model.items, id: \.key) { media in result(media) }
                             }
                             if let error = model.error { InlineError(message: error) { revision += 1 } }

@@ -6,7 +6,7 @@ struct SportsGameChatScreen: View {
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         NavigationStack {
-            SportsChatView(game: game, sceneIsActive: sceneIsActive).padding(.horizontal, 16).padding(.bottom, 8)
+            SportsChatView(game: game, sceneIsActive: sceneIsActive).padding(.horizontal, 16).padding(.bottom, 8).streamifyReadableWidth(760)
                 .frame(maxWidth: .infinity, maxHeight: .infinity).background(AppTheme.canvas)
                 .navigationTitle("Game chat").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .topBarTrailing) {
