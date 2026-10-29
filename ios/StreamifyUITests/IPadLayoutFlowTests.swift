@@ -18,20 +18,36 @@ final class IPadLayoutFlowTests: XCTestCase {
         app?.terminate(); XCUIDevice.shared.orientation = .portrait
     }
 
+    func testIPadFeaturedCarouselFillsTheWindowWhenHomeRotates() {
+        // Keep Home open: this checks the banner's response to rotation without
+        // introducing an unrelated tab tap while UIKit updates hit coordinates.
+        XCTAssertTrue(app.buttons["tab-home"].isSelected)
+        let banner = element("hero-carousel")
+        XCTAssertTrue(banner.waitForExistence(timeout: 15))
+        for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
+            XCUIDevice.shared.orientation = orientation
+            XCTAssertTrue(wait {
+                orientation == .portrait
+                    ? self.app.frame.height > self.app.frame.width
+                    : self.app.frame.width > self.app.frame.height
+            })
+            XCTAssertTrue(wait { banner.exists && banner.frame.width >= self.app.frame.width - 40 },
+                "The actual native pager must fill the window with standard side margins.")
+            let frame = banner.frame
+            XCTAssertLessThan(frame.height, 650)
+            XCTAssertGreaterThanOrEqual(frame.minX, app.frame.minX + 12)
+            XCTAssertLessThanOrEqual(frame.maxX, app.frame.maxX - 12)
+            capture("Wide featured banner \(orientation == .portrait ? "portrait" : "landscape")")
+        }
+    }
+
     func testIPadProHomeAndSportsUseTheCanvasInBothOrientations() {
         for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
             XCUIDevice.shared.orientation = orientation
             XCTAssertTrue(wait { orientation == .portrait ? self.app.frame.height > self.app.frame.width : self.app.frame.width > self.app.frame.height })
             app.buttons["tab-home"].tap()
-            let banner = element("hero-carousel")
-            XCTAssertTrue(banner.waitForExistence(timeout: 8))
-            XCTAssertLessThan(banner.frame.height, 650)
-            // This is the native paging surface, whose frame also bounds the
-            // artwork. It stays stable while autoplay replaces individual cards.
-            XCTAssertGreaterThanOrEqual(banner.frame.width, app.frame.width - 40,
-                "The featured banner must fill the tablet width with only the standard side insets.")
-            XCTAssertGreaterThanOrEqual(banner.frame.minX, app.frame.minX + 12)
-            XCTAssertLessThanOrEqual(banner.frame.maxX, app.frame.maxX - 12)
+            XCTAssertTrue(element("hero-carousel").waitForExistence(timeout: 8))
+            XCTAssertLessThan(element("hero-carousel").frame.height, 650)
             let bar = element("floating-navigation")
             if bar.exists {
                 XCTAssertLessThanOrEqual(bar.frame.width, 550)

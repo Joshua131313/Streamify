@@ -178,7 +178,7 @@ jobs:
           # Keep suite assignments explicit so each screen check runs once.
           case "$TEST_SUITE" in
             ipad-carousel)
-              SELECTORS=(-only-testing:StreamifyUITests/IPadLayoutFlowTests/testIPadProHomeAndSportsUseTheCanvasInBothOrientations)
+              SELECTORS=(-only-testing:StreamifyUITests/IPadLayoutFlowTests/testIPadFeaturedCarouselFillsTheWindowWhenHomeRotates)
               ;;
             iphone-carousel)
               SELECTORS=(-only-testing:StreamifyUITests/ParityFlowTests/testHomeHeroProgressPauseSwipeAndFilledSelectors)
