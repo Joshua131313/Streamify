@@ -242,14 +242,16 @@ struct FeaturedCarousel: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            TabView(selection: $index) {
-                ForEach(Array(items.enumerated()), id: \.element.key) { offset, media in
-                    MediaPlaybackOriginCard { origin in hero(media, origin: origin) }.tag(offset)
+            Group {
+                if horizontalSizeClass == .regular {
+                    // Size the tablet banner from its available width. Fitting a
+                    // 16:9 view inside a height cap also shrinks its width.
+                    pages.frame(height: 460)
+                } else {
+                    pages.aspectRatio(0.82, contentMode: .fit).frame(maxHeight: 620)
                 }
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .aspectRatio(horizontalSizeClass == .regular ? 16.0 / 9.0 : 0.82, contentMode: .fit)
-            .frame(maxHeight: horizontalSizeClass == .regular ? 460 : 620)
+            .frame(maxWidth: .infinity)
             .padding(.horizontal, 16)
             .accessibilityIdentifier("hero-carousel")
             .simultaneousGesture(DragGesture(minimumDistance: 5)
@@ -289,6 +291,15 @@ struct FeaturedCarousel: View {
             let entry = library.history.first { $0.media.key == media.key }
             MediaPlayerView(media: media, season: entry?.season ?? 1, episode: entry?.episode ?? 1, origin: playbackOrigin)
         }
+    }
+
+    private var pages: some View {
+        TabView(selection: $index) {
+            ForEach(Array(items.enumerated()), id: \.element.key) { offset, media in
+                MediaPlaybackOriginCard { origin in hero(media, origin: origin) }.tag(offset)
+            }
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
     }
 
     private var indicators: some View {
@@ -378,7 +389,10 @@ struct FeaturedCarousel: View {
                             .overlay { RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius).strokeBorder(.white.opacity(0.15), lineWidth: 0.7) }
                     }.accessibilityLabel(library.isSaved(media) ? "Remove \(media.title) from My list" : "Save \(media.title)")
                 }.buttonStyle(HapticPlainButtonStyle()).padding(.top, 6)
-            }.padding(14).foregroundStyle(.white)
+            }
+            .padding(horizontalSizeClass == .regular ? 24 : 14)
+            .frame(maxWidth: horizontalSizeClass == .regular ? 560 : .infinity, alignment: .leading)
+            .foregroundStyle(.white)
         }
         .overlay(alignment: .topTrailing) {
             Image(systemName: "info.circle").font(.title3).foregroundStyle(.white).frame(width: 48, height: 48)
