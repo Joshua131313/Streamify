@@ -19,22 +19,26 @@ final class IPadLayoutFlowTests: XCTestCase {
     }
 
     func testIPadProHomeAndSportsUseTheCanvasInBothOrientations() {
-        let pause = app.buttons["hero-carousel-pause"]
-        XCTAssertTrue(pause.waitForExistence(timeout: 8))
-        if pause.label == "Pause carousel" { pause.tap() }
         for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
             XCUIDevice.shared.orientation = orientation
             XCTAssertTrue(wait { orientation == .portrait ? self.app.frame.height > self.app.frame.width : self.app.frame.width > self.app.frame.height })
             app.buttons["tab-home"].tap()
             XCTAssertTrue(element("hero-carousel").waitForExistence(timeout: 8))
             XCTAssertLessThan(element("hero-carousel").frame.height, 650)
-            let artwork = app.buttons["media-link-movie:42"].firstMatch
+            let pause = app.buttons["hero-carousel-pause"]
+            XCTAssertTrue(pause.waitForExistence(timeout: 8))
+            if pause.label == "Pause carousel" { pause.tap() }
+            XCTAssertTrue(wait { pause.label == "Resume carousel" })
+            let selected = app.buttons["hero-main-progress"].label
+            XCTAssertTrue(selected.hasPrefix("Show "))
+            let title = String(selected.dropFirst("Show ".count))
+            let artwork = app.buttons["Details for \(title)"].firstMatch
             XCTAssertTrue(artwork.waitForExistence(timeout: 8))
             XCTAssertGreaterThanOrEqual(artwork.frame.width, app.frame.width - 40,
                 "The actual featured artwork must fill the tablet width with only the standard side insets.")
             XCTAssertGreaterThanOrEqual(artwork.frame.minX, app.frame.minX + 12)
             XCTAssertLessThanOrEqual(artwork.frame.maxX, app.frame.maxX - 12)
-            let watch = app.buttons["Watch The Last Horizon"].firstMatch
+            let watch = app.buttons["Watch \(title)"].firstMatch
             XCTAssertTrue(watch.isHittable)
             XCTAssertLessThan(watch.frame.width, 300,
                 "The banner artwork should grow without stretching its actions across the entire iPad.")

@@ -160,10 +160,15 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertEqual(app.buttons["hero-carousel-pause"].label, "Resume carousel")
         XCTAssertTrue((progress.value as? String ?? "").contains("paused"))
         capture("02 Hero paused")
-        app.buttons["hero-carousel-pause"].tap()
         let priorTitle = progress.label
         element("hero-carousel").swipeLeft()
-        XCTAssertTrue(wait { self.app.buttons["hero-main-progress"].label != priorTitle })
+        XCTAssertTrue(wait {
+            let current = self.app.buttons["hero-main-progress"]
+            return current.exists && current.label != priorTitle
+        })
+        XCTAssertEqual(app.buttons["hero-carousel-pause"].label, "Resume carousel")
+        app.buttons["hero-carousel-pause"].tap()
+        XCTAssertTrue(wait { self.app.buttons["hero-carousel-pause"].label == "Pause carousel" })
         capture("03 Hero swipe and animated indicator")
         pauseHomeCarousel()
         let choice = app.buttons["home-choice-media-forYou"]
