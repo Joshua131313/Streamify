@@ -27,11 +27,11 @@ enum ProfileSyncStatus: Equatable {
     case local, loading, syncing, synced, pending, failed(String), conflict
     var title: String {
         switch self {
-        case .local: "Saved on this iPhone"
+        case .local: "Saved on this device"
         case .loading: "Loading account profiles…"
         case .syncing: "Syncing profile preferences…"
         case .synced: "Profile preferences synced"
-        case .pending: "Changes saved on this iPhone · sync pending"
+        case .pending: "Changes saved on this device · sync pending"
         case .failed(let message): message
         case .conflict: ProfileSyncError.conflict.localizedDescription
         }
@@ -372,7 +372,7 @@ enum ProfileSyncStatus: Equatable {
         var errorDescription: String? {
             switch self {
             case .limit: "You can have up to five profiles."
-            case .last: "Keep at least one profile on this iPhone."
+            case .last: "Keep at least one profile on this device."
             case .missing: "This profile is no longer available."
             case .name: "Use a profile name between 1 and 24 characters."
             }

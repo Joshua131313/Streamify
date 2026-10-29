@@ -105,14 +105,14 @@ final class AccountCacheFlowTests: XCTestCase {
     private func reveal(_ target: XCUIElement) {
         for _ in 0..<12 {
             if target.exists && target.isHittable { return }
-            let origin = app.coordinate(withNormalizedOffset: .zero), frame = app.frame
+            let origin = app.coordinate(withNormalizedOffset: .zero), frame = app.reviewScrollSurface.frame.intersection(app.frame)
             let keyboard = app.keyboards.firstMatch
             // Autofill's 44pt accessory is outside XCUI's Keyboard frame.
-            let bottom = keyboard.exists ? keyboard.frame.minY - 80 : frame.height * 0.82
-            let top = frame.height * 0.22
+            let bottom = keyboard.exists ? min(frame.maxY - 20, keyboard.frame.minY - 80) : frame.minY + frame.height * 0.82
+            let top = frame.minY + frame.height * 0.22
             let up = !(target.exists && target.frame.maxY < (top + bottom) / 2)
-            origin.withOffset(CGVector(dx: frame.width * 0.88, dy: up ? bottom : top)).press(forDuration: 0.05,
-                thenDragTo: origin.withOffset(CGVector(dx: frame.width * 0.88, dy: up ? top : bottom)))
+            origin.withOffset(CGVector(dx: frame.minX + frame.width * 0.88, dy: up ? bottom : top)).press(forDuration: 0.05,
+                thenDragTo: origin.withOffset(CGVector(dx: frame.minX + frame.width * 0.88, dy: up ? top : bottom)))
         }
         XCTAssertTrue(target.isHittable)
     }

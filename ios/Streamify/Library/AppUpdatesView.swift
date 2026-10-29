@@ -236,8 +236,8 @@ struct AppUpdatesView: View {
                 .overlay { RoundedRectangle(cornerRadius: 20).strokeBorder(AppTheme.border, lineWidth: 1) }
 
                 VStack(alignment: .leading, spacing: 10) {
-                    Label("Installing an update", systemImage: "iphone").font(.headline)
-                    Text("Install the IPA with SideStore on iPhone or iLoader on your computer. Keep the existing app installed.")
+                    Label("Installing an update", systemImage: AdaptiveLayout.deviceSymbol).font(.headline)
+                    Text("Install the IPA with SideStore on iPhone or iPad, or iLoader on your computer. Keep the existing app installed.")
                     Text("SideStore needs one initial computer setup. A free Apple Account needs its apps refreshed within seven days.")
                         .foregroundStyle(AppTheme.muted)
                     if sideStoreAvailable {

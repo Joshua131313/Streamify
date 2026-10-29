@@ -606,7 +606,11 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertTrue(diamond.waitForExistence(timeout: 10))
         reveal(watch)
         XCTAssertTrue(watch.isHittable)
-        XCTAssertLessThanOrEqual(diamond.frame.maxY, watch.frame.minY, "Large text keeps the live context above the actions instead of clipping either.")
+        if app.frame.width < 700 {
+            XCTAssertLessThanOrEqual(diamond.frame.maxY, watch.frame.minY, "Large text keeps the live context above the actions instead of clipping either.")
+        } else {
+            XCTAssertFalse(diamond.frame.intersects(watch.frame), "A wider iPad footer must keep its live context clear of the actions.")
+        }
         XCTAssertLessThanOrEqual(watch.frame.maxX, app.frame.maxX - 8)
         XCTAssertGreaterThanOrEqual(watch.frame.minX, app.frame.minX)
         capture("MLB footer adapts to large text and light appearance")

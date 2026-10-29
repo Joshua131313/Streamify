@@ -212,7 +212,7 @@ final class MediaDownloadResolverTests: XCTestCase {
             XCTFail("A file the native player cannot play must not start a complete download")
         } catch let error as MediaDownloadResolutionError {
             guard case .incompatibleSource = error else { XCTFail("Unexpected source error: \(error)"); return }
-            XCTAssertTrue(error.localizedDescription.contains("cannot be played by this iPhone"))
+            XCTAssertTrue(error.localizedDescription.contains("cannot be played by this device"))
         } catch { XCTFail("Expected a source compatibility error: \(error)") }
         let paths = await checked.paths
         XCTAssertEqual(paths, ["1080.mp4"])

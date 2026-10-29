@@ -37,11 +37,11 @@ enum ProfileSyncError: LocalizedError {
     case unavailable, accountChanged, invalidData, conflict, timeout, notReady
     var errorDescription: String? {
         switch self {
-        case .unavailable: "Profile sync is unavailable in this build. Your profiles remain on this iPhone."
+        case .unavailable: "Profile sync is unavailable in this build. Your profiles remain on this device."
         case .accountChanged: "Your account changed. Please retry."
         case .invalidData: "Account profile data could not be read safely. Your local profiles are unchanged."
-        case .conflict: "Profiles changed on another device. Reload account profiles to use those changes. Your local changes are still saved on this iPhone."
-        case .timeout: "The account service did not respond. Changes are saved on this iPhone and will retry."
+        case .conflict: "Profiles changed on another device. Reload account profiles to use those changes. Your local changes are still saved on this device."
+        case .timeout: "The account service did not respond. Changes are saved on this device and will retry."
         case .notReady: "Connect to load this account’s profiles before editing them."
         }
     }

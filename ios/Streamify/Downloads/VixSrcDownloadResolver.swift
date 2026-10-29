@@ -13,7 +13,7 @@ enum VixSrcDownloadError: LocalizedError, Equatable {
         case .unsupportedProtection: return "This source uses unsupported protected playback."
         case .notVOD: return "This source does not provide a complete on-demand download."
         case .englishAudioUnavailable: return "The source does not provide playable English audio."
-        case .nativeCapabilityUnavailable: return "This iPhone could not verify the exact selected download quality."
+        case .nativeCapabilityUnavailable: return "This device could not verify the exact selected download quality."
         case .redirectRefused: return "The download source redirected its metadata request."
         case .http(let status, _): return "The download source could not complete the request (HTTP \(status))."
         }

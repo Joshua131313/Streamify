@@ -19,6 +19,9 @@ struct NativeGlassTabBar: UIViewRepresentable {
         bar.delegate = context.coordinator
         bar.tintColor = .label
         bar.unselectedItemTintColor = .secondaryLabel
+        // Regular-width UIKit otherwise centers four narrow inline items and
+        // truncates Search. Give every item its share of the iPad pill.
+        if UIDevice.current.userInterfaceIdiom == .pad { bar.itemPositioning = .fill }
         bar.accessibilityIdentifier = "floating-navigation"
         bar.setItems(AppTab.allCases.enumerated().map { index, tab in
             let item = UITabBarItem(title: tab.title,

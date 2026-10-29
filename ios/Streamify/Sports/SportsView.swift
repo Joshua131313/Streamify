@@ -49,6 +49,7 @@ struct SportsView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.dynamicTypeSize) private var typeSize
     @StateObject private var queue = SportsWatchQueue()
     @StateObject private var scheduleCache = SportsScheduleCache()
     @StateObject private var daySwipeScope = SportsDaySwipeScope()
@@ -670,7 +671,7 @@ struct SportsView: View {
     }
 
     private func gameGrid(_ games: [SportsGame]) -> some View {
-        LazyVGrid(columns: sizeClass == .regular ? [GridItem(.adaptive(minimum: 420), spacing: 16, alignment: .top)] : [GridItem(.flexible())], alignment: .leading, spacing: 12) {
+        LazyVGrid(columns: sizeClass == .regular && !typeSize.isAccessibilitySize ? [GridItem(.adaptive(minimum: 420), spacing: 16, alignment: .top)] : [GridItem(.flexible())], alignment: .leading, spacing: 12) {
             ForEach(games) { game in SportsGameCard(game: game, daySwipeScope: daySwipeScope) { selectedGame = game } }
         }.accessibilityIdentifier("sports-game-grid")
     }

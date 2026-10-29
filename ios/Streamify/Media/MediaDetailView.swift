@@ -111,7 +111,7 @@ struct MediaDetailView: View {
                 PersonDetailView(id: person.id)
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Close") { selectedCast = nil } } }
             }
-            .presentationDetents([.medium, .large]).presentationDragIndicator(.visible)
+            .streamifyPageSheet().presentationDetents([.medium, .large]).presentationDragIndicator(.visible)
             .presentationCornerRadius(24).presentationBackground(AppTheme.canvas)
         }
     }
@@ -224,7 +224,7 @@ struct MediaDetailView: View {
                     Button { play(season: season, episode: episode.number, origin: origin) } label: {
                         HStack(spacing: 14) {
                             ZStack {
-                                RemoteArtwork(url: episode.stillURL ?? (media.kind == .anime ? title.backdropURL : nil))
+                                RemoteArtwork(url: episode.stillURL ?? title.backdropURL)
                                     .frame(width: 128, height: 76).clipped()
                                 Image(systemName: "play.fill").font(.body).foregroundStyle(.white)
                                     .padding(10).background(.black.opacity(0.6), in: Circle())

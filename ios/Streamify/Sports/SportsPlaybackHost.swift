@@ -118,6 +118,7 @@ struct SportsPlaybackHost: UIViewRepresentable {
                     // preserves its view, size, player and WebKit document.
                     window.isHidden = false
                     window.alpha = mode == .expanded ? 1 : 0
+                    window.accessibilityElementsHidden = mode != .expanded
                     self.updateWindowFocus(expanded: mode == .expanded, providerFullscreen: providerFullscreen, window: window)
                     window.rootViewController?.view.accessibilityElementsHidden = mode != .expanded
                     window.rootViewController?.view.accessibilityViewIsModal = mode == .expanded
@@ -231,6 +232,9 @@ private struct SportsPlaybackOverlay: View {
                 .onDisappear { optionsHideTask?.cancel(); optionsHideTask = nil }
             }
         }.ignoresSafeArea().preferredColorScheme(.dark).foregroundStyle(.white).tint(.white)
+        // Keep the source layer mounted for system PiP while hiding its
+        // invisible SwiftUI controls from VoiceOver and interaction.
+        .accessibilityHidden(!session.isExpanded).allowsHitTesting(session.isExpanded)
         .sheet(isPresented: $showChat) {
             if let game = session.item?.game {
                 SportsGameChatScreen(game: game, sceneIsActive: activity.isActive).presentationDetents([.medium, .large])

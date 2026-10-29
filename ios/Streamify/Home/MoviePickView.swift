@@ -14,7 +14,7 @@ struct MoviePickShortcut: View {
             }.padding(18).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 16))
         }.buttonStyle(HapticCardButtonStyle(cornerRadius: 16)).padding(.horizontal, 20)
             .accessibilityIdentifier("home-pick-for-me")
-            .sheet(isPresented: $showing) { MoviePickView() }
+            .sheet(isPresented: $showing) { MoviePickView().streamifyPageSheet() }
     }
 }
 
@@ -22,6 +22,7 @@ struct MoviePickView: View {
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var library: LibraryStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var genre: CatalogGenre?
     @State private var pool: MoviePickPool?
     @State private var picked: MediaItem?
@@ -32,6 +33,7 @@ struct MoviePickView: View {
 
     var body: some View {
         NavigationStack {
+            ScrollViewReader { scroll in
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     if let picked {
@@ -59,18 +61,28 @@ struct MoviePickView: View {
                                     .accessibilityIdentifier("movie-pick-genre-\(item.id)")
                             }
                         }
+                    }
+                    if let error { Text(error).font(.subheadline).foregroundStyle(AppTheme.muted).accessibilityIdentifier("movie-pick-error") }
+                }.padding(24).frame(maxWidth: 680).frame(maxWidth: .infinity).id("movie-pick-top")
+            }.background(AppTheme.canvas).foregroundStyle(AppTheme.foreground)
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    if picked == nil {
                         Button { request = UUID() } label: {
                             HStack { if loading { ProgressView() }; Label(loading ? "Finding your movie…" : "Pick for me", systemImage: "shuffle") }
                                 .frame(maxWidth: .infinity)
                         }.buttonStyle(PrimaryButtonStyle()).disabled(genre == nil || loading)
                             .accessibilityIdentifier("movie-pick-draw")
+                            .padding(.horizontal, 24).padding(.vertical, 16).frame(maxWidth: 680)
+                            .frame(maxWidth: .infinity).background(AppTheme.canvas)
                     }
-                    if let error { Text(error).font(.subheadline).foregroundStyle(AppTheme.muted).accessibilityIdentifier("movie-pick-error") }
-                }.padding(24).frame(maxWidth: 680).frame(maxWidth: .infinity)
-            }.background(AppTheme.canvas).foregroundStyle(AppTheme.foreground)
+                }
                 .navigationTitle("Pick for me").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
                 .task(id: request) { if request != nil { await draw() } }
+                .onChange(of: picked?.key) { _, _ in
+                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) { scroll.scrollTo("movie-pick-top", anchor: .top) }
+                }
+            }
         }.presentationDragIndicator(.visible).presentationDetents([.large])
     }
 
@@ -109,13 +121,14 @@ struct MoviePickView: View {
             if let pool { current = pool }
             else { current = try await settings.client.moviePickPool(genre: genre.id, history: library.history) }
             try Task.checkCancellation()
+            guard request == currentRequest, self.genre?.id == genre.id else { return }
             pool = current
             guard let choice = MoviePickPolicy.choose(current.items, history: library.history, recommended: current.recommended, excluding: shown) else {
                 error = "You’ve seen this batch. Choose another genre for more movies."
                 return
             }
             shown.insert(choice.key)
-            withAnimation(.easeInOut(duration: 0.22)) { picked = choice }
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) { picked = choice }
         } catch is CancellationError { }
         catch { if !Task.isCancelled { self.error = "Couldn’t find a movie just now. \(error.localizedDescription)" } }
     }

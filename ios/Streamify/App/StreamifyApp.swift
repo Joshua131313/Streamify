@@ -466,12 +466,13 @@ struct RootView: View {
         HStack(spacing: 0) {
             Image("streamify-logo").resizable().scaledToFit().frame(width: 30, height: 30).accessibilityHidden(true)
             Text(page.title).font(.system(size: 24, weight: .bold)).lineLimit(1)
-                .padding(.leading, 10).frame(maxWidth: .infinity, alignment: .leading).accessibilityAddTraits(.isHeader)
+                .padding(.leading, 10).frame(maxWidth: sportsPlayback.isPiPActive && UIDevice.current.userInterfaceIdiom == .pad ? nil : .infinity, alignment: .leading).accessibilityAddTraits(.isHeader)
                 .accessibilityIdentifier("root-title-\(page.rawValue)")
             if sportsPlayback.isPiPActive {
                 Button { sportsPlayback.expand() } label: { Image(systemName: "pip.exit").frame(width: 44, height: 44) }
                     .accessibilityLabel("Return to player").accessibilityIdentifier("sports-pip-restore")
             }
+            if sportsPlayback.isPiPActive && UIDevice.current.userInterfaceIdiom == .pad { Spacer(minLength: 8) }
             Button {
                 if page == .sports { sportsSearchRequest += 1 }
                 else {

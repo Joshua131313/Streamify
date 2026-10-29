@@ -27,7 +27,7 @@ struct LibraryView: View {
                         .font(.subheadline.weight(.semibold)).padding(.horizontal, 16).frame(minHeight: 48)
                         .streamifyControlSurface()
                 }.buttonStyle(HapticPlainButtonStyle()).foregroundStyle(AppTheme.foreground)
-                Label("\(profiles.activeProfile?.name ?? "My profile") · on this iPhone", systemImage: "iphone").font(.caption).foregroundStyle(AppTheme.muted)
+                Label("\(profiles.activeProfile?.name ?? "My profile") · on this \(AdaptiveLayout.deviceName)", systemImage: AdaptiveLayout.deviceSymbol).font(.caption).foregroundStyle(AppTheme.muted)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
                         Pill(title: "Saved · \(library.saved.count)", selected: !history) { history = false }
@@ -327,6 +327,7 @@ struct PreferencesView: View {
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var profiles: ProfileStore
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @ScaledMetric(relativeTo: .body) private var tileHeight: CGFloat = 68
     private let genres = [(28,"Action"),(12,"Adventure"),(16,"Animation"),(35,"Comedy"),(80,"Crime"),(99,"Documentary"),(18,"Drama"),(10751,"Family"),(14,"Fantasy"),(27,"Horror"),(9648,"Mystery"),(10749,"Romance"),(878,"Sci-Fi"),(53,"Thriller")]
     var body: some View {
@@ -337,7 +338,7 @@ struct PreferencesView: View {
                     Text("\(library.favoriteGenres.count) selected").font(.caption.weight(.medium)).foregroundStyle(AppTheme.muted)
                     Spacer()
                 }
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: typeSize.isAccessibilitySize ? 1 : 2), spacing: 12) {
+                LazyVGrid(columns: typeSize.isAccessibilitySize ? [GridItem(.flexible())] : sizeClass == .regular ? [GridItem(.adaptive(minimum: 220), spacing: 12)] : Array(repeating: GridItem(.flexible(), spacing: 12), count: 2), spacing: 12) {
                     ForEach(genres, id: \.0) { genre in
                         let selected = library.favoriteGenres.contains(genre.0)
                         Button { library.setGenre(genre.0) } label: {

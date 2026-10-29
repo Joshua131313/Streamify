@@ -316,7 +316,7 @@ struct PosterGrid: View {
     @ScaledMetric(relativeTo: .body) private var minimumWidth: CGFloat = 104
     @Environment(\.horizontalSizeClass) private var sizeClass
     var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: max(minimumWidth, sizeClass == .regular ? 150 : 104), maximum: 220), spacing: 16)], alignment: .leading, spacing: 24) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: max(minimumWidth, sizeClass == .regular ? 150 : 104), maximum: max(220, minimumWidth)), spacing: 16)], alignment: .leading, spacing: 24) {
             ForEach(items, id: \.key) { PosterCard(media: $0, roomy: true) }
         }
     }

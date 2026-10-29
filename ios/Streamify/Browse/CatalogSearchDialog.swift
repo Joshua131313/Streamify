@@ -45,7 +45,7 @@ struct CatalogSearchDialog: View {
                                 ProgressView("Searching titles…").frame(maxWidth: .infinity).padding(.vertical, 28)
                                     .accessibilityIdentifier("catalog-search-loading")
                             }
-                            LazyVGrid(columns: [GridItem(.adaptive(minimum: max(posterWidth, sizeClass == .regular ? 150 : 104), maximum: 220), spacing: 16)], alignment: .leading, spacing: 20) {
+                            LazyVGrid(columns: [GridItem(.adaptive(minimum: max(posterWidth, sizeClass == .regular ? 150 : 104), maximum: max(220, posterWidth)), spacing: 16)], alignment: .leading, spacing: 20) {
                                 ForEach(model.items, id: \.key) { media in result(media) }
                             }
                             if let error = model.error { InlineError(message: error) { revision += 1 } }

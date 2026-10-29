@@ -36,7 +36,7 @@ final class MediaWatchFlowTests: XCTestCase {
         XCTAssertFalse(app.navigationBars.firstMatch.exists, "Media details must keep the header removed.")
         let trailer = element("trailer-preview")
         XCTAssertTrue(trailer.exists)
-        XCTAssertLessThanOrEqual(trailer.frame.maxY, watch.frame.minY, "The preview must not extend over the action's hit region.")
+        XCTAssertFalse(trailer.frame.intersects(watch.frame), "The preview must not extend over the action's hit region in either stacked or side-by-side layouts.")
         capture("Movie details full-width Watch target")
 
         watch.coordinate(withNormalizedOffset: CGVector(dx: 0.06, dy: 0.5)).tap()

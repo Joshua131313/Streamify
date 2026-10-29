@@ -18,6 +18,7 @@ private struct SportsBroadcaster: Identifiable {
 
 struct SportsChannelsView: View {
     @EnvironmentObject private var playback: SportsPlaybackSession
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var numbers: [String: String] = [:]
     private let providers = [
         SportsChannelProvider(id: "ripple", name: "Ripple Plays", base: "https://rippleplays.shop/newhub/stream-", suffix: ".php", initial: "1"),
@@ -39,6 +40,7 @@ struct SportsChannelsView: View {
         VStack(alignment: .leading, spacing: 20) {
             Text("Sports channels").font(.title2.bold())
             Text("Stream providers").font(.headline)
+            LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
             ForEach(providers) { provider in
                 SportsPlaybackOriginCard { origin in
                     SportsPanel {
@@ -53,8 +55,10 @@ struct SportsChannelsView: View {
                     }
                 }
             }
+            }
             Text("Broadcasters").font(.title3.bold())
             Text("Opens the broadcaster site. Availability varies by region.").font(.caption).foregroundStyle(AppTheme.muted)
+            LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
             ForEach(broadcasters) { broadcaster in
                 if let url = sportsHTTPSURL(broadcaster.address) {
                     Link(destination: url) {
@@ -66,8 +70,11 @@ struct SportsChannelsView: View {
                     }.buttonStyle(HapticPlainButtonStyle())
                 }
             }
+            }
         }.padding(.horizontal, 20).foregroundStyle(AppTheme.foreground)
     }
+
+    private var columns: [GridItem] { sizeClass == .regular ? [GridItem(.adaptive(minimum: 360), spacing: 16, alignment: .top)] : [GridItem(.flexible())] }
 
     private func channelField(_ provider: SportsChannelProvider) -> some View {
         VStack(alignment: .leading, spacing: 7) {

@@ -265,7 +265,7 @@ private struct DownloadRow: View {
             .alert("Delete \(item.title)?", isPresented: $confirmDelete) {
                 Button("Delete video", role: .destructive) { downloads.remove(id: item.id) }
                 Button("Cancel", role: .cancel) {}
-            } message: { Text("This removes the saved video from this iPhone.") }
+            } message: { Text("This removes the saved video from this \(AdaptiveLayout.deviceName).") }
             .sheet(isPresented: $showQuality) {
                 if let catalog = item.catalog, let media = catalog.media {
                     NavigationStack {

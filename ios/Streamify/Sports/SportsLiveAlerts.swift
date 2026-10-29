@@ -39,7 +39,7 @@ final class SportsLiveAlerts: NSObject, ObservableObject, MessagingDelegate, UNU
         do {
             let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
             if granted && Self.remotePushConfigured { UIApplication.shared.registerForRemoteNotifications() }
-            status = granted ? (Self.remotePushConfigured ? nil : "Alerts while Streamify is closed require Apple push signing. Live alerts can appear when the app checks scores.") : "Allow notifications for Streamify in iPhone Settings."
+            status = granted ? (Self.remotePushConfigured ? nil : "Alerts while Streamify is closed require Apple push signing. Live alerts can appear when the app checks scores.") : "Allow notifications for Streamify in Settings."
             return granted
         } catch { status = error.localizedDescription; return false }
     }

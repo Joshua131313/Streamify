@@ -9,7 +9,7 @@ enum OfflineVideoError: LocalizedError, Hashable {
         case .missingFile: return "The local video file is missing or could not be opened."
         case .damagedFile: return "The downloaded file is incomplete, damaged, or could not be read."
         case .noVideo: return "This file does not contain a video track."
-        case .incompatible: return "This file contains a video or audio track that this iPhone cannot play."
+        case .incompatible: return "This file contains a video or audio track that this device cannot play."
         case .unplayable: return "The iOS player could not play this file."
         case .protectedContent: return "This file requires protected playback that is not available for this offline download."
         case .qualityMismatch: return "The source file does not match the download resolution you selected."
