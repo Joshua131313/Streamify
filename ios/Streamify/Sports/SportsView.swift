@@ -51,7 +51,12 @@ struct SportsView: View {
     @StateObject private var queue = SportsWatchQueue()
     @StateObject private var scheduleCache = SportsScheduleCache()
     @StateObject private var daySwipeScope = SportsDaySwipeScope()
-    @State private var selectedLeague: SportsLeague?
+    @State private var selectedLeague: SportsLeague? = {
+        #if DEBUG
+        if PreviewFixtures.enabled && ProcessInfo.processInfo.arguments.contains("--ui-mlb-count-fixtures") { return .mlb }
+        #endif
+        return nil
+    }()
     @State private var tennisTour: SportsTennisTour?
     @State private var showTennisDoubles = false
     @State private var followedTeamsOnly = false
@@ -795,29 +800,17 @@ struct SportsGameCard: View {
                 teamControl(game.away)
                 teamControl(game.home)
             }
-            SportsLiveSituationView(game: game)
-            HStack(spacing: 10) {
-                Spacer(minLength: 2)
-                if !game.isFinal { SportsTrackGameButton(game: game).sportsDaySwipeExcluded(daySwipeScope) }
-                if game.canWatch {
-                    Button {
-                        guard daySwipeScope?.permitsProtectedAction != false else { return }
-                        AppHaptics.tap()
-                        watchRevision += 1
-                    } label: {
-                        HStack(spacing: 7) {
-                            Text("Watch")
-                            if watchLoading { ProgressView().controlSize(.small).tint(AppTheme.canvas) }
-                            else { Image(systemName: "play.fill").font(.system(size: 11)) }
-                        }.padding(.horizontal, 12).frame(height: 36)
-                            .foregroundStyle(AppTheme.canvas).background(AppTheme.foreground, in: RoundedRectangle(cornerRadius: 10))
-                            .frame(minHeight: 44).contentShape(Rectangle())
-                    }.buttonStyle(.plain).disabled(watchLoading)
-                        .accessibilityLabel("Watch \(game.away.abbreviation) vs \(game.home.abbreviation)")
-                        .accessibilityIdentifier("sports-watch-\(game.id)")
-                        .sportsDaySwipeExcluded(daySwipeScope)
-                }
-            }.font(.caption.weight(.semibold))
+            if game.isLive, game.league == .mlb, let baseball = game.liveSituation?.baseball {
+                Rectangle().fill(AppTheme.border).frame(height: 0.5).padding(.horizontal, 6).padding(.top, 4)
+                SportsBaseballCardFooterLayout {
+                    SportsBaseballSituationView(game: game, situation: baseball)
+                    cardActions
+                }.padding(.horizontal, 6).padding(.top, 3)
+                    .accessibilityElement(children: .contain).accessibilityIdentifier("sports-game-footer-\(game.id)")
+            } else {
+                SportsLiveSituationView(game: game)
+                HStack { Spacer(minLength: 2); cardActions }
+            }
         }.padding(.horizontal, 10).padding(.top, 2).padding(.bottom, 5)
             .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 12))
             .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(AppTheme.border, lineWidth: 0.7) }
@@ -862,6 +855,30 @@ struct SportsGameCard: View {
             .alert("Source unavailable", isPresented: Binding(get: { watchError != nil }, set: { if !$0 { watchError = nil } })) {
                 Button("OK", role: .cancel) { watchError = nil }
             } message: { Text(watchError ?? "Try again shortly.") }
+    }
+
+    private var cardActions: some View {
+        HStack(spacing: 10) {
+            if !game.isFinal { SportsTrackGameButton(game: game).sportsDaySwipeExcluded(daySwipeScope) }
+            if game.canWatch {
+                Button {
+                    guard daySwipeScope?.permitsProtectedAction != false else { return }
+                    AppHaptics.tap()
+                    watchRevision += 1
+                } label: {
+                    HStack(spacing: 7) {
+                        Text("Watch")
+                        if watchLoading { ProgressView().controlSize(.small).tint(AppTheme.canvas) }
+                        else { Image(systemName: "play.fill").font(.system(size: 11)) }
+                    }.padding(.horizontal, 12).frame(height: 36)
+                        .foregroundStyle(AppTheme.canvas).background(AppTheme.foreground, in: RoundedRectangle(cornerRadius: 10))
+                        .frame(minHeight: 44).contentShape(Rectangle())
+                }.buttonStyle(.plain).disabled(watchLoading)
+                    .accessibilityLabel("Watch \(game.away.abbreviation) vs \(game.home.abbreviation)")
+                    .accessibilityIdentifier("sports-watch-\(game.id)")
+                    .sportsDaySwipeExcluded(daySwipeScope)
+            }
+        }.font(.caption.weight(.semibold))
     }
 
     private var gameHeader: some View {

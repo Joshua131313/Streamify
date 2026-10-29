@@ -9,7 +9,10 @@ final class ParityFlowTests: XCTestCase {
         continueAfterFailure = false
         app = XCUIApplication()
         app.launchArguments = ["--ui-fixtures"]
-        if name.contains("testBaseballDiamondUsesLiveBaseStates") { app.launchArguments.append("--ui-mlb-count-fixtures") }
+        if name.contains("testBaseballDiamondUsesLiveBaseStates") || name.contains("testBaseballFooter") { app.launchArguments.append("--ui-mlb-count-fixtures") }
+        if name.contains("testBaseballFooterAdaptsToLargeTextInLightMode") {
+            app.launchArguments += ["--ui-mlb-light", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityM"]
+        }
         app.launch()
         XCTAssertTrue(app.buttons["tab-home"].waitForExistence(timeout: 15))
     }
@@ -544,7 +547,6 @@ final class ParityFlowTests: XCTestCase {
 
     func testBaseballDiamondUsesLiveBaseStatesAndSymmetricFieldLayout() {
         app.buttons["tab-sports"].tap()
-        selectSportsLeagues(["mlb"])
         XCTAssertTrue(app.buttons["sports-game-mlb:mlb-fixture"].waitForExistence(timeout: 10))
         let diamond = element("sports-diamond-mlb:mlb-fixture")
         XCTAssertTrue(diamond.waitForExistence(timeout: 8))
@@ -572,6 +574,11 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertEqual(outs.value as? String, "1")
         XCTAssertLessThan(balls.frame.midY, strikes.frame.midY)
         XCTAssertLessThan(strikes.frame.midY, outs.frame.midY)
+        let watch = app.buttons["sports-watch-mlb:mlb-fixture"]
+        XCTAssertTrue(watch.exists)
+        XCTAssertGreaterThanOrEqual(diamond.frame.minY, watch.frame.minY - 2, "The live score display belongs in the action footer.")
+        XCTAssertLessThanOrEqual(diamond.frame.maxY, watch.frame.maxY + 2)
+        XCTAssertLessThan(diamond.frame.maxX, watch.frame.minX)
         for label in ["Balls", "Strikes", "Outs"] { XCTAssertFalse(app.staticTexts[label].exists) }
         XCTAssertFalse(element("sports-ball-mlb:mlb-fixture-100").exists)
         XCTAssertFalse(element("sports-ball-mlb:mlb-fixture-200").exists)
@@ -589,6 +596,19 @@ final class ParityFlowTests: XCTestCase {
             }
             capture("MLB \(id) uses its own runners and \(outs) filled out circles")
         }
+    }
+
+    func testBaseballFooterAdaptsToLargeTextInLightMode() {
+        app.buttons["tab-sports"].tap()
+        let diamond = element("sports-diamond-mlb:mlb-fixture")
+        let watch = app.buttons["sports-watch-mlb:mlb-fixture"]
+        XCTAssertTrue(diamond.waitForExistence(timeout: 10))
+        reveal(watch)
+        XCTAssertTrue(watch.isHittable)
+        XCTAssertLessThanOrEqual(diamond.frame.maxY, watch.frame.minY, "Large text keeps the live context above the actions instead of clipping either.")
+        XCTAssertLessThanOrEqual(watch.frame.maxX, app.frame.maxX - 8)
+        XCTAssertGreaterThanOrEqual(watch.frame.minX, app.frame.minX)
+        capture("MLB footer adapts to large text and light appearance")
     }
 
     func testScheduleDaySwipesKeepToolbarAndRootTabStationary() {

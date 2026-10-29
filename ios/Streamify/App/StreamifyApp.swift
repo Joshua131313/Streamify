@@ -22,6 +22,7 @@ struct StreamifyApp: App {
             chooseOnLaunch: !PreviewFixtures.enabled || ProcessInfo.processInfo.arguments.contains("--ui-profile-chooser"),
             backend: localAccount ? PreviewProfileBackend() : nil)
         if PreviewFixtures.enabled { PreviewFixtures.seedLibrary(profileStore.library) }
+        if PreviewFixtures.enabled && ProcessInfo.processInfo.arguments.contains("--ui-mlb-light") { profileStore.settings.appearance = "Light" }
         if PreviewFixtures.enabled && ProcessInfo.processInfo.arguments.contains("--ui-profile-quick-switch") {
             profileStore.settings.appearance = ProcessInfo.processInfo.arguments.contains("--ui-glass-dark") ? "Dark" : "Light"
             try? profileStore.add(name: "Alex", avatar: .ocean)

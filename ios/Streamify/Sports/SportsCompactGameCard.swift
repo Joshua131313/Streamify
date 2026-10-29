@@ -132,17 +132,17 @@ private struct SportsFootballField: View {
     }
 }
 
-private struct SportsBaseballSituationView: View {
+struct SportsBaseballSituationView: View {
     let game: SportsGame
     let situation: SportsBaseballSituation
     @Environment(\.colorScheme) private var colorScheme
     private var ballColor: Color { colorScheme == .dark
-        ? Color(red: 77/255, green: 207/255, blue: 149/255) : Color(red: 22/255, green: 129/255, blue: 91/255) }
+        ? Color(red: 102/255, green: 212/255, blue: 150/255) : Color(red: 22/255, green: 129/255, blue: 91/255) }
     private var pitchColor: Color { colorScheme == .dark
-        ? Color(red: 250/255, green: 117/255, blue: 129/255) : Color(red: 199/255, green: 71/255, blue: 85/255) }
+        ? Color(red: 231/255, green: 119/255, blue: 123/255) : Color(red: 199/255, green: 71/255, blue: 85/255) }
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 9) {
             if situation.hasBaseData {
                 SportsBaseballDiamond(situation: situation, gameID: game.id)
             }
@@ -151,8 +151,9 @@ private struct SportsBaseballSituationView: View {
                 dots("strikes", value: situation.strikes, maximum: 3, color: pitchColor)
                 dots("outs", value: situation.outs, maximum: 2, color: pitchColor, slots: 2)
             }
-        }.padding(8).background(AppTheme.foreground.opacity(0.035), in: RoundedRectangle(cornerRadius: 10))
-            .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 3)
+        }.frame(height: 36).fixedSize(horizontal: true, vertical: false)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("sports-baseball-situation-\(game.id)")
     }
 
     private func dots(_ name: String, value: Int?, maximum: Int, color: Color, slots: Int? = nil) -> some View {
@@ -179,22 +180,42 @@ private struct SportsBaseballDiamond: View {
 
     var body: some View {
         ZStack {
-            base("first", value: situation.firstOccupied).position(x: 39, y: 26)
-            base("second", value: situation.secondOccupied).position(x: 24, y: 11)
-            base("third", value: situation.thirdOccupied).position(x: 9, y: 26)
-        }.frame(width: 48, height: 36)
+            base("first", value: situation.firstOccupied).position(x: 37, y: 24)
+            base("second", value: situation.secondOccupied).position(x: 23, y: 10)
+            base("third", value: situation.thirdOccupied).position(x: 9, y: 24)
+        }.frame(width: 46, height: 34)
             .environment(\.layoutDirection, .leftToRight)
             .accessibilityElement(children: .contain).accessibilityIdentifier("sports-diamond-\(gameID)")
     }
 
     private func base(_ name: String, value: Bool?) -> some View {
-        RoundedRectangle(cornerRadius: 0.7).fill(value == true ? occupied : AppTheme.panel)
-            .overlay { RoundedRectangle(cornerRadius: 0.7).strokeBorder(
-                value == true ? occupied : AppTheme.foreground.opacity(value == nil ? 0.25 : 0.66),
-                style: StrokeStyle(lineWidth: 1, dash: value == nil ? [1.2, 1.2] : [])) }
-            .frame(width: 11, height: 11).rotationEffect(.degrees(45))
+        RoundedRectangle(cornerRadius: 0.9).fill(value == true ? occupied : .clear)
+            .overlay { RoundedRectangle(cornerRadius: 0.9).strokeBorder(
+                value == true ? occupied : AppTheme.foreground.opacity(value == nil ? 0.25 : 0.45),
+                style: StrokeStyle(lineWidth: 1.1, dash: value == nil ? [1.2, 1.2] : [])) }
+            .frame(width: 12.5, height: 12.5).rotationEffect(.degrees(45))
             .accessibilityElement(children: .ignore).accessibilityLabel("\(name.capitalized) base")
             .accessibilityValue(value.map { $0 ? "Occupied" : "Empty" } ?? "Unknown")
             .accessibilityIdentifier("sports-base-\(name)-\(gameID)")
+    }
+}
+
+/// One footer row at normal sizes; context stays above the actions when space
+/// is tight or text is enlarged. Each child keeps a single identity and tap target.
+struct SportsBaseballCardFooterLayout: Layout {
+    private let gap: CGFloat = 12
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard subviews.count == 2 else { return .zero }
+        let context = subviews[0].sizeThatFits(.unspecified), actions = subviews[1].sizeThatFits(.unspecified)
+        let width = proposal.width ?? context.width + gap + actions.width
+        let inline = context.width + gap + actions.width <= width
+        return CGSize(width: width, height: inline ? max(context.height, actions.height) : context.height + 6 + actions.height)
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard subviews.count == 2 else { return }
+        let context = subviews[0].sizeThatFits(.unspecified), actions = subviews[1].sizeThatFits(.unspecified)
+        let inline = context.width + gap + actions.width <= bounds.width
+        subviews[0].place(at: CGPoint(x: bounds.minX, y: inline ? bounds.midY - context.height / 2 : bounds.minY), anchor: .topLeading, proposal: .unspecified)
+        subviews[1].place(at: CGPoint(x: bounds.maxX - actions.width, y: inline ? bounds.midY - actions.height / 2 : bounds.maxY - actions.height), anchor: .topLeading, proposal: .unspecified)
     }
 }
