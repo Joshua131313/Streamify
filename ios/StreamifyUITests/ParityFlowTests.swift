@@ -386,6 +386,9 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["Action"].isSelected)
         capture("27 Genre preferences")
         relaunch()
+        // Stop the unrelated hero timeline before querying deep lazy content;
+        // continuous carousel animation otherwise prevents XCTest from idling.
+        pauseHomeCarousel()
         let explore = app.buttons["Explore all"]
         reveal(explore)
         explore.tap()
@@ -946,7 +949,7 @@ final class ParityFlowTests: XCTestCase {
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
     private func capture(_ name: String) {
-        let attachment = XCTAttachment(screenshot: app.screenshot())
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
