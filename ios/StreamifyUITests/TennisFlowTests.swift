@@ -13,7 +13,7 @@ final class TennisFlowTests: XCTestCase {
 
     override func tearDownWithError() throws {
         if (testRun?.failureCount ?? 0) > 0, let app {
-            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
             screenshot.name = "FAILURE tennis flow"; screenshot.lifetime = .keepAlways; add(screenshot)
             let hierarchy = XCTAttachment(string: app.debugDescription)
             hierarchy.name = "FAILURE tennis hierarchy"; hierarchy.lifetime = .keepAlways; add(hierarchy)
@@ -41,9 +41,13 @@ final class TennisFlowTests: XCTestCase {
         XCTAssertEqual(doublesToggle.value as? String, "0")
         // The switch accessibility frame includes its noninteractive row label.
         let nativeSwitch = doublesToggle.switches.firstMatch
-        if nativeSwitch.exists { nativeSwitch.tap() }
-        else { doublesToggle.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap() }
-        XCTAssertEqual(doublesToggle.value as? String, "1")
+        let control = nativeSwitch.exists ? nativeSwitch : doublesToggle
+        // Operate the real native thumb; iPadOS 26 exposes the whole List row
+        // and its inner switch as separate activation targets.
+        let from = control.coordinate(withNormalizedOffset: CGVector(dx: nativeSwitch.exists ? 0.25 : 0.87, dy: 0.5))
+        let to = control.coordinate(withNormalizedOffset: CGVector(dx: nativeSwitch.exists ? 0.8 : 0.96, dy: 0.5))
+        from.press(forDuration: 0.1, thenDragTo: to)
+        XCTAssertTrue(doublesToggle.wait(for: \.value, toEqual: "1", timeout: 5))
         app.buttons["sports-filter-done"].tap()
         app.swipeUp()
         XCTAssertTrue(app.staticTexts["Doubles Player One / Partner"].waitForExistence(timeout: 5))
@@ -70,7 +74,7 @@ final class TennisFlowTests: XCTestCase {
         XCTAssertTrue(sets.waitForExistence(timeout: 8)); sets.tap()
         XCTAssertTrue(app.scrollViews["sports-scoring-periods"].waitForExistence(timeout: 8) || app.otherElements["sports-scoring-periods"].exists)
         XCTAssertFalse(app.buttons["sports-game-tab-Team stats"].exists)
-        let screenshot = XCTAttachment(screenshot: app.screenshot()); screenshot.name = "Tennis set scoring"; screenshot.lifetime = .keepAlways
+        let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); screenshot.name = "Tennis set scoring"; screenshot.lifetime = .keepAlways
         add(screenshot)
     }
 
