@@ -144,7 +144,7 @@ private struct DownloadSeriesRow: View {
             .task(id: artworkKey) {
                 artwork = series.episodes.lazy.compactMap { $0.posterFileURL.flatMap { UIImage(contentsOfFile: $0.path) } }.first
             }
-            .confirmationDialog("Delete \(deletionIDs.count) episode download\(deletionIDs.count == 1 ? "" : "s") for \(series.title)?", isPresented: $confirmDelete, titleVisibility: .visible) {
+            .alert("Delete \(deletionIDs.count) episode download\(deletionIDs.count == 1 ? "" : "s") for \(series.title)?", isPresented: $confirmDelete) {
                 Button("Delete \(deletionIDs.count) episode\(deletionIDs.count == 1 ? "" : "s")", role: .destructive) {
                     // These records were captured when confirmation opened;
                     // a new episode added while it is open is not deleted.
@@ -156,7 +156,7 @@ private struct DownloadSeriesRow: View {
                     }
                 }.accessibilityIdentifier("download-series-confirm-delete-\(series.id)")
                 Button("Cancel", role: .cancel) {}
-            } message: { Text("This removes these episode downloads from this iPhone.") }
+            } message: { Text("This removes these episode downloads from this \(AdaptiveLayout.deviceName).") }
     }
 
     private var rowLabel: some View {
@@ -262,7 +262,7 @@ private struct DownloadRow: View {
             .accessibilityElement(children: .contain).accessibilityIdentifier("download-card-\(item.id)")
             .accessibilityValue(artwork == nil ? "Artwork unavailable" : "Artwork saved offline")
             .task(id: item.posterFileName) { artwork = item.posterFileURL.flatMap { UIImage(contentsOfFile: $0.path) } }
-            .confirmationDialog("Delete \(item.title)?", isPresented: $confirmDelete, titleVisibility: .visible) {
+            .alert("Delete \(item.title)?", isPresented: $confirmDelete) {
                 Button("Delete video", role: .destructive) { downloads.remove(id: item.id) }
                 Button("Cancel", role: .cancel) {}
             } message: { Text("This removes the saved video from this iPhone.") }

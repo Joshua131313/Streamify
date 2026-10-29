@@ -360,6 +360,7 @@ final class ParityFlowTests: XCTestCase {
         app.buttons["Close"].tap()
         app.buttons["More options"].tap()
         app.buttons["Settings"].tap()
+        reveal(app.buttons["save-settings"])
         XCTAssertTrue(app.buttons["save-settings"].waitForExistence(timeout: 5))
         capture("25 Settings")
         let updates = app.buttons["App updates"]

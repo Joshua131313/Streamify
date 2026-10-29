@@ -340,8 +340,9 @@ struct RootView: View {
         .sheet(isPresented: $settingsOpen) {
             NavigationStack { SettingsView() }
                 .preferredColorScheme(settings.appearance == "System" ? nil : settings.appearance == "Light" ? .light : .dark)
+                .streamifyPageSheet()
         }
-        .sheet(isPresented: $accountOpen) { NavigationStack { AccountView() } }
+        .sheet(isPresented: $accountOpen) { NavigationStack { AccountView() }.streamifyPageSheet() }
         .sheet(isPresented: $downloadsOpen) { NavigationStack { DownloadsView() }.streamifyPageSheet() }
         .task(id: "\(profiles.contextID)|\(settings.liveTeamAlerts)|\(library.followedTeams.sorted().joined(separator: ","))|\(scenePhase == .active)") {
             guard scenePhase == .active else { return }
