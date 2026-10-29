@@ -19,9 +19,14 @@ struct NativeGlassTabBar: UIViewRepresentable {
         bar.delegate = context.coordinator
         bar.tintColor = .label
         bar.unselectedItemTintColor = .secondaryLabel
-        // Regular-width UIKit otherwise centers four narrow inline items and
-        // truncates Search. Give every item its share of the iPad pill.
-        if UIDevice.current.userInterfaceIdiom == .pad { bar.itemPositioning = .fill }
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            // This standalone floating bar keeps the same stacked icon/caption
+            // layout as iPhone. Regular-width UIKit uses an inline presentation
+            // that collapses unselected captions even with itemPositioning.fill.
+            // Override only the control, leaving the app's iPad layouts regular.
+            bar.traitOverrides.horizontalSizeClass = .compact
+            bar.itemPositioning = .fill
+        }
         bar.accessibilityIdentifier = "floating-navigation"
         bar.setItems(AppTab.allCases.enumerated().map { index, tab in
             let item = UITabBarItem(title: tab.title,

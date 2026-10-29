@@ -26,7 +26,10 @@ final class IPadLayoutFlowTests: XCTestCase {
             XCTAssertTrue(element("hero-carousel").waitForExistence(timeout: 8))
             XCTAssertLessThan(element("hero-carousel").frame.height, 650)
             let bar = element("floating-navigation")
-            if bar.exists { XCTAssertLessThanOrEqual(bar.frame.width, 550) }
+            if bar.exists {
+                XCTAssertLessThanOrEqual(bar.frame.width, 550)
+                XCTAssertGreaterThanOrEqual(bar.frame.height, 54, "The floating tablet bar must retain stacked, readable icon/caption slots.")
+            }
             capture("iPad Pro Home \(orientation == .portrait ? "portrait" : "landscape")")
             app.buttons["tab-sports"].tap()
             let games = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "sports-game-"))
