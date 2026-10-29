@@ -94,7 +94,7 @@ final class AccountFlowTests: XCTestCase {
         for _ in 0..<15 {
             dismissStrongPasswordSuggestion(waitForAppearance: false)
             if target.exists && target.isHittable { return }
-            let bounds = app.frame
+            let bounds = app.reviewScrollSurface.frame.intersection(app.frame)
             let top = bounds.minY + bounds.height * 0.2
             let keyboard = app.keyboards.firstMatch
             let bottom = keyboard.exists
@@ -108,8 +108,8 @@ final class AccountFlowTests: XCTestCase {
             let high = top + 20
             let up = !(target.exists && target.frame.maxY < (top + bottom) / 2)
             let origin = app.coordinate(withNormalizedOffset: .zero)
-            let start = origin.withOffset(CGVector(dx: bounds.width * 0.95, dy: (up ? low : high) - bounds.minY))
-            let end = origin.withOffset(CGVector(dx: bounds.width * 0.95, dy: (up ? high : low) - bounds.minY))
+            let start = origin.withOffset(CGVector(dx: bounds.minX - app.frame.minX + bounds.width * 0.95, dy: (up ? low : high) - app.frame.minY))
+            let end = origin.withOffset(CGVector(dx: bounds.minX - app.frame.minX + bounds.width * 0.95, dy: (up ? high : low) - app.frame.minY))
             start.press(forDuration: 0.05, thenDragTo: end)
         }
         XCTAssertTrue(target.isHittable, "The account control must be reachable with the keyboard present.")

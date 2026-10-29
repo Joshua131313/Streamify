@@ -137,8 +137,8 @@ final class SportsChatFlowTests: XCTestCase {
         for _ in 0..<12 {
             if target.exists && target.isHittable { return }
             let up = !(target.exists && target.frame.maxY < app.frame.midY)
-            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: up ? 0.55 : 0.25))
-            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: up ? 0.25 : 0.55))
+            let start = app.reviewScrollSurface.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: up ? 0.55 : 0.25))
+            let end = app.reviewScrollSurface.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: up ? 0.25 : 0.55))
             start.press(forDuration: 0.05, thenDragTo: end)
         }
         XCTAssertTrue(target.isHittable)

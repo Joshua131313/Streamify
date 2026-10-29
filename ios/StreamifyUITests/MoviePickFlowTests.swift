@@ -37,6 +37,10 @@ final class MoviePickFlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["close-media-details"].waitForExistence(timeout: 8))
         XCTAssertTrue(app.staticTexts[selectedTitle].firstMatch.exists)
         capture(app, "Selected movie opens its standard detail screen")
+        app.buttons["close-media-details"].tap()
+        XCTAssertTrue(app.buttons["movie-pick-another"].waitForExistence(timeout: 8))
+        app.buttons["Done"].tap()
+        XCTAssertTrue(shortcut.waitForExistence(timeout: 5))
     }
     private func capture(_ app: XCUIApplication, _ name: String) {
         let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = name; shot.lifetime = .keepAlways; add(shot)

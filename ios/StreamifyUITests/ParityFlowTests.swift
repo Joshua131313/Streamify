@@ -927,7 +927,7 @@ final class ParityFlowTests: XCTestCase {
         // Use the content gutter, away from image buttons and nested horizontal rails.
         // An ancestor accessibility ID can also occur on a child button; do not ask
         // that ambiguous element to synthesize a swipe at its own activation point.
-        let surface = scrollView ?? app!
+        let surface = scrollView ?? app.reviewScrollSurface
         let start = surface.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: up ? 0.78 : 0.28))
         let end = surface.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: up ? 0.28 : 0.78))
         start.press(forDuration: 0.05, thenDragTo: end)

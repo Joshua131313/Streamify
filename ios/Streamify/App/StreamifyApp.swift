@@ -56,11 +56,15 @@ struct StreamifyApp: App {
                 .overlay(alignment: .bottomLeading) {
                     #if DEBUG
                     if PreviewNetworkActivity.enabled { PreviewNetworkReport() }
+                    if PreviewLiveActivity.enabled { PreviewLiveActivityStatus() }
                     #endif
                 }
                 .tint(AppTheme.foreground)
                 .onOpenURL { if !GoogleAccountSignIn.handle($0) { quickActions.enqueue(url: $0) } }
                 .task(id: scenePhase) {
+                    #if DEBUG
+                    await PreviewLiveActivity.shared.update(scenePhase)
+                    #endif
                     guard scenePhase == .active else { return }
                     await SportsGameTracker.shared.refreshWhileActive()
                 }

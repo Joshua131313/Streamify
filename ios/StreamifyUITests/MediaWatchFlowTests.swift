@@ -140,8 +140,8 @@ final class MediaWatchFlowTests: XCTestCase {
         for _ in 0..<12 {
             if target.exists && target.isHittable && target.frame.minY > app.frame.minY + 90 && target.frame.maxY < app.frame.maxY - 95 { return }
             let up = !(target.exists && target.frame.minY < app.frame.midY)
-            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: up ? 0.78 : 0.28))
-            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: up ? 0.28 : 0.78))
+            let start = app.reviewScrollSurface.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: up ? 0.78 : 0.28))
+            let end = app.reviewScrollSurface.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: up ? 0.28 : 0.78))
             start.press(forDuration: 0.05, thenDragTo: end)
         }
         XCTAssertTrue(target.exists && target.isHittable, "Expected control must be reachable.")

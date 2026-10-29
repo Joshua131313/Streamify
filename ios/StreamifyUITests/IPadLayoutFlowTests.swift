@@ -19,7 +19,7 @@ final class IPadLayoutFlowTests: XCTestCase {
     }
 
     func testIPadProHomeAndSportsUseTheCanvasInBothOrientations() {
-        for orientation: UIDeviceOrientation in [.portrait, .landscapeLeft] {
+        for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
             XCUIDevice.shared.orientation = orientation
             XCTAssertTrue(wait { orientation == .portrait ? self.app.frame.height > self.app.frame.width : self.app.frame.width > self.app.frame.height })
             app.buttons["tab-home"].tap()
@@ -46,7 +46,7 @@ final class IPadLayoutFlowTests: XCTestCase {
         XCTAssertTrue(movie.waitForExistence(timeout: 8)); movie.tap()
         let watch = app.buttons["detail-watch-movie:42"]
         XCTAssertTrue(watch.waitForExistence(timeout: 8))
-        for orientation: UIDeviceOrientation in [.portrait, .landscapeLeft] {
+        for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
             XCUIDevice.shared.orientation = orientation
             XCTAssertTrue(wait { orientation == .portrait ? self.app.frame.height > self.app.frame.width : self.app.frame.width > self.app.frame.height })
             let hero = element("trailer-preview")

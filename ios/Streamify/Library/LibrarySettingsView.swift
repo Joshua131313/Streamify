@@ -86,7 +86,7 @@ struct LibraryView: View {
             history = false; query = ""; kind = nil
             player = nil; showDownloads = false; clearHistory = false
         }
-        .sheet(isPresented: $showDownloads) { NavigationStack { DownloadsView() } }
+        .sheet(isPresented: $showDownloads) { NavigationStack { DownloadsView() }.streamifyPageSheet() }
         .fullScreenCover(item: $player) { MediaPlayerView(media: $0.media, season: $0.season, episode: $0.episode, origin: playbackOrigin) }
         .confirmationDialog("Clear your watch history on this \(AdaptiveLayout.deviceName)?", isPresented: $clearHistory, titleVisibility: .visible) {
             Button("Clear history", role: .destructive) { library.clearHistory() }
@@ -237,7 +237,7 @@ struct AccountView: View {
         .onDisappear { password = "" }
         .confirmationDialog("Reload account profiles?", isPresented: $confirmReload, titleVisibility: .visible) {
             Button("Reload account profiles") { Task { await profiles.reloadCloudProfiles() } }
-        } message: { Text("This replaces pending profile preferences with the account’s saved version. A local recovery copy is kept; your saved list and watch history stay on this iPhone.") }
+        } message: { Text("This replaces pending profile preferences with the account’s saved version. A local recovery copy is kept; your saved list and watch history stay on this device.") }
     }
 
     @ViewBuilder private var accountAccess: some View {

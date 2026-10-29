@@ -221,8 +221,13 @@ enum PreviewFixtures {
          "genre_ids": item.genreIDs]
     }
     private static var movies: [[String: Any]] {
-        [movie, MediaItem(id: 45, kind: .movie, title: "Beyond the City", overview: synopsis, posterPath: "/fixture-matrix.jpg", backdropPath: "/fixture-matrix.jpg", rating: 7.9, releaseDate: "2025-06-02", genreIDs: [18]),
-         MediaItem(id: 46, kind: .movie, title: "Ocean of Stars", overview: synopsis, posterPath: "/fixture-pirates.jpg", backdropPath: "/fixture-pirates.jpg", rating: 8.2, releaseDate: "2024-04-21", genreIDs: [12])].map(mediaJSON)
+        var items = [movie, MediaItem(id: 45, kind: .movie, title: "Beyond the City", overview: synopsis, posterPath: "/fixture-matrix.jpg", backdropPath: "/fixture-matrix.jpg", rating: 7.9, releaseDate: "2025-06-02", genreIDs: [18]),
+         MediaItem(id: 46, kind: .movie, title: "Ocean of Stars", overview: synopsis, posterPath: "/fixture-pirates.jpg", backdropPath: "/fixture-pirates.jpg", rating: 8.2, releaseDate: "2024-04-21", genreIDs: [12])]
+        if ProcessInfo.processInfo.arguments.contains("--ui-movie-pick") {
+            items += [MediaItem(id: 47, kind: .movie, title: "The Next Chapter", overview: synopsis, posterPath: "/fixture-pirates.jpg", backdropPath: "/fixture-pirates.jpg", rating: 7.8, releaseDate: "2024-06-15", genreIDs: [18]),
+                MediaItem(id: 48, kind: .movie, title: "An Old Film", posterPath: "/fixture-matrix.jpg", rating: 8, releaseDate: "1975-01-01", genreIDs: [18])]
+        }
+        return items.map(mediaJSON)
     }
     private static var shows: [[String: Any]] {
         [show, MediaItem(id: 52, kind: .tv, title: "The Long Weekend", overview: synopsis, posterPath: "/fixture-harry-potter.jpg", backdropPath: "/fixture-harry-potter.jpg", rating: 7.7, releaseDate: "2025-09-02", genreIDs: [18]),
@@ -259,11 +264,7 @@ enum PreviewFixtures {
                 value = detail
             } else {
                 let kind = pieces.contains("tv") ? "tv" : pieces.contains("movie") ? "movie" : "all"
-                var results = kind == "tv" ? shows : kind == "movie" ? movies : [movies[0], shows[0], movies[1], shows[1], movies[2]]
-                if ProcessInfo.processInfo.arguments.contains("--ui-movie-pick"), kind == "movie" {
-                    results += [mediaJSON(MediaItem(id: 47, kind: .movie, title: "The Next Chapter", overview: synopsis, posterPath: "/fixture-pirates.jpg", rating: 7.8, releaseDate: "2024-06-15", genreIDs: [18])),
-                        mediaJSON(MediaItem(id: 48, kind: .movie, title: "An Old Film", posterPath: "/fixture-matrix.jpg", rating: 8, releaseDate: "1975-01-01", genreIDs: [18]))]
-                }
+                let results = kind == "tv" ? shows : kind == "movie" ? movies : [movies[0], shows[0], movies[1], shows[1], movies[2]]
                 value = ["page": 1, "total_pages": 1, "results": results]
             }
         } else if host == "graphql.anilist.co" {

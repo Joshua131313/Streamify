@@ -222,7 +222,7 @@ private struct PlayerEpisodePicker: View {
                                 .frame(maxWidth: .infinity, minHeight: 100)
                         }
                     }
-                }.padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 24)
+                }.padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 24).streamifyReadableWidth(820)
             }
             .background(AppTheme.canvas).foregroundStyle(AppTheme.foreground)
             .navigationTitle("Episodes").navigationBarTitleDisplayMode(.inline)

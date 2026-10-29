@@ -290,8 +290,8 @@ final class DownloadIndicatorFlowTests: XCTestCase {
             // Scroll the content gutter, away from media buttons and the detail
             // card's downward-dismiss gesture, until this action is visible.
             let up = !(target.exists && target.frame.maxY < app.frame.midY)
-            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: up ? 0.75 : 0.3))
-            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: up ? 0.35 : 0.7))
+            let start = app.reviewScrollSurface.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: up ? 0.75 : 0.3))
+            let end = app.reviewScrollSurface.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: up ? 0.35 : 0.7))
             start.press(forDuration: 0.05, thenDragTo: end)
         }
         XCTAssertTrue(target.isHittable)

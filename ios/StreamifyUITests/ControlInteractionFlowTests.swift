@@ -460,8 +460,8 @@ final class ControlInteractionFlowTests: XCTestCase {
         for _ in 0..<15 {
             if target.exists && target.isHittable { return }
             let up = !(target.exists && target.frame.maxY < app.frame.midY)
-            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: up ? 0.78 : 0.28))
-            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: up ? 0.28 : 0.78))
+            let start = app.reviewScrollSurface.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: up ? 0.78 : 0.28))
+            let end = app.reviewScrollSurface.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: up ? 0.28 : 0.78))
             start.press(forDuration: 0.05, thenDragTo: end)
         }
         XCTAssertTrue(target.isHittable, "The requested control must be reachable.")

@@ -102,10 +102,10 @@ struct SportsSearchDialog: View {
                 } catch { }
             }
             .sheet(item: $selectedGame) { game in
-                NavigationStack { SportsGameView(game: game).environmentObject(queue) }
+                NavigationStack { SportsGameView(game: game).environmentObject(queue) }.streamifyPageSheet()
             }
             .sheet(item: $selectedTeam) { team in
-                NavigationStack { SportsTeamView(result: team).environmentObject(queue) }
+                NavigationStack { SportsTeamView(result: team).environmentObject(queue) }.streamifyPageSheet()
             }
             .onChange(of: playback.item?.id) { _, _ in
                 if playback.isExpanded { focused = false }

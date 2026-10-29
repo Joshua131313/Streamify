@@ -15,7 +15,7 @@ enum MoviePickPolicy {
         .init(id: 10752, name: "War"), .init(id: 37, name: "Western")
     ]
 
-    static func dateString(_ date: Date, calendar: Calendar = .current) -> String {
+    static func dateString(_ date: Date, calendar: Calendar = Calendar(identifier: .gregorian)) -> String {
         let parts = calendar.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", parts.year ?? 2000, parts.month ?? 1, parts.day ?? 1)
     }
@@ -38,6 +38,7 @@ enum MoviePickPolicy {
             // Reject malformed/missing release dates as well as old re-releases.
             let formatter = DateFormatter()
             formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.calendar = Calendar(identifier: .gregorian)
             formatter.dateFormat = "yyyy-MM-dd"; formatter.isLenient = false
             guard let parsed = formatter.date(from: date), formatter.string(from: parsed) == date else { return false }
             return seen.insert(item.key).inserted
@@ -62,7 +63,7 @@ enum MoviePickPolicy {
         let remaining = items.filter { !excluding.contains($0.key) }
         guard !remaining.isEmpty else { return nil }
         let weights = remaining.map { weight($0, history: history, recommended: recommended) }
-        var draw = min(max(unit.isFinite ? unit : 0, 0), 1.nextDown) * weights.reduce(0, +)
+        var draw = min(max(unit.isFinite ? unit : 0, 0), Double(1).nextDown) * weights.reduce(0, +)
         for (item, weight) in zip(remaining, weights) {
             if draw < weight { return item }
             draw -= weight

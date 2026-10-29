@@ -148,7 +148,7 @@ struct MediaDownloadSheet: View {
                         }
                     }.buttonStyle(PrimaryButtonStyle()).disabled(resolving).accessibilityIdentifier("start-media-download")
                 }
-            }.padding(20)
+            }.padding(20).streamifyReadableWidth()
         }
         .background(AppTheme.canvas).foregroundStyle(AppTheme.foreground)
         .navigationTitle("Download").navigationBarTitleDisplayMode(.inline)

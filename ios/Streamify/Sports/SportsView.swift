@@ -829,7 +829,7 @@ struct SportsGameCard: View {
             }
             .sportsPlaybackOrigin(playbackOrigin)
             .sheet(item: $selectedTeam) { result in
-                NavigationStack { SportsTeamView(result: result).environmentObject(queue) }
+                NavigationStack { SportsTeamView(result: result).environmentObject(queue) }.streamifyPageSheet()
             }
             .task(id: "\(watchRevision)-\(scenePhase == .active)") {
                 let request = watchRevision

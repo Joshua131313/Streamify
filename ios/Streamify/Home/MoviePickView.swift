@@ -2,8 +2,6 @@ import SwiftUI
 
 struct MoviePickShortcut: View {
     @State private var showing = false
-    @State private var details: MediaItem?
-    @State private var pendingDetails: MediaItem?
     var body: some View {
         Button { showing = true } label: {
             HStack(spacing: 14) {
@@ -16,17 +14,11 @@ struct MoviePickShortcut: View {
             }.padding(18).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 16))
         }.buttonStyle(HapticCardButtonStyle(cornerRadius: 16)).padding(.horizontal, 20)
             .accessibilityIdentifier("home-pick-for-me")
-            .sheet(isPresented: $showing, onDismiss: { details = pendingDetails; pendingDetails = nil }) {
-                MoviePickView { media in pendingDetails = media; showing = false }
-            }
-            .fullScreenCover(item: $details) { media in
-                NavigationStack { MediaDetailView(media: media) }.presentationBackground(AppTheme.canvas)
-            }
+            .sheet(isPresented: $showing) { MoviePickView() }
     }
 }
 
 struct MoviePickView: View {
-    let open: (MediaItem) -> Void
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var library: LibraryStore
     @Environment(\.dismiss) private var dismiss
@@ -92,8 +84,11 @@ struct MoviePickView: View {
                 Text("\(media.year) · ★ \(media.rating.formatted(.number.precision(.fractionLength(1))))").font(.subheadline).foregroundStyle(AppTheme.muted)
                 Text(media.overview).font(.subheadline).foregroundStyle(AppTheme.muted).lineLimit(5)
             }
-            Button { open(media) } label: { Label("View movie", systemImage: "play.fill").frame(maxWidth: .infinity) }
-                .buttonStyle(PrimaryButtonStyle()).accessibilityIdentifier("movie-pick-open")
+            MediaDetailLink(media: media) {
+                Label("View movie", systemImage: "play.fill").font(.headline)
+                    .frame(maxWidth: .infinity, minHeight: 50).foregroundStyle(AppTheme.canvas)
+                    .background(AppTheme.foreground, in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
+            }.accessibilityIdentifier("movie-pick-open")
             HStack(spacing: 12) {
                 Button { request = UUID() } label: { Label("Pick another", systemImage: "shuffle").frame(maxWidth: .infinity) }
                     .buttonStyle(SecondaryButtonStyle()).disabled(loading).accessibilityIdentifier("movie-pick-another")
