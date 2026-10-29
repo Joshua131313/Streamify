@@ -46,10 +46,13 @@ final class SportsPlaybackFlowTests: XCTestCase {
         capture("Live game selector separates matchups from current stream choices")
         football.tap()
         XCTAssertTrue(wait { (game.value as? String ?? "").hasPrefix("NFL,") })
-        XCTAssertTrue(wait { (source.value as? String ?? "").contains("alpha") })
+        XCTAssertTrue(wait { (source.value as? String ?? "").contains("bravo") }, "A new game uses the user's saved server when available.")
         XCTAssertTrue(playbackDocument.waitForExistence(timeout: 10))
         assertSinglePlaybackSurface()
 
+        source.tap()
+        app.buttons["sports-player-source-option-0"].tap()
+        XCTAssertTrue(wait { (source.value as? String ?? "").contains("alpha") })
         source.tap()
         app.buttons["sports-player-source-option-1"].tap()
         XCTAssertTrue(wait { (source.value as? String ?? "").contains("bravo") })
@@ -86,6 +89,14 @@ final class SportsPlaybackFlowTests: XCTestCase {
         XCTAssertTrue((source.value as? String ?? "").contains("bravo"))
         assertSinglePlaybackSurface()
         closeAndVerifySportsDoesNotReopen(source)
+        let watch = app.buttons["Watch BOS vs TOR"].firstMatch
+        reveal(watch)
+        XCTAssertTrue(watch.isHittable)
+        watch.tap()
+        XCTAssertTrue(source.waitForExistence(timeout: 10))
+        XCTAssertTrue(wait { (source.value as? String ?? "").contains("bravo") }, "Closing the player and changing tabs must not forget the selected server.")
+        assertSinglePlaybackSurface()
+        capture("Saved server restored after closing and reopening the sports player")
     }
 
     func testLandscapeVideoFillsCanvasAndRotationKeepsTheSameStreamDocument() {
