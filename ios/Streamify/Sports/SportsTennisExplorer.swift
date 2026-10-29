@@ -82,7 +82,7 @@ enum TennisLiveFeed {
     static func sameMatch(_ a: SportsGame, _ b: SportsGame) -> Bool {
         guard let at = a.tennis, let bt = b.tennis, at.isDoubles == bt.isDoubles,
               let ad = a.date, let bd = b.date, abs(ad.timeIntervalSince(bd)) < 18 * 3600,
-              tournament(at.tournament) == tournament(bt.tournament) else { return false }
+              tournamentMatches(a, b) else { return false }
         return (samePlayer(a.away.name, b.away.name) && samePlayer(a.home.name, b.home.name)) ||
             (samePlayer(a.away.name, b.home.name) && samePlayer(a.home.name, b.away.name))
     }
@@ -148,7 +148,22 @@ enum TennisLiveFeed {
 
     private static func tournament(_ value: String) -> String {
         var seen = Set<String>()
-        return words(value).filter { !["atp", "wta", "challenger", "open", "tennis", "125"].contains($0) && seen.insert($0).inserted }.joined()
+        return words(value).filter { !["atp", "wta", "challenger", "open", "tennis", "125"].contains($0) &&
+            !((1900...2100).contains(Int($0) ?? 0)) && seen.insert($0).inserted }.joined()
+    }
+    private static func tournamentMatches(_ a: SportsGame, _ b: SportsGame) -> Bool {
+        func aliases(_ game: SportsGame) -> [String] {
+            var names = [game.tennis?.tournament ?? ""]
+            // The published route retains the official event name even when
+            // the live header abbreviates it to its host city (e.g. Vienna).
+            if let route = game.tennis?.historyURL.flatMap(historyURL), let url = URL(string: route) {
+                names.append(url.lastPathComponent.replacingOccurrences(of: "-", with: " "))
+            }
+            return names.map(tournament).filter { !$0.isEmpty }
+        }
+        return aliases(a).contains { x in aliases(b).contains { y in
+            x == y || (min(x.count, y.count) >= 6 && (x.hasPrefix(y) || y.hasPrefix(x)))
+        } }
     }
     private static func words(_ value: String) -> [String] {
         value.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "en_US_POSIX"))

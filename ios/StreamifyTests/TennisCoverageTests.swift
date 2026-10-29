@@ -48,6 +48,17 @@ final class TennisCoverageTests: XCTestCase {
             status: game.status, home: game.home, away: game.away, venue: "", broadcasts: "", link: game.link, tennis: game.tennis)
         XCTAssertThrowsError(try TennisLiveFeed.history(fixture("tennislive-points"), game: wrong))
     }
+    func testOfficialNameAndCityHeaderMergeThroughPublishedTournamentRoute() throws {
+        let game = try live()
+        let oldMetadata = SportsTennisMatch(tour: .atp, tournament: "Erste Bank Open", tournamentID: "old")
+        let freshMetadata = SportsTennisMatch(tour: .atp, tournament: "Vienna", tournamentID: "new", source: "tennislive",
+            historyURL: "https://www.tennislive.net/atp/match/mees-rottgering-VS-kaylan-bigun/erste-bank-open-vienna-2026/")
+        func copy(_ id: String, _ metadata: SportsTennisMatch) -> SportsGame {
+            SportsGame(eventID: id, league: .tennis, date: game.date, state: game.state, status: game.status,
+                home: game.home, away: game.away, venue: "", broadcasts: "", link: "", tennis: metadata)
+        }
+        XCTAssertEqual(TennisLiveFeed.merge([copy("espn-atp-1", oldMetadata)], live: [copy("fresh", freshMetadata)]).map(\.eventID), ["espn-atp-1"])
+    }
     func testPointWinnerHandlesDeuceAndDoesNotAssignMissingPoints() {
         XCTAssertEqual(TennisLiveFeed.pointWinner(previous: "0–0", current: "15–0"), 0)
         XCTAssertEqual(TennisLiveFeed.pointWinner(previous: "A–40", current: "40–40"), 1)
