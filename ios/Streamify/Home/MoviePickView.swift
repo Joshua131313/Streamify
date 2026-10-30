@@ -30,6 +30,7 @@ struct MoviePickView: View {
     @State private var loading = false
     @State private var error: String?
     @State private var request: UUID?
+    @State private var watching: MediaItem?
 
     var body: some View {
         NavigationStack {
@@ -84,6 +85,7 @@ struct MoviePickView: View {
                 }
             }
         }.presentationDragIndicator(.visible).presentationDetents([.large])
+            .fullScreenCover(item: $watching) { MediaPlayerView(media: $0) }
     }
 
     private func result(_ media: MediaItem) -> some View {
@@ -96,10 +98,13 @@ struct MoviePickView: View {
                 Text("\(media.year) · ★ \(media.rating.formatted(.number.precision(.fractionLength(1))))").font(.subheadline).foregroundStyle(AppTheme.muted)
                 Text(media.overview).font(.subheadline).foregroundStyle(AppTheme.muted).lineLimit(5)
             }
+            Button { watching = media } label: {
+                Label("Watch", systemImage: "play.fill").frame(maxWidth: .infinity)
+            }.buttonStyle(PrimaryButtonStyle()).accessibilityIdentifier("movie-pick-watch")
             MediaDetailLink(media: media) {
-                Label("View movie", systemImage: "play.fill").font(.headline)
-                    .frame(maxWidth: .infinity, minHeight: 50).foregroundStyle(AppTheme.canvas)
-                    .background(AppTheme.foreground, in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
+                Text("View movie").font(.headline)
+                    .frame(maxWidth: .infinity, minHeight: 48).foregroundStyle(AppTheme.foreground)
+                    .background(AppTheme.controlFill, in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
             }.accessibilityIdentifier("movie-pick-open")
             HStack(spacing: 12) {
                 Button { request = UUID() } label: { Label("Pick another", systemImage: "shuffle").frame(maxWidth: .infinity) }

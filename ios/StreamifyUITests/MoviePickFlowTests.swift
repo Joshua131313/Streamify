@@ -45,6 +45,13 @@ final class MoviePickFlowTests: XCTestCase {
         capture(app, "Selected movie opens its standard detail screen")
         app.buttons["close-media-details"].tap()
         XCTAssertTrue(app.buttons["movie-pick-another"].waitForExistence(timeout: 8))
+        reveal(app.buttons["movie-pick-watch"], in: app)
+        XCTAssertLessThan(app.buttons["movie-pick-watch"].frame.minY, app.buttons["movie-pick-open"].frame.minY)
+        app.buttons["movie-pick-watch"].tap()
+        XCTAssertTrue(app.buttons["Close player"].waitForExistence(timeout: 8))
+        capture(app, "Primary Watch opens the selected movie directly")
+        app.buttons["Close player"].tap()
+        XCTAssertTrue(app.buttons["movie-pick-open"].waitForExistence(timeout: 8))
         app.buttons["Done"].tap()
         XCTAssertTrue(shortcut.waitForExistence(timeout: 5))
     }
