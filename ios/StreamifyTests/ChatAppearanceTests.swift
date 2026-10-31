@@ -2,6 +2,10 @@ import XCTest
 @testable import Streamify
 
 final class ChatAppearanceTests: XCTestCase {
+    func testAppearanceDoesNotChangeTheExistingGuestName() {
+        XCTAssertEqual(SportsChatContract.guestName(uid: "abcdefgh1234"), "Guest 1234")
+    }
+
     func testUsernameColorsMatchAndroidAndCanonicalizeCaseWhitespaceAndAccents() {
         XCTAssertEqual(SportsChatContract.nameColorHex("Maya"), "#7ed5b0")
         XCTAssertEqual(SportsChatContract.nameColorHex("Jordan"), "#f3d87a")
