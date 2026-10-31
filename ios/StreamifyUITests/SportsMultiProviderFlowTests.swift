@@ -61,7 +61,9 @@ final class SportsMultiProviderFlowTests: XCTestCase {
             XCTAssertTrue(option("StreamFree").firstMatch.waitForExistence(timeout: 6), "\(league) needs a second independent provider.")
             XCTAssertTrue(option("DaddyLive").firstMatch.exists, "\(league) must keep its advertised channel alternatives.")
             capture("\(league) has TimStreams first and independent backup sources")
-            option("TimStreams").firstMatch.tap()
+            let tim = option("TimStreams").firstMatch
+            tim.tap()
+            XCTAssertTrue(tim.waitForNonExistence(timeout: 5), "Source menu must finish dismissing before the next action")
         }
         app.buttons["Close player"].tap()
         XCTAssertTrue(app.buttons["sports-player-source-picker"].waitForNonExistence(timeout: 8))

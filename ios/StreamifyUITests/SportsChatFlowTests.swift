@@ -34,7 +34,7 @@ final class SportsChatFlowTests: XCTestCase {
             XCTAssertTrue(app.keyboards.firstMatch.exists, "Sending must not dismiss and reopen the keyboard")
             Thread.sleep(forTimeInterval: 0.1)
         }
-        XCTAssertTrue(app.staticTexts["First update"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label ENDSWITH %@", ": First update")).firstMatch.waitForExistence(timeout: 5))
         XCTAssertTrue(wait { (composer.value as? String ?? "") != "First update" })
         XCTAssertTrue(app.keyboards.firstMatch.exists)
         composer.typeText("Next update")
@@ -44,12 +44,12 @@ final class SportsChatFlowTests: XCTestCase {
 
     func testGuestCanReadReplyAndSendLocallyWhileReactionPermissionFailureIsVisible() {
         openChat()
-        let firstReply = app.buttons["Reply to Guest 2048"]
+        let firstReply = element("sports-chat-body-fixture-chat-1")
         reveal(firstReply)
         XCTAssertTrue(firstReply.isHittable)
-        XCTAssertTrue(app.staticTexts["What a game!"].exists)
+        XCTAssertTrue(app.staticTexts["sports-chat-body-fixture-chat-1"].exists)
         capture("Guest chat reads the shared matchup without a sign-in gate")
-        firstReply.tap()
+        messageAction("Reply")
         let composer = element("sports-chat-composer")
         reveal(composer)
         XCTAssertTrue(app.staticTexts["Replying to Guest 2048"].exists)
@@ -58,15 +58,13 @@ final class SportsChatFlowTests: XCTestCase {
         reveal(send)
         XCTAssertTrue(send.isEnabled)
         send.tap()
-        XCTAssertTrue(app.staticTexts["Great defense!"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label ENDSWITH %@", ": Great defense!")).firstMatch.waitForExistence(timeout: 5))
         XCTAssertTrue(wait { (composer.value as? String ?? "") != "Great defense!" })
         XCTAssertFalse(app.staticTexts["Replying to Guest 2048"].exists)
         capture("Local guest reply keeps its quoted message and receives a guest identity")
         // Dismiss the keyboard without sending another message.
         dismissKeyboard()
-        let react = app.buttons["React to Guest 2048"]
-        reveal(react)
-        react.tap()
+        openMessageOptions()
         let fire = app.buttons["🔥"].firstMatch
         XCTAssertTrue(fire.waitForExistence(timeout: 5)); fire.tap()
         let error = element("sports-chat-action-error")
@@ -89,7 +87,7 @@ final class SportsChatFlowTests: XCTestCase {
         capture("Chat timeout has a clear close icon and an actionable retry")
         let retry = app.buttons["Retry"]
         XCTAssertTrue(retry.isHittable); retry.tap()
-        XCTAssertTrue(app.staticTexts["What a game!"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["sports-chat-body-fixture-chat-1"].waitForExistence(timeout: 5))
         XCTAssertFalse(failure.exists)
         capture("Chat retry recovers without signing in or changing the game")
         close.tap()
@@ -111,8 +109,7 @@ final class SportsChatFlowTests: XCTestCase {
 
     func testReplyPreviewCancelAndQuotedMessageNavigationKeepDraft() {
         openChat()
-        let reply = app.buttons["Reply to Guest 2048"]
-        reveal(reply); reply.tap()
+        messageAction("Reply")
         let composer = element("sports-chat-composer")
         XCTAssertTrue(element("sports-chat-reply-preview").exists)
         composer.tap(); composer.typeText("Nice play!")
@@ -120,7 +117,7 @@ final class SportsChatFlowTests: XCTestCase {
         XCTAssertFalse(element("sports-chat-reply-preview").exists)
         XCTAssertEqual(composer.value as? String, "Nice play!")
         dismissKeyboard()
-        reveal(reply); reply.tap()
+        messageAction("Reply")
         capture("Compact reply composer preserves the draft")
         app.buttons["sports-chat-send"].tap()
         let quote = app.buttons["View reply to Guest 2048"]
@@ -131,15 +128,38 @@ final class SportsChatFlowTests: XCTestCase {
         capture("Sent quote returns to its original message")
     }
 
+    func testStatusCountsRespectTheSelectedLeagueWithoutChangingStatus() {
+        app.buttons["tab-sports"].tap()
+        let live = app.buttons["sports-quick-live"]
+        XCTAssertTrue(wait { (live.value as? String ?? "").hasPrefix("6 games") })
+        app.buttons["sports-league-option-nhl"].tap()
+        XCTAssertTrue(wait { (live.value as? String ?? "").hasPrefix("1 games") })
+        XCTAssertTrue((app.buttons["sports-filter-Pregame"].value as? String ?? "").hasPrefix("0 games"))
+        app.buttons["sports-filter-Final"].tap()
+        XCTAssertTrue((live.value as? String ?? "").hasPrefix("1 games"), "Choosing a status must not recount only its visible cards")
+        capture("Live Pregame and Final counts remain scoped to the selected league")
+    }
+    private func openMessageOptions() {
+        let row = element("sports-chat-body-fixture-chat-1")
+        reveal(row); row.press(forDuration: 0.6)
+        XCTAssertTrue(app.buttons["Copy text"].waitForExistence(timeout: 5))
+    }
+    private func messageAction(_ action: String) {
+        openMessageOptions()
+        app.buttons[action].tap()
+    }
+
     private func openChat() {
         app.buttons["tab-sports"].tap()
-        let center = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'sports-game-'")).firstMatch
-        reveal(center); center.tap()
+        app.buttons["sports-league-option-nhl"].tap()
+        let center = app.buttons["sports-game-nhl:nhl-fixture"]
+        XCTAssertTrue(center.waitForExistence(timeout: 8))
+        center.tap()
         XCTAssertTrue(app.navigationBars["Game center"].waitForExistence(timeout: 8))
         let overview = app.buttons["sports-game-tab-Overview"]
         reveal(overview)
         let chat = app.buttons["sports-game-tab-Chat"]
-        if !chat.isHittable {
+        for _ in 0..<4 where !chat.isHittable {
             let origin = app.coordinate(withNormalizedOffset: .zero)
             let y = overview.frame.midY - app.frame.minY
             origin.withOffset(CGVector(dx: app.frame.width * 0.85, dy: y))

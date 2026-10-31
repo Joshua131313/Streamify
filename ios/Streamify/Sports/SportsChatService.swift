@@ -50,7 +50,26 @@ enum SportsChatContract {
         while value.utf16.count > utf16Count { value.removeLast() }
         return value
     }
-    static func guestName(uid: String) -> String { "Guest \(uid.suffix(4))" }
+    // FNV-1a over UTF-8, identical to the web guest identity contract.
+    static func identityHash(_ value: String) -> UInt32 {
+        value.utf8.reduce(UInt32(2166136261)) { ($0 ^ UInt32($1)) &* 16777619 }
+    }
+    static func guestName(uid: String) -> String {
+        let adjectives = ["Brave","Calm","Clever","Cosmic","Curious","Daring","Dreamy","Eager","Electric","Gentle","Golden","Happy","Jolly","Kind","Lucky","Lunar","Mellow","Mighty","Nimble","Noble","Playful","Quick","Quiet","Radiant","Silver","Sleepy","Solar","Sunny","Swift","Vivid","Wild","Witty"]
+        let animals = ["Badger","Bear","Bobcat","Capybara","Cobra","Deer","Dolphin","Eagle","Falcon","Ferret","Fox","Gecko","Hawk","Hedgehog","Koala","Lemur","Lynx","Marten","Otter","Owl","Panda","Panther","Penguin","Puffin","Rabbit","Raven","Seal","Sparrow","Tiger","Turtle","Whale","Wolf"]
+        let adjective = adjectives[Int(identityHash("adjective:" + uid)) % adjectives.count]
+        let animal = animals[Int(identityHash("animal:" + uid)) % animals.count]
+        let number = 100 + Int(identityHash("number:" + uid)) % 900
+        return "\(adjective)\(animal)\(number)"
+    }
+    static func nameColorHex(_ name: String, light: Bool = false) -> String {
+        let colors = light
+            ? ["#a62743","#925014","#796100","#416817","#14694e","#096979","#315ca8","#7045a0","#934394","#a33e70"]
+            : ["#ff929b","#f3b278","#f3d87a","#b5dc83","#7ed5b0","#78d3de","#9ebcff","#c2a6ff","#e5a0ef","#f2a9cc"]
+        let normalized = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            .precomposedStringWithCanonicalMapping.lowercased(with: Locale(identifier: "en_US_POSIX"))
+        return colors[Int(identityHash("color:" + normalized)) % colors.count]
+    }
 }
 
 struct SportsChatReply: Equatable, Sendable {

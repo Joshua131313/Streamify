@@ -102,22 +102,24 @@ struct SportsView: View {
     private var liveAvailable: Bool { Calendar.current.isDate(day, inSameDayAs: today) }
     private var requestKey: String { "\(leagues.map(\.rawValue).joined(separator: ","))-\(day.timeIntervalSince1970)-\(revision)-\(scenePhase == .active)-\(settings.apiBase)-\(channels)" }
     private var scheduleKey: String { "\(settings.apiBase)|\(Calendar.current.timeZone.identifier)|\(day.timeIntervalSince1970)|\(leagues.map(\.rawValue).joined(separator: ","))" }
-    private var filteredGames: [SportsGame] {
+    private var scopedGames: [SportsGame] {
         games.filter { game in
             guard selectedLeague == nil || selectedLeague == game.league else { return false }
             if selectedLeague == .tennis, let tennisTour, game.tennis?.tour != tennisTour { return false }
             if !showTennisDoubles, game.tennis?.isDoubles == true { return false }
             if followedTeamsOnly && !library.followedTeams.contains(game.home.key(in: game.league)) && !library.followedTeams.contains(game.away.key(in: game.league)) { return false }
-            let status: Bool
-            switch filter {
-            case .all: status = true
-            case .live: status = game.isLive
-            case .final: status = game.isFinal
-            case .pregame: status = game.state == "pre"
-            }
-            return status
+            return true
         }
     }
+    private func matchesStatus(_ game: SportsGame, _ status: SportsFilter) -> Bool {
+        switch status {
+        case .all: return true
+        case .live: return game.isLive
+        case .final: return game.isFinal
+        case .pregame: return game.state == "pre"
+        }
+    }
+    private var filteredGames: [SportsGame] { scopedGames.filter { matchesStatus($0, filter) } }
 
     private var emptyScheduleMessage: String {
         if followedTeamsOnly && library.followedTeams.isEmpty { return "Follow teams from their team pages to see their games here." }
@@ -306,10 +308,11 @@ struct SportsView: View {
             }.accessibilityIdentifier("sports-league-rail")
             Rectangle().fill(AppTheme.border).frame(height: 0.5)
             HStack(spacing: 0) {
-                ForEach(SportsFilter.allCases.filter { $0 != .all }) { item in
-                    statusTab(item)
-                }
-                Spacer(minLength: 2)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 0) {
+                        ForEach(SportsFilter.allCases.filter { $0 != .all }) { item in statusTab(item) }
+                    }
+                }.fixedSize(horizontal: false, vertical: true).sportsDaySwipeExcluded(daySwipeScope)
                 Button {
                     calendarMonth = monthStart(day); showCalendar = true
                 } label: {
@@ -356,6 +359,7 @@ struct SportsView: View {
         let selected = filter == item
         let enabled = !channels
         let title = item == .pregame && day > today ? "Upcoming" : item.rawValue
+        let count = scopedGames.filter { matchesStatus($0, item) }.count
         return Button {
             guard daySwipeScope.permitsProtectedAction else { return }
             if item == .live {
@@ -364,14 +368,14 @@ struct SportsView: View {
             }
             filter = item; home = false
         } label: {
-            Text(title).font(.caption.weight(selected ? .semibold : .medium)).lineLimit(1)
+            Text("\(title) (\(count))").font(.caption.weight(selected ? .semibold : .medium)).monospacedDigit().lineLimit(1)
                 .padding(.horizontal, 7).frame(minWidth: 44, minHeight: 44)
                 .foregroundStyle(selected ? AppTheme.foreground : AppTheme.muted)
                 .overlay(alignment: .bottom) { Rectangle().fill(selected ? AppTheme.foreground : .clear).frame(height: 2) }
                 .contentShape(Rectangle())
         }.buttonStyle(HapticPlainButtonStyle()).disabled(!enabled).opacity(enabled ? 1 : 0.4)
             .accessibilityLabel(item == .live ? "Live games" : title)
-            .accessibilityValue(selected ? "On" : "Off")
+            .accessibilityValue("\(count) games, \(selected ? "On" : "Off")")
             .accessibilityHint(item == .live && !liveAvailable ? "Show today’s live games." : "")
             .accessibilityAddTraits(selected ? .isSelected : [])
             .accessibilityIdentifier(item == .live ? "sports-quick-live" : "sports-filter-\(item.rawValue)")
