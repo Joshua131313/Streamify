@@ -1,0 +1,236 @@
+{
+  "events": [
+    {
+      "id": "10-2026",
+      "name": "Erste Bank Open",
+      "groupings": [
+        {
+          "grouping": {
+            "id": "3",
+            "slug": "mens-doubles",
+            "displayName": "Men's Doubles"
+          },
+          "competitions": [
+            {
+              "id": "187264",
+              "uid": "s:850~l:851~e:10-2026~c:187264",
+              "date": "2026-10-27T10:30Z",
+              "startDate": "2026-10-27T10:30Z",
+              "timeValid": true,
+              "recent": false,
+              "status": {
+                "period": 2,
+                "type": {
+                  "id": "3",
+                  "name": "STATUS_FINAL",
+                  "state": "post",
+                  "completed": true,
+                  "description": "Final",
+                  "detail": "Final",
+                  "shortDetail": "Final"
+                }
+              },
+              "venue": {
+                "fullName": "Vienna, Austria",
+                "court": "Glaubandich Court"
+              },
+              "format": {
+                "regulation": {
+                  "periods": 5
+                }
+              },
+              "notes": [
+                {
+                  "text": "Maximo Gonzalez (ARG) & Andres Molteni (ARG) bt Santiago Gonzalez (MEX) & Bart Stevens (NED) 7-5 6-3",
+                  "type": "event"
+                }
+              ],
+              "geoBroadcasts": [],
+              "broadcasts": [],
+              "broadcast": "",
+              "competitors": [
+                {
+                  "id": "1045-2152",
+                  "uid": "s:850~l:851~t:1045-2152",
+                  "type": "team",
+                  "order": 2,
+                  "homeAway": "away",
+                  "winner": true,
+                  "linescores": [
+                    {
+                      "value": 7.0,
+                      "winner": true
+                    },
+                    {
+                      "value": 6.0,
+                      "winner": true
+                    }
+                  ],
+                  "roster": {
+                    "displayName": "Maximo Gonzalez / Andres Molteni",
+                    "shortDisplayName": "M. Gonzalez / A. Molteni",
+                    "athletes": [
+                      {
+                        "guid": "c8ae038b-dd77-3b1a-601d-a1d2ce8561a9",
+                        "displayName": "Maximo Gonzalez",
+                        "shortName": "M. Gonzalez",
+                        "fullName": "Maximo Gonzalez",
+                        "flag": {
+                          "href": "https://a.espncdn.com/i/teamlogos/countries/500/arg.png",
+                          "alt": "Argentina",
+                          "rel": [
+                            "country-flag"
+                          ]
+                        },
+                        "links": [
+                          {
+                            "language": "en-US",
+                            "rel": [
+                              "playercard",
+                              "desktop",
+                              "athlete"
+                            ],
+                            "href": "https://www.espn.com/tennis/player/_/id/1045/maximo-gonzalez",
+                            "text": "Player Card",
+                            "shortText": "Player Card",
+                            "isExternal": false,
+                            "isPremium": false,
+                            "isHidden": false
+                          }
+                        ]
+                      },
+                      {
+                        "guid": "f18a6157-556a-7aff-0f7e-00e69e54512b",
+                        "displayName": "Andres Molteni",
+                        "shortName": "A. Molteni",
+                        "fullName": "Andres Molteni",
+                        "flag": {
+                          "href": "https://a.espncdn.com/i/teamlogos/countries/500/arg.png",
+                          "alt": "Argentina",
+                          "rel": [
+                            "country-flag"
+                          ]
+                        },
+                        "links": [
+                          {
+                            "language": "en-US",
+                            "rel": [
+                              "playercard",
+                              "desktop",
+                              "athlete"
+                            ],
+                            "href": "https://www.espn.com/tennis/player/_/id/2152/andres-molteni",
+                            "text": "Player Card",
+                            "shortText": "Player Card",
+                            "isExternal": false,
+                            "isPremium": false,
+                            "isHidden": false
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "statistics": []
+                },
+                {
+                  "id": "666-3162",
+                  "uid": "s:850~l:851~t:666-3162",
+                  "type": "team",
+                  "order": 1,
+                  "homeAway": "home",
+                  "winner": false,
+                  "linescores": [
+                    {
+                      "value": 5.0,
+                      "winner": false
+                    },
+                    {
+                      "value": 3.0,
+                      "winner": false
+                    }
+                  ],
+                  "roster": {
+                    "displayName": "Santiago Gonzalez / Bart Stevens",
+                    "shortDisplayName": "S. Gonzalez / B. Stevens",
+                    "athletes": [
+                      {
+                        "guid": "81b993ef-f76e-ce51-4cc8-50daf9273b7d",
+                        "displayName": "Santiago Gonzalez",
+                        "shortName": "S. Gonzalez",
+                        "fullName": "Santiago Gonzalez",
+                        "flag": {
+                          "href": "https://a.espncdn.com/i/teamlogos/countries/500/mex.png",
+                          "alt": "Mexico",
+                          "rel": [
+                            "country-flag"
+                          ]
+                        },
+                        "links": [
+                          {
+                            "language": "en-US",
+                            "rel": [
+                              "playercard",
+                              "desktop",
+                              "athlete"
+                            ],
+                            "href": "https://www.espn.com/tennis/player/_/id/666/santiago-gonzalez",
+                            "text": "Player Card",
+                            "shortText": "Player Card",
+                            "isExternal": false,
+                            "isPremium": false,
+                            "isHidden": false
+                          }
+                        ]
+                      },
+                      {
+                        "guid": "0d4bb041-7f83-86ab-ad50-222df421c851",
+                        "displayName": "Bart Stevens",
+                        "shortName": "B. Stevens",
+                        "fullName": "Bart Stevens",
+                        "flag": {
+                          "href": "https://a.espncdn.com/i/teamlogos/countries/500/ned.png",
+                          "alt": "Netherlands",
+                          "rel": [
+                            "country-flag"
+                          ]
+                        },
+                        "links": [
+                          {
+                            "language": "en-US",
+                            "rel": [
+                              "playercard",
+                              "desktop",
+                              "athlete"
+                            ],
+                            "href": "https://www.espn.com/tennis/player/_/id/3162/bart-stevens",
+                            "text": "Player Card",
+                            "shortText": "Player Card",
+                            "isExternal": false,
+                            "isPremium": false,
+                            "isHidden": false
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "statistics": []
+                }
+              ],
+              "tournamentId": 10,
+              "type": {
+                "id": "3",
+                "text": "Men's Doubles",
+                "slug": "mens-doubles"
+              },
+              "round": {
+                "id": "11",
+                "displayName": "Qualifying 1st Round"
+              },
+              "wasSuspended": false
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

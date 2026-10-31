@@ -2,6 +2,19 @@ import XCTest
 @testable import Streamify
 
 final class SportsTennisTests: XCTestCase {
+    func testDoublesKeepsEachPartnersCountryWhenPortraitsAreMissing() throws {
+        let raw = try JSONSerialization.jsonObject(with: sourceData("tennis-doubles-identity")) as! [String: Any]
+        let game = try XCTUnwrap(SportsTennisFeed.parse(raw, tour: .atp).first)
+        XCTAssertEqual(game.home.tennisMembers.map(\.name), ["Santiago Gonzalez", "Bart Stevens"])
+        XCTAssertEqual(game.home.tennisMembers.map { URL(string: $0.flag)?.lastPathComponent }, ["mex.png", "ned.png"])
+        XCTAssertEqual(game.away.tennisMembers.map { URL(string: $0.flag)?.lastPathComponent }, ["arg.png", "arg.png"])
+        XCTAssertTrue(game.home.tennisMembers.allSatisfy { $0.portrait == nil })
+        XCTAssertEqual(game.home.tennisPortraitSubjects, game.home.tennisMembers)
+        XCTAssertEqual(Set((game.home.tennisMembers + game.away.tennisMembers).map(\.id)).count, 4)
+        let single = try XCTUnwrap(SportsTennisFeed.parse(scoreboard(), tour: .atp).first)
+        XCTAssertEqual(single.home.tennisPortraitSubjects.first?.flag, single.home.logo)
+    }
+
     private let start = SportsService.parseDate("2026-10-28T14:30:00Z")!
     private func sourceData(_ name: String) throws -> Data {
         let bundle = Bundle(for: Self.self)

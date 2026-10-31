@@ -70,7 +70,7 @@ struct SportsTennisScoreRow: View {
     let game: SportsGame
     let player: SportsTeam
     var preview = false
-    @State private var portraitURL: URL?
+    @State private var portraits: [String: URL] = [:]
 
 
     var body: some View {
@@ -78,7 +78,13 @@ struct SportsTennisScoreRow: View {
         let sets = player.id == game.away.id ? metadata?.awaySets ?? [] : metadata?.homeSets ?? []
         let point = player.id == game.away.id ? metadata?.awayPoint : metadata?.homePoint
         HStack(spacing: 7) {
-            SportsTennisAvatar(player: player, photo: portraitURL ?? player.portrait.flatMap(sportsHTTPSURL))
+            HStack(spacing: -4) {
+                ForEach(Array(player.tennisPortraitSubjects.prefix(2).enumerated()), id: \.element.id) { index, person in
+                    SportsTennisAvatar(name: person.name, flag: sportsHTTPSURL(person.flag),
+                        photo: portraits[person.id] ?? person.portrait.flatMap(sportsHTTPSURL))
+                        .zIndex(Double(2 - index))
+                }
+            }
             VStack(alignment: .leading, spacing: 2) {
                 Text(player.tennisDisplayName).font(.system(size: 14, weight: game.winner?.id == player.id ? .bold : .semibold))
                     .lineLimit(2).foregroundStyle(game.winner != nil && game.winner?.id != player.id ? AppTheme.muted : AppTheme.foreground)
@@ -100,14 +106,15 @@ struct SportsTennisScoreRow: View {
                 SportsWinnerChevron(visible: game.winner?.id == player.id)
             }
         }.frame(minHeight: 44).task(id: game.id) {
-            portraitURL = await SportsTennisPortraits.shared.photos(game)[player.id]
+            portraits = await SportsTennisPortraits.shared.photos(game)
         }
     }
 }
 
 /// One identity image: a portrait with an overlapping country badge, or the flag alone.
 private struct SportsTennisAvatar: View {
-    let player: SportsTeam
+    let name: String
+    let flag: URL?
     let photo: URL?
 
     var body: some View {
@@ -119,7 +126,7 @@ private struct SportsTennisAvatar: View {
                             .frame(width: 36, height: 36, alignment: .top).clipShape(Circle())
                             .frame(width: 40, height: 40, alignment: .topLeading)
                             .overlay(alignment: .bottomTrailing) {
-                                if let flag = player.logoURL {
+                                if let flag {
                                     countryImage(flag).frame(width: 15, height: 15).clipShape(Circle())
                                         .padding(1.5).background(AppTheme.panel, in: Circle())
                                 }
@@ -131,12 +138,12 @@ private struct SportsTennisAvatar: View {
                 }
             } else { flagFallback }
         }.frame(width: 40, height: 40)
-            .accessibilityElement(children: .ignore).accessibilityLabel("\(player.name) avatar")
+            .accessibilityElement(children: .ignore).accessibilityLabel("\(name) avatar")
     }
 
     private var flagFallback: some View {
         Group {
-            if let flag = player.logoURL { countryImage(flag) }
+            if let flag { countryImage(flag) }
             else { unknownPlayer }
         }.frame(width: 36, height: 36).clipShape(Circle())
             .frame(width: 40, height: 40, alignment: .topLeading)
@@ -164,17 +171,21 @@ actor SportsTennisPortraits {
         #endif
         if let flight = flights[game.id] { return await flight.value }
         let task = Task {
-            async let away = Self.portrait(game.away)
-            async let home = Self.portrait(game.home)
-            let values = await [(game.away.id, away), (game.home.id, home)]
-            return Dictionary(uniqueKeysWithValues: values.compactMap { id, image in image.map { (id, $0) } })
+            await withTaskGroup(of: (String, URL?).self, returning: [String: URL].self) { group in
+                for person in [game.away, game.home].flatMap(\.tennisPortraitSubjects) {
+                    group.addTask { (person.id, await Self.portrait(person)) }
+                }
+                var images: [String: URL] = [:]
+                for await (id, image) in group { if let image { images[id] = image } }
+                return images
+            }
         }
         if flights.count >= 96 { flights.removeValue(forKey: flights.keys.sorted().first!) }
         flights[game.id] = task
         return await task.value
     }
 
-    private static func portrait(_ player: SportsTeam) async -> URL? {
+    private static func portrait(_ player: SportsTennisPlayerIdentity) async -> URL? {
         if let url = player.portrait.flatMap(sportsHTTPSURL) { return url }
         guard !player.name.contains("/"), player.name.count <= 100,
               let name = player.name.replacingOccurrences(of: " ", with: "_").addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),

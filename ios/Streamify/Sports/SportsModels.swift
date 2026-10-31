@@ -53,6 +53,13 @@ struct SportsTennisMatch: Hashable, Sendable {
     var isDoubles: Bool { discipline.localizedCaseInsensitiveContains("doubles") }
 }
 
+struct SportsTennisPlayerIdentity: Identifiable, Hashable, Sendable {
+    let id: String
+    let name: String
+    let flag: String
+    var portrait: String? = nil
+}
+
 struct SportsTeam: Identifiable, Hashable, Sendable {
     let id: String
     let name: String
@@ -63,6 +70,10 @@ struct SportsTeam: Identifiable, Hashable, Sendable {
     var streamNames: [String] = []
     var portrait: String? = nil
     var primaryColorHex: String? = nil
+    var tennisMembers: [SportsTennisPlayerIdentity] = []
+    var tennisPortraitSubjects: [SportsTennisPlayerIdentity] {
+        tennisMembers.isEmpty ? [SportsTennisPlayerIdentity(id: id, name: name, flag: logo, portrait: portrait)] : tennisMembers
+    }
     var logoURL: URL? { sportsHTTPSURL(logo) }
     var tennisDisplayName: String {
         let seed = record.replacingOccurrences(of: "Seed ", with: "")

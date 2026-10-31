@@ -52,11 +52,23 @@ enum SportsTennisFeed {
         let rank = raw.sportsObject("curatedRank").sportsText("current")
         let short = athlete.sportsText("shortName")
         let scores = raw.sportsObjects("linescores")
+        var memberIDs = Set<String>()
+        let members = roster.sportsObjects("athletes").prefix(2).enumerated().compactMap { index, member -> SportsTennisPlayerIdentity? in
+            let memberName = member.sportsText("displayName")
+            guard !memberName.isEmpty else { return nil }
+            let identity = [member.sportsText("id"), member.sportsText("guid")].first { !$0.isEmpty } ?? "\(id)-\(index)"
+            let memberID = "\(tour.rawValue.lowercased())-\(identity)"
+            guard memberIDs.insert(memberID).inserted else { return nil }
+            return SportsTennisPlayerIdentity(id: memberID, name: memberName,
+                flag: member.sportsObject("flag").sportsText("href"),
+                portrait: member.sportsObject("headshot").sportsText("href").isEmpty ? nil : member.sportsObject("headshot").sportsText("href"))
+        }
         return SportsTeam(id: "\(tour.rawValue.lowercased())-\(id)", name: name, abbreviation: short.isEmpty ? name : short,
             logo: athlete.sportsObject("flag").sportsText("href"),
             score: scores.isEmpty ? "" : String(scores.filter { explicitBool($0["winner"]) == true }.count),
             record: Int(rank).map { $0 > 0 ? "Seed \($0)" : "" } ?? "", streamNames: [name, short].filter { !$0.isEmpty },
-            portrait: athlete.sportsObject("headshot").sportsText("href").isEmpty ? nil : athlete.sportsObject("headshot").sportsText("href"))
+            portrait: athlete.sportsObject("headshot").sportsText("href").isEmpty ? nil : athlete.sportsObject("headshot").sportsText("href"),
+            tennisMembers: members)
     }
 
     private static func sets(_ raw: [String: Any]) -> [String] {
