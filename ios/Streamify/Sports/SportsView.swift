@@ -20,7 +20,7 @@ final class SportsWatchQueue: ObservableObject {
 }
 
 private enum SportsFilter: String, CaseIterable, Identifiable {
-    case all = "All", live = "Live", pregame = "Pregame", final = "Final"
+    case all = "All", live = "Live", pregame = "Pregame", upcoming = "Upcoming", final = "Final"
     var id: String { rawValue }
 }
 
@@ -65,6 +65,7 @@ struct SportsView: View {
     @State private var day = Calendar.current.startOfDay(for: Date())
     @State private var currentToday = Calendar.current.startOfDay(for: Date())
     @State private var filter: SportsFilter = .live
+    @State private var statusNow = Date()
     @State private var layout: SportsLayout = .list
     @State private var home = false
     @State private var channels = false
@@ -116,7 +117,8 @@ struct SportsView: View {
         case .all: return true
         case .live: return game.isLive
         case .final: return game.isFinal
-        case .pregame: return game.state == "pre"
+        case .pregame: return game.scheduledPhase(at: statusNow) == .pregame
+        case .upcoming: return game.scheduledPhase(at: statusNow) == .upcoming
         }
     }
     private var filteredGames: [SportsGame] { scopedGames.filter { matchesStatus($0, filter) } }
@@ -126,7 +128,8 @@ struct SportsView: View {
         switch filter {
         case .all: return "No tennis matches are scheduled for this date. Try another day."
         case .live: return "No games are live right now. Check Pregame for the next tip-off or kickoff."
-        case .pregame: return "No games are waiting to start on this date. Try another day or league."
+        case .pregame: return "No games start in the next hour. Check Upcoming for later games."
+        case .upcoming: return "No later games for this selection. Try another day or league."
         case .final: return "No final results for this selection yet. Try another league."
         }
     }
@@ -181,6 +184,13 @@ struct SportsView: View {
             guard minimized else { return }
             selectedGame = nil
             showMultiWatch = false
+        }
+        .task(id: scenePhase) {
+            guard scenePhase == .active else { return }
+            while !Task.isCancelled {
+                statusNow = Date()
+                do { try await Task.sleep(for: .seconds(30)) } catch { return }
+            }
         }
         .task(id: searchRequest) {
             guard searchRequest > 0, searchRequest != handledSearchRequest else { return }
@@ -312,7 +322,7 @@ struct SportsView: View {
                     HStack(spacing: 0) {
                         ForEach(SportsFilter.allCases.filter { $0 != .all }) { item in statusTab(item) }
                     }
-                }.fixedSize(horizontal: false, vertical: true).sportsDaySwipeExcluded(daySwipeScope)
+                }.fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("sports-status-tabs").sportsDaySwipeExcluded(daySwipeScope)
                 Button {
                     calendarMonth = monthStart(day); showCalendar = true
                 } label: {
@@ -358,7 +368,7 @@ struct SportsView: View {
     private func statusTab(_ item: SportsFilter) -> some View {
         let selected = filter == item
         let enabled = !channels
-        let title = item == .pregame && day > today ? "Upcoming" : item.rawValue
+        let title = item.rawValue
         let count = scopedGames.filter { matchesStatus($0, item) }.count
         return Button {
             guard daySwipeScope.permitsProtectedAction else { return }
@@ -369,7 +379,7 @@ struct SportsView: View {
             filter = item; home = false
         } label: {
             Text("\(title) (\(count))").font(.caption.weight(selected ? .semibold : .medium)).monospacedDigit().lineLimit(1)
-                .padding(.horizontal, 7).frame(minWidth: 44, minHeight: 44)
+                .padding(.horizontal, 5).frame(minWidth: 44, minHeight: 44)
                 .foregroundStyle(selected ? AppTheme.foreground : AppTheme.muted)
                 .overlay(alignment: .bottom) { Rectangle().fill(selected ? AppTheme.foreground : .clear).frame(height: 2) }
                 .contentShape(Rectangle())
@@ -551,7 +561,7 @@ struct SportsView: View {
             loadedScheduleKey = cached == nil ? nil : scheduleKey
             if value < today { filter = .final }
             else if returningToToday { filter = .live }
-            else { filter = .pregame }
+            else { filter = .upcoming }
         }
         if animated && !reduceMotion {
             dayTransitioning = true
@@ -588,7 +598,7 @@ struct SportsView: View {
                 partial = false
             }
             if selection < freshToday { filter = .final }
-            else if selection > freshToday, filter == .live { filter = .pregame }
+            else if selection > freshToday, filter == .live { filter = .upcoming }
             calendarMonth = monthStart(selection)
         }
     }
@@ -620,7 +630,7 @@ struct SportsView: View {
         let cached = scheduleCache.snapshot(leagues: value.map { [$0] } ?? SportsLeague.allCases, day: day, backend: settings.apiBase)
         selectedLeague = value
         tennisTour = nil
-        if filter == .all { filter = day < today ? .final : day > today ? .pregame : .live }
+        if filter == .all { filter = day < today ? .final : day > today ? .upcoming : .live }
         followedTeamsOnly = false
         home = showHome; channels = false
         games = cached?.games ?? []

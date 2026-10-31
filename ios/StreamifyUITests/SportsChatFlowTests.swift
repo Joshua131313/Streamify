@@ -135,6 +135,8 @@ final class SportsChatFlowTests: XCTestCase {
         app.buttons["sports-league-option-nhl"].tap()
         XCTAssertTrue(wait { (live.value as? String ?? "").hasPrefix("1 games") })
         XCTAssertTrue((app.buttons["sports-filter-Pregame"].value as? String ?? "").hasPrefix("0 games"))
+        XCTAssertTrue((app.buttons["sports-filter-Upcoming"].value as? String ?? "").hasPrefix("0 games"))
+        app.scrollViews["sports-status-tabs"].swipeLeft()
         app.buttons["sports-filter-Final"].tap()
         XCTAssertTrue((live.value as? String ?? "").hasPrefix("1 games"), "Choosing a status must not recount only its visible cards")
         capture("Live Pregame and Final counts remain scoped to the selected league")

@@ -120,6 +120,8 @@ struct SportsBaseballSituation: Hashable, Sendable {
     var hasBaseData: Bool { firstOccupied != nil || secondOccupied != nil || thirdOccupied != nil }
 }
 
+enum SportsScheduledPhase { case pregame, upcoming }
+
 struct SportsGame: Identifiable, Hashable, Sendable {
     let eventID: String
     let league: SportsLeague
@@ -136,6 +138,13 @@ struct SportsGame: Identifiable, Hashable, Sendable {
     var id: String { "\(league.rawValue):\(eventID)" }
     var isLive: Bool { state == "in" }
     var isFinal: Bool { state == "post" }
+    func scheduledPhase(at now: Date) -> SportsScheduledPhase? {
+        guard state == "pre" else { return nil }
+        guard tennis?.timeConfirmed != false, let date else { return .upcoming }
+        let remaining = date.timeIntervalSince(now)
+        guard remaining >= 0 else { return nil }
+        return remaining <= 3600 ? .pregame : .upcoming
+    }
     var possessionTeam: SportsTeam? {
         guard isLive, ["football", "basketball"].contains(league.sport),
               let id = liveSituation?.possessionTeamID else { return nil }
