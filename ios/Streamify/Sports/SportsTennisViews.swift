@@ -78,12 +78,7 @@ struct SportsTennisScoreRow: View {
         let sets = player.id == game.away.id ? metadata?.awaySets ?? [] : metadata?.homeSets ?? []
         let point = player.id == game.away.id ? metadata?.awayPoint : metadata?.homePoint
         HStack(spacing: 7) {
-            if let logo = player.logoURL { RemoteArtwork(url: logo, contentMode: .fit).frame(width: 23, height: 18) }
-            if let photo = portraitURL ?? player.portrait.flatMap(sportsHTTPSURL) {
-                AsyncImage(url: photo) { image in image.resizable().scaledToFill() } placeholder: { Color.clear }
-                    .frame(width: 30, height: 30, alignment: .top).clipShape(Circle()).accessibilityLabel("\(player.name) photo")
-                    .contextMenu { if let credits = SportsTennisPortraits.credits(photo) { Link("Photo credits", destination: credits) } }
-            }
+            SportsTennisAvatar(player: player, photo: portraitURL ?? player.portrait.flatMap(sportsHTTPSURL))
             VStack(alignment: .leading, spacing: 2) {
                 Text(player.tennisDisplayName).font(.system(size: 14, weight: game.winner?.id == player.id ? .bold : .semibold))
                     .lineLimit(2).foregroundStyle(game.winner != nil && game.winner?.id != player.id ? AppTheme.muted : AppTheme.foreground)
@@ -107,6 +102,56 @@ struct SportsTennisScoreRow: View {
         }.frame(minHeight: 44).task(id: game.id) {
             portraitURL = await SportsTennisPortraits.shared.photos(game)[player.id]
         }
+    }
+}
+
+/// One identity image: a portrait with an overlapping country badge, or the flag alone.
+private struct SportsTennisAvatar: View {
+    let player: SportsTeam
+    let photo: URL?
+
+    var body: some View {
+        Group {
+            if let photo {
+                AsyncImage(url: photo) { phase in
+                    if let image = phase.image {
+                        image.resizable().scaledToFill()
+                            .frame(width: 36, height: 36, alignment: .top).clipShape(Circle())
+                            .frame(width: 40, height: 40, alignment: .topLeading)
+                            .overlay(alignment: .bottomTrailing) {
+                                if let flag = player.logoURL {
+                                    countryImage(flag).frame(width: 15, height: 15).clipShape(Circle())
+                                        .padding(1.5).background(AppTheme.panel, in: Circle())
+                                }
+                            }
+                            .contextMenu {
+                                if let credits = SportsTennisPortraits.credits(photo) { Link("Photo credits", destination: credits) }
+                            }
+                    } else { flagFallback }
+                }
+            } else { flagFallback }
+        }.frame(width: 40, height: 40)
+            .accessibilityElement(children: .ignore).accessibilityLabel("\(player.name) avatar")
+    }
+
+    private var flagFallback: some View {
+        Group {
+            if let flag = player.logoURL { countryImage(flag) }
+            else { unknownPlayer }
+        }.frame(width: 36, height: 36).clipShape(Circle())
+            .frame(width: 40, height: 40, alignment: .topLeading)
+    }
+
+    private func countryImage(_ url: URL) -> some View {
+        AsyncImage(url: url) { phase in
+            if let image = phase.image { image.resizable().scaledToFill() }
+            else { unknownPlayer }
+        }
+    }
+
+    private var unknownPlayer: some View {
+        Circle().fill(AppTheme.controlFill)
+            .overlay { Image(systemName: "person.fill").resizable().scaledToFit().padding(9).foregroundStyle(AppTheme.muted) }
     }
 }
 
