@@ -29,7 +29,8 @@ struct StreamFreeProvider: Sendable {
         try Task.checkCancellation()
         var seen = Set<URL>()
         return values.compactMap { value in
-            guard let raw = value as? String, let source = Self.normalSource(raw, key: key, category: category),
+            let raw = (value as? String) ?? ((value as? [String: Any])?["url"] as? String)
+            guard let raw, let source = Self.normalSource(raw, key: key, category: category),
                   seen.insert(source.url).inserted else { return nil }
             let quality = source.quality.map { " · \($0)" } ?? ""
             return SportsStream(title: "StreamFree\(quality) · Source \(source.server)", url: source.url,

@@ -11,11 +11,14 @@ enum SportsSourceIdentity {
             .filter { $0.isLetter || $0.isNumber }
     }
 
-    static func leagueMatches(_ label: String, game: SportsGame) -> Bool {
+    static func leagueMatches(_ label: String, game: SportsGame, sport: String? = nil) -> Bool {
+        if game.league == .ncaaf, normalized(label) == "ncaadivision1" {
+            return normalized(sport ?? "") == "americanfootball"
+        }
         let aliases: Set<String>
         switch game.league {
         case .nfl: aliases = ["nfl", "nationalfootballleague"]
-        case .ncaaf: aliases = ["ncaaf", "cfb", "ncaafootball", "collegefootball", "ncaafbs", "ncaafcs"]
+        case .ncaaf: aliases = ["ncaaf", "cfb", "ncaafootball", "collegefootball", "ncaafbs", "ncaafcs", "ncaadivision1football"]
         case .nba: aliases = ["nba", "nationalbasketballassociation"]
         case .wnba: aliases = ["wnba", "womensnationalbasketballassociation"]
         case .nhl: aliases = ["nhl", "nationalhockeyleague", "nhlicehockey"]
@@ -38,8 +41,10 @@ enum SportsSourceIdentity {
             // ESPN's location alias omits it. Only this anchored prefix is optional;
             // "State", "Tech" and the rest of each school's name stay significant.
             guard game.league == .ncaaf else { return normalized(value) }
-            return normalized(value.replacingOccurrences(of: "^\\s*university\\s+of\\s+", with: "",
+            let name = normalized(value.replacingOccurrences(of: "^\\s*university\\s+of\\s+", with: "",
                 options: [.regularExpression, .caseInsensitive]))
+            // A published college-football alias, not a general city/mascot match.
+            return name == "cssacramento" ? "sacramentostate" : name
         }
         func aliases(_ team: SportsTeam) -> Set<String> {
             let full = teamName(team.name)
@@ -73,13 +78,18 @@ actor SportsSourceDocumentCache {
     private struct Entry { let data: Data; let expires: Date; let touched: Date }
     private var entries: [String: Entry] = [:]
 
-    func data(for request: URLRequest, session: URLSession, lifetime: TimeInterval, validateJSON: Bool = false) async throws -> Data {
+    func data(for request: URLRequest, session: URLSession, lifetime: TimeInterval, validateJSON: Bool = false,
+              maximumBytes: Int = 2 * 1024 * 1024) async throws -> Data {
         try Task.checkCancellation()
         guard let url = request.url, sportsHTTPSURL(url.absoluteString) != nil else { throw SportsServiceError.invalidURL }
         let key = ResponseMemoryCache.key(for: request, session: session)
         let now = Date()
         entries = entries.filter { $0.value.expires > now }
-        if let entry = entries[key], lifetime > 0 { return entry.data }
+        let limit = max(1, min(maximumBytes, 4 * 1024 * 1024))
+        if let entry = entries[key], lifetime > 0 {
+            guard entry.data.count <= limit else { throw SportsServiceError.invalidResponse }
+            return entry.data
+        }
         var prepared = request
         prepared.timeoutInterval = min(8, request.timeoutInterval)
         prepared.cachePolicy = .reloadIgnoringLocalCacheData
@@ -88,7 +98,7 @@ actor SportsSourceDocumentCache {
         guard let http = response as? HTTPURLResponse, let final = http.url,
               sportsHTTPSURL(final.absoluteString) != nil else { throw SportsServiceError.invalidResponse }
         guard (200...299).contains(http.statusCode) else { throw SportsServiceError.unavailable(http.statusCode) }
-        guard data.count <= 2 * 1024 * 1024 else { throw SportsServiceError.invalidResponse }
+        guard data.count <= limit else { throw SportsServiceError.invalidResponse }
         if validateJSON { try SportsService.validateJSONResponse(data, response: http, requestedURL: url) }
         if lifetime > 0 {
             let completed = Date()

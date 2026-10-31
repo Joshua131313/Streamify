@@ -97,7 +97,7 @@ struct MatchoraProvider: Sendable {
         if game.league == .tennis {
             guard let tennis = game.tennis, tennis.source == "espn", !tennis.competitionID.isEmpty,
                   id == "es\(tennis.competitionID)", event.sportsText("sport").lowercased() == "tennis" else { return false }
-        } else if !SportsSourceIdentity.leagueMatches(event.sportsText("league"), game: game) { return false }
+        } else if !SportsSourceIdentity.leagueMatches(event.sportsText("league"), game: game, sport: event.sportsText("sport")) { return false }
         return SportsSourceIdentity.sourceDateMatches(start, game: game, now: now)
     }
 

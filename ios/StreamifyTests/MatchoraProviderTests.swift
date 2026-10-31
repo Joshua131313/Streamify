@@ -5,6 +5,19 @@ import Foundation
 /// Public API shapes captured from /schedule and /events/2601717. All traffic
 /// below is intercepted locally; tests never contact a player or live provider.
 final class MatchoraProviderTests: XCTestCase {
+    func testCollegeDivisionLabelsRequireFootballRatherThanAnotherCollegeSport() {
+        let game = MatchoraFixture.game(.ncaaf)
+        var event = MatchoraFixture.event(.ncaaf)
+        event["league"] = "NCAA Division 1 Football"
+        XCTAssertTrue(MatchoraProvider.matches(event, game: game, now: MatchoraFixture.now))
+        event["league"] = "NCAA Division 1"; event["sport"] = "American Football"
+        XCTAssertTrue(MatchoraProvider.matches(event, game: game, now: MatchoraFixture.now))
+        for sport in ["Basketball", "Soccer", "", "Football"] {
+            event["sport"] = sport
+            XCTAssertFalse(MatchoraProvider.matches(event, game: game, now: MatchoraFixture.now))
+        }
+    }
+
     func testEveryLeagueRequiresBothOpponentsTheCorrectLeagueAndNearbyKickoff() {
         for league in SportsLeague.allCases where league != .tennis {
             let game = MatchoraFixture.game(league)

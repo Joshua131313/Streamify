@@ -4,6 +4,16 @@ import XCTest
 
 /// Captured response shapes and intercepted HTTP only; no live player or API.
 final class StreamFreeProviderTests: XCTestCase {
+    func testCollegeFootballAcceptsPublishedSourceObjectsAlongsideLegacyURLs() async throws {
+        let fixture = StreamFreeFixture(.sourceObjects, league: .ncaaf)
+        let values = try await StreamFreeProvider(session: fixture.session, now: { StreamFreeSnapshots.now })
+            .streams(StreamFreeSnapshots.game(.ncaaf))
+        let key = StreamFreeSnapshots.key(for: .ncaaf)
+        XCTAssertEqual(values.map(\.url.absoluteString), ["https://streamfree.top/embed/football/\(key)1080p3", "https://streamfree.top/embed/football/\(key)540p"])
+        XCTAssertEqual(values.map(\.title), ["StreamFree · 1080p · Source 3", "StreamFree · 540p · Source 1"])
+        XCTAssertEqual(fixture.requests.count, 2)
+    }
+
     func testAllSixLeaguesRequireTheirOwnLeagueBothTeamsAndDate() {
         for league in SportsLeague.allCases where league != .tennis {
             let game = StreamFreeSnapshots.game(league)
@@ -180,7 +190,7 @@ private enum StreamFreeSnapshots {
 }
 
 private final class StreamFreeFixture {
-    enum Mode { case success, changingSources, unrelated, emptySources, partialSources, wrongSourceKey, sourceHTTP(Int), transport(URLError.Code), pendingCatalog }
+    enum Mode { case success, sourceObjects, changingSources, unrelated, emptySources, partialSources, wrongSourceKey, sourceHTTP(Int), transport(URLError.Code), pendingCatalog }
     let session: URLSession
     private let id = UUID().uuidString
     private let scenario: StreamFreeScenario
@@ -228,6 +238,11 @@ private final class StreamFreeScenario {
             if case .changingSources = mode, sourceCalls > 1 { variant = "720p2" } else { variant = "1080p3" }
             let path = "/embed/\(league.sport)/\(key)\(variant)"
             var sources: [Any] = ["https://strmfree.st" + path]
+            if case .sourceObjects = mode {
+                sources = [["quality": "FHD", "url": "https://strmfree.st" + path],
+                    ["quality": "SD", "url": "https://strmfree.st/embed/\(league.sport)/\(key)540p"],
+                    "https://streamfree.top" + path, ["url": "https://unrelated.example/player"], ["url": 42], ["quality": "FHD"]]
+            }
             if case .emptySources = mode { sources = [] }
             if case .partialSources = mode {
                 sources += ["https://streamfree.top" + path, "https://other.example" + path, "http://strmfree.st" + path,

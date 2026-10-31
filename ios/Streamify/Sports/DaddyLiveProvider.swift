@@ -67,7 +67,8 @@ struct DaddyLiveProvider: Sendable {
         request.timeoutInterval = 8
         request.setValue("text/html,application/xhtml+xml", forHTTPHeaderField: "Accept")
         request.setValue("Streamify/1.1", forHTTPHeaderField: "User-Agent")
-        let data = try await SportsSourceDocumentCache.shared.data(for: request, session: session, lifetime: lifetime)
+        let data = try await SportsSourceDocumentCache.shared.data(for: request, session: session, lifetime: lifetime,
+            maximumBytes: url == Self.homepage ? 4 * 1024 * 1024 : 2 * 1024 * 1024)
         guard let html = String(data: data, encoding: .utf8) else { throw SportsServiceError.invalidResponse }
         return html
     }
@@ -207,7 +208,7 @@ private final class DaddyHTML {
 
     static func document(_ original: String) -> DaddyHTML {
         let root = DaddyHTML("root")
-        guard original.utf8.count <= 2 * 1024 * 1024 else { return root }
+        guard original.utf8.count <= 4 * 1024 * 1024 else { return root }
         let html = original.replacingOccurrences(of: #"(?is)<script\b[^>]*>.*?</script\s*>|<style\b[^>]*>.*?</style\s*>|<!--.*?-->"#, with: "", options: .regularExpression)
         guard let tags = tagExpression else { return root }
         let source = html as NSString

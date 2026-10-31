@@ -5,6 +5,31 @@ import XCTest
 /// Captured public HTML structure and a protocol that intercepts every host.
 /// No protected API, player document, authentication or video is requested.
 final class DaddyLiveProviderTests: XCTestCase {
+    func testPublishedKentStateAndCSSacramentoFootballListingKeepsTheExactSchoolIdentity() {
+        let date = Date(timeIntervalSince1970: 1_793_413_800)
+        let game = SportsGame(eventID: "401866451", league: .ncaaf, date: date, state: "in", status: "Live",
+            home: SportsTeam(id: "16", name: "Sacramento State Hornets", abbreviation: "SAC", logo: "", streamNames: ["Sacramento State"]),
+            away: SportsTeam(id: "2309", name: "Kent State Golden Flashes", abbreviation: "KENT", logo: "", streamNames: ["Kent State"]), venue: "", broadcasts: "", link: "")
+        let html = DaddyFixture.home(game, title: "🏈 NCAA FBS : Kent State 🇺🇸 vs CS Sacramento 🇺🇸", links: "<a href='/watch.php?id=45'>ESPN2 USA</a>",
+            heading: "Friday 30th October 2026 - Schedule Time UK GMT", clock: "02:30")
+        XCTAssertEqual(DaddyLiveProvider.channels(in: html, game: game, now: date).map(\.title), ["ESPN2 USA"])
+        for wrong in ["Sacramento Kings", "CS San Francisco", "Sacramento", "Kent"] {
+            XCTAssertTrue(DaddyLiveProvider.channels(in: html.replacingOccurrences(of: "CS Sacramento", with: wrong), game: game, now: date).isEmpty)
+        }
+    }
+
+    func testExpandedScheduleAboveTwoMegabytesResolvesAndFourMegabyteLimitIsStillEnforced() async throws {
+        let expanded = DaddyProtocolFixture(.expandedCatalog(2_240_815), count: 1)
+        let values = try await DaddyLiveProvider(session: expanded.session).streams(expanded.game)
+        XCTAssertEqual(values.count, 1)
+        XCTAssertEqual(expanded.requests.count, 2)
+        let oversized = DaddyProtocolFixture(.expandedCatalog(4 * 1024 * 1024 + 1), count: 1)
+        do {
+            _ = try await DaddyLiveProvider(session: oversized.session).streams(oversized.game)
+            XCTFail("An unbounded schedule must still be rejected")
+        } catch { XCTAssertEqual(oversized.requests.count, 1) }
+    }
+
     func testAllSixLeaguesUseBothFullTeamsAndPublishedChannelLinks() throws {
         for league in SportsLeague.allCases where league != .tennis {
             let game = DaddyFixture.game(league)
@@ -263,7 +288,7 @@ private enum DaddyFixture {
 }
 
 private final class DaddyProtocolFixture {
-    enum Mode { case normal, partial, allFailed, catalogFailure, slow }
+    enum Mode { case normal, partial, allFailed, catalogFailure, slow, expandedCatalog(Int) }
     let session: URLSession
     let game: SportsGame
     private let identifier = UUID().uuidString
@@ -306,7 +331,9 @@ private final class DaddyProtocolScenario {
         guard url.scheme == "https", url.host == "thedaddy.pk" else { throw URLError(.unsupportedURL) }
         if url.path == "/" {
             if case .catalogFailure = mode { throw URLError(.notConnectedToInternet) }
-            return Reply(data: Data(home.utf8), status: 200, delay: 0, watch: false)
+            var body = Data(home.utf8)
+            if case .expandedCatalog(let bytes) = mode { body.append(Data(repeating: 32, count: max(0, bytes - body.count))) }
+            return Reply(data: body, status: 200, delay: 0, watch: false)
         }
         guard url.path == "/watch.php", let id = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first?.value else { throw URLError(.unsupportedURL) }
         current += 1; peak = max(peak, current); watches[id, default: 0] += 1
