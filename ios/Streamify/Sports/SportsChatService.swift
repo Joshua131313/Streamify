@@ -315,6 +315,9 @@ final class SportsChatSubscription {
     }
     func send(room: String, text: String, reply: SportsChatReply?) async throws {
         let text = try SportsChatContract.message(text)
+        if ProcessInfo.processInfo.arguments.contains("--ui-chat-delayed-send-fixture") {
+            try await Task.sleep(for: .seconds(2))
+        }
         currentUserID = "fixture-guest-1024"
         messages.append(SportsChatMessage(id: UUID().uuidString, text: text, sender: "Guest 1024", uid: currentUserID!, sentAt: Date(), reply: reply, votes: [:], pending: false))
         receive?(.success(messages))

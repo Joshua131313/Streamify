@@ -183,7 +183,7 @@ struct SportsChatView: View {
                 TextField("Say something…", text: $chat.draft, axis: .vertical)
                     .lineLimit(1...4).font(.subheadline).focused($composing)
                     .padding(.leading, 14).padding(.trailing, 6).padding(.vertical, 14)
-                    .tint(AppTheme.foreground).disabled(chat.sending || room == nil)
+                    .tint(AppTheme.foreground).disabled(room == nil)
                     .accessibilityIdentifier("sports-chat-composer")
                 Button { Task { await chat.send(); if chat.draft.isEmpty { sendCompleted += 1 } } } label: {
                     Group {

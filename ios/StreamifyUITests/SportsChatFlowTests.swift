@@ -10,6 +10,7 @@ final class SportsChatFlowTests: XCTestCase {
         app = XCUIApplication()
         app.launchArguments = ["--ui-fixtures"]
         if name.contains("testChatConnectionTimeout") { app.launchArguments.append("--ui-chat-stalled-fixture") }
+        if name.contains("testSendingKeepsKeyboard") { app.launchArguments.append("--ui-chat-delayed-send-fixture") }
         app.launch()
         XCTAssertTrue(app.buttons["tab-sports"].waitForExistence(timeout: 15))
     }
@@ -20,6 +21,25 @@ final class SportsChatFlowTests: XCTestCase {
             tree.name = "FAILURE guest chat hierarchy"; tree.lifetime = .keepAlways; add(tree)
         }
         app?.terminate()
+    }
+
+    func testSendingKeepsKeyboardFocusedWhileTheServerAcknowledges() {
+        openChat()
+        let composer = element("sports-chat-composer")
+        reveal(composer); composer.tap(); composer.typeText("First update")
+        XCTAssertTrue(app.keyboards.firstMatch.exists)
+        app.buttons["sports-chat-send"].tap()
+        for _ in 0..<6 {
+            XCTAssertTrue(composer.isEnabled, "The editor must remain enabled while sending")
+            XCTAssertTrue(app.keyboards.firstMatch.exists, "Sending must not dismiss and reopen the keyboard")
+            Thread.sleep(forTimeInterval: 0.1)
+        }
+        XCTAssertTrue(app.staticTexts["First update"].waitForExistence(timeout: 5))
+        XCTAssertTrue(wait { (composer.value as? String ?? "") != "First update" })
+        XCTAssertTrue(app.keyboards.firstMatch.exists)
+        composer.typeText("Next update")
+        XCTAssertEqual(composer.value as? String, "Next update")
+        capture("Keyboard remains visible and ready for the next message after sending")
     }
 
     func testGuestCanReadReplyAndSendLocallyWhileReactionPermissionFailureIsVisible() {

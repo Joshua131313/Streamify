@@ -220,7 +220,7 @@ jobs:
               SELECTORS=(-only-testing:StreamifyUITests/OfflinePlayerFlowTests -only-testing:StreamifyUITests/MediaWatchFlowTests -only-testing:StreamifyUITests/MediaAutoplayDismissFlowTests -only-testing:StreamifyUITests/SportsPlaybackFlowTests -only-testing:StreamifyUITests/MultiWatchRotationFlowTests)
               ;;
             cfb-source-parity)
-              SELECTORS=(-only-testing:StreamifyTests/StreamFreeProviderTests -only-testing:StreamifyTests/DaddyLiveProviderTests -only-testing:StreamifyTests/MatchoraProviderTests -only-testing:StreamifyTests/SportsSourceAggregationTests -only-testing:StreamifyUITests/SportsMultiProviderFlowTests)
+              SELECTORS=(-only-testing:StreamifyTests/StreamFreeProviderTests -only-testing:StreamifyTests/DaddyLiveProviderTests -only-testing:StreamifyTests/MatchoraProviderTests -only-testing:StreamifyTests/SportsSourceAggregationTests -only-testing:StreamifyUITests/SportsMultiProviderFlowTests -only-testing:StreamifyUITests/SportsChatFlowTests/testSendingKeepsKeyboardFocusedWhileTheServerAcknowledges)
               ;;
             quick-profile-manage)
               SELECTORS=(-only-testing:StreamifyTests/ProfileStoreTests -only-testing:StreamifyTests/QuickProfileHitTests -only-testing:StreamifyUITests/QuickProfileFlowTests/testManageProfilesFromHeldLibraryOpensEditingAndCancelRestoresTab -only-testing:StreamifyUITests/QuickProfileFlowTests/testFullChooserCancelAndSelectionHandoffKeepOnlyActiveSurfaceInteractive)
