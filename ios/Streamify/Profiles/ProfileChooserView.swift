@@ -244,7 +244,7 @@ private struct ProfileCinematicBackdrop: View {
                 .init(color: .clear, location: 0.36),
                 .init(color: Color(red: 0.105, green: 0.09, blue: 0.095).opacity(0.65), location: 0.55),
                 .init(color: Color(red: 0.105, green: 0.09, blue: 0.095), location: 0.78),
-                .init(color: profilePanelFill, location: 1)],
+                .init(color: profilePanelFill, location: 0.9)],
                 startPoint: .top, endPoint: .bottom)
         }
         .frame(width: size.width, height: size.height).clipped()
