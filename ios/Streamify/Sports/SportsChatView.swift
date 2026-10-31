@@ -266,7 +266,14 @@ private struct SportsChatMessageRow: View {
                 }.font(.system(size: 10)).monospacedDigit().foregroundStyle(AppTheme.muted).fixedSize()
                     .accessibilityIdentifier("sports-chat-time-\(message.id)")
             }.padding(.vertical, 4).contentShape(Rectangle())
-                .onLongPressGesture(minimumDuration: 0.35, maximumDistance: 12, perform: showActions)
+                .gesture(LongPressGesture(minimumDuration: 0.35, maximumDistance: 12)
+                    .sequenced(before: DragGesture(minimumDistance: 0))
+                    .onEnded { phase in
+                        guard case .second(true, let drag) = phase else { return }
+                        if let drag, abs(drag.translation.width) > 12 || abs(drag.translation.height) > 12 { return }
+                        // Present after finger-up, so the same touch cannot dismiss the popover.
+                        showActions()
+                    })
                 .accessibilityAction(named: "Message options", showActions)
                 .popover(isPresented: $choosingActions, attachmentAnchor: .rect(.bounds), arrowEdge: .top) {
                     actionMenu.presentationCompactAdaptation(.popover).presentationBackground(AppTheme.panel)
@@ -309,7 +316,8 @@ private struct SportsChatMessageRow: View {
         Button { select(action) } label: {
             HStack { Text(title).font(.subheadline); Spacer(); Image(systemName: symbol).font(.system(size: 16)) }
                 .padding(.horizontal, 12).frame(minHeight: 44).contentShape(Rectangle())
-        }.buttonStyle(HapticPlainButtonStyle())
+        }.buttonStyle(HapticPlainButtonStyle()).accessibilityLabel(title)
+            .accessibilityIdentifier("sports-chat-action-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
     }
 
     private var reactionPills: some View {

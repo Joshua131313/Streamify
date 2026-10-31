@@ -99,12 +99,14 @@ final class SportsChatFlowTests: XCTestCase {
         let composer = element("sports-chat-composer")
         reveal(composer); composer.tap()
         composer.typeText(String(repeating: "a", count: 1001))
-        XCTAssertTrue(wait { (composer.value as? String ?? "").utf16.count == 1000 })
-        // SwiftUI localizes the interpolated integer in this visible counter.
-        // The composer value above remains the strict UTF-16 boundary check.
-        XCTAssertTrue(app.staticTexts["1,000/1,000"].exists)
+        // UIKit abbreviates the accessibility value of long multi-line fields.
+        // Check the bound draft counter and that the actual send contract accepts it.
+        XCTAssertTrue(app.staticTexts["1,000/1,000"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["sports-chat-send"].isEnabled)
-        capture("Guest composer caps input at the Android compatible thousand character limit")
+        app.buttons["sports-chat-send"].tap()
+        XCTAssertTrue(wait { (composer.value as? String ?? "") == "Say something…" || (composer.value as? String ?? "").isEmpty })
+        XCTAssertFalse(element("sports-chat-action-error").exists)
+        capture("Guest composer caps the bound draft and sends within the thousand character contract")
     }
 
     func testReplyPreviewCancelAndQuotedMessageNavigationKeepDraft() {
@@ -144,11 +146,11 @@ final class SportsChatFlowTests: XCTestCase {
     private func openMessageOptions() {
         let row = element("sports-chat-body-fixture-chat-1")
         reveal(row); row.press(forDuration: 0.6)
-        XCTAssertTrue(app.buttons["Copy text"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["sports-chat-action-copy-text"].waitForExistence(timeout: 5))
     }
     private func messageAction(_ action: String) {
         openMessageOptions()
-        app.buttons[action].tap()
+        app.buttons["sports-chat-action-" + action.lowercased().replacingOccurrences(of: " ", with: "-")].tap()
     }
 
     private func openChat() {
@@ -176,11 +178,17 @@ final class SportsChatFlowTests: XCTestCase {
         XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in condition() }, object: nil)], timeout: 8) == .completed
     }
     private func reveal(_ target: XCUIElement) {
-        for _ in 0..<12 {
+        if target.exists {
+            let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in target.isHittable }, object: nil)
+            if XCTWaiter.wait(for: [ready], timeout: 2) == .completed { return }
+        }
+        for _ in 0..<8 {
             if target.exists && target.isHittable { return }
-            let up = !(target.exists && target.frame.maxY < app.frame.midY)
-            let start = app.reviewScrollSurface.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: up ? 0.55 : 0.25))
-            let end = app.reviewScrollSurface.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: up ? 0.25 : 0.55))
+            let thread = app.scrollViews["sports-chat-thread"]
+            let surface = thread.exists ? thread : app.reviewScrollSurface
+            let up = !target.exists || target.frame.midY > surface.frame.midY
+            let start = surface.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: up ? 0.65 : 0.35))
+            let end = surface.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: up ? 0.35 : 0.65))
             start.press(forDuration: 0.05, thenDragTo: end)
         }
         XCTAssertTrue(target.isHittable)
@@ -193,7 +201,11 @@ final class SportsChatFlowTests: XCTestCase {
         let keyboardTip = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Speed up your typing'")).firstMatch
         if keyboardTip.exists { app.buttons["Continue"].tap() }
         guard app.keyboards.firstMatch.exists else { return }
-        app.scrollViews["sports-chat-thread"].swipeDown()
+        // Pulling down at the top is the sheet's deliberate close gesture.
+        // Opening and dismissing message options resigns the composer without closing chat.
+        openMessageOptions()
+        app.staticTexts["Live conversation"].tap()
         XCTAssertTrue(wait { !self.app.keyboards.firstMatch.exists })
+        XCTAssertTrue(element("sports-chat").exists)
     }
 }
