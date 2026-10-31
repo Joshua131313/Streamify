@@ -126,7 +126,7 @@ final class SportsChatFlowTests: XCTestCase {
         XCTAssertTrue(quote.waitForExistence(timeout: 5))
         XCTAssertFalse(element("sports-chat-reply-preview").exists)
         quote.tap()
-        XCTAssertTrue(element("sports-chat-message-fixture-chat-1").isHittable)
+        XCTAssertTrue(wait { self.element("sports-chat-message-fixture-chat-1").isHittable })
         capture("Sent quote returns to its original message")
     }
 
@@ -143,14 +143,18 @@ final class SportsChatFlowTests: XCTestCase {
         XCTAssertTrue((live.value as? String ?? "").hasPrefix("1 games"), "Choosing a status must not recount only its visible cards")
         capture("Live Pregame and Final counts remain scoped to the selected league")
     }
+    private var options: XCUIElement { app.descendants(matching: .popover).firstMatch }
     private func openMessageOptions() {
         let row = element("sports-chat-body-fixture-chat-1")
         reveal(row); row.press(forDuration: 0.6)
-        XCTAssertTrue(app.buttons["sports-chat-action-copy-text"].waitForExistence(timeout: 5))
+        XCTAssertTrue(options.waitForExistence(timeout: 5))
+        XCTAssertTrue(options.buttons.matching(NSPredicate(format: "label == %@", "Copy text")).firstMatch.waitForExistence(timeout: 5))
     }
     private func messageAction(_ action: String) {
         openMessageOptions()
-        app.buttons["sports-chat-action-" + action.lowercased().replacingOccurrences(of: " ", with: "-")].tap()
+        // SwiftUI propagates the popover container identifier to its buttons.
+        // Scope by the visible action label inside the actual popover.
+        options.buttons.matching(NSPredicate(format: "label == %@", action)).firstMatch.tap()
     }
 
     private func openChat() {
@@ -204,7 +208,8 @@ final class SportsChatFlowTests: XCTestCase {
         // Pulling down at the top is the sheet's deliberate close gesture.
         // Opening and dismissing message options resigns the composer without closing chat.
         openMessageOptions()
-        app.staticTexts["Live conversation"].tap()
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.5)).tap()
+        XCTAssertTrue(options.waitForNonExistence(timeout: 5))
         XCTAssertTrue(wait { !self.app.keyboards.firstMatch.exists })
         XCTAssertTrue(element("sports-chat").exists)
     }
