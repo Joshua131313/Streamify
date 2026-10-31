@@ -21,6 +21,7 @@ struct LiquidGlassBottomBar: View {
     @State private var holdTask: Task<Void, Never>?
     @State private var profilesOpen = false
     @State private var pendingProfile: UUID?
+    @State private var pendingManagement = false
     @State private var lastTapTab: AppTab?
     @State private var lastTapTime: TimeInterval = 0
     @State private var pendingOwner: String?
@@ -54,12 +55,12 @@ struct LiquidGlassBottomBar: View {
         .onChange(of: scenePhase) { _, phase in
             if phase != .active {
                 cancelTouch(animated: false)
-                pendingProfile = nil; pendingOwner = nil; profilesOpen = false
+                pendingProfile = nil; pendingManagement = false; pendingOwner = nil; profilesOpen = false
             }
         }
         .onDisappear {
             cancelTouch(animated: false)
-            pendingProfile = nil; pendingOwner = nil; profilesOpen = false
+            pendingProfile = nil; pendingManagement = false; pendingOwner = nil; profilesOpen = false
         }
     }
 
@@ -81,14 +82,18 @@ struct LiquidGlassBottomBar: View {
     }
 
     private var quickProfilePicker: some View {
-        LiquidGlassQuickProfilePicker { profile in
+        LiquidGlassQuickProfilePicker(select: { profile in
             guard profilesOpen, pendingProfile == nil else { return }
             AppHaptics.tap(.primary)
             if profile.id != profiles.activeProfile?.id {
                 pendingProfile = profile.id; pendingOwner = profiles.ownerUID
             }
             profilesOpen = false
-        }
+        }, manage: {
+            guard profilesOpen, pendingProfile == nil else { return }
+            pendingManagement = true; pendingOwner = profiles.ownerUID
+            profilesOpen = false
+        })
         .environmentObject(profiles)
         .presentationCompactAdaptation(.popover)
         .onDisappear(perform: finishProfileSelection)
@@ -296,12 +301,19 @@ struct LiquidGlassBottomBar: View {
 
     private func openProfiles() {
         guard scenePhase == .active, !profilesOpen, profiles.canEditProfiles else { return }
-        pendingProfile = nil; pendingOwner = nil
+        pendingProfile = nil; pendingManagement = false; pendingOwner = nil
         AppHaptics.tap()
         profilesOpen = true
     }
 
     private func finishProfileSelection() {
+        if pendingManagement {
+            let owner = pendingOwner
+            pendingManagement = false; pendingOwner = nil
+            guard scenePhase == .active, profiles.canEditProfiles, profiles.ownerUID == owner else { return }
+            profiles.showChooser(managing: true)
+            return
+        }
         guard let id = pendingProfile else { return }
         let owner = pendingOwner
         pendingProfile = nil; pendingOwner = nil
@@ -391,6 +403,7 @@ private struct LiquidGlassBarSurface: ViewModifier {
 
 private struct LiquidGlassQuickProfilePicker: View {
     let select: (AppProfile) -> Void
+    let manage: () -> Void
     @EnvironmentObject private var profiles: ProfileStore
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -426,6 +439,15 @@ private struct LiquidGlassQuickProfilePicker: View {
             .scrollDisabled(rowsHeight <= 300)
             .scrollBounceBehavior(.basedOnSize)
             .scrollIndicators(.hidden)
+            Divider().overlay(AppTheme.foreground.opacity(0.10))
+            Button(action: manage) {
+                Label("Manage profiles", systemImage: "pencil")
+                    .font(.subheadline.weight(.medium)).frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    .padding(.horizontal, 10).contentShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .buttonStyle(HapticCardButtonStyle(cornerRadius: 12))
+            .disabled(!profiles.canEditProfiles)
+            .accessibilityIdentifier("quick-profile-manage")
         }
         .padding(10).frame(width: dynamicTypeSize.isAccessibilitySize ? 300 : 264)
         .foregroundStyle(AppTheme.foreground)

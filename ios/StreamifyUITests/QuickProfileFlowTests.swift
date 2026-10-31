@@ -101,6 +101,27 @@ final class QuickProfileFlowTests: XCTestCase {
         capture("Full chooser handoff reveals selected viewer without outgoing controls")
     }
 
+    func testManageProfilesFromHeldLibraryOpensEditingAndCancelRestoresTab() {
+        app.buttons["tab-sports"].tap()
+        app.buttons["tab-library"].press(forDuration: 1)
+        let picker = element("quick-profile-picker")
+        XCTAssertTrue(picker.waitForExistence(timeout: 5))
+        let manage = app.buttons["quick-profile-manage"]
+        XCTAssertTrue(manage.isHittable)
+        capture("Quick profile picker includes Manage profiles")
+        manage.tap()
+        XCTAssertTrue(picker.waitForNonExistence(timeout: 5))
+        let editProfile = app.buttons.matching(NSPredicate(format: "label == 'Edit My profile'")).firstMatch
+        XCTAssertTrue(editProfile.waitForExistence(timeout: 8))
+        XCTAssertTrue(editProfile.isHittable)
+        capture("Manage profiles opens the cinematic chooser in edit mode")
+        app.buttons["profile-switch-cancel"].tap()
+        XCTAssertTrue(app.buttons["tab-sports"].wait(for: \.isHittable, toEqual: true, timeout: 5))
+        XCTAssertTrue(app.buttons["tab-sports"].isSelected)
+        openFullChooser()
+        XCTAssertTrue(app.staticTexts["Choose your profile"].waitForExistence(timeout: 5))
+    }
+
     private func openFullChooser() {
         app.buttons["More options"].tap()
         XCTAssertTrue(app.buttons["Switch profiles"].waitForExistence(timeout: 5))

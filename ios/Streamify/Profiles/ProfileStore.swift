@@ -46,6 +46,7 @@ enum ProfileSyncStatus: Equatable {
     @Published private(set) var library: LibraryStore
     @Published private(set) var settings: SettingsStore
     @Published private(set) var requiresSelection: Bool
+    @Published private(set) var managingProfiles = false
     @Published private(set) var ownerUID: String?
     @Published private(set) var syncStatus: ProfileSyncStatus = .local
     var contextID: String { "\(ownerUID ?? "guest"):\(activeProfile?.id.uuidString ?? "none")" }
@@ -106,10 +107,10 @@ enum ProfileSyncStatus: Equatable {
         activate(profile)
         settings.refreshDeviceConfiguration()
         persist()
-        requiresSelection = false
+        requiresSelection = false; managingProfiles = false
     }
-    func showChooser() { requiresSelection = true }
-    func cancelSwitch() { if activeProfile != nil { requiresSelection = false } }
+    func showChooser(managing: Bool = false) { managingProfiles = managing; requiresSelection = true }
+    func cancelSwitch() { if activeProfile != nil { requiresSelection = false; managingProfiles = false } }
     /// Enter the account's own last-used profile only after its load has settled.
     func finishSignIn(uid: String) -> Bool {
         guard ownerUID == uid, canEditProfiles, let selected = activeProfile else { return false }
@@ -150,7 +151,7 @@ enum ProfileSyncStatus: Equatable {
         persist()
         retryTask?.cancel()
         session = UUID(); syncing = false
-        ownerUID = next
+        ownerUID = next; managingProfiles = false
         libraries.removeAll(); preferences.removeAll()
         journal = next.flatMap { defaults.data(forKey: Self.journalKey($0)) }.flatMap { try? JSONDecoder().decode(Journal.self, from: $0) } ?? Journal()
         let snapshot = Self.restore(defaults: defaults, owner: next)

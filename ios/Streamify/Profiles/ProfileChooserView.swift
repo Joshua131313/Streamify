@@ -51,8 +51,9 @@ struct ProfileChooserView: View {
         .onChange(of: resetToken) { _, _ in
             var transaction = Transaction()
             transaction.disablesAnimations = true
-            withTransaction(transaction) { editing = false; editor = nil }
+            withTransaction(transaction) { editing = store.managingProfiles; editor = nil }
         }
+        .onChange(of: store.managingProfiles, initial: true) { _, managing in if managing { editing = true } }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: editing)
         .animation(.easeInOut(duration: reduceMotion ? 0.12 : 0.24), value: store.profiles)
     }
