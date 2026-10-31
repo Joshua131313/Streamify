@@ -1,5 +1,7 @@
 import SwiftUI
 
+private let profilePanelFill = Color(red: 0.17, green: 0.14, blue: 0.14)
+
 /// The chooser stays usable with no catalog key or network connection. Artwork
 /// is decorative; profile selection and editing persist locally before syncing.
 @MainActor
@@ -38,6 +40,7 @@ struct ProfileChooserView: View {
                 }.ignoresSafeArea()
             }
         }
+        .background(profilePanelFill.ignoresSafeArea())
         .foregroundStyle(.white)
         .environment(\.colorScheme, .dark)
         .accessibilityElement(children: .contain)
@@ -99,9 +102,8 @@ struct ProfileChooserView: View {
                     .frame(maxWidth: .infinity)
                     .background {
                         ProfilePanelShape()
-                            .fill(LinearGradient(colors: [Color(red: 0.17, green: 0.14, blue: 0.14).opacity(0.5),
-                                Color(red: 0.17, green: 0.14, blue: 0.14)], startPoint: .top, endPoint: .bottom))
-                            .ignoresSafeArea(edges: .bottom)
+                            .fill(LinearGradient(colors: [profilePanelFill.opacity(0.5), profilePanelFill],
+                                startPoint: .top, endPoint: .bottom))
                     }
             }
             .frame(maxWidth: .infinity)
@@ -118,6 +120,19 @@ struct ProfileChooserView: View {
                     .font(.body).foregroundStyle(.white.opacity(0.86)).multilineTextAlignment(.center)
                     .accessibilityAddTraits(.isHeader)
             profileGrid(avatarSize: avatarSize, tileWidth: tileWidth)
+            if editing {
+                Button { editing = false } label: {
+                    Label("Done", systemImage: "checkmark")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity, minHeight: 48)
+                        .foregroundStyle(.black)
+                        .background(.white, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .frame(maxWidth: 280).padding(.horizontal, 28)
+                .buttonStyle(HapticCardButtonStyle(cornerRadius: 12))
+                .accessibilityLabel("Done editing profiles")
+                .accessibilityIdentifier("profile-manage")
+            }
         }
     }
 
@@ -158,22 +173,23 @@ struct ProfileChooserView: View {
                 .buttonStyle(HapticCardButtonStyle(cornerRadius: 18))
                 .accessibilityLabel("Add profile").accessibilityIdentifier("profile-add")
             }
-            Button { editing.toggle() } label: {
+            if !editing { Button { editing = true } label: {
                 VStack(spacing: 10) {
                     RoundedRectangle(cornerRadius: avatarSize * 0.2, style: .continuous)
                         .fill(Color(red: 0.31, green: 0.25, blue: 0.26))
                         .overlay {
-                            Image(systemName: editing ? "checkmark" : "pencil")
+                            Image(systemName: "pencil")
                                 .font(.system(size: avatarSize * 0.35, weight: .light))
                         }
                         .frame(width: avatarSize, height: avatarSize)
-                    Text(editing ? "Done" : "Edit").font(.subheadline.weight(.medium))
+                    Text("Edit").font(.subheadline.weight(.medium))
                         .frame(minHeight: 22, alignment: .top)
                 }.frame(maxWidth: .infinity, alignment: .top)
             }
             .buttonStyle(HapticCardButtonStyle(cornerRadius: 16))
-            .accessibilityLabel(editing ? "Done editing profiles" : "Edit profiles")
+            .accessibilityLabel("Edit profiles")
             .accessibilityIdentifier("profile-manage")
+            }
         }
     }
 
@@ -210,7 +226,7 @@ private struct ProfileCinematicBackdrop: View {
     let size: CGSize
     var body: some View {
         ZStack {
-            Color(red: 0.105, green: 0.09, blue: 0.095)
+            profilePanelFill
             Image("collection-hobbit").resizable().scaledToFill()
                 .frame(width: size.width, height: size.height * 0.8, alignment: .top).clipped()
                 .frame(maxHeight: .infinity, alignment: .top)
@@ -227,7 +243,8 @@ private struct ProfileCinematicBackdrop: View {
                 .init(color: .clear, location: 0.18),
                 .init(color: .clear, location: 0.36),
                 .init(color: Color(red: 0.105, green: 0.09, blue: 0.095).opacity(0.65), location: 0.55),
-                .init(color: Color(red: 0.105, green: 0.09, blue: 0.095), location: 0.78)],
+                .init(color: Color(red: 0.105, green: 0.09, blue: 0.095), location: 0.78),
+                .init(color: profilePanelFill, location: 1)],
                 startPoint: .top, endPoint: .bottom)
         }
         .frame(width: size.width, height: size.height).clipped()
