@@ -15,10 +15,22 @@ struct FoxTrendProvider: Sendable {
         guard let path = try Self.eventPath(in: html, game: game, now: now()),
               let eventURL = URL(string: "https://crackstreams.st" + path) else { return [] }
         let event = try await document(eventURL, lifetime: 0)
-        guard let watch = Self.watchPages(in: event, eventPath: path, game: game).first else { return [] }
-        let player = try await document(watch, lifetime: 0)
-        try Task.checkCancellation()
-        return Self.embeds(in: player, eventPath: path, game: game)
+        var failure: Error?
+        var receivedPage = false
+        for watch in Self.watchPages(in: event, eventPath: path, game: game).prefix(3) {
+            do {
+                let player = try await document(watch, lifetime: 0)
+                try Task.checkCancellation()
+                receivedPage = true
+                let sources = Self.embeds(in: player, eventPath: path, game: game)
+                if !sources.isEmpty { return sources }
+            } catch {
+                try Task.checkCancellation()
+                failure = error
+            }
+        }
+        if !receivedPage, let failure { throw failure }
+        return []
     }
 
     private func document(_ url: URL, lifetime: TimeInterval) async throws -> String {

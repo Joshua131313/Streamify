@@ -86,6 +86,23 @@ final class FoxTrendProviderTests: XCTestCase {
         XCTAssertEqual(state.requests.count, 5)
         XCTAssertTrue(state.requests.allSatisfy { state.responses[$0] != nil })
     }
+
+    func testFailedFirstFeedPageFallsBackOnlyToAnotherPublishedFeed() async throws {
+        let second = "https://fxtrend.st" + path + "/main/2"
+        let state = FoxTestState(responses: [FoxTrendProvider.schedule.absoluteString: try catalog(),
+            "https://crackstreams.st" + path: event() + "<a class='sl-row' href='\(second)'>Main 2</a>", second: player])
+        let key = UUID().uuidString
+        FoxTestProtocol.register(state, key: key)
+        defer { FoxTestProtocol.unregister(key) }
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [FoxTestProtocol.self]
+        config.httpAdditionalHeaders = ["X-Streamify-Fox-Test": key]
+        let session = URLSession(configuration: config)
+        defer { session.invalidateAndCancel() }
+        let sources = try await FoxTrendProvider(session: session, now: { [now] in now }).streams(game)
+        XCTAssertEqual(sources.count, 2)
+        XCTAssertEqual(state.requests.last, second)
+    }
 }
 
 private final class FoxTestState: @unchecked Sendable {
