@@ -41,7 +41,9 @@ enum SportsSourceIdentity {
             // ESPN's location alias omits it. Only this anchored prefix is optional;
             // "State", "Tech" and the rest of each school's name stay significant.
             guard game.league == .ncaaf else { return normalized(value) }
-            let name = normalized(value.replacingOccurrences(of: "^\\s*university\\s+of\\s+", with: "",
+            let unranked = value.replacingOccurrences(of: #"^\s*(?:(?:No\.?|#)\s*(?:[1-9]|1[0-9]|2[0-5])|\((?:[1-9]|1[0-9]|2[0-5])\))\s+"#, with: "",
+                options: [.regularExpression, .caseInsensitive])
+            let name = normalized(unranked.replacingOccurrences(of: "^\\s*university\\s+of\\s+", with: "",
                 options: [.regularExpression, .caseInsensitive]))
             // A published college-football alias, not a general city/mascot match.
             return name == "cssacramento" ? "sacramentostate" : name

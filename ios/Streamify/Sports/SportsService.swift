@@ -726,22 +726,23 @@ struct SportsService: Sendable {
         let legacyKey = ResponseMemoryCache.key(for: URLRequest(url: URL(string: "https://streamed.pk/api/matches/all")!), session: session)
         let useLegacy = await SportsLegacySourceAvailability.shared.allows(legacyKey)
         return try await withThrowingTaskGroup(of: SportsSourceProviderResult.self) { group in
-            for provider in 0..<(useLegacy ? 5 : 4) {
+            for provider in 0..<(useLegacy ? 6 : 5) where provider != 4 || game.league == .ncaaf {
                 group.addTask {
                     do {
-                        let values = try await Self.withSourceDeadline(seconds: provider == 4 ? 3 : 6) {
+                        let values = try await Self.withSourceDeadline(seconds: provider == 5 ? 3 : 6) {
                             switch provider {
                             case 0: return try await self.timstStreams(game)
                             case 1: return try await MatchoraProvider(session: self.session).streams(game)
                             case 2: return try await StreamFreeProvider(session: self.session).streams(game)
                             case 3: return try await DaddyLiveProvider(session: self.session).streams(game)
+                            case 4: return try await FoxTrendProvider(session: self.session).streams(game)
                             default: return try await self.streamedStreams(game)
                             }
                         }
                         return SportsSourceProviderResult(provider: provider, streams: values, error: nil)
                     } catch {
                         try Task.checkCancellation()
-                        if provider == 4 { await SportsLegacySourceAvailability.shared.unavailable(legacyKey) }
+                        if provider == 5 { await SportsLegacySourceAvailability.shared.unavailable(legacyKey) }
                         return SportsSourceProviderResult(provider: provider, streams: [], error: error)
                     }
                 }

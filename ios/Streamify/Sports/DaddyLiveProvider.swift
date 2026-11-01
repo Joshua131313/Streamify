@@ -170,7 +170,7 @@ struct DaddyLiveProvider: Sendable {
 
 /// A bounded, non-executing HTML tree for the provider's published markup. No
 /// WebKit HTML importer or protected scripts run during source discovery.
-private final class DaddyHTML {
+final class DaddyHTML {
     private enum Content { case text(String), element(DaddyHTML) }
     private static let tagExpression = try? NSRegularExpression(pattern: #"<\s*(/?)\s*([A-Za-z][A-Za-z0-9:-]*)\b(?:[^>"']|"[^"]*"|'[^']*')*>"#, options: [.dotMatchesLineSeparators])
     private static let attributeExpression = try? NSRegularExpression(pattern: #"([A-Za-z_:][A-Za-z0-9_:.-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))"#)
