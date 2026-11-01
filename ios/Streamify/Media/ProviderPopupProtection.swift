@@ -38,6 +38,22 @@ enum ProviderPopupProtection {
       };
       try { Object.defineProperty(window, 'open', {value: guardedOpen, writable: false, configurable: false}); }
       catch (_) { window.open = guardedOpen; }
+      if (location.hostname === 'fxtrend.st') {
+        const fitPublishedPlayer = () => {
+          const frame = document.querySelector('iframe#streamIframe');
+          if (!frame || document.getElementById('streamify-publisher-fit')) return;
+          const style = document.createElement('style');
+          style.id = 'streamify-publisher-fit';
+          style.textContent = 'html,body{margin:0!important;width:100%!important;height:100%!important;overflow:hidden!important;background:#000!important}body *{visibility:hidden!important}#streamIframe{visibility:visible!important;position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;border:0!important;z-index:2147483000!important}';
+          (document.head || document.documentElement).appendChild(style);
+          for (let parent = frame.parentElement; parent && parent !== document.body; parent = parent.parentElement) {
+            for (const [key, value] of Object.entries({position:'static',transform:'none',filter:'none',contain:'none',overflow:'visible'}))
+              parent.style.setProperty(key, value, 'important');
+          }
+        };
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fitPublishedPlayer, {once:true});
+        else fitPublishedPlayer();
+      }
     })();
     """#
 }

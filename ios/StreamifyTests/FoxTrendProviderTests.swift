@@ -54,7 +54,7 @@ final class FoxTrendProviderTests: XCTestCase {
         XCTAssertTrue(FoxTrendProvider.watchPages(in: event() + "<div class='sl-done'>Final</div>", eventPath: path, game: game).isEmpty)
         let sources = FoxTrendProvider.embeds(in: player, eventPath: path, game: game)
         XCTAssertEqual(sources.map(\.title), ["FoxTrend · Main 1", "FoxTrend · Main 2"])
-        XCTAssertEqual(sources.map(\.url.absoluteString), ["https://trendy48.site/embed/published-main-123", "https://trendy48.site/aura/1972"])
+        XCTAssertEqual(sources.map(\.url.absoluteString), ["https://fxtrend.st\(path)/main/1", "https://fxtrend.st\(path)/main/2"])
         XCTAssertTrue(FoxTrendProvider.embeds(in: player.replacingOccurrences(of: "Boise State Broncos", with: "Boise State Bengals"), eventPath: path, game: game).isEmpty)
         XCTAssertEqual(FoxTrendProvider.embeds(in: player.replacingOccurrences(of: "href='\(path)/main/2'", with: "href='http://['"), eventPath: path, game: game).count, 1)
     }

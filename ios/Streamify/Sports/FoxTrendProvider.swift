@@ -91,7 +91,9 @@ struct FoxTrendProvider: Sendable {
                   watchURL(advertised.absoluteString, eventPath: eventPath) != nil,
                   let raw = row.attributes["data-e"], let embed = embedURL(raw),
                   let name = row.first(where: { $0.hasClass("sl") })?.text, !name.isEmpty, seen.insert(embed).inserted else { return nil }
-            return SportsStream(title: "FoxTrend · " + String(name.prefix(80)), url: embed,
+            // Keep the publisher's normal page as the origin: its bare iframe
+            // rejects direct access. No referrer or access token is fabricated.
+            return SportsStream(title: "FoxTrend · " + String(name.prefix(80)), url: advertised,
                 stableID: "foxtrend:" + advertised.path)
         }.prefix(8))
     }
