@@ -53,12 +53,14 @@ struct MoviePickView: View {
                             Button { request = UUID() } label: {
                                 Label("Pick for me", systemImage: "shuffle").frame(maxWidth: .infinity)
                             }.buttonStyle(PrimaryButtonStyle()).disabled(genre == nil || loading)
+                                .opacity(genre == nil || loading ? 0.45 : 1)
                                 .accessibilityIdentifier("movie-pick-draw")
                         }.padding(.horizontal, 24).padding(.bottom, 16).frame(maxWidth: 760).frame(maxWidth: .infinity)
                     }
                 }.frame(width: geometry.size.width, height: geometry.size.height)
                     .overlay(alignment: .top) { header }
                     .background(AppTheme.canvas).foregroundStyle(AppTheme.foreground)
+                    .accessibilityElement(children: .contain)
                     .accessibilityIdentifier("movie-pick-viewport")
             }
             .toolbar(.hidden, for: .navigationBar)
