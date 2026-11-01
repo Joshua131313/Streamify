@@ -229,7 +229,8 @@ enum PreviewFixtures {
         }
         if ProcessInfo.processInfo.arguments.contains("--ui-cinematic-pick") {
             items = [MediaItem(id: 145, kind: .movie, title: "Home", overview: "A journey home.", posterPath: "/fixture-matrix.jpg", backdropPath: "/fixture-matrix.jpg", rating: 7.9, releaseDate: "2025-06-02", genreIDs: [18]),
-                MediaItem(id: 146, kind: .movie, title: "The Extraordinary Adventure Beyond the Edge of the Known World", overview: String(repeating: synopsis + " ", count: 8), posterPath: "/fixture-pirates.jpg", backdropPath: "/fixture-missing.jpg", rating: 8.2, releaseDate: "2024-04-21", genreIDs: [18])]
+                MediaItem(id: 146, kind: .movie, title: "The Extraordinary Adventure Beyond the Edge of the Known World", overview: String(repeating: synopsis + " ", count: 8), posterPath: "/fixture-pirates.jpg", backdropPath: "/fixture-missing.jpg", rating: 8.2, releaseDate: "2024-04-21", genreIDs: [18]),
+                MediaItem(id: 147, kind: .movie, title: "Ocean of Stars", overview: synopsis, posterPath: "/fixture-pirates.jpg", rating: 8.2, releaseDate: "2024-04-21", genreIDs: [12])]
         }
         return items.map(mediaJSON)
     }

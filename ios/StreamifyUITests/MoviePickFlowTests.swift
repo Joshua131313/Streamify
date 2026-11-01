@@ -1,6 +1,9 @@
 import XCTest
 
 final class MoviePickFlowTests: XCTestCase {
+    override func tearDownWithError() throws {
+        if (testRun?.failureCount ?? 0) > 0 { capture(XCUIApplication(), "FAILURE cinematic picker") }
+    }
     func testGenreChoiceRerollAndOpenExactDetails() {
         continueAfterFailure = false
         let app = XCUIApplication()

@@ -210,7 +210,7 @@ final class SportsChatFlowTests: XCTestCase {
         // Pulling down at the top is the sheet's deliberate close gesture.
         // Opening and dismissing message options resigns the composer without closing chat.
         openMessageOptions()
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.5)).tap()
+        options.buttons.matching(NSPredicate(format: "label == %@", "Copy text")).firstMatch.tap()
         XCTAssertTrue(options.waitForNonExistence(timeout: 5))
         XCTAssertTrue(wait { !self.app.keyboards.firstMatch.exists })
         XCTAssertTrue(element("sports-chat").exists)
