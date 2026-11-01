@@ -29,6 +29,7 @@ final class SportsChatFlowTests: XCTestCase {
         reveal(composer); composer.tap(); composer.typeText("First update")
         XCTAssertTrue(app.keyboards.firstMatch.exists)
         app.buttons["sports-chat-send"].tap()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label ENDSWITH %@", ": First update")).firstMatch.waitForExistence(timeout: 1), "The sender sees the message before the delayed server acknowledgement")
         for _ in 0..<6 {
             XCTAssertTrue(composer.isEnabled, "The editor must remain enabled while sending")
             XCTAssertTrue(app.keyboards.firstMatch.exists, "Sending must not dismiss and reopen the keyboard")
@@ -37,6 +38,7 @@ final class SportsChatFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label ENDSWITH %@", ": First update")).firstMatch.waitForExistence(timeout: 5))
         XCTAssertTrue(wait { (composer.value as? String ?? "") != "First update" })
         XCTAssertTrue(app.keyboards.firstMatch.exists)
+        XCTAssertEqual(app.staticTexts.matching(NSPredicate(format: "label ENDSWITH %@", ": First update")).count, 1, "Server confirmation must not duplicate the local message")
         composer.typeText("Next update")
         XCTAssertEqual(composer.value as? String, "Next update")
         capture("Keyboard remains visible and ready for the next message after sending")

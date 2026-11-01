@@ -227,6 +227,10 @@ enum PreviewFixtures {
             items += [MediaItem(id: 47, kind: .movie, title: "The Next Chapter", overview: synopsis, posterPath: "/fixture-pirates.jpg", backdropPath: "/fixture-pirates.jpg", rating: 7.8, releaseDate: "2024-06-15", genreIDs: [18]),
                 MediaItem(id: 48, kind: .movie, title: "An Old Film", posterPath: "/fixture-matrix.jpg", rating: 8, releaseDate: "1975-01-01", genreIDs: [18])]
         }
+        if ProcessInfo.processInfo.arguments.contains("--ui-cinematic-pick") {
+            items = [MediaItem(id: 145, kind: .movie, title: "Home", overview: "A journey home.", posterPath: "/fixture-matrix.jpg", backdropPath: "/fixture-matrix.jpg", rating: 7.9, releaseDate: "2025-06-02", genreIDs: [18]),
+                MediaItem(id: 146, kind: .movie, title: "The Extraordinary Adventure Beyond the Edge of the Known World", overview: String(repeating: synopsis + " ", count: 8), posterPath: "/fixture-pirates.jpg", backdropPath: "/fixture-missing.jpg", rating: 8.2, releaseDate: "2024-04-21", genreIDs: [18])]
+        }
         return items.map(mediaJSON)
     }
     private static var shows: [[String: Any]] {

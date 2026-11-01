@@ -4,7 +4,7 @@ final class MoviePickFlowTests: XCTestCase {
     func testGenreChoiceRerollAndOpenExactDetails() {
         continueAfterFailure = false
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-fixtures", "--ui-movie-pick"]
+        app.launchArguments = ["--ui-fixtures", "--ui-movie-pick", "--ui-cinematic-pick"]
         app.launch()
         defer { app.terminate() }
         XCTAssertTrue(app.buttons["tab-home"].waitForExistence(timeout: 15))
@@ -31,11 +31,29 @@ final class MoviePickFlowTests: XCTestCase {
         let result = app.staticTexts["movie-pick-result"]
         XCTAssertTrue(result.waitForExistence(timeout: 10))
         let first = result.label
+        let viewport = app.descendants(matching: .any).matching(identifier: "movie-pick-viewport").firstMatch
+        let initialBounds = viewport.frame
+        let watchBounds = app.buttons["movie-pick-watch"].frame
+        let titleHeight = result.frame.height
+        let synopsis = app.staticTexts["movie-pick-synopsis"]
+        let synopsisHeight = synopsis.frame.height
+        XCTAssertTrue(app.buttons["movie-pick-watch"].isHittable)
+        app.buttons["movie-pick-save"].tap()
+        XCTAssertEqual(app.buttons["movie-pick-save"].label, "Saved for later")
         capture(app, "Personalized recent movie result")
         reveal(app.buttons["movie-pick-another"], in: app)
         app.buttons["movie-pick-another"].tap()
+        XCTAssertTrue(app.staticTexts["Finding your movie…"].waitForExistence(timeout: 1))
+        XCTAssertEqual(result.label, first, "Keep the old pick visible during loading")
+        XCTAssertEqual(viewport.frame.height, initialBounds.height, accuracy: 1)
+        XCTAssertEqual(app.buttons["movie-pick-watch"].frame.minY, watchBounds.minY, accuracy: 1)
         let changed = NSPredicate { _, _ in result.exists && result.label != first }
         expectation(for: changed, evaluatedWith: nil); waitForExpectations(timeout: 8)
+        Thread.sleep(forTimeInterval: 0.3)
+        XCTAssertEqual(viewport.frame.height, initialBounds.height, accuracy: 1)
+        XCTAssertEqual(app.buttons["movie-pick-watch"].frame.minY, watchBounds.minY, accuracy: 1)
+        XCTAssertEqual(result.frame.height, titleHeight, accuracy: 1)
+        XCTAssertEqual(synopsis.frame.height, synopsisHeight, accuracy: 1)
         capture(app, "Reroll without repeating the previous movie")
         let selectedTitle = result.label
         reveal(app.buttons["movie-pick-open"], in: app)
@@ -45,13 +63,6 @@ final class MoviePickFlowTests: XCTestCase {
         capture(app, "Selected movie opens its standard detail screen")
         app.buttons["close-media-details"].tap()
         XCTAssertTrue(app.buttons["movie-pick-another"].waitForExistence(timeout: 8))
-        reveal(app.buttons["movie-pick-watch"], in: app)
-        XCTAssertLessThan(app.buttons["movie-pick-watch"].frame.minY, app.buttons["movie-pick-open"].frame.minY)
-        app.buttons["movie-pick-watch"].tap()
-        XCTAssertTrue(app.buttons["Close player"].waitForExistence(timeout: 8))
-        capture(app, "Primary Watch opens the selected movie directly")
-        app.buttons["Close player"].tap()
-        XCTAssertTrue(app.buttons["movie-pick-open"].waitForExistence(timeout: 8))
         app.buttons["Done"].tap()
         XCTAssertTrue(shortcut.waitForExistence(timeout: 5))
     }

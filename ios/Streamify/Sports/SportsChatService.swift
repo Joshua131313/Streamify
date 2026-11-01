@@ -80,6 +80,13 @@ struct SportsChatMessage: Identifiable, Equatable, Sendable {
     let reply: SportsChatReply?
     var votes: [String: String]
     let pending: Bool
+    var deliveryError: String? = nil
+
+    func delivery(pending: Bool, error: String? = nil) -> Self {
+        var value = Self(id: id, text: text, sender: sender, uid: uid, sentAt: sentAt, reply: reply, votes: votes, pending: pending)
+        value.deliveryError = error
+        return value
+    }
 
     var quote: SportsChatReply { SportsChatReply(id: id, sender: sender, message: text) }
     var handle: String {
@@ -135,8 +142,13 @@ final class SportsChatSubscription {
 @MainActor protocol SportsChatBackend: AnyObject {
     var currentUserID: String? { get }
     func listen(room: String, receive: @escaping (Result<[SportsChatMessage], Error>) -> Void) throws -> SportsChatSubscription
-    func send(room: String, text: String, reply: SportsChatReply?) async throws
-    func react(room: String, messageID: String, emoji: String) async throws
+    var currentSenderName: String { get }
+    func send(room: String, messageID: String, text: String, reply: SportsChatReply?) async throws
+    func react(room: String, messageID: String, emoji: String?) async throws
+}
+
+extension SportsChatBackend {
+    var currentSenderName: String { currentUserID.map { SportsChatContract.guestName(uid: $0) } ?? "Guest" }
 }
 
 @MainActor final class FirebaseSportsChatBackend: SportsChatBackend {
@@ -146,6 +158,11 @@ final class SportsChatSubscription {
         return Firestore.firestore()
     }
     var currentUserID: String? { FirebaseApp.app() == nil ? nil : Auth.auth().currentUser?.uid }
+    var currentSenderName: String {
+        guard FirebaseApp.app() != nil, let user = Auth.auth().currentUser else { return "Guest" }
+        let name = (user.displayName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? (user.isAnonymous ? SportsChatContract.guestName(uid: user.uid) : "Streamify viewer") : name
+    }
 
     func listen(room: String, receive: @escaping (Result<[SportsChatMessage], Error>) -> Void) throws -> SportsChatSubscription {
         guard SportsChatContract.validRoom(room) else { throw SportsChatError.invalidRoom }
@@ -165,8 +182,9 @@ final class SportsChatSubscription {
         return SportsChatSubscription { registration.remove() }
     }
 
-    func send(room: String, text: String, reply: SportsChatReply?) async throws {
+    func send(room: String, messageID: String, text: String, reply: SportsChatReply?) async throws {
         guard SportsChatContract.validRoom(room) else { throw SportsChatError.invalidRoom }
+        guard !messageID.isEmpty, !messageID.contains("/"), messageID.utf16.count <= 150 else { throw SportsChatError.invalidMessage }
         let text = try SportsChatContract.message(text)
         let db = try database()
         try Task.checkCancellation()
@@ -180,7 +198,7 @@ final class SportsChatSubscription {
         let displayName = (user.displayName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let sender = displayName.isEmpty ? (user.isAnonymous ? SportsChatContract.guestName(uid: uid) : "Streamify viewer") : SportsChatContract.limit(displayName, utf16Count: 160)
         let roomRef = db.collection("live-chats").document(room)
-        let entry = roomRef.collection("messages").document()
+        let entry = roomRef.collection("messages").document(messageID)
         let expiration = Timestamp(date: Date().addingTimeInterval(12 * 60 * 60))
         var fields: [String: Any] = ["message": text, "sentAt": FieldValue.serverTimestamp(),
             "senderId": uid, "senderName": sender, "reactions": [String]()]
@@ -198,19 +216,18 @@ final class SportsChatSubscription {
         }
     }
 
-    func react(room: String, messageID: String, emoji: String) async throws {
+    func react(room: String, messageID: String, emoji: String?) async throws {
         guard SportsChatContract.validRoom(room), !messageID.isEmpty, !messageID.contains("/"),
-              SportsChatContract.reactions.contains(emoji) else { throw SportsChatError.invalidReaction }
+              emoji == nil || SportsChatContract.reactions.contains(emoji!) else { throw SportsChatError.invalidReaction }
         let db = try database()
         guard let user = Auth.auth().currentUser else { throw SportsChatError.reactionNeedsGuest }
         let uid = user.uid, auth = Auth.auth()
         let ref = db.collection("live-chats").document(room).collection("messages").document(messageID)
         _ = try await db.runTransaction { transaction, errorPointer in
             do {
-                let snapshot = try transaction.getDocument(ref)
+                _ = try transaction.getDocument(ref)
                 guard auth.currentUser?.uid == uid else { throw SportsChatError.accountChanged }
-                let previous = (snapshot.data()?["reactionVotes"] as? [String: String])?[uid]
-                let value: Any = previous == emoji ? FieldValue.delete() : emoji
+                let value: Any = emoji.map { $0 as Any } ?? FieldValue.delete()
                 transaction.updateData([FieldPath(["reactionVotes", uid]): value], forDocument: ref)
                 return nil
             } catch { errorPointer?.pointee = error as NSError; return nil }
@@ -231,7 +248,14 @@ final class SportsChatSubscription {
     private var subscription: SportsChatSubscription?
     private var room: String?
     private var generation = UUID()
-    private var failedAction: (message: String, emoji: String)?
+    private var roomVersion = UUID()
+    private var failedAction: (message: String, emoji: String?)?
+    private var remoteMessages: [SportsChatMessage] = []
+    private var outbox: [String: SportsChatMessage] = [:]
+    private var outboxOrder: [String] = []
+    private struct ReactionIntent { let revision = UUID(); let emoji: String?; var acknowledged = false }
+    private var reactions: [String: ReactionIntent] = [:]
+    private var reacting = Set<String>()
     private let initialResponseTimeout: Duration
     private var connectionTimeout: Task<Void, Never>?
 
@@ -249,7 +273,11 @@ final class SportsChatSubscription {
     func listen(room: String?, active: Bool) {
         connectionTimeout?.cancel(); connectionTimeout = nil
         subscription?.remove(); subscription = nil; generation = UUID()
-        if self.room != room { messages = []; draft = ""; reply = nil; error = nil; actionError = nil; failedAction = nil }
+        if self.room != room {
+            roomVersion = UUID(); sending = false
+            messages = []; remoteMessages = []; outbox = [:]; outboxOrder = []; reactions = [:]; reacting = []
+            draft = ""; reply = nil; error = nil; actionError = nil; failedAction = nil
+        }
         self.room = room
         guard active else { loading = false; return }
         guard let room else { loading = false; error = SportsChatError.invalidRoom.localizedDescription; return }
@@ -269,14 +297,13 @@ final class SportsChatSubscription {
                 switch result {
                 case .failure(let error): self.error = error.localizedDescription
                 case .success(let messages):
-                    let known = Dictionary(uniqueKeysWithValues: self.messages.map { ($0.id, $0) })
-                    self.messages = messages.map { message in
-                        var message = message
-                        // Firestore may emit a local reaction before rules reject
-                        // it. Show reaction changes only after server acceptance.
-                        if message.pending { message.votes = known[message.id]?.votes ?? [:] }
-                        return message
+                    let known = Dictionary(uniqueKeysWithValues: self.remoteMessages.map { ($0.id, $0) })
+                    self.remoteMessages = messages.map { message in
+                        var value = message
+                        if message.pending { value.votes = known[message.id]?.votes ?? [:] }
+                        return value
                     }
+                    self.publishMessages()
                     self.error = nil
                 }
             }
@@ -285,28 +312,91 @@ final class SportsChatSubscription {
     func send() async {
         guard !sending, let room else { return }
         let original = draft, quote = reply
-        do { _ = try SportsChatContract.message(original) }
+        let text: String
+        do { text = try SportsChatContract.message(original) }
         catch { actionError = error.localizedDescription; return }
+        let post = SportsChatMessage(id: UUID().uuidString, text: text, sender: backend.currentSenderName,
+            uid: backend.currentUserID ?? "local-self", sentAt: Date(), reply: quote, votes: [:], pending: true)
+        outboxOrder.append(post.id); outbox[post.id] = post
+        draft = ""; reply = nil
+        publishMessages()
+        await deliver(post, room: room)
+    }
+    func retrySend(_ id: String) async {
+        guard !sending, let room, let post = outbox[id], post.deliveryError != nil else { return }
+        await deliver(post, room: room)
+    }
+    private func deliver(_ post: SportsChatMessage, room: String) async {
+        let context = roomVersion
         sending = true; actionError = nil; failedAction = nil
-        defer { sending = false; userID = backend.currentUserID }
+        outbox[post.id] = post.delivery(pending: true); publishMessages()
+        defer { if roomVersion == context { sending = false; userID = backend.currentUserID; publishMessages() } }
         do {
-            try await backend.send(room: room, text: original, reply: quote)
-            if self.room == room, draft == original {
-                draft = ""
-                if reply == quote { reply = nil }
+            try await backend.send(room: room, messageID: post.id, text: post.text, reply: post.reply)
+            if self.roomVersion == context {
+                outbox[post.id] = post.delivery(pending: false)
             }
-        } catch is CancellationError { /* Preserve the unsent composer. */ }
-        catch { if self.room == room { actionError = error.localizedDescription } }
+        } catch {
+            if self.roomVersion == context {
+                outbox[post.id] = post.delivery(pending: false, error: error.localizedDescription)
+                actionError = error.localizedDescription
+            }
+        }
     }
     func react(messageID: String, emoji: String) async {
+        guard let message = messages.first(where: { $0.id == messageID }), !message.pending,
+              message.deliveryError == nil, SportsChatContract.reactions.contains(emoji) else { return }
+        let uid = backend.currentUserID ?? userID ?? "local-self"
+        await setReaction(messageID: messageID, emoji: message.votes[uid] == emoji ? nil : emoji)
+    }
+    private func setReaction(messageID: String, emoji: String?) async {
         guard let room else { return }
+        let context = roomVersion
+        reactions[messageID] = ReactionIntent(emoji: emoji)
+        publishMessages()
         actionError = nil
-        do { try await backend.react(room: room, messageID: messageID, emoji: emoji); if self.room == room { failedAction = nil } }
-        catch { if self.room == room { actionError = error.localizedDescription; failedAction = (messageID, emoji) } }
+        guard reacting.insert(messageID).inserted else { return }
+        defer { if roomVersion == context { reacting.remove(messageID); publishMessages() } }
+        // Serialize requests for one message. Later taps stay visible while an
+        // earlier request is in flight, and stale completions cannot undo them.
+        while roomVersion == context, let intent = reactions[messageID], !intent.acknowledged {
+            do {
+                try await backend.react(room: room, messageID: messageID, emoji: intent.emoji)
+                guard roomVersion == context else { return }
+                if reactions[messageID]?.revision == intent.revision {
+                    reactions[messageID]?.acknowledged = true; failedAction = nil; break
+                }
+            } catch {
+                guard roomVersion == context else { return }
+                if reactions[messageID]?.revision == intent.revision {
+                    reactions.removeValue(forKey: messageID)
+                    actionError = error.localizedDescription; failedAction = (messageID, intent.emoji); break
+                }
+            }
+        }
     }
     func retryAction() async {
-        if let failedAction { await react(messageID: failedAction.message, emoji: failedAction.emoji) }
+        if let failedAction { await setReaction(messageID: failedAction.message, emoji: failedAction.emoji) }
+        else if let id = outboxOrder.first(where: { outbox[$0]?.deliveryError != nil }) { await retrySend(id) }
         else { await send() }
+    }
+    private func publishMessages() {
+        let uid = backend.currentUserID ?? userID ?? "local-self"
+        for message in remoteMessages where !message.pending {
+            if let local = outbox[message.id], !local.pending { outbox.removeValue(forKey: message.id) }
+            if let intent = reactions[message.id], intent.acknowledged, message.votes[uid] == intent.emoji { reactions.removeValue(forKey: message.id) }
+        }
+        outboxOrder.removeAll { outbox[$0] == nil }
+        let ids = Set(remoteMessages.map(\.id))
+        var values = remoteMessages.map { message in
+            outbox[message.id].map { message.delivery(pending: $0.pending, error: $0.deliveryError) } ?? message
+        }
+        values += outboxOrder.filter { !ids.contains($0) }.compactMap { outbox[$0] }
+        messages = values.map { message in
+            var value = message
+            if let intent = reactions[message.id] { value.votes[uid] = intent.emoji }
+            return value
+        }
     }
     deinit { connectionTimeout?.cancel(); subscription?.remove() }
 }
@@ -325,16 +415,16 @@ final class SportsChatSubscription {
         }
         return SportsChatSubscription {}
     }
-    func send(room: String, text: String, reply: SportsChatReply?) async throws {
+    func send(room: String, messageID: String, text: String, reply: SportsChatReply?) async throws {
         let text = try SportsChatContract.message(text)
         if ProcessInfo.processInfo.arguments.contains("--ui-chat-delayed-send-fixture") {
             try await Task.sleep(for: .seconds(2))
         }
         currentUserID = "fixture-guest-1024"
-        messages.append(SportsChatMessage(id: UUID().uuidString, text: text, sender: "Guest 1024", uid: currentUserID!, sentAt: Date(), reply: reply, votes: [:], pending: false))
+        messages.append(SportsChatMessage(id: messageID, text: text, sender: "Guest 1024", uid: currentUserID!, sentAt: Date(), reply: reply, votes: [:], pending: false))
         receive?(.success(messages))
     }
-    func react(room: String, messageID: String, emoji: String) async throws {
+    func react(room: String, messageID: String, emoji: String?) async throws {
         guard currentUserID != nil else { throw SportsChatError.reactionNeedsGuest }
         // Match the inspected production rule: message creates are allowed,
         // reaction updates currently fail. Fixtures must not imply otherwise.

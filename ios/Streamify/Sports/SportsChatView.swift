@@ -113,6 +113,7 @@ struct SportsChatView: View {
                                         proxy.scrollTo(quote.id, anchor: .center); highlightedMessage = quote.id
                                     }
                                 }, react: { emoji in Task { await chat.react(messageID: message.id, emoji: emoji) } },
+                                retrySend: { Task { await chat.retrySend(message.id) } },
                                 openActions: { composing = false })
                                 .id(message.id)
                         }
@@ -240,6 +241,7 @@ private struct SportsChatMessageRow: View {
     let mention: () -> Void
     let openQuote: (SportsChatReply) -> Void
     let react: (String) -> Void
+    let retrySend: () -> Void
     let openActions: () -> Void
     @Environment(\.colorScheme) private var colorScheme
     @State private var choosingActions = false
@@ -261,7 +263,10 @@ private struct SportsChatMessageRow: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityIdentifier("sports-chat-body-\(message.id)")
                 Group {
-                    if message.pending { Text("Sending…") }
+                    if message.deliveryError != nil {
+                        Button("Not sent · Retry", action: retrySend).buttonStyle(HapticPlainButtonStyle())
+                            .accessibilityLabel("Retry message").accessibilityIdentifier("sports-chat-retry-\(message.id)")
+                    } else if message.pending { Text("Sending…") }
                     else if let time = message.sentAt { Text(time, format: .dateTime.hour().minute()) }
                 }.font(.system(size: 10)).monospacedDigit().foregroundStyle(AppTheme.muted).fixedSize()
                     .accessibilityIdentifier("sports-chat-time-\(message.id)")
@@ -301,12 +306,12 @@ private struct SportsChatMessageRow: View {
                     Button { select { react(emoji) } } label: {
                         Text(emoji).font(.system(size: 25)).frame(width: 46, height: 46)
                             .background(AppTheme.foreground.opacity(message.votes[userID ?? ""] == emoji ? 0.10 : 0), in: Circle())
-                    }.buttonStyle(HapticPlainButtonStyle()).accessibilityLabel(emoji).disabled(message.pending)
+                    }.buttonStyle(HapticPlainButtonStyle()).accessibilityLabel(emoji).disabled(message.pending || message.deliveryError != nil)
                         .accessibilityAddTraits(message.votes[userID ?? ""] == emoji ? .isSelected : [])
                 }
             }.padding(.vertical, 4)
             Divider()
-            menuAction("Reply", symbol: "arrowshape.turn.up.left", action: reply).disabled(message.pending)
+            menuAction("Reply", symbol: "arrowshape.turn.up.left", action: reply).disabled(message.pending || message.deliveryError != nil)
             menuAction("Copy text", symbol: "doc.on.doc") { UIPasteboard.general.string = message.text }
             menuAction("Mention", symbol: "at", action: mention)
         }.padding(8).frame(width: 264).foregroundStyle(AppTheme.foreground)
@@ -330,7 +335,7 @@ private struct SportsChatMessageRow: View {
                         .padding(.horizontal, 9).frame(minHeight: 32)
                         .background(AppTheme.foreground.opacity(selected ? 0.12 : 0.045), in: Capsule())
                         .overlay { Capsule().strokeBorder(AppTheme.foreground.opacity(selected ? 0.25 : 0.06), lineWidth: 1) }
-                }.buttonStyle(HapticPlainButtonStyle()).disabled(message.pending)
+                }.buttonStyle(HapticPlainButtonStyle()).disabled(message.pending || message.deliveryError != nil)
                     .accessibilityLabel("\(emoji), \(count) reactions").accessibilityAddTraits(selected ? .isSelected : [])
                     .accessibilityIdentifier("sports-chat-reaction-\(message.id)-\(emoji)")
             }

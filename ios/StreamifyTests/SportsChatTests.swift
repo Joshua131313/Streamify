@@ -91,7 +91,7 @@ import Combine
         XCTAssertEqual(backend.sends, 0)
     }
 
-    func testFailedSendPreservesComposerAndReplyUntilAnExplicitSuccessfulRetry() async {
+    func testFailedSendKeepsItsMessageAndReplyInTheOutboxUntilRetry() async {
         let backend = ChatBackendFixture()
         let store = SportsChatStore(backend: backend)
         store.listen(room: "BOS-TOR", active: true)
@@ -99,8 +99,12 @@ import Combine
         backend.failure = SportsChatError.signInUnavailable
         await store.send()
         XCTAssertEqual(backend.sends, 1)
-        XCTAssertEqual(store.draft, "Go team!")
-        XCTAssertEqual(store.reply?.id, "quote")
+        XCTAssertEqual(store.draft, "")
+        XCTAssertNil(store.reply)
+        XCTAssertEqual(store.messages.first?.text, "Go team!")
+        XCTAssertEqual(store.messages.first?.reply?.id, "quote")
+        XCTAssertNotNil(store.messages.first?.deliveryError)
+        let failedID = store.messages.first?.id
         XCTAssertNotNil(store.actionError)
         XCTAssertFalse(store.sending)
         backend.failure = nil
@@ -108,6 +112,8 @@ import Combine
         XCTAssertEqual(backend.sends, 2)
         XCTAssertEqual(backend.lastRoom, "BOS-TOR")
         XCTAssertEqual(backend.lastReply?.id, "quote")
+        XCTAssertEqual(backend.lastMessageID, failedID)
+        XCTAssertEqual(store.messages.count, 1)
         XCTAssertEqual(store.draft, "")
         XCTAssertNil(store.reply)
         XCTAssertNil(store.actionError)
@@ -165,7 +171,7 @@ import Combine
         XCTAssertEqual(chat.reply?.id, "next")
     }
 
-    func testRejectedReactionReportsErrorWithoutOptimisticallyChangingVotes() async {
+    func testRejectedReactionRollsBackVotesAndReportsTheFailure() async {
         let backend = ChatBackendFixture()
         let store = SportsChatStore(backend: backend)
         store.listen(room: "BOS-TOR", active: true)
@@ -177,6 +183,77 @@ import Combine
         XCTAssertEqual(backend.sends, 0, "React must never silently create a guest account via Send")
     }
 
+    func testMessageAppearsBeforeDeliveryAndItsServerEchoDoesNotDuplicateIt() async {
+        let backend = ChatBackendFixture()
+        backend.currentUserID = "guest1234"; backend.suspend = true
+        let chat = SportsChatStore(backend: backend)
+        chat.listen(room: "BOS-TOR", active: true)
+        backend.callbacks[0](.success([]))
+        chat.draft = "Instant reply"; chat.reply = sample("quote").quote
+        let send = Task { await chat.send() }
+        for _ in 0..<100 { if backend.continuation != nil { break }; await Task.yield() }
+        XCTAssertEqual(chat.messages.count, 1)
+        XCTAssertEqual(chat.messages.first?.text, "Instant reply")
+        XCTAssertEqual(chat.messages.first?.reply?.id, "quote")
+        XCTAssertTrue(chat.messages.first?.pending == true)
+        XCTAssertEqual(chat.draft, ""); XCTAssertNil(chat.reply)
+        guard let local = chat.messages.first else { backend.continuation?.resume(); await send.value; return }
+        // The listener can report a pending write, then its server echo, before send returns.
+        backend.callbacks[0](.success([local]))
+        XCTAssertEqual(chat.messages.count, 1)
+        backend.callbacks[0](.success([local.delivery(pending: false)]))
+        backend.continuation?.resume(); backend.continuation = nil
+        await send.value
+        XCTAssertEqual(chat.messages.map(\.id), [local.id])
+        XCTAssertFalse(chat.messages[0].pending)
+        backend.callbacks[0](.success([local.delivery(pending: false)]))
+        XCTAssertEqual(chat.messages.count, 1)
+    }
+
+    func testOptimisticReactionSurvivesOldSnapshotsAndRollsBackOnFailure() async {
+        let backend = ChatBackendFixture()
+        backend.currentUserID = "guest1234"; backend.suspendReactions = true
+        let chat = SportsChatStore(backend: backend)
+        chat.listen(room: "BOS-TOR", active: true)
+        backend.callbacks[0](.success([sample("message")]))
+        let reaction = Task { await chat.react(messageID: "message", emoji: "🔥") }
+        for _ in 0..<100 { if backend.reactionContinuation != nil { break }; await Task.yield() }
+        XCTAssertEqual(chat.messages[0].votes["guest1234"], "🔥")
+        backend.callbacks[0](.success([sample("message")]))
+        XCTAssertEqual(chat.messages[0].votes["guest1234"], "🔥")
+        backend.failure = SportsChatError.invalidReaction
+        backend.reactionContinuation?.resume(); backend.reactionContinuation = nil
+        await reaction.value
+        XCTAssertNil(chat.messages[0].votes["guest1234"])
+        XCTAssertNotNil(chat.actionError)
+    }
+
+    func testNewReactionTapWinsOverAnOlderCompletionAndConfirmedRemoval() async {
+        let backend = ChatBackendFixture()
+        backend.currentUserID = "guest1234"; backend.suspendReactions = true
+        let chat = SportsChatStore(backend: backend)
+        chat.listen(room: "BOS-TOR", active: true)
+        backend.callbacks[0](.success([sample("message")]))
+        let first = Task { await chat.react(messageID: "message", emoji: "🔥") }
+        for _ in 0..<100 { if backend.reactionContinuation != nil { break }; await Task.yield() }
+        await chat.react(messageID: "message", emoji: "❤️")
+        XCTAssertEqual(chat.messages[0].votes["guest1234"], "❤️")
+        backend.suspendReactions = false
+        backend.reactionContinuation?.resume(); backend.reactionContinuation = nil
+        await first.value
+        XCTAssertEqual(backend.reactionCalls.map(\.emoji), ["🔥", "❤️"])
+        XCTAssertEqual(chat.messages[0].votes["guest1234"], "❤️")
+        var confirmed = sample("message"); confirmed.votes = ["guest1234": "❤️"]
+        backend.callbacks[0](.success([confirmed]))
+        await chat.react(messageID: "message", emoji: "❤️")
+        XCTAssertNil(backend.reactionCalls.last?.emoji)
+        XCTAssertNil(chat.messages[0].votes["guest1234"])
+        backend.callbacks[0](.success([confirmed]))
+        XCTAssertNil(chat.messages[0].votes["guest1234"], "A stale snapshot cannot restore a removed reaction")
+        backend.callbacks[0](.success([sample("message")]))
+        XCTAssertNil(chat.messages[0].votes["guest1234"])
+    }
+
     private func sample(_ id: String) -> SportsChatMessage {
         SportsChatMessage(id: id, text: "Good game", sender: "Guest 1234", uid: "guest1234", sentAt: nil, reply: nil, votes: [:], pending: false)
     }
@@ -186,19 +263,26 @@ import Combine
     var currentUserID: String?
     var callbacks: [(Result<[SportsChatMessage], Error>) -> Void] = []
     var listens = 0, removals = 0, sends = 0
-    var lastRoom: String?, lastReply: SportsChatReply?
+    var lastRoom: String?, lastReply: SportsChatReply?, lastMessageID: String?
     var failure: Error?
     var suspend = false
     var continuation: CheckedContinuation<Void, Never>?
+    var suspendReactions = false
+    var reactionContinuation: CheckedContinuation<Void, Never>?
+    var reactionCalls: [(id: String, emoji: String?)] = []
     func listen(room: String, receive: @escaping (Result<[SportsChatMessage], Error>) -> Void) throws -> SportsChatSubscription {
         listens += 1; callbacks.append(receive)
         return SportsChatSubscription { [weak self] in self?.removals += 1 }
     }
-    func send(room: String, text: String, reply: SportsChatReply?) async throws {
-        sends += 1; lastRoom = room; lastReply = reply
+    func send(room: String, messageID: String, text: String, reply: SportsChatReply?) async throws {
+        sends += 1; lastRoom = room; lastReply = reply; lastMessageID = messageID
         if suspend { await withCheckedContinuation { continuation = $0 } }
         if let failure { throw failure }
         currentUserID = "guest1234"
     }
-    func react(room: String, messageID: String, emoji: String) async throws { if let failure { throw failure } }
+    func react(room: String, messageID: String, emoji: String?) async throws {
+        reactionCalls.append((messageID, emoji))
+        if suspendReactions { await withCheckedContinuation { reactionContinuation = $0 } }
+        if let failure { throw failure }
+    }
 }

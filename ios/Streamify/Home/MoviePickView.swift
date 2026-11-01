@@ -34,12 +34,57 @@ struct MoviePickView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollViewReader { scroll in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+            GeometryReader { geometry in
+                VStack(spacing: 0) {
+                    ScrollView {
+                        if let picked {
+                            result(picked, artworkHeight: min(360, max(180, geometry.size.height * 0.38)))
+                                .id(picked.key).transition(.opacity)
+                        } else {
+                            genres.padding(.horizontal, 24).padding(.top, 76).padding(.bottom, 20)
+                        }
+                    }.scrollIndicators(.hidden).frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .accessibilityIdentifier("movie-pick-content")
                     if let picked {
-                        result(picked)
+                        actions(picked, wide: geometry.size.width >= 600)
                     } else {
+                        VStack(spacing: 8) {
+                            status
+                            Button { request = UUID() } label: {
+                                Label("Pick for me", systemImage: "shuffle").frame(maxWidth: .infinity)
+                            }.buttonStyle(PrimaryButtonStyle()).disabled(genre == nil || loading)
+                                .accessibilityIdentifier("movie-pick-draw")
+                        }.padding(.horizontal, 24).padding(.bottom, 16).frame(maxWidth: 760).frame(maxWidth: .infinity)
+                    }
+                }.frame(width: geometry.size.width, height: geometry.size.height)
+                    .overlay(alignment: .top) { header }
+                    .background(AppTheme.canvas).foregroundStyle(AppTheme.foreground)
+                    .accessibilityIdentifier("movie-pick-viewport")
+            }
+            .toolbar(.hidden, for: .navigationBar)
+            .task(id: request) { if request != nil { await draw() } }
+        }.presentationDragIndicator(.visible).presentationDetents([.large])
+            .fullScreenCover(item: $watching) { MediaPlayerView(media: $0) }
+    }
+
+    private var header: some View {
+        HStack {
+            Text("Pick for me").font(.headline)
+            Spacer()
+            Button { dismiss() } label: {
+                Image(systemName: "xmark").font(.body.weight(.semibold)).frame(width: 40, height: 40)
+                    .background(picked == nil ? AppTheme.controlFill : Color.black.opacity(0.35), in: Circle())
+            }.buttonStyle(HapticCardButtonStyle(cornerRadius: 20)).accessibilityLabel("Done")
+        }.padding(.horizontal, 24).frame(height: 60)
+            .foregroundStyle(picked == nil ? AppTheme.foreground : .white)
+            .background {
+                if picked == nil { AppTheme.canvas }
+                else { LinearGradient(colors: [.black.opacity(0.55), .clear], startPoint: .top, endPoint: .bottom) }
+            }
+    }
+
+    private var genres: some View {
+        VStack(alignment: .leading, spacing: 24) {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("What are you in the mood for?").font(.title2.bold())
                             Text("Movies from 2000 onward, with a little inspiration from your watch history. Already watched titles stay out.")
@@ -62,58 +107,67 @@ struct MoviePickView: View {
                                     .accessibilityIdentifier("movie-pick-genre-\(item.id)")
                             }
                         }
-                    }
-                    if let error { Text(error).font(.subheadline).foregroundStyle(AppTheme.muted).accessibilityIdentifier("movie-pick-error") }
-                }.padding(24).frame(maxWidth: 680).frame(maxWidth: .infinity).id("movie-pick-top")
-            }.background(AppTheme.canvas).foregroundStyle(AppTheme.foreground)
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    if picked == nil {
-                        Button { request = UUID() } label: {
-                            HStack { if loading { ProgressView() }; Label(loading ? "Finding your movie…" : "Pick for me", systemImage: "shuffle") }
-                                .frame(maxWidth: .infinity)
-                        }.buttonStyle(PrimaryButtonStyle()).disabled(genre == nil || loading)
-                            .accessibilityIdentifier("movie-pick-draw")
-                            .padding(.horizontal, 24).padding(.vertical, 16).frame(maxWidth: 680)
-                            .frame(maxWidth: .infinity).background(AppTheme.canvas)
-                    }
-                }
-                .navigationTitle("Pick for me").navigationBarTitleDisplayMode(.inline)
-                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-                .task(id: request) { if request != nil { await draw() } }
-                .onChange(of: picked?.key) { _, _ in
-                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) { scroll.scrollTo("movie-pick-top", anchor: .top) }
-                }
-            }
-        }.presentationDragIndicator(.visible).presentationDetents([.large])
-            .fullScreenCover(item: $watching) { MediaPlayerView(media: $0) }
+        }.frame(maxWidth: 712).frame(maxWidth: .infinity)
     }
 
-    private func result(_ media: MediaItem) -> some View {
-        VStack(alignment: .leading, spacing: 18) {
-            RemoteArtwork(url: media.backdropURL ?? media.posterURL).aspectRatio(16 / 9.0, contentMode: .fit)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
+    private func result(_ media: MediaItem, artworkHeight: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            RemoteArtwork(url: media.backdropURL ?? media.posterURL, fallbackURLs: [media.posterURL].compactMap { $0 })
+                .frame(height: artworkHeight).clipped()
+                .overlay { LinearGradient(stops: [.init(color: .black.opacity(0.12), location: 0), .init(color: .clear, location: 0.35),
+                    .init(color: AppTheme.canvas, location: 1)], startPoint: .top, endPoint: .bottom) }
             VStack(alignment: .leading, spacing: 8) {
                 Text(genre?.name.uppercased() ?? "YOUR PICK").font(.caption.weight(.semibold)).tracking(1).foregroundStyle(AppTheme.muted)
-                Text(media.title).font(.title.bold()).accessibilityIdentifier("movie-pick-result")
+                Text(media.title).font(.title.bold()).lineLimit(2, reservesSpace: true).frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityIdentifier("movie-pick-result")
                 Text("\(media.year) · ★ \(media.rating.formatted(.number.precision(.fractionLength(1))))").font(.subheadline).foregroundStyle(AppTheme.muted)
-                Text(media.overview).font(.subheadline).foregroundStyle(AppTheme.muted).lineLimit(5)
+                Text(media.overview.isEmpty ? "Explore this movie for more details." : media.overview)
+                    .font(.subheadline).foregroundStyle(AppTheme.muted).lineLimit(3, reservesSpace: true)
+                    .frame(maxWidth: .infinity, alignment: .leading).accessibilityIdentifier("movie-pick-synopsis")
+            }.padding(.horizontal, 24).padding(.top, -24).padding(.bottom, 12)
+        }.frame(maxWidth: 760).frame(maxWidth: .infinity)
+    }
+
+    private var status: some View {
+        HStack(spacing: 8) {
+            if loading { ProgressView().controlSize(.small) }
+            Text(loading ? "Finding your movie…" : error ?? " ").font(.caption).lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }.foregroundStyle(AppTheme.muted).frame(height: 36)
+            .accessibilityHidden(!loading && error == nil).accessibilityIdentifier("movie-pick-status")
+    }
+
+    private func actions(_ media: MediaItem, wide: Bool) -> some View {
+        VStack(spacing: 10) {
+            status
+            HStack(spacing: 10) {
+                Button { watching = media } label: { Label("Watch", systemImage: "play.fill").frame(maxWidth: .infinity) }
+                    .buttonStyle(PrimaryButtonStyle()).accessibilityIdentifier("movie-pick-watch")
+                Button { library.toggleSaved(media) } label: {
+                    Image(systemName: library.isSaved(media) ? "bookmark.fill" : "bookmark").frame(width: 48, height: 50)
+                        .background(AppTheme.controlFill, in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
+                }.buttonStyle(HapticCardButtonStyle(cornerRadius: AppTheme.buttonCornerRadius))
+                    .accessibilityLabel(library.isSaved(media) ? "Saved for later" : "Save for later")
+                    .accessibilityIdentifier("movie-pick-save")
+                if wide { another }
             }
-            Button { watching = media } label: {
-                Label("Watch", systemImage: "play.fill").frame(maxWidth: .infinity)
-            }.buttonStyle(PrimaryButtonStyle()).accessibilityIdentifier("movie-pick-watch")
-            MediaDetailLink(media: media) {
-                Text("View movie").font(.headline)
-                    .frame(maxWidth: .infinity, minHeight: 48).foregroundStyle(AppTheme.foreground)
-                    .background(AppTheme.controlFill, in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
-            }.accessibilityIdentifier("movie-pick-open")
+            if !wide { another }
             HStack(spacing: 12) {
-                Button { request = UUID() } label: { Label("Pick another", systemImage: "shuffle").frame(maxWidth: .infinity) }
-                    .buttonStyle(SecondaryButtonStyle()).disabled(loading).accessibilityIdentifier("movie-pick-another")
-                Button { picked = nil; error = nil } label: { Text("Change genre").frame(maxWidth: .infinity) }
-                    .buttonStyle(SecondaryButtonStyle()).disabled(loading).accessibilityIdentifier("movie-pick-change")
+                MediaDetailLink(media: media) {
+                    Text("View movie").font(.subheadline.weight(.medium)).frame(maxWidth: .infinity, minHeight: 40)
+                        .contentShape(Rectangle())
+                }.accessibilityIdentifier("movie-pick-open")
+                Button { request = nil; picked = nil; loading = false; error = nil } label: {
+                    Text("Change genre").font(.subheadline.weight(.medium)).frame(maxWidth: .infinity, minHeight: 40)
+                }.buttonStyle(HapticCardButtonStyle(cornerRadius: 12)).accessibilityIdentifier("movie-pick-change")
             }
-            if loading { ProgressView("Finding your movie…").frame(maxWidth: .infinity) }
-        }
+        }.padding(.horizontal, 24).padding(.bottom, 12).frame(maxWidth: 760).frame(maxWidth: .infinity)
+            .background(AppTheme.canvas).accessibilityElement(children: .contain).accessibilityIdentifier("movie-pick-actions")
+    }
+
+    private var another: some View {
+        Button { request = UUID() } label: { Label("Pick another", systemImage: "shuffle").frame(maxWidth: .infinity) }
+            .buttonStyle(SecondaryButtonStyle()).disabled(loading).accessibilityIdentifier("movie-pick-another")
     }
 
     @MainActor private func draw() async {
@@ -122,6 +176,9 @@ struct MoviePickView: View {
         loading = true; error = nil
         defer { if request == currentRequest { loading = false } }
         do {
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--ui-cinematic-pick") { try await Task.sleep(for: .seconds(2)) }
+            #endif
             let current: MoviePickPool
             if let pool { current = pool }
             else { current = try await settings.client.moviePickPool(genre: genre.id, history: library.history) }
@@ -133,7 +190,7 @@ struct MoviePickView: View {
                 return
             }
             shown.insert(choice.key)
-            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.22)) { picked = choice }
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) { picked = choice }
         } catch is CancellationError { }
         catch { if !Task.isCancelled { self.error = "Couldn’t find a movie just now. \(error.localizedDescription)" } }
     }
