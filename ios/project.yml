@@ -76,6 +76,7 @@ targets:
       - path: Streamify/Sports/StreamFreeProvider.swift
       - path: Streamify/Sports/MatchoraProvider.swift
       - path: Streamify/Sports/DaddyLiveProvider.swift
+      - path: Streamify/Sports/FoxTrendProvider.swift
       - path: Streamify/Data/ResponseMemoryCache.swift
       - path: Streamify/Sports/SportsWidgetPolicy.swift
     settings:
