@@ -229,7 +229,7 @@ jobs:
               SELECTORS=(-only-testing:StreamifyTests/ChatAppearanceTests -only-testing:StreamifyTests/SportsScheduledPhaseTests -only-testing:StreamifyTests/StreamFreeProviderTests -only-testing:StreamifyTests/DaddyLiveProviderTests -only-testing:StreamifyTests/MatchoraProviderTests -only-testing:StreamifyTests/SportsSourceAggregationTests -only-testing:StreamifyUITests/SportsChatFlowTests -only-testing:StreamifyUITests/SportsMultiProviderFlowTests/testEveryLeagueOffersIndependentSourcesAndStartsWithTimStreams)
               ;;
             cfb-extra-sources)
-              SELECTORS=(-only-testing:StreamifyTests/FoxTrendProviderTests -only-testing:StreamifyTests/DaddyLiveProviderTests -only-testing:StreamifyTests/MatchoraProviderTests -only-testing:StreamifyTests/SportsSourceAggregationTests)
+              SELECTORS=(-only-testing:StreamifyTests/FoxTrendProviderTests -only-testing:StreamifyTests/DaddyLiveProviderTests -only-testing:StreamifyTests/MatchoraProviderTests -only-testing:StreamifyTests/SportsSourceAggregationTests -only-testing:StreamifyTests/ProviderPopupProtectionTests)
               ;;
             cfb-source-parity)
               SELECTORS=(-only-testing:StreamifyTests/StreamFreeProviderTests -only-testing:StreamifyTests/DaddyLiveProviderTests -only-testing:StreamifyTests/MatchoraProviderTests -only-testing:StreamifyTests/SportsSourceAggregationTests -only-testing:StreamifyUITests/SportsMultiProviderFlowTests -only-testing:StreamifyUITests/SportsChatFlowTests/testSendingKeepsKeyboardFocusedWhileTheServerAcknowledges)
