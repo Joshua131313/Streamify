@@ -299,6 +299,58 @@ import XCTest
         XCTAssertEqual(library.historySyncJournal.pending["history:tv:1399"], deletion)
         XCTAssertTrue(deletion.deleted)
     }
+
+    func testMetadataOpenForAnotherEpisodeGetsFreshTimestampAndMetadataOnlyMode() throws {
+        var journal = HistorySyncJournal()
+        journal.captureLocal([entry(episode: 3, position: 100)], now: 1000)
+        journal.captureLocal([entry(episode: 4, position: 0, duration: 0)], now: 9000, metadataOnlyChange: true)
+        let pending = try XCTUnwrap(journal.pending["history:tv:1399"])
+        XCTAssertEqual(pending.updatedAt, 9000)
+        XCTAssertTrue(journal.isMetadataOnly("history:tv:1399"))
+        XCTAssertFalse(journal.isImport("history:tv:1399"))
+        XCTAssertEqual(pending.entry(documentID: "history:tv:1399")?.episode, 4)
+        XCTAssertEqual(pending.entry(documentID: "history:tv:1399")?.positionSeconds, 0)
+    }
+
+    func testSharedUnavailableTitlePlaceholderCannotEraseKnownCanonicalMetadata() throws {
+        let rich = metadata(entry(position: 100)) {
+            $0.title = "Actual title"; $0.overview = "Known overview"; $0.backdropPath = "/known-backdrop.jpg"
+        }
+        let sparse = metadata(entry(position: 200)) {
+            $0.title = "Unavailable title #1399"; $0.posterPath = ""; $0.backdropPath = ""
+        }
+        var journal = HistorySyncJournal()
+        journal.mergeServer(["history:tv:1399": try envelope(rich, stamp: 1000)])
+        journal.importLegacy(["history:tv:1399": try envelope(sparse, stamp: 2000)])
+        let migrated = try XCTUnwrap(journal.visibleEntries().first)
+        XCTAssertEqual(migrated.media.title, "Actual title")
+        XCTAssertEqual(migrated.media.posterPath, "/poster.jpg")
+        XCTAssertEqual(migrated.media.backdropPath, "/known-backdrop.jpg")
+        XCTAssertEqual(migrated.positionSeconds, 200)
+    }
+
+    func testPassiveLegacyImportCannotReplaceExplicitPendingPutsOrDeletes() throws {
+        let id = "history:tv:1399"
+        let legacy = try envelope(entry(position: 800), stamp: 90_000)
+        var checkpoint = HistorySyncJournal()
+        checkpoint.captureLocal([entry(position: 100)], now: 1000)
+        let original = try XCTUnwrap(checkpoint.pending[id])
+        checkpoint.importLegacy([id: legacy])
+        XCTAssertEqual(checkpoint.pending[id], original)
+        XCTAssertFalse(checkpoint.isImport(id))
+        checkpoint.remove([id], now: 2000)
+        let deletion = try XCTUnwrap(checkpoint.pending[id])
+        checkpoint.importLegacy([id: legacy])
+        XCTAssertEqual(checkpoint.pending[id], deletion)
+        XCTAssertTrue(deletion.deleted)
+
+        var metadataOpen = HistorySyncJournal()
+        metadataOpen.captureLocal([entry(position: 0, duration: 0)], now: 3000, metadataOnlyChange: true)
+        let open = try XCTUnwrap(metadataOpen.pending[id])
+        metadataOpen.importLegacy([id: legacy])
+        XCTAssertEqual(metadataOpen.pending[id], open)
+        XCTAssertTrue(metadataOpen.isMetadataOnly(id))
+    }
 }
 
 @MainActor private final class HistoryBackendFake: HistorySyncBackend {

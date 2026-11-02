@@ -75,7 +75,8 @@ struct HistorySyncEnvelope: Codable, Equatable, Sendable {
         guard let candidate = entry(documentID: id), let current = canonical.entry(documentID: id) else { return self }
         var media = candidate.media
         let placeholder = "\(media.kind.singular) \(media.id)"
-        if media.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || media.title == placeholder { media.title = current.media.title }
+        let title = media.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if title.isEmpty || title == placeholder || title == "Unavailable title #\(media.id)" { media.title = current.media.title }
         if media.overview.isEmpty { media.overview = current.media.overview }
         if media.posterPath.isEmpty { media.posterPath = current.media.posterPath }
         if media.backdropPath.isEmpty { media.backdropPath = current.media.backdropPath }
@@ -147,8 +148,13 @@ struct HistorySyncJournal: Codable {
         // Missing visible rows can be the 200-item display cap, never an implicit delete.
         for id in values.keys where baseline[id] != values[id] {
             if metadataOnlyChange && records[id]?.deleted == true { continue }
-            let original = entries.first { HistorySyncEnvelope.documentID($0) == id }?.watchedAt.timeIntervalSince1970 ?? 0
-            let existingCheckpoint = metadataOnlyChange && pending[id] != nil && !metadataOnly.contains(id)
+            let current = entries.first { HistorySyncEnvelope.documentID($0) == id }
+            let original = current?.watchedAt.timeIntervalSince1970 ?? 0
+            let sameEpisode: Bool
+            if let current, let previous = pending[id]?.entry(documentID: id) {
+                sameEpisode = current.season == previous.season && current.episode == previous.episode
+            } else { sameEpisode = false }
+            let existingCheckpoint = metadataOnlyChange && sameEpisode && !metadataOnly.contains(id)
             let stamp = existingCheckpoint ? pending[id]!.updatedAt : initial ? original * 1000 : max(now, (records[id]?.updatedAt ?? 0) + 1)
             let record = HistorySyncEnvelope(payload: values[id]!, updatedAt: max(0, stamp))
             records[id] = record; pending[id] = record
@@ -189,6 +195,9 @@ struct HistorySyncJournal: Codable {
     }
     mutating func importLegacy(_ incoming: [String: HistorySyncEnvelope]) {
         for (id, record) in incoming where record.valid(documentID: id) && !record.deleted {
+            // Passive migration cannot replace an explicit offline checkpoint,
+            // metadata open or deletion that is still waiting for acknowledgment.
+            if pending[id] != nil && !imported.contains(id) { continue }
             var candidate = record
             if let current = records[id] {
                 if current.protectsFromImport(record, id: id) { continue }
