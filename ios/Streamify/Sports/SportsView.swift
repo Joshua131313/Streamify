@@ -378,8 +378,16 @@ struct SportsView: View {
             }
             filter = item; home = false
         } label: {
-            Text("\(title) (\(count))").font(.caption.weight(selected ? .semibold : .medium)).monospacedDigit().lineLimit(1)
-                .padding(.horizontal, 5).frame(minWidth: 44, minHeight: 44)
+            HStack(spacing: 6) {
+                Text(title).font(.caption.weight(selected ? .semibold : .medium)).lineLimit(1)
+                if count > 0 {
+                    Text("\(count)").font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .lineLimit(1).fixedSize().padding(.horizontal, 5).padding(.vertical, 2)
+                        .frame(minWidth: 18, minHeight: 18)
+                        .background(AppTheme.foreground.opacity(0.08), in: RoundedRectangle(cornerRadius: 5))
+                        .accessibilityHidden(true)
+                }
+            }.padding(.horizontal, 6).frame(minWidth: 44, minHeight: 44)
                 .foregroundStyle(selected ? AppTheme.foreground : AppTheme.muted)
                 .overlay(alignment: .bottom) { Rectangle().fill(selected ? AppTheme.foreground : .clear).frame(height: 2) }
                 .contentShape(Rectangle())
