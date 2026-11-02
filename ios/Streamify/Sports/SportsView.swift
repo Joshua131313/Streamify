@@ -820,32 +820,39 @@ struct SportsGameCard: View {
     @State private var watchError: String?
     @State private var selectedTeam: SportsTeamResult?
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            gameHeader
-            if let tennis = game.tennis {
-                Text([tennis.tournament, tennis.round].filter { !$0.isEmpty }.joined(separator: " · "))
-                    .font(.caption2).foregroundStyle(AppTheme.muted).padding(.bottom, 4)
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 8) {
+                gameHeader
+                if let tennis = game.tennis {
+                    Text([tennis.tournament, tennis.round].filter { !$0.isEmpty }.joined(separator: " · "))
+                        .font(.caption2).foregroundStyle(AppTheme.muted)
+                }
+                VStack(spacing: 2) {
+                    teamControl(game.away)
+                    teamControl(game.home)
+                }
+                if !hasFooterSituation {
+                    SportsLiveSituationView(game: game).padding(.top, 6)
+                }
+            }.padding(.horizontal, 16).padding(.top, 6).padding(.bottom, 12)
+            if hasFooterSituation || !game.isFinal || game.canWatch {
+                VStack(spacing: 0) {
+                    Rectangle().fill(AppTheme.foreground.opacity(0.07)).frame(height: 0.5)
+                    Group {
+                        if hasFooterSituation {
+                            SportsBaseballCardFooterLayout {
+                                SportsLiveSituationView(game: game)
+                                cardActions
+                            }
+                        } else {
+                            HStack { Spacer(minLength: 0); cardActions }
+                        }
+                    }.padding(.horizontal, 16).padding(.vertical, 8)
+                        .accessibilityElement(children: .contain).accessibilityIdentifier("sports-game-footer-\(game.id)")
+                }.background(AppTheme.foreground.opacity(0.012))
             }
-            VStack(spacing: 0) {
-                teamControl(game.away)
-                teamControl(game.home)
-            }
-            if game.isLive, game.league == .mlb, let baseball = game.liveSituation?.baseball {
-                Rectangle().fill(AppTheme.border).frame(height: 0.5).padding(.horizontal, 6).padding(.top, 4)
-                SportsBaseballCardFooterLayout {
-                    SportsBaseballSituationView(game: game, situation: baseball)
-                    cardActions
-                }.padding(.horizontal, 6).padding(.top, 3)
-                    .accessibilityElement(children: .contain).accessibilityIdentifier("sports-game-footer-\(game.id)")
-            } else {
-                SportsLiveSituationView(game: game)
-                HStack { Spacer(minLength: 2); cardActions }
-            }
-        }.padding(.horizontal, 10).padding(.top, 2).padding(.bottom, 5)
-            .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 12))
-            .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(AppTheme.border, lineWidth: 0.7) }
-            .streamifyCardDepth(cornerRadius: 12)
-            .contentShape(RoundedRectangle(cornerRadius: 12))
+        }.sportsSpotlightCard(game: game)
+            .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             .onTapGesture {
                 guard daySwipeScope?.permitsProtectedAction != false else { return }
                 AppHaptics.tap(); action()
@@ -885,6 +892,11 @@ struct SportsGameCard: View {
             .alert("Source unavailable", isPresented: Binding(get: { watchError != nil }, set: { if !$0 { watchError = nil } })) {
                 Button("OK", role: .cancel) { watchError = nil }
             } message: { Text(watchError ?? "Try again shortly.") }
+    }
+
+    private var hasFooterSituation: Bool {
+        game.isLive && ((game.league == .mlb && game.liveSituation?.baseball != nil)
+            || (game.league == .nhl && game.hockeySummary != nil))
     }
 
     private var cardActions: some View {
@@ -980,14 +992,18 @@ struct SportsGameCard: View {
     @ViewBuilder private func matchTeam(_ team: SportsTeam, preview: Bool = false) -> some View {
         if game.tennis != nil {
             SportsTennisScoreRow(game: game, player: team, preview: preview)
-        } else { HStack(spacing: 7) {
-            RemoteArtwork(url: team.logoURL, contentMode: .fit).frame(width: 25, height: 25)
-            Text(team.name.isEmpty ? team.abbreviation : team.name)
-                .font(.system(size: 14, weight: .semibold)).lineLimit(preview ? 2 : 1)
-                .foregroundStyle(!preview && game.winner != nil && game.winner?.id != team.id ? AppTheme.muted : AppTheme.foreground)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            if !preview && game.state != "pre" { score(team) }
-        }.frame(minHeight: 44) }
+        } else { HStack(spacing: 11) {
+            RemoteArtwork(url: team.logoURL, contentMode: .fit).frame(width: 36, height: 36)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(team.name.isEmpty ? team.abbreviation : team.name)
+                    .font(.system(size: 14, weight: .semibold)).lineLimit(2)
+                    .foregroundStyle(!preview && game.winner != nil && game.winner?.id != team.id ? AppTheme.muted : AppTheme.foreground)
+                if !preview && !team.record.isEmpty {
+                    Text(team.record).font(.system(size: 10)).foregroundStyle(AppTheme.muted)
+                }
+            }.frame(maxWidth: .infinity, alignment: .leading)
+            if !preview { score(team) }
+        }.frame(minHeight: 56) }
     }
 
     private func score(_ team: SportsTeam) -> some View {
@@ -999,8 +1015,8 @@ struct SportsGameCard: View {
                     .accessibilityLabel("\(team.name) in possession")
                     .accessibilityIdentifier("sports-ball-\(game.id)-\(team.id)")
             }
-            Text(team.score.isEmpty ? "—" : team.score)
-                .font(.system(size: 22, weight: losing ? .medium : .bold, design: .rounded)).monospacedDigit()
+            Text(game.state == "pre" || team.score.isEmpty ? "—" : team.score)
+                .font(.system(size: 28, weight: losing ? .medium : .semibold)).monospacedDigit()
                 .foregroundStyle(losing ? AppTheme.muted : AppTheme.foreground).lineLimit(1).minimumScaleFactor(0.7)
             SportsWinnerChevron(visible: game.winner?.id == team.id)
         }

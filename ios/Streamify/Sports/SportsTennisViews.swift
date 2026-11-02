@@ -77,7 +77,7 @@ struct SportsTennisScoreRow: View {
         let metadata = game.tennis
         let sets = player.id == game.away.id ? metadata?.awaySets ?? [] : metadata?.homeSets ?? []
         let point = player.id == game.away.id ? metadata?.awayPoint : metadata?.homePoint
-        HStack(spacing: 7) {
+        HStack(spacing: 9) {
             HStack(spacing: -4) {
                 ForEach(Array(player.tennisPortraitSubjects.prefix(2).enumerated()), id: \.element.id) { index, person in
                     SportsTennisAvatar(name: person.name, flag: sportsHTTPSURL(person.flag),
@@ -105,7 +105,7 @@ struct SportsTennisScoreRow: View {
                 if sets.isEmpty && game.state != "pre" { Text("—").foregroundStyle(AppTheme.muted).frame(width: 23) }
                 SportsWinnerChevron(visible: game.winner?.id == player.id)
             }
-        }.frame(minHeight: 44).task(id: game.id) {
+        }.frame(minHeight: 56).task(id: game.id) {
             portraits = await SportsTennisPortraits.shared.photos(game)
         }
     }

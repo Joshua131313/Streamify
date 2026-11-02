@@ -7,6 +7,37 @@ enum SportsLiveTint {
         : UIColor(red: 0.08, green: 0.44, blue: 0.25, alpha: 1) })
 }
 
+/// Soft corner spotlights and a diagonal surface shared by every league card.
+private struct SportsSpotlightBackground: View {
+    let game: SportsGame
+    @Environment(\.colorScheme) private var colorScheme
+    var body: some View {
+        GeometryReader { geometry in
+            let dark = colorScheme == .dark
+            let radius = max(geometry.size.width * 0.78, geometry.size.height * 0.95)
+            ZStack {
+                LinearGradient(colors: dark
+                    ? [Color(red: 32/255, green: 32/255, blue: 38/255), Color(red: 25/255, green: 25/255, blue: 31/255)]
+                    : [.white, Color(red: 246/255, green: 245/255, blue: 248/255)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                RadialGradient(colors: [SportsTeamPalette.color(game.away, fallback: Color(red: 106/255, green: 119/255, blue: 156/255)).opacity(dark ? 0.12 : 0.07), .clear],
+                    center: .topLeading, startRadius: 0, endRadius: radius)
+                RadialGradient(colors: [SportsTeamPalette.color(game.home, fallback: Color(red: 128/255, green: 105/255, blue: 130/255)).opacity(dark ? 0.10 : 0.06), .clear],
+                    center: .topTrailing, startRadius: 0, endRadius: radius)
+            }
+        }.allowsHitTesting(false).accessibilityHidden(true)
+    }
+}
+
+extension View {
+    func sportsSpotlightCard(game: SportsGame) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
+        return background { SportsSpotlightBackground(game: game) }
+            .clipShape(shape)
+            .overlay { shape.strokeBorder(AppTheme.foreground.opacity(0.07), lineWidth: 0.7).allowsHitTesting(false).accessibilityHidden(true) }
+            .shadow(color: .black.opacity(0.14), radius: 12, x: 0, y: 5)
+    }
+}
+
 /// The field mirrors with possession while keeping both teams' ends fixed.
 /// Missing feed values never imply possession or a fabricated spot.
 struct SportsLiveSituationView: View {
@@ -50,14 +81,16 @@ private struct SportsHockeySituationView: View {
     let game: SportsGame
     let situation: SportsHockeySituation
     @State private var expanded = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Button { withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() } } label: {
+            Button { withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) { expanded.toggle() } } label: {
                 HStack(spacing: 6) {
-                    Text(game.hockeySummary ?? "").font(.system(size: 11, weight: .semibold))
+                    Text(game.hockeySummary ?? "").font(.system(size: 11, weight: .semibold)).monospacedDigit().lineLimit(2)
                     Image(systemName: expanded ? "chevron.up" : "chevron.down").font(.system(size: 9, weight: .semibold))
-                }.padding(.horizontal, 9).frame(height: 30)
-                    .background(AppTheme.foreground.opacity(0.07), in: RoundedRectangle(cornerRadius: 8))
+                }.padding(.horizontal, 10).padding(.vertical, 7).frame(minHeight: 34)
+                    .background(AppTheme.foreground.opacity(0.055), in: RoundedRectangle(cornerRadius: 9))
+                    .overlay { RoundedRectangle(cornerRadius: 9).strokeBorder(AppTheme.foreground.opacity(0.10), lineWidth: 0.7) }
                     .frame(minHeight: 44).contentShape(Rectangle())
             }.buttonStyle(HapticPlainButtonStyle()).accessibilityIdentifier("sports-hockey-tag-\(game.id)")
                 .accessibilityValue(expanded ? "Expanded" : "Collapsed")
@@ -75,8 +108,9 @@ private struct SportsHockeySituationView: View {
                         HStack { Text("Strength timer").foregroundStyle(AppTheme.muted); Spacer(); Text(timer).monospacedDigit().fontWeight(.semibold) }
                     }
                     Text("Feed snapshot · \(game.status)").font(.caption2).foregroundStyle(AppTheme.muted)
-                }.font(.caption).padding(10)
-                    .background(AppTheme.foreground.opacity(0.035), in: RoundedRectangle(cornerRadius: 10))
+                }.font(.caption).padding(12)
+                    .background(AppTheme.foreground.opacity(0.035), in: RoundedRectangle(cornerRadius: 12))
+                    .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(AppTheme.border, lineWidth: 0.5) }
                     .accessibilityIdentifier("sports-hockey-details-\(game.id)")
             }
         }
@@ -208,16 +242,19 @@ struct SportsBaseballCardFooterLayout: Layout {
     private let gap: CGFloat = 12
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         guard subviews.count == 2 else { return .zero }
-        let context = subviews[0].sizeThatFits(.unspecified), actions = subviews[1].sizeThatFits(.unspecified)
-        let width = proposal.width ?? context.width + gap + actions.width
+        let actions = subviews[1].sizeThatFits(.unspecified)
+        let ideal = subviews[0].sizeThatFits(.unspecified)
+        let width = proposal.width ?? ideal.width + gap + actions.width
+        let context = subviews[0].sizeThatFits(ProposedViewSize(width: width, height: nil))
         let inline = context.width + gap + actions.width <= width
         return CGSize(width: width, height: inline ? max(context.height, actions.height) : context.height + 6 + actions.height)
     }
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         guard subviews.count == 2 else { return }
-        let context = subviews[0].sizeThatFits(.unspecified), actions = subviews[1].sizeThatFits(.unspecified)
+        let context = subviews[0].sizeThatFits(ProposedViewSize(width: bounds.width, height: nil))
+        let actions = subviews[1].sizeThatFits(.unspecified)
         let inline = context.width + gap + actions.width <= bounds.width
-        subviews[0].place(at: CGPoint(x: bounds.minX, y: inline ? bounds.midY - context.height / 2 : bounds.minY), anchor: .topLeading, proposal: .unspecified)
+        subviews[0].place(at: CGPoint(x: bounds.minX, y: inline ? bounds.midY - context.height / 2 : bounds.minY), anchor: .topLeading, proposal: ProposedViewSize(width: context.width, height: context.height))
         subviews[1].place(at: CGPoint(x: bounds.maxX - actions.width, y: inline ? bounds.midY - actions.height / 2 : bounds.maxY - actions.height), anchor: .topLeading, proposal: .unspecified)
     }
 }
