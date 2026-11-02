@@ -16,7 +16,8 @@ final class ProviderPlaybackRoutingTests: XCTestCase {
     }
 
     func testProviderPagesAndExtensionlessAddressesKeepExistingEmbedDirectBehavior() throws {
-        for address in ["https://provider.example.test/embed/movie/550", "https://provider.example.test/watch?id=video.mp4"] {
+        for address in ["https://provider.example.test/embed/movie/550", "https://provider.example.test/watch?id=video.mp4",
+                        "https://matchora.pro/embed/channel/836356", "https://es.matchora.pro/embed/match/es185185"] {
             let url = try XCTUnwrap(URL(string: address))
             XCTAssertEqual(ProviderPlaybackRoute.resolve(url: url, direct: false), .webEmbed)
             XCTAssertEqual(ProviderPlaybackRoute.resolve(url: url, direct: true), .webDirect)

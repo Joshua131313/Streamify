@@ -50,15 +50,39 @@ final class MatchoraProviderTests: XCTestCase {
     }
 
     func testEmbedURLsMustBePublishedExactFirstPartyPathsForTheirReturnedIdentity() {
-        XCTAssertEqual(MatchoraProvider.embed("https://matchora.to/embed/channel/836356", kind: "channel", id: "836356")?.path, "/embed/channel/836356")
-        for address in ["http://matchora.to/embed/channel/836356", "https://matchora.to.evil.example/embed/channel/836356",
-            "https://example.test/embed/channel/836356", "https://user:secret@matchora.to/embed/channel/836356",
-            "https://matchora.to:8443/embed/channel/836356", "https://matchora.to/embed/channel/836355",
-            "https://matchora.to/embed/match/836356", "https://matchora.to/embed/channel/%38%33%36%33%35%36",
-            "https://matchora.to/embed/channel/../836356", "https://matchora.to/embed/channel/836356?ch=other",
-            "https://matchora.to/embed/channel/836356#other", "javascript:alert(1)"] {
+        for host in ["matchora.to", "matchora.pro", "es.matchora.pro"] {
+            for (kind, id) in [("channel", "836356"), ("match", "2601717"), ("match", "es185185")] {
+                let address = "https://\(host)/embed/\(kind)/\(id)"
+                XCTAssertEqual(MatchoraProvider.embed(address, kind: kind, id: id)?.absoluteString, address)
+            }
+            for address in ["http://\(host)/embed/channel/836356", "https://\(host).evil.example/embed/channel/836356",
+                "https://user:secret@\(host)/embed/channel/836356", "https://\(host):8443/embed/channel/836356",
+                "https://\(host)/embed/channel/836355", "https://\(host)/embed/match/836356",
+                "https://\(host)/embed/channel/%38%33%36%33%35%36", "https://\(host)/embed/channel/../836356",
+                "https://\(host)/embed/channel/836356?ch=other", "https://\(host)/embed/channel/836356#other"] {
+                XCTAssertNil(MatchoraProvider.embed(address, kind: "channel", id: "836356"), address)
+            }
+        }
+        for address in ["https://example.test/embed/channel/836356", "https://www.matchora.pro/embed/channel/836356",
+            "https://evil.es.matchora.pro/embed/channel/836356", "https://matchora.pro.evil.example/embed/channel/836356",
+            "https://notmatchora.pro/embed/channel/836356", "javascript:alert(1)"] {
             XCTAssertNil(MatchoraProvider.embed(address, kind: "channel", id: "836356"), address)
         }
+    }
+
+    func testSourcesKeepPublishedOfficialHostsAndDropUnrecognizedHosts() {
+        var event = MatchoraFixture.event(.nba)
+        let addresses = ["https://matchora.to/embed/channel/1", "https://matchora.pro/embed/channel/2",
+            "https://es.matchora.pro/embed/channel/3", "https://other.matchora.pro/embed/channel/4"]
+        event["channels"] = addresses.enumerated().map { index, address -> [String: Any] in
+            var channel = MatchoraFixture.channel(String(index + 1))
+            channel["embed_url"] = address
+            return channel
+        }
+        event["embed_url"] = "https://es.matchora.pro/embed/match/2601717"
+        let sources = MatchoraProvider.sources(event, game: MatchoraFixture.game(.nba))
+        XCTAssertEqual(sources.map(\.url.absoluteString), Array(addresses.prefix(3)) + ["https://es.matchora.pro/embed/match/2601717"])
+        XCTAssertTrue(sources.allSatisfy { $0.title.hasPrefix("Matchora · ") })
     }
 
     func testEnglishAndPlayingChannelsSortFirstDeadAndDuplicateSourcesDropAndPublishedMatchIsLast() {
@@ -88,15 +112,16 @@ final class MatchoraProviderTests: XCTestCase {
         XCTAssertTrue(MatchoraProvider.sources(event, game: MatchoraFixture.game(.nba)).isEmpty)
     }
 
-    func testCapturedNBAAndNHLTopLevelEventShapesResolveOnlyReturnedChannelsAndMatch() async throws {
+    func testCurrentProPlayersResolveThroughTheToAPIForNBAAndNHL() async throws {
         for league in [SportsLeague.nba, .nhl] {
             let fixture = MatchoraHTTPFixture(.success, league: league)
             let values = try await MatchoraProvider(session: fixture.session, now: { MatchoraFixture.now }).streams(MatchoraFixture.game(league))
             XCTAssertEqual(values.count, 3)
-            XCTAssertEqual(values.first?.url.absoluteString, "https://matchora.to/embed/channel/836356")
-            XCTAssertEqual(values.last?.url.absoluteString, "https://matchora.to/embed/match/2601717")
+            XCTAssertEqual(values.first?.url.absoluteString, "https://matchora.pro/embed/channel/836356")
+            XCTAssertEqual(values.last?.url.absoluteString, "https://matchora.pro/embed/match/2601717")
             XCTAssertEqual(fixture.requests.map { $0.url?.path }, ["/api/v1/schedule", "/api/v1/events/2601717"])
             XCTAssertEqual(fixture.requests.first?.url?.query, "watchable=1")
+            XCTAssertTrue(fixture.requests.allSatisfy { $0.url?.host == "matchora.to" })
         }
     }
 
@@ -172,13 +197,13 @@ private enum MatchoraFixture {
     }
     static func channel(_ id: String, language: String = "English", playing: Bool = true, dead: Bool = false) -> [String: Any] {
         ["id": id, "name": "Channel \(id)", "lang": language, "playing": playing, "dead": dead,
-         "embed_url": "https://matchora.to/embed/channel/\(id)"]
+         "embed_url": "https://matchora.pro/embed/channel/\(id)"]
     }
     static func event(_ league: SportsLeague) -> [String: Any] {
         let game = game(league)
         return ["id": "2601717", "home": game.home.name, "away": game.away.name, "league": league.title,
             "kickoff": start.timeIntervalSince1970, "live": true, "finished": false, "channel_count": 2,
-            "embed_url": "https://matchora.to/embed/match/2601717", "channels": [channel("836356"), channel("836355")]]
+            "embed_url": "https://matchora.pro/embed/match/2601717", "channels": [channel("836356"), channel("836355")]]
     }
 }
 

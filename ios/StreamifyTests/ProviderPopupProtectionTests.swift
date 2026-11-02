@@ -10,7 +10,8 @@ final class ProviderPopupProtectionTests: XCTestCase {
         }
         for address in ["https://thedaddy.pk/stream/stream-30.php", "https://dembed.st/premiumtv/daddy.php?id=30",
                         "https://cdn.jwplayer.com/libraries/player.js", "https://cdn.jsdelivr.net/npm/pako@2/dist/pako.min.js",
-                        "https://matchora.to/embed/match/2601717", "https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.17/hls.min.js",
+                        "https://matchora.to/embed/match/2601717", "https://matchora.pro/embed/channel/836356",
+                        "https://es.matchora.pro/embed/match/es185185", "https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.17/hls.min.js",
                         "https://challenges.cloudflare.com/turnstile/v0/api.js", "https://www.gstatic.com/cv/js/sender/v1/cast_sender.js",
                         "https://thirstacock.com.safe.example/player", "https://video.example/watch?host=thirstacock.com"] {
             XCTAssertFalse(ProviderPopupProtection.blocks(try XCTUnwrap(URL(string: address))))

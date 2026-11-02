@@ -8,6 +8,8 @@ struct MatchoraProvider: Sendable {
     var session: URLSession = .shared
     var now: @Sendable () -> Date = { Date() }
     private static let origin = "https://matchora.to"
+    // The API remains on .to while published players use these official hosts.
+    private static let embedHosts: Set<String> = ["matchora.to", "matchora.pro", "es.matchora.pro"]
 
     func streams(_ game: SportsGame) async throws -> [SportsStream] {
         guard game.canWatch else { return [] }
@@ -140,7 +142,7 @@ struct MatchoraProvider: Sendable {
     static func embed(_ raw: String, kind: String, id: String) -> URL? {
         guard ["match", "channel"].contains(kind), (kind == "match" ? (validID(id) || validEventID(id, tennis: true)) : validID(id)),
               let value = URLComponents(string: raw), value.scheme?.lowercased() == "https",
-              value.host?.lowercased() == "matchora.to", value.user == nil, value.password == nil,
+              let host = value.host?.lowercased(), embedHosts.contains(host), value.user == nil, value.password == nil,
               value.port == nil || value.port == 443, value.query == nil, value.fragment == nil,
               value.percentEncodedPath == "/embed/\(kind)/\(id)" else { return nil }
         return value.url
