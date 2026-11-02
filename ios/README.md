@@ -6,7 +6,9 @@ The Android red accent, brand artwork, portrait hero, poster shelves, compact di
 
 ## Version 1.1.2
 
-The current source includes compact live sports cards, a small horizontal league rail with Followed teams first, one selected league scope, and direct Live/Pregame/Final tabs. College football, mixed live schedules, accessible score and roster tables, and small winning-score chevrons are retained. Verified possession and colored football field progress appear only when the feed supplies them. The background fills both system safe areas; root tab changes are instant. Search opens from its input, cards have native press/context interactions, and history shows actual saved progress.
+Build 153 adds a separate Upcoming section. Pregame contains confirmed starts within the next hour; later or unconfirmed starts are Upcoming. Counts follow the selected date and league/team/tennis scope before status filtering. The foreground clock updates classification without a new schedule request. Chat has compact colored usernames and a floating long-press menu, with Reply, Copy text, Mention and reactions. The composer keeps its keyboard while sending. Verification uses local chat fixtures only.
+
+The current source includes compact live sports cards, a small horizontal league rail with Followed teams first, one selected league scope, and counted Live/Pregame/Upcoming/Final tabs. College football, mixed live schedules, accessible score and roster tables, and small winning-score chevrons are retained. Verified possession and colored football field progress appear only when the feed supplies them. The background fills both system safe areas; root tab changes are instant. Search opens from its input, cards have native press/context interactions, and history shows actual saved progress.
 
 Sports uses the embedded provider's fullscreen control, with no added Streamify fullscreen button. A downward drag returns the player to its game card; horizontal-swipe dismissal is removed. The retained player preserves its selected stream across app returns and uses system Picture in Picture when the provider and device support it.
 
@@ -17,6 +19,8 @@ Sports and catalog navigation retain loaded results while refreshing in the back
 Downloads group shows into episode pages with season sections, cached artwork, circular progress and swipe/context actions. Quality is exact: selecting 1080p never silently downloads 480p. Choose quality is available on existing catalog downloads. An expired URL can refresh once at the same quality; this is not an alternate provider. The offline player includes Android-style skip/hold-to-unlock animations, hidden edge adjustments and a thumb-following 208×117 video-frame seek preview. Invalid or incompatible files are rejected before being marked ready.
 
 ## Current verification and delivery
+
+Build 153 has a verified iPhone/iPad Release IPA. Affected checks passed cumulatively: 49 unique unit checks and seven UI flows across focused runs 151, 153 and 154. The final [action-flow recheck](https://github.com/Joshua131313/Streamify/actions/runs/41170549618) passed both remaining cases with zero failures; app and widget sources are identical to packaged build 153. Local evidence is in `build/build153-verification.json`. No physical-device installation or live Firebase chat probe was performed for this delivery.
 
 Build 70 is installed on the physical iPhone through iLoader; its fresh completion dialog confirmed success on October 26, 2026. The ARM64 Release IPA and matching WidgetKit extension passed package verification. SHA256: `f18d200c4a67b4c480226cf9a44e063acc0968c31cad22386c3ed04a7f706532`. See `build/build70-delivery.json` and `build/installation-status.json` for the exact source, artifact and installation evidence. Installation success does not establish external-provider playback or PiP behavior.
 
@@ -185,3 +189,9 @@ Downloads group every catalog show into its own episode page, with season sectio
 The offline seek preview follows the native thumb horizontally and matches Android’s 208×117 fit-center frame, 6pt corners, black 2pt border, separate transparent 24pt timestamp row, and a preferred 100pt bottom inset, raised when necessary to keep the timestamp above the actual iOS thumb.
 
 Firebase Core/Auth/Firestore 13.1.1 are linked only to the main app through the existing XcodeGen specification, with the required -ObjC linker flag. Firebase configuration is loaded before guest chat touches its SDKs; fixtures use an in-memory backend. A live-service guest-account probe requires separate approval and has not run. No production chat messages were sent during implementation.
+
+## Soft Spotlight sports cards
+
+All leagues share the approved web card surface: soft team-color corner glows over a diagonal neutral gradient, 20-point corners, transparent team rows, larger contained logos, tabular scores, and a separated action footer. Light appearance has its own light gradient. Team context menus still lift only the selected team.
+
+The NHL strength tag uses the same neutral footer styling and expands into an inset skater/timer panel. Context wraps above Track/Watch on narrow cards or with enlarged text. Existing football fields, baseball runners/counts, possession icons, and tennis identity/serving information are retained.

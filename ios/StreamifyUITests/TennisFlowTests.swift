@@ -62,9 +62,18 @@ final class TennisFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Jasika O."].waitForExistence(timeout: 8))
         XCTAssertFalse(app.staticTexts["Iga Swiatek (8)"].exists)
         app.buttons["tennis-tour-atp"].tap()
-        app.buttons["sports-quick-live"].tap()
+        let live = app.buttons["sports-quick-live"]
+        XCTAssertTrue(live.exists && live.isEnabled)
+        // Xcode 26 can report no AX hit point for the visible tab after its
+        // count badge is inserted. Send a real touch to the Live text, then
+        // require the resulting live card; this does not invoke its action.
+        XCTAssertTrue(app.frame.contains(live.frame))
+        live.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: 0.5)).tap()
         let card = app.buttons["sports-game-tennis:espn-atp-185682"]
-        XCTAssertTrue(card.waitForExistence(timeout: 8)); card.tap()
+        XCTAssertTrue(card.waitForExistence(timeout: 8))
+        let liveCard = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        liveCard.name = "Tennis Soft Spotlight live card"; liveCard.lifetime = .keepAlways; add(liveCard)
+        card.tap()
         let sets = app.buttons["sports-game-tab-Sets"]
         let setOne = app.buttons["Set 1"]
         XCTAssertTrue(setOne.waitForExistence(timeout: 10)); setOne.tap()
