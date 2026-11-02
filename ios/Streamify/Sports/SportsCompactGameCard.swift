@@ -15,28 +15,26 @@ struct SportsLiveSituationView: View {
     private var teamLabel: String? { game.possessionTeam.map { $0.abbreviation.isEmpty ? $0.name : $0.abbreviation } }
 
     var body: some View {
-        if game.isLive, let situation = game.liveSituation {
-            if football {
-                if situation.downDistance != nil || situation.fieldPosition != nil || situation.fieldProgress?.isFinite == true {
-                    VStack(alignment: .leading, spacing: 5) {
-                        if situation.downDistance != nil || situation.fieldPosition != nil {
-                            HStack(spacing: 4) {
-                                if let down = situation.downDistance { Text(down).fontWeight(.semibold) }
-                                if let position = situation.fieldPosition { Text("\(situation.downDistance == nil ? "" : "· ")\(position)").foregroundStyle(AppTheme.muted) }
-                                Spacer(minLength: 0)
-                            }.font(.system(size: 11)).lineLimit(1)
-                        }
-                        if let position = game.footballFieldPosition {
-                            SportsFootballField(position: position,
-                                offense: SportsTeamPalette.color(game.possessionTeam, fallback: AppTheme.foreground.opacity(0.30)))
-                                .accessibilityElement(children: .ignore)
-                                .accessibilityLabel("Football field position")
-                                .accessibilityValue("\(teamLabel.map { "\($0) possession. " } ?? "")\(Int((position.progress * 100).rounded())) yards from the offense’s goal line, advancing \(position.advancesRight ? "right" : "left")")
-                                .accessibilityIdentifier("sports-field-\(game.id)")
-                        }
-                    }.accessibilityElement(children: .contain)
+        if football {
+            let situation = game.isLive ? game.liveSituation : nil
+            let position = game.footballFieldPosition
+            VStack(alignment: .leading, spacing: 5) {
+                if situation?.downDistance != nil || situation?.fieldPosition != nil {
+                    HStack(spacing: 4) {
+                        if let down = situation?.downDistance { Text(down).fontWeight(.semibold) }
+                        if let spot = situation?.fieldPosition { Text("\(situation?.downDistance == nil ? "" : "· ")\(spot)").foregroundStyle(AppTheme.muted) }
+                        Spacer(minLength: 0)
+                    }.font(.system(size: 11)).lineLimit(1)
                 }
-            } else if game.league == .mlb, let baseball = situation.baseball {
+                SportsFootballField(position: position,
+                    offense: SportsTeamPalette.color(game.possessionTeam, fallback: AppTheme.foreground.opacity(0.30)))
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Football field position")
+                    .accessibilityValue(position.map { field in "\(teamLabel.map { "\($0) possession. " } ?? "")\(Int((field.progress * 100).rounded())) yards from the offense’s goal line, advancing \(field.advancesRight ? "right" : "left")" } ?? "Field position unavailable")
+                    .accessibilityIdentifier("sports-field-\(game.id)")
+            }.accessibilityElement(children: .contain)
+        } else if game.isLive, let situation = game.liveSituation {
+            if game.league == .mlb, let baseball = situation.baseball {
                 SportsBaseballSituationView(game: game, situation: baseball)
             } else if game.league == .nhl, let hockey = situation.hockey, game.hockeySummary != nil {
                 SportsHockeySituationView(game: game, situation: hockey)
@@ -95,29 +93,33 @@ private enum SportsTeamPalette {
 }
 
 private struct SportsFootballField: View {
-    let position: SportsFootballFieldPosition
+    let position: SportsFootballFieldPosition?
     let offense: Color
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 3) {
                 ZStack(alignment: .leading) {
                     Rectangle().fill(AppTheme.foreground.opacity(0.08))
-                    Rectangle().fill(offense).frame(width: geometry.size.width * position.progress)
-                        .offset(x: geometry.size.width * position.fillStart)
+                    if let position {
+                        Rectangle().fill(offense).frame(width: geometry.size.width * position.progress)
+                            .offset(x: geometry.size.width * position.fillStart)
+                    }
                     ForEach(1..<10, id: \.self) { yard in
                         let fraction = Double(yard) / 10
-                        let filled = position.advancesRight ? fraction <= position.ballPosition : fraction >= position.ballPosition
+                        let filled = position.map { $0.advancesRight ? fraction <= $0.ballPosition : fraction >= $0.ballPosition } ?? false
                         Rectangle().fill((filled ? Color.white : AppTheme.foreground).opacity(yard == 5 ? 0.8 : 0.55))
                             .frame(width: 1, height: yard == 5 ? 12 : 8)
                             .offset(x: geometry.size.width * CGFloat(yard) / 10)
                     }
-                    Rectangle().fill(.white).frame(width: 2)
-                        .shadow(color: .black.opacity(0.5), radius: 1)
-                        .offset(x: min(max(0, geometry.size.width * position.ballPosition - 1), max(0, geometry.size.width - 2)))
-                    Image(systemName: position.advancesRight ? "arrow.right" : "arrow.left").font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.white).shadow(color: .black.opacity(0.8), radius: 1)
-                        .frame(width: 12, height: 10)
-                        .offset(x: min(max(2, geometry.size.width * position.ballPosition + (position.advancesRight ? -16 : 4)), max(2, geometry.size.width - 14)))
+                    if let position {
+                        Rectangle().fill(.white).frame(width: 2)
+                            .shadow(color: .black.opacity(0.5), radius: 1)
+                            .offset(x: min(max(0, geometry.size.width * position.ballPosition - 1), max(0, geometry.size.width - 2)))
+                        Image(systemName: position.advancesRight ? "arrow.right" : "arrow.left").font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.white).shadow(color: .black.opacity(0.8), radius: 1)
+                            .frame(width: 12, height: 10)
+                            .offset(x: min(max(2, geometry.size.width * position.ballPosition + (position.advancesRight ? -16 : 4)), max(2, geometry.size.width - 14)))
+                    }
                 }.frame(height: 14).clipShape(RoundedRectangle(cornerRadius: 3))
                 ZStack {
                     ForEach(0...10, id: \.self) { yard in
