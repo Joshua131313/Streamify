@@ -1,0 +1,34 @@
+{
+  "profileID": "123e4567-e89b-12d3-a456-426614174000",
+  "canonicalProfileID": "123E4567-E89B-12D3-A456-426614174000",
+  "documentID": "history:tv:1399",
+  "entry": {
+    "media": {
+      "id": 1399,
+      "kind": "tv",
+      "title": "Shared history fixture",
+      "overview": "Synthetic metadata for cross-platform contract tests.",
+      "posterPath": "/fixture-poster.jpg",
+      "backdropPath": "/fixture-backdrop.jpg",
+      "rating": 8.2,
+      "releaseDate": "2026-01-01",
+      "genreIDs": [18, 10765]
+    },
+    "season": 2,
+    "episode": 3,
+    "watchedAt": 1793583000000,
+    "positionSeconds": 1234.5,
+    "durationSeconds": 3600
+  },
+  "updatedAt": 1793583000000,
+  "legacy": {
+    "mediaId": 1399,
+    "mediaType": "tv",
+    "genreIds": [18, 10765],
+    "season": 2,
+    "episode": 3,
+    "updatedAt": 1793583000000,
+    "positionSeconds": 1234.5,
+    "durationSeconds": 3600
+  }
+}

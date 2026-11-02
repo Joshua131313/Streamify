@@ -27,7 +27,7 @@ struct LibraryView: View {
                         .font(.subheadline.weight(.semibold)).padding(.horizontal, 16).frame(minHeight: 48)
                         .streamifyControlSurface()
                 }.buttonStyle(HapticPlainButtonStyle()).foregroundStyle(AppTheme.foreground)
-                Label("\(profiles.activeProfile?.name ?? "My profile") · on this \(AdaptiveLayout.deviceName)", systemImage: AdaptiveLayout.deviceSymbol).font(.caption).foregroundStyle(AppTheme.muted)
+                Label("\(profiles.activeProfile?.name ?? "My profile") · \(library.historySyncMessage ?? library.cloudSyncMessage ?? "on this \(AdaptiveLayout.deviceName)")", systemImage: AdaptiveLayout.deviceSymbol).font(.caption).foregroundStyle(AppTheme.muted)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
                         Pill(title: "Saved · \(library.saved.count)", selected: !history) { history = false }
@@ -76,7 +76,7 @@ struct LibraryView: View {
                     if items.isEmpty { emptyState }
                     PosterGrid(items: items)
                 }
-                Text("Saved on this \(AdaptiveLayout.deviceName)").font(.caption).foregroundStyle(AppTheme.muted)
+                Text(history ? library.historySyncMessage ?? "Saved on this \(AdaptiveLayout.deviceName)" : "Saved on this \(AdaptiveLayout.deviceName)").font(.caption).foregroundStyle(AppTheme.muted)
             }.padding(20).padding(.bottom, 90)
         }
         .scrollDismissesKeyboard(.interactively)
@@ -88,7 +88,7 @@ struct LibraryView: View {
         }
         .sheet(isPresented: $showDownloads) { NavigationStack { DownloadsView() }.streamifyPageSheet() }
         .fullScreenCover(item: $player) { MediaPlayerView(media: $0.media, season: $0.season, episode: $0.episode, origin: playbackOrigin) }
-        .confirmationDialog("Clear your watch history on this \(AdaptiveLayout.deviceName)?", isPresented: $clearHistory, titleVisibility: .visible) {
+        .confirmationDialog("Clear watch history for this profile?", isPresented: $clearHistory, titleVisibility: .visible) {
             Button("Clear history", role: .destructive) { library.clearHistory() }
         }
     }
@@ -211,7 +211,7 @@ struct AccountView: View {
                         Image(systemName: AdaptiveLayout.deviceSymbol).font(.subheadline).foregroundStyle(AppTheme.muted)
                         VStack(alignment: .leading, spacing: 4) {
                             Text(account.identity == nil ? "Saved on this \(AdaptiveLayout.deviceName)" : "Your account, your profiles").font(.caption.weight(.semibold))
-                            Text(account.identity == nil ? "Sign in to sync profiles, appearance, video provider, favorite genres, and followed teams." : "Profiles, appearance, video provider, favorite genres, and followed teams sync with your account. Your list, history, and downloads stay on this device.")
+                            Text(account.identity == nil ? "Sign in to sync profiles, watch history, playback progress, preferences, and followed teams." : "Profiles, watch history, playback progress, preferences, and followed teams sync with your account. Saved titles, searches, and downloads stay on this device.")
                                 .font(.caption).foregroundStyle(AppTheme.muted)
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }.padding(.top, 4)
@@ -237,7 +237,7 @@ struct AccountView: View {
         .onDisappear { password = "" }
         .confirmationDialog("Reload account profiles?", isPresented: $confirmReload, titleVisibility: .visible) {
             Button("Reload account profiles") { Task { await profiles.reloadCloudProfiles() } }
-        } message: { Text("This replaces pending profile preferences with the account’s saved version. A local recovery copy is kept; your saved list and watch history stay on this device.") }
+        } message: { Text("This replaces pending profile preferences with the account’s saved version. A local recovery copy is kept. Watch history and playback progress sync separately.") }
     }
 
     @ViewBuilder private var accountAccess: some View {

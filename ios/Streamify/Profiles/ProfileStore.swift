@@ -152,6 +152,7 @@ enum ProfileSyncStatus: Equatable {
         retryTask?.cancel()
         session = UUID(); syncing = false
         ownerUID = next; managingProfiles = false
+        libraries.values.forEach { $0.disconnectCloud() }
         libraries.removeAll(); preferences.removeAll()
         journal = next.flatMap { defaults.data(forKey: Self.journalKey($0)) }.flatMap { try? JSONDecoder().decode(Journal.self, from: $0) } ?? Journal()
         let snapshot = Self.restore(defaults: defaults, owner: next)
@@ -265,6 +266,9 @@ enum ProfileSyncStatus: Equatable {
         }
         activate(profiles.first { $0.id == previous } ?? profiles[0])
         journal.baselineRevision = document.revision
+        if let uid = ownerUID, let id = activeProfile?.id, let first = profiles.first?.id {
+            library.connectCloud(uid: uid, profileID: id, firstProfileID: first)
+        }
         journal.pending = nil
         journal.inFlight = nil; journal.inFlightRevision = nil; journal.initialImport = nil
         persist(); persistJournal()
@@ -303,10 +307,14 @@ enum ProfileSyncStatus: Equatable {
         }
     }
     private func activate(_ profile: AppProfile) {
+        if activeProfile?.id != profile.id { library.disconnectCloud() }
         activeProfile = profile
         library = libraryFor(profile.id)
         settings = settingsFor(profile.id)
         bindStores(id: profile.id)
+        if let uid = ownerUID, journal.baselineRevision != nil, let first = profiles.first?.id {
+            library.connectCloud(uid: uid, profileID: profile.id, firstProfileID: first)
+        }
     }
     private func libraryFor(_ id: UUID) -> LibraryStore {
         if let store = libraries[id] { return store }
