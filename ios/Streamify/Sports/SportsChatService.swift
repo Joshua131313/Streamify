@@ -30,7 +30,11 @@ enum SportsChatContract {
         }
         return aliases[value] ?? value
     }
-    static func room(league: SportsLeague, away: String, home: String) -> String? {
+    static func room(league: SportsLeague, away: String, home: String, eventID: String? = nil) -> String? {
+        if league.isCollegeBasketball {
+            guard let eventID, SportsService.validEventID(eventID) else { return nil }
+            return "\(league.title)-\(eventID)"
+        }
         let away = abbreviation(away, league: league), home = abbreviation(home, league: league)
         let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
         guard [away, home].allSatisfy({ !$0.isEmpty && $0.utf16.count <= 24 && $0.unicodeScalars.allSatisfy(allowed.contains) }) else { return nil }

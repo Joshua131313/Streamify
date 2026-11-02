@@ -156,6 +156,7 @@ struct SportsService: Sendable {
             var team = parseTeam(item)
             team.score = (entry["score"] as? [String: Any])?.sportsText("displayValue") ?? entry.sportsText("score")
             team.record = entry.sportsObjects("records").first?.sportsText("summary") ?? team.record
+            if league.isCollegeBasketball { team.rank = Self.count(entry.sportsObject("curatedRank")["current"], range: 1...25) }
             return team
         }
         guard let home = side("home"), let away = side("away"), !home.id.isEmpty, !away.id.isEmpty else { return nil }
@@ -481,7 +482,7 @@ struct SportsService: Sendable {
                 abbreviation: next.abbreviation.isEmpty ? previous.abbreviation : next.abbreviation,
                 logo: next.logo.isEmpty ? previous.logo : next.logo, score: next.score, record: next.record.isEmpty ? previous.record : next.record,
                 streamNames: next.streamNames.isEmpty ? previous.streamNames : next.streamNames,
-                primaryColorHex: next.primaryColorHex ?? previous.primaryColorHex)
+                primaryColorHex: next.primaryColorHex ?? previous.primaryColorHex, rank: next.rank)
         }
         return SportsGame(eventID: next.eventID, league: next.league, date: next.date ?? game.date,
             state: next.state, status: next.status, home: team(next.home, game.home), away: team(next.away, game.away),
@@ -525,7 +526,7 @@ struct SportsService: Sendable {
         utc.dateFormat = "yyyy-MM-dd"
         let base = backend.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         var backendGames: [SportsGame] = []
-        if !base.isEmpty && league != .ncaaf {
+        if !base.isEmpty && !league.isCollege {
             guard sportsHTTPSURL(base) != nil else { throw SportsServiceError.invalidURL }
             do {
                 let dayText = date.string(from: day)
@@ -576,7 +577,7 @@ struct SportsService: Sendable {
         let information = (try await object(root)).sportsObject("team")
         let schedule = try? await object(root + "/schedule")
         try Task.checkCancellation()
-        let roster = try? await object(root + "/roster" + (result.league == .ncaaf ? "?limit=1000" : ""))
+        let roster = try? await object(root + "/roster" + (result.league.isCollege ? "?limit=1000" : ""))
         try Task.checkCancellation()
         let athletes = (roster?.sportsObjects("athletes") ?? []).flatMap { group in group["items"] == nil ? [group] : group.sportsObjects("items") }
         let scheduledGames = (schedule?.sportsObjects("events") ?? []).compactMap { parseGame($0, league: result.league) }
@@ -588,7 +589,9 @@ struct SportsService: Sendable {
             for await value in group { if let value { values.append(value) } }
             return values
         }
-        return SportsTeamProfile(team: parseTeam(information), location: information.sportsText("location"),
+        var profileTeam = parseTeam(information)
+        profileTeam.rank = result.team.rank
+        return SportsTeamProfile(team: profileTeam, location: information.sportsText("location"),
                                  venue: information.sportsObject("franchise").sportsObject("venue").sportsText("fullName"),
                                  games: Self.applyingLiveSnapshots(liveScores, to: scheduledGames).sorted { ($0.date ?? .distantFuture) < ($1.date ?? .distantFuture) },
                                  roster: athletes.enumerated().map { index, player in
@@ -624,7 +627,7 @@ struct SportsService: Sendable {
             return item.sportsText("displayValue").isEmpty ? item.sportsText("value") : item.sportsText("displayValue")
         }
         let scoring = Set(awayScores.keys).union(homeScores.keys).sorted().map { period in
-            SportsStatRow(id: String(period), label: "\(game.league == .mlb ? "Inning" : "Period") \(period)",
+            SportsStatRow(id: String(period), label: game.league.isCollegeBasketball ? game.league.periodTitle(period) : "\(game.league == .mlb ? "Inning" : "Period") \(period)",
                 away: score(awayScores[period]), home: score(homeScores[period]), period: period)
         }
         let teams = response.sportsObject("boxscore").sportsObjects("teams")
@@ -823,7 +826,7 @@ struct SportsService: Sendable {
     static func timstEventMatches(_ item: [String: Any], game: SportsGame) -> Bool {
         let expectedGenre: Int
         switch game.league {
-        case .nba, .wnba: expectedGenre = 7
+        case .nba, .wnba, .ncaam, .ncaaw: expectedGenre = 7
         case .nfl, .ncaaf: expectedGenre = 8
         case .mlb: expectedGenre = 9
         case .nhl: expectedGenre = 11
@@ -844,7 +847,7 @@ struct SportsService: Sendable {
                   let url = sportsHTTPSURL(source.sportsText("url")), seen.insert(url).inserted else { return nil }
             let name = source.sportsText("name").trimmingCharacters(in: .whitespacesAndNewlines)
             return SportsStream(title: "TimStreams · \(name.isEmpty ? "Stream \(index + 1)" : name)",
-                url: url, stableID: "timst:\(game.eventID):\(index)")
+                url: url, stableID: "timst:\(game.league.isCollegeBasketball ? game.id : game.eventID):\(index)")
         }
     }
 
@@ -906,9 +909,10 @@ struct SportsService: Sendable {
             let names = [normalized(teams.sportsObject("home").sportsText("name")), normalized(teams.sportsObject("away").sportsText("name"))]
             let title = normalized(item.sportsText("title"))
             return item.sportsText("category") == game.league.category && !item.sportsObjects("sources").isEmpty &&
+                (!game.league.isCollegeBasketball || SportsSourceIdentity.leagueMatches(item.sportsText("league"), game: game)) &&
                 (date == 1 || abs(date / 1000 - now.timeIntervalSince1970) <= 18 * 3600) &&
-                (game.league != .ncaaf || date == 1 || game.date.map { abs(date / 1000 - $0.timeIntervalSince1970) <= 6 * 3600 } == true) &&
-                (game.league == .ncaaf ? collegeTeamsMatch(item) : ((names.contains(homeName) && names.contains(awayName)) || (title.contains(homeName) && title.contains(awayName))))
+                (!game.league.isCollege || (date == 1 && !game.league.isCollegeBasketball) || game.date.map { abs(date / 1000 - $0.timeIntervalSince1970) <= 6 * 3600 } == true) &&
+                (game.league.isCollege ? collegeTeamsMatch(item) : ((names.contains(homeName) && names.contains(awayName)) || (title.contains(homeName) && title.contains(awayName))))
         }.min { abs((($0["date"] as? NSNumber)?.doubleValue ?? 0) / 1000 - now.timeIntervalSince1970) < abs((($1["date"] as? NSNumber)?.doubleValue ?? 0) / 1000 - now.timeIntervalSince1970) }
         return match
     }

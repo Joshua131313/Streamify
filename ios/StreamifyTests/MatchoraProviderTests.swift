@@ -187,6 +187,7 @@ private enum MatchoraFixture {
         case .nhl: names = ("Philadelphia Flyers", "Columbus Blue Jackets")
         case .nfl: names = ("Dallas Cowboys", "Philadelphia Eagles")
         case .ncaaf: names = ("Georgia Bulldogs", "Alabama Crimson Tide")
+        case .ncaam, .ncaaw: names = ("Duke Blue Devils", "UConn Huskies")
         case .mlb: names = ("New York Yankees", "Los Angeles Dodgers")
         case .tennis: names = ("Jannik Sinner", "Carlos Alcaraz")
         case .wnba: names = ("New York Liberty", "Las Vegas Aces")

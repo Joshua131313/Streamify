@@ -93,6 +93,8 @@ private struct WidgetScoreCompetitor: Decodable {
     let homeAway: String?
     let score: WidgetScoreText?
     let team: Team?
+    let curatedRank: Rank?
+    struct Rank: Decodable { let current: Int? }
     struct Team: Decodable {
         let id: WidgetScoreText?
         let displayName: String?
@@ -105,7 +107,8 @@ private struct WidgetScoreCompetitor: Decodable {
         guard let team, let id = team.id?.text, !id.isEmpty,
               let name = team.displayName, !name.isEmpty else { return nil }
         return SportsTeam(id: id, name: name, abbreviation: team.abbreviation ?? "",
-            logo: team.logo ?? team.logos?.first?.href ?? "", score: score?.text ?? "")
+            logo: team.logo ?? team.logos?.first?.href ?? "", score: score?.text ?? "",
+            rank: curatedRank?.current.flatMap { (1...25).contains($0) ? $0 : nil })
     }
 }
 private struct WidgetScoreText: Decodable {

@@ -5,17 +5,26 @@ import ActivityKit
 enum SportsLeague: String, CaseIterable, Identifiable, Codable, Sendable {
     case nhl, nba, wnba, nfl
     case ncaaf = "college-football"
+    case ncaam = "mens-college-basketball"
+    case ncaaw = "womens-college-basketball"
     case tennis, mlb
     var id: String { rawValue }
-    var title: String { self == .tennis ? "Tennis" : self == .ncaaf ? "NCAAF" : rawValue.uppercased() }
+    var title: String {
+        switch self { case .tennis: return "Tennis"; case .ncaaf: return "NCAAF"; case .ncaam: return "NCAAM"; case .ncaaw: return "NCAAW"; default: return rawValue.uppercased() }
+    }
+    var isCollegeBasketball: Bool { self == .ncaam || self == .ncaaw }
+    var isCollege: Bool { self == .ncaaf || isCollegeBasketball }
+    var regulationPeriods: Int { self == .ncaam ? 2 : self == .nhl ? 3 : 4 }
     var sport: String {
-        switch self { case .nfl, .ncaaf: return "football"; case .nba, .wnba: return "basketball"; case .nhl: return "hockey"; case .mlb: return "baseball"; case .tennis: return "tennis" }
+        switch self { case .nfl, .ncaaf: return "football"; case .nba, .wnba, .ncaam, .ncaaw: return "basketball"; case .nhl: return "hockey"; case .mlb: return "baseball"; case .tennis: return "tennis" }
     }
     var category: String { self == .nfl || self == .ncaaf ? "american-football" : sport }
-    var subtitle: String { self == .ncaaf ? "College football" : self == .nfl ? "American football" : sport.capitalized }
+    var subtitle: String { self == .ncaam ? "Men’s college basketball" : self == .ncaaw ? "Women’s college basketball" : self == .ncaaf ? "College football" : self == .nfl ? "American football" : sport.capitalized }
     var accent: Color {
         switch self { case .nfl: return Color(red: 0.71, green: 0.65, blue: 0.93)
         case .ncaaf: return Color(red: 0.35, green: 0.66, blue: 0.94)
+        case .ncaam: return Color(red: 0.45, green: 0.65, blue: 0.98)
+        case .ncaaw: return Color(red: 0.80, green: 0.52, blue: 0.91)
         case .nba: return Color(red: 0.96, green: 0.64, blue: 0.36)
         case .wnba: return Color(red: 0.98, green: 0.53, blue: 0.45)
         case .nhl: return Color(red: 0.48, green: 0.78, blue: 0.95)
@@ -24,7 +33,7 @@ enum SportsLeague: String, CaseIterable, Identifiable, Codable, Sendable {
     }
     var endpoint: String { "https://site.api.espn.com/apis/site/v2/sports/\(sport)/\(rawValue)" }
     /// ESPN's unfiltered college feed omits games; merge FBS and FCS explicitly.
-    var scoreboardParameters: [String] { self == .ncaaf ? ["&groups=80&limit=1000", "&groups=81&limit=1000"] : ["&limit=100"] }
+    var scoreboardParameters: [String] { self == .ncaaf ? ["&groups=80&limit=1000", "&groups=81&limit=1000"] : isCollegeBasketball ? ["&groups=50&limit=1000"] : ["&limit=100"] }
 }
 
 enum SportsTennisTour: String, CaseIterable, Hashable, Sendable {
@@ -71,6 +80,11 @@ struct SportsTeam: Identifiable, Hashable, Sendable {
     var portrait: String? = nil
     var primaryColorHex: String? = nil
     var tennisMembers: [SportsTennisPlayerIdentity] = []
+    var rank: Int? = nil
+    var rankedName: String {
+        let value = name.isEmpty ? abbreviation : name
+        return rank.map { "#\($0) \(value)" } ?? value
+    }
     var tennisPortraitSubjects: [SportsTennisPlayerIdentity] {
         tennisMembers.isEmpty ? [SportsTennisPlayerIdentity(id: id, name: name, flag: logo, portrait: portrait)] : tennisMembers
     }
@@ -339,9 +353,15 @@ struct SportsPlayerStatGroup: Identifiable {
 extension SportsLeague {
     func periodTitle(_ period: Int) -> String {
         if self == .mlb { return "Inning \(period)" }
-        let regulation = self == .nhl ? 3 : 4
+        let regulation = regulationPeriods
         if period > regulation { return period == regulation + 1 ? "Overtime" : "Overtime \(period - regulation)" }
-        return "\(self == .nhl ? "Period" : "Quarter") \(period)"
+        return "\(self == .ncaam ? "Half" : self == .nhl ? "Period" : "Quarter") \(period)"
+    }
+    func shortPeriodTitle(_ period: Int) -> String {
+        if self == .mlb { return String(period) }
+        if self == .tennis { return "S\(period)" }
+        if period > regulationPeriods { return period == regulationPeriods + 1 ? "OT" : "OT\(period - regulationPeriods)" }
+        return "\(self == .ncaam ? "H" : self == .nhl ? "P" : "Q")\(period)"
     }
 }
 

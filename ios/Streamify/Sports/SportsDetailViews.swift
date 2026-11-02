@@ -103,7 +103,7 @@ struct SportsGameView: View {
                             HStack(spacing: 10) {
                                 RemoteArtwork(url: team.logoURL, contentMode: .fit).frame(width: 32, height: 32)
                                 VStack(alignment: .leading, spacing: 3) {
-                                    Text(team.name).font(.subheadline.weight(current.winner?.id == team.id ? .bold : .semibold)).lineLimit(2).multilineTextAlignment(.leading)
+                                    Text(team.rankedName).font(.subheadline.weight(current.winner?.id == team.id ? .bold : .semibold)).lineLimit(2).multilineTextAlignment(.leading)
                                     if !team.record.isEmpty { Text(team.record).font(.caption2).foregroundStyle(AppTheme.muted) }
                                 }.frame(maxWidth: .infinity, alignment: .leading)
                                 HStack(spacing: 4) {
@@ -277,7 +277,7 @@ struct SportsTeamView: View {
             LazyVStack(alignment: .leading, spacing: 22) {
                 SportsPanel {
                     RemoteArtwork(url: team.logoURL, contentMode: .fit).frame(width: 84, height: 84)
-                    Text(team.name).font(.title.bold())
+                    Text(team.rankedName).font(.title.bold())
                     Text([result.league.title, team.record, profile?.venue ?? ""].filter { !$0.isEmpty }.joined(separator: " · ")).font(.subheadline).foregroundStyle(AppTheme.muted)
                     Button { library.toggleTeam(result.id) } label: {
                         HStack { Image(systemName: following ? "star.fill" : "star").foregroundStyle(following ? Color.yellow : AppTheme.foreground); Text(following ? "Following" : "Follow team") }
@@ -344,7 +344,7 @@ struct SportsScoringTable: View {
     @ScaledMetric(relativeTo: .title2) private var totalSize: CGFloat = 20
 
     private var subtitle: String {
-        "\(game.league.title) · " + (game.league == .tennis ? "Set by set" : game.league == .mlb ? "Inning by inning" : game.league == .nhl ? "Period by period" : "Quarter by quarter")
+        "\(game.league.title) · " + (game.league == .tennis ? "Set by set" : game.league == .mlb ? "Inning by inning" : game.league == .ncaam ? "Half by half" : game.league == .nhl ? "Period by period" : "Quarter by quarter")
     }
     private var teamColumnWidth: CGFloat { min(116, teamWidth) }
     private var totalColumnWidth: CGFloat { min(84, totalWidth) }
@@ -354,7 +354,7 @@ struct SportsScoringTable: View {
             HStack {
                 Text("Scoring").font(.subheadline.bold())
                 Spacer()
-                Text(game.league == .tennis ? "Sets" : game.league == .mlb ? "Innings" : game.league == .nhl ? "Periods" : "Quarters").font(.caption2).foregroundStyle(AppTheme.muted)
+                Text(game.league == .tennis ? "Sets" : game.league == .mlb ? "Innings" : game.league == .ncaam ? "Halves" : game.league == .nhl ? "Periods" : "Quarters").font(.caption2).foregroundStyle(AppTheme.muted)
             }
             HStack(spacing: 0) {
                 VStack(spacing: 0) {
@@ -376,7 +376,7 @@ struct SportsScoringTable: View {
                             }
                         }
                     }
-                    .accessibilityLabel(game.league == .tennis ? "Set scores" : game.league == .mlb ? "Inning scores" : game.league == .nhl ? "Period scores" : "Quarter scores")
+                    .accessibilityLabel(game.league == .tennis ? "Set scores" : game.league == .mlb ? "Inning scores" : game.league == .ncaam ? "Half scores" : game.league == .nhl ? "Period scores" : "Quarter scores")
                     .accessibilityIdentifier("sports-scoring-periods")
                 }
                 VStack(spacing: 0) {
@@ -433,12 +433,7 @@ struct SportsScoringTable: View {
         game.winner.map { $0.id != team.id } == true ? AppTheme.muted : AppTheme.foreground
     }
     private func periodTitle(_ index: Int) -> String {
-        switch game.league {
-        case .mlb: return String(index + 1)
-        case .nhl: return index < 3 ? "P\(index + 1)" : index == 3 ? "OT" : "OT\(index - 2)"
-        case .nba, .wnba, .nfl, .ncaaf: return index < 4 ? "Q\(index + 1)" : index == 4 ? "OT" : "OT\(index - 3)"
-        case .tennis: return "S\(index + 1)"
-        }
+        game.league.shortPeriodTitle(index + 1)
     }
 
 }

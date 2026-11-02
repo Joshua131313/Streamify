@@ -40,7 +40,7 @@ struct SportsChatView: View {
             guard game.eventID.range(of: "^(espn-(atp|wta)-[0-9]{1,18}|challenger-[0-9]{1,18})$", options: .regularExpression) != nil else { return nil }
             return "TENNIS-\(game.eventID.uppercased())"
         }
-        return SportsChatContract.room(league: game.league, away: game.away.abbreviation, home: game.home.abbreviation)
+        return SportsChatContract.room(league: game.league, away: game.away.abbreviation, home: game.home.abbreviation, eventID: game.eventID)
     }
     private var active: Bool { sceneIsActive ?? (scenePhase == .active) }
     private var observationID: String { "\(room ?? "invalid")|\(active)|\(retry)" }

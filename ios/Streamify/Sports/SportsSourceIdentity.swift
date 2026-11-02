@@ -19,6 +19,8 @@ enum SportsSourceIdentity {
         switch game.league {
         case .nfl: aliases = ["nfl", "nationalfootballleague"]
         case .ncaaf: aliases = ["ncaaf", "cfb", "ncaafootball", "collegefootball", "ncaafbs", "ncaafcs", "ncaadivision1football"]
+        case .ncaam: aliases = ["ncaam", "ncaamb", "ncaab", "menscollegebasketball", "ncaamensbasketball", "ncaamensdivision1", "ncaadivision1mensbasketball", "ncaabasketballmen"]
+        case .ncaaw: aliases = ["ncaaw", "ncaawb", "wncaab", "womenscollegebasketball", "ncaawomensbasketball", "ncaawomensdivision1", "ncaadivision1womensbasketball", "ncaabasketballwomen"]
         case .nba: aliases = ["nba", "nationalbasketballassociation"]
         case .wnba: aliases = ["wnba", "womensnationalbasketballassociation"]
         case .nhl: aliases = ["nhl", "nationalhockeyleague", "nhlicehockey"]
@@ -40,7 +42,7 @@ enum SportsSourceIdentity {
             // College listings sometimes publish a school's formal prefix while
             // ESPN's location alias omits it. Only this anchored prefix is optional;
             // "State", "Tech" and the rest of each school's name stay significant.
-            guard game.league == .ncaaf else { return normalized(value) }
+            guard game.league.isCollege else { return normalized(value) }
             let unranked = value.replacingOccurrences(of: #"^\s*(?:(?:No\.?|#)\s*(?:[1-9]|1[0-9]|2[0-5])|\((?:[1-9]|1[0-9]|2[0-5])\))\s+"#, with: "",
                 options: [.regularExpression, .caseInsensitive])
             let name = normalized(unranked.replacingOccurrences(of: "^\\s*university\\s+of\\s+", with: "",
@@ -51,13 +53,13 @@ enum SportsSourceIdentity {
         func aliases(_ team: SportsTeam) -> Set<String> {
             let full = teamName(team.name)
             return Set(([team.name] + team.streamNames).map(teamName).filter {
-                !$0.isEmpty && (game.league == .ncaaf || game.league == .tennis || $0 == full || full.hasSuffix($0))
+                !$0.isEmpty && (game.league.isCollege || game.league == .tennis || $0 == full || full.hasSuffix($0))
             })
         }
         func names(_ side: String) -> Set<String> {
             let name = teamName(side)
             var result: Set<String> = [name]
-            if game.league == .wnba, name.hasSuffix("w") { result.insert(String(name.dropLast())) }
+            if game.league == .wnba || game.league == .ncaaw, name.hasSuffix("w") { result.insert(String(name.dropLast())) }
             return result
         }
         let first = names(sides[0]), second = names(sides[1])

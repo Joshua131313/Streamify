@@ -172,6 +172,7 @@ private enum StreamFreeSnapshots {
         case .wnba: teams = ("Las Vegas Aces", "New York Liberty")
         case .nfl: teams = ("Philadelphia Eagles", "Dallas Cowboys")
         case .ncaaf: teams = ("Georgia Bulldogs", "Alabama Crimson Tide")
+        case .ncaam, .ncaaw: teams = ("Duke Blue Devils", "UConn Huskies")
         case .nhl: teams = ("Edmonton Oilers", "Detroit Red Wings")
         case .mlb: teams = ("Tampa Bay Rays", "Milwaukee Brewers")
         case .tennis: teams = ("Jannik Sinner", "Carlos Alcaraz")

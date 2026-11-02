@@ -3,7 +3,7 @@ import XCTest
 
 final class SportsHomeOrderTests: XCTestCase {
     func testPopulatedLeaguesComeFirstWithStableOrderAndNoRemovedLeagues() {
-        XCTAssertEqual(SportsHomeOrder.leagues(withGames: [.nba, .mlb]), [.nba, .mlb, .nhl, .wnba, .nfl, .ncaaf, .tennis])
+        XCTAssertEqual(SportsHomeOrder.leagues(withGames: [.nba, .mlb]), [.nba, .mlb, .nhl, .wnba, .nfl, .ncaaf, .ncaam, .ncaaw, .tennis])
         XCTAssertEqual(SportsHomeOrder.leagues(withGames: []), SportsLeague.allCases)
         XCTAssertEqual(SportsHomeOrder.leagues(withGames: Set(SportsLeague.allCases)), SportsLeague.allCases)
     }

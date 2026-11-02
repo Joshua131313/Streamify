@@ -59,7 +59,7 @@ struct TrackedGameScoreCard: View {
             HStack(spacing: 8) {
                 if let logo = UIImage(named: "league-\(attributes.league)") {
                     Image(uiImage: logo).resizable().scaledToFit().frame(width: 31, height: 23).accessibilityLabel(attributes.league.uppercased())
-                } else { Text(attributes.league == "college-football" ? "CFB" : attributes.league.uppercased()).font(.caption2.bold()) }
+                } else { Text(attributes.league == "college-football" ? "CFB" : SportsLeague(rawValue: attributes.league)?.title ?? attributes.league.uppercased()).font(.caption2.bold()) }
                 Spacer(minLength: 0)
                 if let venue = attributes.venue, !venue.isEmpty { Text(venue).font(.system(size: 11, weight: .medium)).lineLimit(1) }
                 else { Text("Streamify").font(.system(size: 11)).foregroundStyle(.white.opacity(0.7)) }

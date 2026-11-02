@@ -257,6 +257,7 @@ private enum DaddyFixture {
         case .wnba: names = ("Golden State Valkyries", "Atlanta Dream")
         case .nfl: names = ("Dallas Cowboys", "Philadelphia Eagles")
         case .ncaaf: names = ("Alabama Crimson Tide", "Georgia Bulldogs")
+        case .ncaam, .ncaaw: names = ("Duke Blue Devils", "UConn Huskies")
         case .nhl: names = ("Detroit Red Wings", "Edmonton Oilers")
         case .mlb: names = ("Milwaukee Brewers", "Tampa Bay Rays")
         case .tennis: names = ("Jannik Sinner", "Carlos Alcaraz")

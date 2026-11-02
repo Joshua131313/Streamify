@@ -4,7 +4,7 @@ import XCTest
 
 final class SportsLiveSituationTests: XCTestCase {
     func testNBAPossessionAndWNBAPossessionAcceptExplicitCoreTeamReferencesOnly() throws {
-        for league in [SportsLeague.nba, .wnba] {
+        for league in [SportsLeague.nba, .wnba, .ncaam, .ncaaw] {
             let base = "https://sports.core.api.espn.com/v2/sports/basketball/leagues/\(league.rawValue)/teams/"
             for situation: [String: Any] in [
                 ["possession": ["$ref": base + "19?lang=en&region=us"]],

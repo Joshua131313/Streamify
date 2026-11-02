@@ -135,7 +135,7 @@ struct DaddyLiveProvider: Sendable {
     }
 
     private static func leagueLabel(_ prefix: String) -> String {
-        let pattern = "(?i)\\b(WNBA|NBA|NCAAF|CFB|NFL|NHL|MLB)\\b"
+        let pattern = "(?i)\\b(NCAAW|NCAAM|NCAAB|WNBA|NBA|NCAAF|CFB|NFL|NHL|MLB)\\b"
         guard let range = prefix.range(of: pattern, options: .regularExpression) else { return prefix }
         return String(prefix[range])
     }

@@ -544,6 +544,7 @@ struct SportsView: View {
         switch league {
         case .nfl: return Color(red: 0.22, green: 0.61, blue: 0.96)
         case .ncaaf: return Color(red: 0.33, green: 0.65, blue: 0.94)
+        case .ncaam, .ncaaw: return league.accent
         case .nba: return Color(red: 0.94, green: 0.53, blue: 0.24)
         case .wnba: return Color(red: 0.86, green: 0.40, blue: 0.71)
         case .nhl: return Color(red: 0.27, green: 0.74, blue: 0.70)
@@ -982,9 +983,8 @@ struct SportsGameCard: View {
         guard game.isLive else { return game.isFinal ? "FINAL" : game.date?.formatted(date: .omitted, time: .shortened) ?? "Time TBD" }
         if game.league != .mlb, !game.status.lowercased().contains("half"),
            let situation = game.liveSituation, let period = situation.period, period > 0,
-           period <= (game.league == .nhl ? 3 : 4), let clock = situation.clock, !clock.isEmpty {
-            let prefix = game.league == .nhl ? "P" : "Q"
-            return "\(prefix)\(period)  \(clock)"
+           period <= game.league.regulationPeriods, let clock = situation.clock, !clock.isEmpty {
+            return "\(game.league.shortPeriodTitle(period))  \(clock)"
         }
         return game.status
     }
@@ -995,7 +995,7 @@ struct SportsGameCard: View {
         } else { HStack(spacing: 11) {
             RemoteArtwork(url: team.logoURL, contentMode: .fit).frame(width: 36, height: 36)
             VStack(alignment: .leading, spacing: 4) {
-                Text(team.name.isEmpty ? team.abbreviation : team.name)
+                Text(team.rankedName)
                     .font(.system(size: 14, weight: .semibold)).lineLimit(2)
                     .foregroundStyle(!preview && game.winner != nil && game.winner?.id != team.id ? AppTheme.muted : AppTheme.foreground)
                 if !preview && !team.record.isEmpty {
