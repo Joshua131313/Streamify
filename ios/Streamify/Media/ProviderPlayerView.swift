@@ -16,6 +16,25 @@ enum ProviderPlaybackRoute: Equatable {
     }
 }
 
+enum ProviderEmbedOrigin {
+    /// YouTube requires the installed app's identity as the WebKit referrer.
+    static func resolve(url: URL, referer: URL?, bundleIdentifier: String? = Bundle.main.bundleIdentifier) -> URL {
+        guard SportsService.officialCollegeEmbed(url.absoluteString) != nil,
+              let bundle = bundleIdentifier?.lowercased(),
+              bundle.range(of: #"^[a-z0-9][a-z0-9.-]*[a-z0-9]$"#, options: .regularExpression) != nil,
+              let origin = URL(string: "https://\(bundle)") else { return referer ?? url }
+        return origin
+    }
+    static func isWrapper(_ address: URL, player: URL, referer: URL?, bundleIdentifier: String? = Bundle.main.bundleIdentifier) -> Bool {
+        let base = resolve(url: player, referer: referer, bundleIdentifier: bundleIdentifier)
+        if address == base || address == referer { return true }
+        guard SportsService.officialCollegeEmbed(player.absoluteString) != nil, base.host != player.host else { return false }
+        return address.scheme == base.scheme && address.host == base.host && address.port == base.port &&
+            address.user == nil && address.password == nil && address.query == nil && address.fragment == nil &&
+            (address.path.isEmpty || address.path == "/")
+    }
+}
+
 enum ProviderPlaybackFailure {
     /// These public error domains distinguish access/network failures from a
     /// missing decoder. An unclassified AVFoundation failure is not a codec diagnosis.
@@ -474,7 +493,9 @@ private struct PlayerWebView: UIViewRepresentable {
         #endif
         if direct {
             var request = URLRequest(url: url)
-            if let referer, secureURL(referer.absoluteString) != nil { request.setValue(referer.absoluteString, forHTTPHeaderField: "Referer") }
+            if SportsService.officialCollegeEmbed(url.absoluteString) != nil {
+                request.setValue(ProviderEmbedOrigin.resolve(url: url, referer: referer).absoluteString, forHTTPHeaderField: "Referer")
+            } else if let referer, secureURL(referer.absoluteString) != nil { request.setValue(referer.absoluteString, forHTTPHeaderField: "Referer") }
             webView.load(request)
         }
         else {
@@ -485,7 +506,7 @@ private struct PlayerWebView: UIViewRepresentable {
                 <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
                 <style>html,body{margin:0;width:100%;height:100%;background:#000;overflow:hidden}iframe{position:fixed;inset:0;width:100%;height:100%;border:0}</style>
                 </head><body><iframe src="\(escaped)" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe></body></html>
-                """, baseURL: referer ?? url)
+                """, baseURL: ProviderEmbedOrigin.resolve(url: url, referer: referer))
         }
     }
     static func dismantleUIView(_ uiView: WKWebView, coordinator: Coordinator) {
@@ -612,7 +633,7 @@ private struct PlayerWebView: UIViewRepresentable {
             guard scheme == "https", address.user == nil, address.password == nil else { decisionHandler(.cancel); return }
             if navigationAction.targetFrame?.isMainFrame == true {
                 let host = address.host?.lowercased() ?? ""
-                let isEmbedDocument = !parent.direct && address == parent.referer
+                let isEmbedDocument = !parent.direct && ProviderEmbedOrigin.isWrapper(address, player: parent.url, referer: parent.referer)
                 guard host == providerHost || host.hasSuffix("." + providerHost) || isEmbedDocument else { decisionHandler(.cancel); return }
             }
             decisionHandler(.allow)

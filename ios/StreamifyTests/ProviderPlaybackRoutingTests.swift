@@ -3,6 +3,17 @@ import AVFoundation
 @testable import Streamify
 
 final class ProviderPlaybackRoutingTests: XCTestCase {
+    func testCanonicalYouTubeEmbedsUseInstalledBundleIdentityWithoutChangingOtherProviders() throws {
+        let youtube = try XCTUnwrap(URL(string: "https://www.youtube.com/embed/zVVdBffub48"))
+        let origin = ProviderEmbedOrigin.resolve(url: youtube, referer: nil, bundleIdentifier: "Com.Streamify.App")
+        XCTAssertEqual(origin.absoluteString, "https://com.streamify.app")
+        XCTAssertTrue(ProviderEmbedOrigin.isWrapper(URL(string: "https://com.streamify.app/")!, player: youtube, referer: nil, bundleIdentifier: "Com.Streamify.App"))
+        XCTAssertFalse(ProviderEmbedOrigin.isWrapper(URL(string: "https://com.streamify.app.evil.example/")!, player: youtube, referer: nil, bundleIdentifier: "com.streamify.app"))
+        let other = try XCTUnwrap(URL(string: "https://matchora.pro/embed/channel/836356"))
+        let referer = try XCTUnwrap(URL(string: "https://matchora.pro/"))
+        XCTAssertEqual(ProviderEmbedOrigin.resolve(url: other, referer: referer, bundleIdentifier: "com.streamify.app"), referer)
+        XCTAssertEqual(ProviderEmbedOrigin.resolve(url: other, referer: nil, bundleIdentifier: "com.streamify.app"), other)
+    }
     func testDirectMediaHasARealWebAlternativeAndCanReturnToNative() throws {
         for path in ["video.MP4?expires=123", "live.m3u8?token=test", "video.mov", "video.m4v"] {
             let url = try XCTUnwrap(URL(string: "https://media.example.test/\(path)"))

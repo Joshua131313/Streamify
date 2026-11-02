@@ -85,6 +85,9 @@ struct SportsGameView: View {
     private var scoreboard: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 7) {
+                if current.league.isCollegeBasketball {
+                    SportsLeagueIcon(league: current.league).frame(width: 18, height: 18).accessibilityHidden(true)
+                }
                 Text(current.isLive ? "LIVE" : current.league.title).font(.caption2.bold())
                 Text(current.status).font(.caption.weight(.semibold)).foregroundStyle(AppTheme.muted).lineLimit(2)
                 Spacer(minLength: 6)
@@ -269,6 +272,7 @@ struct SportsTeamView: View {
     @State private var tab = "Schedule"
     @State private var revision = 0
     @State private var selectedGame: SportsGame?
+    @State private var pageWindow = SportsPageWindow()
     private var team: SportsTeam { profile?.team ?? result.team }
     private var following: Bool { library.followedTeams.contains(result.id) }
 
@@ -278,7 +282,10 @@ struct SportsTeamView: View {
                 SportsPanel {
                     RemoteArtwork(url: team.logoURL, contentMode: .fit).frame(width: 84, height: 84)
                     Text(team.rankedName).font(.title.bold())
-                    Text([result.league.title, team.record, profile?.venue ?? ""].filter { !$0.isEmpty }.joined(separator: " · ")).font(.subheadline).foregroundStyle(AppTheme.muted)
+                    HStack(spacing: 7) {
+                        if result.league.isCollegeBasketball { SportsLeagueIcon(league: result.league).frame(width: 20, height: 20).accessibilityHidden(true) }
+                        Text([result.league.title, team.record, profile?.venue ?? ""].filter { !$0.isEmpty }.joined(separator: " · ")).font(.subheadline).foregroundStyle(AppTheme.muted)
+                    }
                     Button { library.toggleTeam(result.id) } label: {
                         HStack { Image(systemName: following ? "star.fill" : "star").foregroundStyle(following ? Color.yellow : AppTheme.foreground); Text(following ? "Following" : "Follow team") }
                             .font(.subheadline.weight(.semibold)).padding(.horizontal, 16).frame(minHeight: 44).streamifyControlSurface()
@@ -293,7 +300,7 @@ struct SportsTeamView: View {
                     if tab == "Roster" { roster(profile) } else { schedule(profile) }
                 }
             }.padding(20).padding(.bottom, 24).streamifyReadableWidth(1200)
-        }.background(AppTheme.canvas).foregroundStyle(AppTheme.foreground).navigationTitle("\(result.league.title) · Team").navigationBarTitleDisplayMode(.inline)
+        }.sportsPagingViewport().background(AppTheme.canvas).foregroundStyle(AppTheme.foreground).navigationTitle("\(result.league.title) · Team").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
             .task(id: "\(revision)-\(scenePhase == .active)") {
                 guard scenePhase == .active else { return }
@@ -322,11 +329,18 @@ struct SportsTeamView: View {
         if games.isEmpty {
             StateMessage(symbol: "calendar", title: "No \(tab.lowercased()) available", message: profile.scheduleUnavailable ? "The schedule service could not be reached." : "Check back when games are announced.")
         } else {
-            ForEach(games) { game in
+            let scope = "\(result.id)|\(tab)"
+            let count = pageWindow.count(total: games.count, scope: scope)
+            ForEach(games.prefix(count)) { game in
                 VStack(alignment: .leading, spacing: 8) {
                     Text(game.date?.formatted(date: .abbreviated, time: .omitted) ?? "Date TBD").font(.caption).foregroundStyle(AppTheme.muted)
                     SportsGameCard(game: game) { selectedGame = game }
                 }
+            }
+            if count < games.count {
+                SportsLoadMoreRows(label: "games", remaining: games.count - count, pageID: "\(scope)|\(count)") {
+                    pageWindow.advance(total: games.count, scope: scope, expectedCount: count)
+                }.id("\(scope)|\(count)")
             }
         }
     }

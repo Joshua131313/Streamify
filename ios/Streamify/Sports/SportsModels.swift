@@ -9,6 +9,7 @@ enum SportsLeague: String, CaseIterable, Identifiable, Codable, Sendable {
     case ncaaw = "womens-college-basketball"
     case tennis, mlb
     var id: String { rawValue }
+    var logoAssetName: String { "league-\(rawValue)" }
     var title: String {
         switch self { case .tennis: return "Tennis"; case .ncaaf: return "NCAAF"; case .ncaam: return "NCAAM"; case .ncaaw: return "NCAAW"; default: return rawValue.uppercased() }
     }

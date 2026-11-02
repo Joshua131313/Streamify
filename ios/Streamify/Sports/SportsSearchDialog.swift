@@ -24,6 +24,7 @@ struct SportsSearchDialog: View {
     @State private var selectedTeam: SportsTeamResult?
     @State private var revision = 0
     @State private var hasFocused = false
+    @State private var pageWindow = SportsPageWindow()
 
     init(day: Date, initialGames: [SportsGame]) {
         self.day = day
@@ -48,6 +49,7 @@ struct SportsSearchDialog: View {
     private var matchingGames: [SportsGame] {
         games.filter { (league == nil || $0.league == league) && matches("\($0.home.name) \($0.home.abbreviation) \($0.away.name) \($0.away.abbreviation) \($0.league.title) \($0.league.sport)") }
     }
+    private var resultScope: String { "\(search.lowercased())|\(league?.rawValue ?? "all")|\(day.timeIntervalSince1970)" }
 
     var body: some View {
         NavigationStack {
@@ -66,7 +68,7 @@ struct SportsSearchDialog: View {
                         if search.isEmpty { suggestions }
                         else { results }
                     }.padding(20).padding(.bottom, 24).streamifyReadableWidth(960)
-                }.scrollDismissesKeyboard(.interactively)
+                }.sportsPagingViewport().scrollDismissesKeyboard(.interactively)
             }
             .background(AppTheme.canvas).foregroundStyle(AppTheme.foreground)
             .toolbar(.hidden, for: .navigationBar)
@@ -170,11 +172,14 @@ struct SportsSearchDialog: View {
     }
 
     @ViewBuilder private var results: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let teams = matchingTeams, games = matchingGames, scope = resultScope
+        let teamCount = pageWindow.count(total: teams.count, scope: "teams|" + scope)
+        let gameCount = pageWindow.count(total: games.count, scope: "games|" + scope)
+        LazyVStack(alignment: .leading, spacing: 12) {
             Text("Teams").font(.title3.bold())
             if teamsLoading && teams.isEmpty { ProgressView("Finding teams…") }
             if let teamError { errorNotice(teamError) }
-            ForEach(matchingTeams.prefix(50)) { item in
+            ForEach(teams.prefix(teamCount)) { item in
                 Button { focused = false; remember(); selectedTeam = item } label: {
                     HStack(spacing: 12) {
                         RemoteArtwork(url: item.team.logoURL, contentMode: .fit).frame(width: 44, height: 44)
@@ -187,17 +192,29 @@ struct SportsSearchDialog: View {
                     }.padding(12).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 14)).contentShape(Rectangle())
                 }.buttonStyle(HapticPlainButtonStyle()).accessibilityIdentifier("sports-search-team-\(item.id)")
             }
+            if teamCount < teams.count {
+                SportsLoadMoreRows(label: "teams", remaining: teams.count - teamCount, pageID: "teams|\(scope)|\(teamCount)", automatic: games.isEmpty) {
+                    guard scope == resultScope else { return }
+                    pageWindow.advance(total: teams.count, scope: "teams|" + scope, expectedCount: teamCount)
+                }.id("teams|\(scope)|\(teamCount)")
+            }
             if !teamsLoading && matchingTeams.isEmpty && teamError == nil {
                 Text("No matching teams").font(.subheadline).foregroundStyle(AppTheme.muted)
             }
         }
-        VStack(alignment: .leading, spacing: 12) {
+        LazyVStack(alignment: .leading, spacing: 12) {
             Text("Games").font(.title3.bold())
             Text(day.formatted(date: .abbreviated, time: .omitted)).font(.caption).foregroundStyle(AppTheme.muted)
             if gamesLoading && games.isEmpty { ProgressView("Finding games…") }
             if let gameError { errorNotice(gameError) }
-            ForEach(matchingGames.prefix(30)) { game in
+            ForEach(games.prefix(gameCount)) { game in
                 SportsGameCard(game: game) { focused = false; remember(); selectedGame = game }
+            }
+            if gameCount < games.count {
+                SportsLoadMoreRows(label: "games", remaining: games.count - gameCount, pageID: "games|\(scope)|\(gameCount)") {
+                    guard scope == resultScope else { return }
+                    pageWindow.advance(total: games.count, scope: "games|" + scope, expectedCount: gameCount)
+                }.id("games|\(scope)|\(gameCount)")
             }
             if !gamesLoading && matchingGames.isEmpty && gameError == nil {
                 Text("No matching games on this date. Try a team profile for its full schedule.")

@@ -729,11 +729,16 @@ struct SportsService: Sendable {
         let legacyKey = ResponseMemoryCache.key(for: URLRequest(url: URL(string: "https://streamed.pk/api/matches/all")!), session: session)
         let useLegacy = await SportsLegacySourceAvailability.shared.allows(legacyKey)
         return try await withThrowingTaskGroup(of: SportsSourceProviderResult.self) { group in
-            for provider in 0..<(useLegacy ? 6 : 5) where provider != 4 || game.league == .ncaaf {
+            var providers = [0, 1, 2, 3]
+            if game.league == .ncaaf { providers.append(4) }
+            if useLegacy { providers.append(5) }
+            if game.league.isCollegeBasketball { providers.insert(-1, at: 0) }
+            for provider in providers {
                 group.addTask {
                     do {
-                        let values = try await Self.withSourceDeadline(seconds: provider == 5 ? 3 : 6) {
+                        let values = try await Self.withSourceDeadline(seconds: provider == -1 ? 14 : provider == 5 ? 3 : 6) {
                             switch provider {
+                            case -1: return try await self.officialCollegeStreams(game)
                             case 0: return try await self.timstStreams(game)
                             case 1: return try await MatchoraProvider(session: self.session).streams(game)
                             case 2: return try await StreamFreeProvider(session: self.session).streams(game)
@@ -754,6 +759,46 @@ struct SportsService: Sendable {
             for try await result in group { results.append(result) }
             try Task.checkCancellation()
             return try Self.mergedSourceResults(results)
+        }
+    }
+
+    private func officialCollegeStreams(_ game: SportsGame) async throws -> [SportsStream] {
+        guard game.league.isCollegeBasketball, game.canWatch, !game.isFinal, Self.validEventID(game.eventID) else { return [] }
+        var components = URLComponents(string: "https://streamify.watch/api/official-streams")!
+        components.queryItems = [URLQueryItem(name: "league", value: game.league.rawValue), URLQueryItem(name: "gameId", value: game.eventID)]
+        guard let url = components.url else { throw SportsServiceError.invalidURL }
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)
+        request.timeoutInterval = 13
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        // This verified lookup can include a cold publisher feed and watch page.
+        // Keep its owned request separate from the normal eight-second cache cap.
+        let (data, response) = try await session.data(for: request)
+        try Task.checkCancellation()
+        guard let http = response as? HTTPURLResponse, http.url == url, data.count <= 128 * 1024 else { throw SportsServiceError.invalidResponse }
+        guard (200...299).contains(http.statusCode) else { throw SportsServiceError.unavailable(http.statusCode) }
+        try Self.validateJSONResponse(data, response: http, requestedURL: url)
+        guard let values = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { throw SportsServiceError.invalidResponse }
+        return Self.officialCollegeSources(values, game: game)
+    }
+
+    /// The first-party endpoint verifies publisher, fixture and live/embeddable
+    /// metadata. Clients accept only its canonical YouTube player address.
+    static func officialCollegeEmbed(_ address: String) -> URL? {
+        guard let value = URLComponents(string: address), value.scheme?.lowercased() == "https",
+              value.host?.lowercased() == "www.youtube.com", value.user == nil, value.password == nil,
+              value.port == nil || value.port == 443, value.query == nil, value.fragment == nil,
+              value.percentEncodedPath.range(of: #"^/embed/[A-Za-z0-9_-]{11}$"#, options: .regularExpression) != nil else { return nil }
+        return value.url
+    }
+    static func officialCollegeSources(_ values: [[String: Any]], game: SportsGame) -> [SportsStream] {
+        guard game.league.isCollegeBasketball, game.canWatch, !game.isFinal else { return [] }
+        var seen = Set<URL>()
+        return Array(values.prefix(8)).compactMap { value in
+            guard let raw = value["embedUrl"] as? String, let url = officialCollegeEmbed(raw), seen.insert(url).inserted else { return nil }
+            let label = (value["label"] as? String ?? "Official · College basketball")
+                .split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            return SportsStream(title: label.isEmpty ? "Official · College basketball" : String(label.prefix(140)),
+                url: url, stableID: "official:\(game.id):\(url.lastPathComponent)")
         }
     }
 

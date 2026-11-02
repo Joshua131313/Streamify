@@ -100,7 +100,12 @@ private struct LiveGamesWidgetView: View {
 
     private func smallGame(_ game: SportsGame) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text("\(game.league.title) · \(game.status)").font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary).lineLimit(1)
+            HStack(spacing: 4) {
+                if game.league.isCollegeBasketball {
+                    Image(game.league.logoAssetName).renderingMode(.original).resizable().scaledToFit().frame(width: 12, height: 12).accessibilityHidden(true)
+                }
+                Text("\(game.league.title) · \(game.status)").font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary).lineLimit(1)
+            }
             teamLine(game.away, logoSize: 16, scoreSize: 17)
             teamLine(game.home, logoSize: 16, scoreSize: 17)
             HStack(spacing: 4) {
@@ -121,7 +126,12 @@ private struct LiveGamesWidgetView: View {
                 teamLine(game.home, logoSize: family == .systemMedium ? 13 : 16, scoreSize: family == .systemMedium ? 13 : 15)
             }.frame(maxWidth: .infinity)
             VStack(alignment: .trailing, spacing: family == .systemMedium ? 1 : 4) {
-                Text(game.league.title).font(.system(size: family == .systemMedium ? 8 : 9, weight: .bold)).foregroundStyle(.secondary)
+                HStack(spacing: 3) {
+                    if game.league.isCollegeBasketball {
+                        Image(game.league.logoAssetName).renderingMode(.original).resizable().scaledToFit().frame(width: 12, height: 12).accessibilityHidden(true)
+                    }
+                    Text(game.league.title).font(.system(size: family == .systemMedium ? 8 : 9, weight: .bold)).foregroundStyle(.secondary)
+                }
                 Text(game.status).font(.system(size: family == .systemMedium ? 8 : 9)).foregroundStyle(.secondary).lineLimit(1)
                 Label("Watch", systemImage: "play.fill").font(.system(size: family == .systemMedium ? 9 : 10, weight: .semibold))
             }.frame(width: family == .systemLarge ? 95 : 90, alignment: .trailing)

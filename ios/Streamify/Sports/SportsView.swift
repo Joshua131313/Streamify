@@ -92,6 +92,10 @@ struct SportsView: View {
     @State private var daySwipeDirection = 1
     @State private var daySwipeSerial = 0
     @State private var dayTransitioning = false
+    @State private var pageWindow = SportsPageWindow()
+    @State private var scheduleGeneration = 0
+    @State private var calendarLoadedScope: String?
+    @State private var visibleGameIDs = Set<String>()
 
     private var today: Date { currentToday }
     private var firstDay: Date { Calendar.current.date(byAdding: .day, value: -2, to: today) ?? today }
@@ -122,6 +126,15 @@ struct SportsView: View {
         }
     }
     private var filteredGames: [SportsGame] { scopedGames.filter { matchesStatus($0, filter) } }
+    private var orderedGames: [SportsGame] {
+        selectedLeague == .tennis ? SportsTennisGroup.groups(filteredGames).flatMap(\.games) : filteredGames
+    }
+    private var renderingScope: String {
+        "\(profiles.contextID)|\(scheduleKey)|\(filter.rawValue)|\(layout.rawValue)|\(tennisTour?.rawValue ?? "all")|\(showTennisDoubles)|\(followedTeamsOnly)|\(home)"
+    }
+    private var revealedCount: Int { pageWindow.count(total: orderedGames.count, scope: renderingScope) }
+    private var revealedGames: [SportsGame] { Array(orderedGames.prefix(revealedCount)) }
+    private var calendarScope: String { leagues.map(\.rawValue).joined(separator: ",") }
 
     private var emptyScheduleMessage: String {
         if followedTeamsOnly && library.followedTeams.isEmpty { return "Follow teams from their team pages to see their games here." }
@@ -164,6 +177,7 @@ struct SportsView: View {
                 }
             }.padding(.top, 4).padding(.bottom, 110)
         }
+        .sportsPagingViewport()
         .environmentObject(queue)
         .foregroundStyle(AppTheme.foreground)
         .accessibilityIdentifier("sports-screen")
@@ -214,9 +228,13 @@ struct SportsView: View {
                 do { try await Task.sleep(for: .seconds(30)) } catch { return }
             } while !Task.isCancelled
         }
-        .task(id: "\(showCalendar)-\(scenePhase == .active)-\(today.timeIntervalSince1970)") {
+        .task(id: "\(renderingScope)|\(visibleGameIDs.sorted().joined(separator: ","))|\(scheduleGeneration)|\(loading)|\(scenePhase == .active)|\(channels)") {
+            guard scenePhase == .active, !channels, !loading else { return }
+            await enrichVisibleGames()
+        }
+        .task(id: "\(showCalendar)-\(scenePhase == .active)-\(today.timeIntervalSince1970)-\(calendarScope)") {
             guard showCalendar, scenePhase == .active else { return }
-            if let calendarLoadedAt, Date().timeIntervalSince(calendarLoadedAt) < 600, calendarUnavailable.isEmpty { return }
+            if let calendarLoadedAt, calendarLoadedScope == calendarScope, Date().timeIntervalSince(calendarLoadedAt) < 600, calendarUnavailable.isEmpty { return }
             await loadCalendarMarkers()
         }
         .sheet(item: $selectedGame) { game in
@@ -248,7 +266,7 @@ struct SportsView: View {
 
     private var scheduleDayContent: some View {
         ZStack(alignment: .topLeading) {
-            VStack(alignment: .leading, spacing: 8) {
+            LazyVStack(alignment: .leading, spacing: 8) {
                 scheduleHeading
                 scheduleStatus
                 gameList.opacity(loading ? 0 : 1).allowsHitTesting(!loading)
@@ -658,7 +676,7 @@ struct SportsView: View {
                     Spacer()
                     Button("View all") { chooseLeague(item) }.font(.caption.weight(.semibold)).padding(.horizontal, 14).frame(minHeight: 44).streamifyControlSurface()
                 }.buttonStyle(HapticPlainButtonStyle())
-                ForEach(filteredGames.filter { $0.league == item }.prefix(3)) { game in SportsGameCard(game: game) { selectedGame = game } }
+                ForEach(filteredGames.filter { $0.league == item }.prefix(3)) { game in scheduleCard(game, protected: false) }
                 if !loading && !filteredGames.contains(where: { $0.league == item }) {
                     Text(partial || error != nil ? "Schedule temporarily unavailable." : "No games scheduled today.").font(.subheadline).foregroundStyle(AppTheme.muted).frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -667,8 +685,10 @@ struct SportsView: View {
     }
 
     @ViewBuilder private var gameList: some View {
+        let revealed = revealedGames
         if selectedLeague == .tennis {
-            ForEach(SportsTennisGroup.groups(filteredGames)) { group in
+            let ids = Set(revealed.map(\.id))
+            ForEach(SportsTennisGroup.groups(filteredGames).filter { $0.games.contains { ids.contains($0.id) } }) { group in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 8) {
                         Text(group.tour.rawValue).font(.caption.weight(.bold)).padding(.horizontal, 8).padding(.vertical, 5)
@@ -681,22 +701,41 @@ struct SportsView: View {
                         Spacer(minLength: 0)
                         Text("\(group.games.count)").font(.caption).foregroundStyle(AppTheme.muted)
                     }.padding(.horizontal, 6).padding(.top, 8)
-                    gameGrid(group.games)
+                    gameGrid(group.games.filter { ids.contains($0.id) })
                 }.padding(.horizontal, 8)
             }
         } else if layout == .slider && !filteredGames.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) { ForEach(filteredGames) { game in SportsGameCard(game: game, daySwipeScope: daySwipeScope) { selectedGame = game }.frame(width: 300) } }.padding(.horizontal, 20)
-            }
+                LazyHStack(spacing: 12) {
+                    ForEach(revealed) { game in scheduleCard(game).frame(width: 300) }
+                    if revealedCount < orderedGames.count { moreGames(axis: .horizontal).frame(width: 190) }
+                }.padding(.horizontal, 20)
+            }.sportsPagingViewport()
         } else {
-            gameGrid(filteredGames).padding(.horizontal, 8)
+            gameGrid(revealed).padding(.horizontal, 8)
         }
+        if layout != .slider || selectedLeague == .tennis {
+            if revealedCount < orderedGames.count { moreGames().padding(.horizontal, 14) }
+        }
+    }
+
+    private func moreGames(axis: Axis = .vertical) -> some View {
+        let scope = renderingScope, count = revealedCount, total = orderedGames.count
+        return SportsLoadMoreRows(label: "games", remaining: total - count, pageID: "\(scope)|\(count)", axis: axis) {
+            guard scope == renderingScope else { return }
+            pageWindow.advance(total: total, scope: scope, expectedCount: count)
+        }.id("\(scope)|\(count)")
     }
 
     private func gameGrid(_ games: [SportsGame]) -> some View {
         LazyVGrid(columns: sizeClass == .regular && !typeSize.isAccessibilitySize ? [GridItem(.adaptive(minimum: 420), spacing: 16, alignment: .top)] : [GridItem(.flexible())], alignment: .leading, spacing: 12) {
-            ForEach(games) { game in SportsGameCard(game: game, daySwipeScope: daySwipeScope) { selectedGame = game } }
+            ForEach(games) { game in scheduleCard(game) }
         }.accessibilityIdentifier("sports-game-grid")
+    }
+    private func scheduleCard(_ game: SportsGame, protected: Bool = true) -> some View {
+        SportsGameCard(game: game, daySwipeScope: protected ? daySwipeScope : nil) { selectedGame = game }
+            .onAppear { visibleGameIDs.insert(game.id) }
+            .onDisappear { visibleGameIDs.remove(game.id) }
     }
 
     private func loadSchedule(forceReload: Bool = false) async {
@@ -727,20 +766,25 @@ struct SportsView: View {
             guard requestedKey == requestKey, scheduleRequest == request else { return }
             scheduleCache.store(result, leagues: requestedLeagues, day: requestedDay, backend: backend, fetchedAt: fetchedAt)
             games = result.games
+            scheduleGeneration &+= 1
             loadedScheduleKey = identity
             partial = result.partial
             error = nil
             loading = false
-            let enriched = await service.enrichLiveGames(result.games, day: requestedDay)
-            try Task.checkCancellation()
-            guard requestedKey == requestKey, scheduleRequest == request else { return }
-            games = enriched
-            scheduleCache.store(SportsSchedule(games: enriched, failedLeagues: result.failedLeagues, partial: result.partial),
-                                leagues: requestedLeagues, day: requestedDay, backend: backend, fetchedAt: fetchedAt)
-            await SportsLiveAlerts.shared.observe(enriched, teams: Set(library.followedTeams), enabled: settings.liveTeamAlerts,
+            await SportsLiveAlerts.shared.observe(result.games, teams: Set(library.followedTeams), enabled: settings.liveTeamAlerts,
                 profile: String(describing: profiles.contextID))
         } catch is CancellationError { }
         catch { if !Task.isCancelled && requestedKey == requestKey && scheduleRequest == request { self.error = error.localizedDescription } }
+    }
+
+    private func enrichVisibleGames() async {
+        let scope = renderingScope, generation = scheduleGeneration
+        let visible = Array(filteredGames.filter { visibleGameIDs.contains($0.id) }.prefix(pageWindow.pageSize))
+        guard !visible.isEmpty else { return }
+        let snapshots = await SportsService(backend: settings.apiBase).enrichLiveGames(visible, day: day)
+        guard !Task.isCancelled, scope == renderingScope, generation == scheduleGeneration else { return }
+        let indexed = Dictionary(snapshots.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
+        games = games.map { indexed[$0.id] ?? $0 }
     }
 
     private func loadCalendarMarkers() async {
@@ -748,10 +792,11 @@ struct SportsView: View {
         calendarLoading = true
         defer { calendarLoading = false }
         let referenceToday = today, start = firstDay, end = lastDay, referenceTime = Date()
+        let referenceScope = calendarScope, markerLeagues = leagues
         let calendar = Calendar.current
         let jobs: [(SportsLeague, Date, String)] = {
             var result: [(SportsLeague, Date, String)] = []
-            for item in SportsLeague.allCases where item != .tennis {
+            for item in markerLeagues where item != .tennis {
                 for offset in -3...14 {
                     guard let date = calendar.date(byAdding: .day, value: offset, to: referenceToday) else { continue }
                     for parameters in item.scoreboardParameters { result.append((item, date, parameters)) }
@@ -774,9 +819,11 @@ struct SportsView: View {
                             var request = URLRequest(url: url); request.timeoutInterval = 20
                             do {
                                 let (data, response) = try await URLSession.shared.data(for: request)
-                                guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode),
-                                      let json = try JSONSerialization.jsonObject(with: data) as? [String: Any], json["events"] is [[String: Any]] else { batch.unavailable.insert(item); continue }
-                                batch.games += json.sportsObjects("events").compactMap { SportsService().parseGame($0, league: item) }
+                                guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else { batch.unavailable.insert(item); continue }
+                                for marker in try SportsCalendarEventMarker.parse(data, league: item) {
+                                    if let previous = batch.events[marker.id], previous.phase > marker.phase { continue }
+                                    batch.events[marker.id] = marker
+                                }
                             } catch is CancellationError { throw CancellationError() }
                             catch { try Task.checkCancellation(); batch.unavailable.insert(item) }
                         }
@@ -788,21 +835,18 @@ struct SportsView: View {
                 return results
             }
             try Task.checkCancellation()
-            guard referenceToday == today, start == firstDay else { return }
-            var markers: [Date: Set<SportsLeague>] = [:]
+            guard referenceToday == today, start == firstDay, referenceScope == calendarScope else { return }
             // Tennis's nested tournament feeds are already loaded by the page;
             // calendar dots must not trigger dozens of additional HTML requests.
-            for game in SportsScheduleDayPolicy.canonicalGames(batches.flatMap(\.games) + games.filter { $0.league == .tennis }) {
-                guard let date = SportsScheduleDayPolicy.markerDay(for: game, now: referenceTime, calendar: calendar), date >= start, date <= end else { continue }
-                markers[date, default: []].insert(game.league)
-            }
-            calendarMarkers = markers; calendarUnavailable = Set(batches.flatMap(\.unavailable)); calendarLoadedAt = Date()
+            let markers = batches.flatMap { Array($0.events.values) } + games.filter { $0.league == .tennis }.map(SportsCalendarEventMarker.init)
+            calendarMarkers = SportsCalendarEventMarker.days(markers, now: referenceTime, calendar: calendar, first: start, last: end)
+            calendarUnavailable = Set(batches.flatMap(\.unavailable)); calendarLoadedAt = Date(); calendarLoadedScope = referenceScope
         } catch { }
     }
 }
 
 private struct SportsMarkerBatch: Sendable {
-    var games: [SportsGame] = []
+    var events: [String: SportsCalendarEventMarker] = [:]
     var unavailable = Set<SportsLeague>()
 }
 

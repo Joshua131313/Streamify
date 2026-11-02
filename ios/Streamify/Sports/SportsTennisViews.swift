@@ -60,10 +60,8 @@ struct SportsLeagueIcon: View {
     var body: some View {
         if league == .tennis {
             Image(systemName: "tennisball.fill").resizable().scaledToFit().padding(3).foregroundStyle(league.accent)
-        } else if league.isCollegeBasketball {
-            Image(systemName: "basketball.fill").resizable().scaledToFit().padding(2).foregroundStyle(league.accent)
         } else {
-            Image("league-\(league.rawValue)").resizable().scaledToFit()
+            Image(league.logoAssetName).renderingMode(.original).resizable().scaledToFit()
         }
     }
 }

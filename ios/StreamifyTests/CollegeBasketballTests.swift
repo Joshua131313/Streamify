@@ -1,10 +1,19 @@
 import Foundation
 import XCTest
+import UIKit
 @testable import Streamify
 
 /// Schedule/rank shapes captured from ESPN's public men's/women's scoreboards.
 /// Summary and provider cases are intercepted synthetic fixtures; no live traffic.
 final class CollegeBasketballTests: XCTestCase {
+    func testOfficialCollegeLeagueArtworkIsBundledUnderBothDistinctLeagueNames() throws {
+        XCTAssertNotEqual(SportsLeague.ncaam.logoAssetName, SportsLeague.ncaaw.logoAssetName)
+        for league in [SportsLeague.ncaam, .ncaaw] {
+            let image = try XCTUnwrap(UIImage(named: league.logoAssetName), "Missing bundled \(league.title) artwork")
+            XCTAssertGreaterThan(image.size.width, 0)
+            XCTAssertEqual(image.size.width, image.size.height)
+        }
+    }
     func testBothLeaguesHaveDistinctEndpointsAndCompleteDivisionOneRequests() {
         for league in [SportsLeague.ncaam, .ncaaw] {
             XCTAssertEqual(league.sport, "basketball")
