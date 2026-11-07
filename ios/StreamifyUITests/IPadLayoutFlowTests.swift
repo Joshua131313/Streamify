@@ -26,9 +26,17 @@ final class IPadLayoutFlowTests: XCTestCase {
         XCTAssertTrue(banner.waitForExistence(timeout: 15))
         let pause = app.buttons["hero-carousel-pause"]
         if pause.label == "Pause carousel" { pause.tap() }
+        XCTAssertTrue(wait { pause.label == "Resume carousel" })
+        // Simulator launch and accessibility settling can outlast a carousel
+        // cycle. Select the measured fixture through its real indicator after
+        // pausing rather than assuming launch left the pager on its first card.
+        let firstSlide = app.buttons["Show The Last Horizon"]
+        XCTAssertTrue(firstSlide.waitForExistence(timeout: 8))
+        if !firstSlide.isSelected { firstSlide.tap() }
         let title = app.staticTexts["hero-title-movie:42"]
         let synopsis = app.staticTexts["hero-overview-movie:42"]
         let watch = app.buttons["hero-watch-movie:42"]
+        XCTAssertTrue(wait { firstSlide.isSelected && title.exists && watch.isHittable })
         for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
             XCUIDevice.shared.orientation = orientation
             XCTAssertTrue(wait {
@@ -38,6 +46,7 @@ final class IPadLayoutFlowTests: XCTestCase {
             })
             XCTAssertTrue(wait { banner.exists && banner.frame.width >= self.app.frame.width - 40 },
                 "The actual native pager must fill the window with standard side margins.")
+            waitForStableFrame(banner)
             let frame = banner.frame
             XCTAssertGreaterThanOrEqual(frame.height, 420)
             XCTAssertLessThanOrEqual(frame.height, 520)
@@ -52,7 +61,7 @@ final class IPadLayoutFlowTests: XCTestCase {
             XCTAssertTrue(frame.contains(watch.frame))
             XCTAssertLessThan(title.frame.maxY, synopsis.frame.minY)
             XCTAssertLessThan(synopsis.frame.maxY, watch.frame.minY)
-            capture("Featured banner readable content \(orientation == .portrait ? "portrait" : "landscape")")
+            capture("Featured banner readable content \(orientation == .portrait ? "portrait" : "landscape")", orientation: orientation)
         }
         // Exercise the actual pager after rotation, rather than only measuring a
         // static card. The next slide must keep a working Watch action.
@@ -189,7 +198,29 @@ final class IPadLayoutFlowTests: XCTestCase {
     private func wait(_ condition: @escaping () -> Bool) -> Bool {
         XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in condition() }, object: nil)], timeout: 10) == .completed
     }
-    private func capture(_ name: String) {
-        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); shot.name = name; shot.lifetime = .keepAlways; add(shot)
+    private func waitForStableFrame(_ element: XCUIElement) {
+        var previous: CGRect?
+        var stableSince = Date()
+        XCTAssertTrue(wait {
+            let current = element.frame
+            guard !current.isEmpty else { return false }
+            if previous != current { previous = current; stableSince = Date(); return false }
+            return Date().timeIntervalSince(stableSince) >= 1
+        }, "Wait for the banner to settle after rotation.")
+    }
+    private func capture(_ name: String, orientation: UIDeviceOrientation? = nil) {
+        var screenshot = XCUIScreen.main.screenshot()
+        if let orientation {
+            XCTAssertTrue(wait {
+                screenshot = XCUIScreen.main.screenshot()
+                let image = screenshot.image
+                guard let pixels = image.cgImage else { return false }
+                let swapsAxes = [UIImage.Orientation.left, .leftMirrored, .right, .rightMirrored].contains(image.imageOrientation)
+                let width = swapsAxes ? pixels.height : pixels.width
+                let height = swapsAxes ? pixels.width : pixels.height
+                return orientation == .portrait ? height > width : width > height
+            }, "The captured screen must match the requested orientation.")
+        }
+        let shot = XCTAttachment(screenshot: screenshot); shot.name = name; shot.lifetime = .keepAlways; add(shot)
     }
 }

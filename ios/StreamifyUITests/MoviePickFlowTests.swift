@@ -50,8 +50,15 @@ final class MoviePickFlowTests: XCTestCase {
         capture(app, "Personalized recent movie result")
         reveal(app.buttons["movie-pick-another"], in: app)
         app.buttons["movie-pick-another"].tap()
-        XCTAssertTrue(app.staticTexts["Finding your movie…"].waitForExistence(timeout: 1))
-        XCTAssertEqual(result.label, first, "Keep the old pick visible during loading")
+        let loading = app.staticTexts["Finding your movie…"]
+        // Accessibility snapshots can take longer than the actual request.
+        // Accept either the in-flight state or its completed result, then always
+        // require a different movie and unchanged layout below.
+        XCTAssertTrue(wait { result.exists && (result.label != first || loading.exists) })
+        let observedTitle = result.label
+        if loading.exists {
+            XCTAssertEqual(observedTitle, first, "Keep the old pick visible while the request remains in flight")
+        }
         XCTAssertEqual(viewport.frame.height, initialBounds.height, accuracy: 1)
         XCTAssertEqual(app.buttons["movie-pick-watch"].frame.minY, watchBounds.minY, accuracy: 1)
         let changed = NSPredicate { _, _ in result.exists && result.label != first }
@@ -68,8 +75,9 @@ final class MoviePickFlowTests: XCTestCase {
                 XCTAssertTrue(wait {
                     orientation == .portrait ? app.frame.height > app.frame.width : app.frame.width > app.frame.height
                 })
+                waitForStableFrame(viewport)
                 assertCompactTabletResult(app)
-                capture(app, "iPad Pick for me long title and synopsis \(orientation == .portrait ? "portrait" : "landscape")")
+                capture(app, "iPad Pick for me long title and synopsis \(orientation == .portrait ? "portrait" : "landscape")", orientation: orientation)
             }
         }
         let selectedTitle = result.label
@@ -125,7 +133,31 @@ final class MoviePickFlowTests: XCTestCase {
         }
         XCTAssertTrue(target.isHittable)
     }
-    private func capture(_ app: XCUIApplication, _ name: String) {
-        let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = name; shot.lifetime = .keepAlways; add(shot)
+    private func waitForStableFrame(_ element: XCUIElement) {
+        var previous: CGRect?
+        var stableSince = Date()
+        XCTAssertTrue(wait {
+            let current = element.frame
+            guard !current.isEmpty else { return false }
+            if previous != current { previous = current; stableSince = Date(); return false }
+            return Date().timeIntervalSince(stableSince) >= 1
+        }, "Wait for the sheet to settle after the window rotates.")
+    }
+    private func capture(_ app: XCUIApplication, _ name: String, orientation: UIDeviceOrientation? = nil) {
+        // Capturing the app element after rotation can crop against stale app
+        // coordinates. Use the complete display and verify its oriented pixels.
+        var screenshot = XCUIScreen.main.screenshot()
+        if let orientation {
+            XCTAssertTrue(wait {
+                screenshot = XCUIScreen.main.screenshot()
+                let image = screenshot.image
+                guard let pixels = image.cgImage else { return false }
+                let swapsAxes = [UIImage.Orientation.left, .leftMirrored, .right, .rightMirrored].contains(image.imageOrientation)
+                let width = swapsAxes ? pixels.height : pixels.width
+                let height = swapsAxes ? pixels.width : pixels.height
+                return orientation == .portrait ? height > width : width > height
+            }, "The captured screen must match the requested orientation.")
+        }
+        let shot = XCTAttachment(screenshot: screenshot); shot.name = name; shot.lifetime = .keepAlways; add(shot)
     }
 }
