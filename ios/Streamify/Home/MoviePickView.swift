@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct MoviePickShortcut: View {
     @State private var showing = false
@@ -14,7 +15,26 @@ struct MoviePickShortcut: View {
             }.padding(18).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 16))
         }.buttonStyle(HapticCardButtonStyle(cornerRadius: 16)).padding(.horizontal, 20)
             .accessibilityIdentifier("home-pick-for-me")
-            .sheet(isPresented: $showing) { MoviePickView().streamifyPageSheet() }
+            .sheet(isPresented: $showing) { MoviePickView() }
+    }
+}
+
+/// A stable, deliberately bounded canvas keeps rerolls from resizing the sheet.
+/// The system can propose a smaller size in Split View or Stage Manager.
+private struct MoviePickPresentation: ViewModifier {
+    func body(content: Content) -> some View {
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            if #available(iOS 18.0, *) {
+                content.frame(idealWidth: 900, idealHeight: 640)
+                    .presentationSizing(.fitted)
+                    .presentationDragIndicator(.hidden)
+            } else {
+                content.presentationDetents([.height(640), .large])
+                    .presentationDragIndicator(.visible)
+            }
+        } else {
+            content.presentationDetents([.large]).presentationDragIndicator(.visible)
+        }
     }
 }
 
@@ -23,6 +43,7 @@ struct MoviePickView: View {
     @EnvironmentObject private var library: LibraryStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var genre: CatalogGenre?
     @State private var pool: MoviePickPool?
     @State private var picked: MediaItem?
@@ -32,30 +53,16 @@ struct MoviePickView: View {
     @State private var request: UUID?
     @State private var watching: MediaItem?
 
+    private var isTablet: Bool { UIDevice.current.userInterfaceIdiom == .pad }
+
     var body: some View {
         NavigationStack {
             GeometryReader { geometry in
-                VStack(spacing: 0) {
-                    ScrollView {
-                        if let picked {
-                            result(picked, artworkHeight: min(360, max(180, geometry.size.height * 0.38)))
-                                .id(picked.key).transition(.opacity)
-                        } else {
-                            genres.padding(.horizontal, 24).padding(.top, 76).padding(.bottom, 20)
-                        }
-                    }.scrollIndicators(.hidden).frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .accessibilityIdentifier("movie-pick-content")
-                    if let picked {
-                        actions(picked, wide: geometry.size.width >= 600)
+                Group {
+                    if isTablet, let picked {
+                        tabletResult(picked, size: geometry.size)
                     } else {
-                        VStack(spacing: 8) {
-                            status
-                            Button { request = UUID() } label: {
-                                Label("Pick for me", systemImage: "shuffle").frame(maxWidth: .infinity)
-                            }.buttonStyle(PrimaryButtonStyle()).disabled(genre == nil || loading)
-                                .opacity(genre == nil || loading ? 0.45 : 1)
-                                .accessibilityIdentifier("movie-pick-draw")
-                        }.padding(.horizontal, 24).padding(.bottom, 16).frame(maxWidth: 760).frame(maxWidth: .infinity)
+                        standardContent(size: geometry.size)
                     }
                 }.frame(width: geometry.size.width, height: geometry.size.height)
                     .overlay(alignment: .top) { header }
@@ -65,8 +72,64 @@ struct MoviePickView: View {
             }
             .toolbar(.hidden, for: .navigationBar)
             .task(id: request) { if request != nil { await draw() } }
-        }.presentationDragIndicator(.visible).presentationDetents([.large])
+        }.modifier(MoviePickPresentation())
             .fullScreenCover(item: $watching) { MediaPlayerView(media: $0) }
+    }
+
+    private func standardContent(size: CGSize) -> some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                if let picked {
+                    result(picked, artworkHeight: min(360, max(180, size.height * 0.38)))
+                        .id(picked.key).transition(.opacity)
+                } else {
+                    genres.padding(.horizontal, 24).padding(.top, 76).padding(.bottom, 20)
+                }
+            }.scrollIndicators(.hidden).frame(maxWidth: .infinity, maxHeight: .infinity)
+                .accessibilityIdentifier("movie-pick-content")
+            if let picked {
+                actions(picked, wide: size.width >= 600)
+            } else {
+                VStack(spacing: 8) {
+                    status
+                    Button { request = UUID() } label: {
+                        Label("Pick for me", systemImage: "shuffle").frame(maxWidth: .infinity)
+                    }.buttonStyle(PrimaryButtonStyle()).disabled(genre == nil || loading)
+                        .opacity(genre == nil || loading ? 0.45 : 1)
+                        .accessibilityIdentifier("movie-pick-draw")
+                }.padding(.horizontal, 24).padding(.bottom, 16).frame(maxWidth: 760).frame(maxWidth: .infinity)
+            }
+        }
+    }
+
+    /// Keep the decision beside the artwork on iPad instead of pinning its
+    /// actions to the bottom of a page-sized sheet. Narrow windows still scroll.
+    private func tabletResult(_ media: MediaItem, size: CGSize) -> some View {
+        ScrollView {
+            if size.width >= 760 && !dynamicTypeSize.isAccessibilitySize {
+                let posterWidth = min(300, (size.width - 84) * 0.38)
+                HStack(alignment: .top, spacing: 28) {
+                    RemoteArtwork(url: media.posterURL ?? media.backdropURL,
+                                  fallbackURLs: [media.backdropURL].compactMap { $0 })
+                        .frame(width: posterWidth, height: posterWidth * 1.5)
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityHidden(false)
+                        .accessibilityLabel("Movie artwork")
+                        .accessibilityIdentifier("movie-pick-artwork")
+                    VStack(alignment: .leading, spacing: 12) {
+                        details(media, synopsisLines: 4)
+                        actions(media, wide: false, horizontalPadding: 0)
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                }.padding(.horizontal, 28).padding(.top, 80).padding(.bottom, 28)
+            } else {
+                VStack(spacing: 0) {
+                    result(media, artworkHeight: min(260, max(180, size.width * 0.48)))
+                    actions(media, wide: false)
+                }.padding(.top, 60).padding(.bottom, 12)
+            }
+        }.scrollIndicators(.hidden).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .accessibilityIdentifier("movie-pick-content")
     }
 
     private var header: some View {
@@ -75,12 +138,12 @@ struct MoviePickView: View {
             Spacer()
             Button { dismiss() } label: {
                 Image(systemName: "xmark").font(.body.weight(.semibold)).frame(width: 40, height: 40)
-                    .background(picked == nil ? AppTheme.controlFill : Color.black.opacity(0.35), in: Circle())
+                    .background(picked == nil || isTablet ? AppTheme.controlFill : Color.black.opacity(0.35), in: Circle())
             }.buttonStyle(HapticCardButtonStyle(cornerRadius: 20)).accessibilityLabel("Done")
         }.padding(.horizontal, 24).frame(height: 60)
-            .foregroundStyle(picked == nil ? AppTheme.foreground : .white)
+            .foregroundStyle(picked == nil || isTablet ? AppTheme.foreground : .white)
             .background {
-                if picked == nil { AppTheme.canvas }
+                if picked == nil || isTablet { AppTheme.canvas }
                 else { LinearGradient(colors: [.black.opacity(0.55), .clear], startPoint: .top, endPoint: .bottom) }
             }
     }
@@ -118,16 +181,22 @@ struct MoviePickView: View {
                 .frame(height: artworkHeight).clipped()
                 .overlay { LinearGradient(stops: [.init(color: .black.opacity(0.12), location: 0), .init(color: .clear, location: 0.35),
                     .init(color: AppTheme.canvas, location: 1)], startPoint: .top, endPoint: .bottom) }
-            VStack(alignment: .leading, spacing: 8) {
-                Text(genre?.name.uppercased() ?? "YOUR PICK").font(.caption.weight(.semibold)).tracking(1).foregroundStyle(AppTheme.muted)
-                Text(media.title).font(.title.bold()).lineLimit(2, reservesSpace: true).frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityIdentifier("movie-pick-result")
-                Text("\(media.year) · ★ \(media.rating.formatted(.number.precision(.fractionLength(1))))").font(.subheadline).foregroundStyle(AppTheme.muted)
-                Text(media.overview.isEmpty ? "Explore this movie for more details." : media.overview)
-                    .font(.subheadline).foregroundStyle(AppTheme.muted).lineLimit(3, reservesSpace: true)
-                    .frame(maxWidth: .infinity, alignment: .leading).accessibilityIdentifier("movie-pick-synopsis")
-            }.padding(.horizontal, 24).padding(.top, -24).padding(.bottom, 12)
+                .accessibilityIdentifier("movie-pick-artwork")
+            details(media, synopsisLines: 3)
+                .padding(.horizontal, 24).padding(.top, -24).padding(.bottom, 12)
         }.frame(maxWidth: 760).frame(maxWidth: .infinity)
+    }
+
+    private func details(_ media: MediaItem, synopsisLines: Int) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(genre?.name.uppercased() ?? "YOUR PICK").font(.caption.weight(.semibold)).tracking(1).foregroundStyle(AppTheme.muted)
+            Text(media.title).font(.title.bold()).lineLimit(2, reservesSpace: true).frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier("movie-pick-result")
+            Text("\(media.year) · ★ \(media.rating.formatted(.number.precision(.fractionLength(1))))").font(.subheadline).foregroundStyle(AppTheme.muted)
+            Text(media.overview.isEmpty ? "Explore this movie for more details." : media.overview)
+                .font(.subheadline).foregroundStyle(AppTheme.muted).lineLimit(synopsisLines, reservesSpace: true)
+                .frame(maxWidth: .infinity, alignment: .leading).accessibilityIdentifier("movie-pick-synopsis")
+        }
     }
 
     private var status: some View {
@@ -139,7 +208,7 @@ struct MoviePickView: View {
             .accessibilityHidden(!loading && error == nil).accessibilityIdentifier("movie-pick-status")
     }
 
-    private func actions(_ media: MediaItem, wide: Bool) -> some View {
+    private func actions(_ media: MediaItem, wide: Bool, horizontalPadding: CGFloat = 24) -> some View {
         VStack(spacing: 10) {
             status
             HStack(spacing: 10) {
@@ -163,7 +232,7 @@ struct MoviePickView: View {
                     Text("Change genre").font(.subheadline.weight(.medium)).frame(maxWidth: .infinity, minHeight: 40)
                 }.buttonStyle(HapticCardButtonStyle(cornerRadius: 12)).accessibilityIdentifier("movie-pick-change")
             }
-        }.padding(.horizontal, 24).padding(.bottom, 12).frame(maxWidth: 760).frame(maxWidth: .infinity)
+        }.padding(.horizontal, horizontalPadding).padding(.bottom, 12).frame(maxWidth: 760).frame(maxWidth: .infinity)
             .background(AppTheme.canvas).accessibilityElement(children: .contain).accessibilityIdentifier("movie-pick-actions")
     }
 

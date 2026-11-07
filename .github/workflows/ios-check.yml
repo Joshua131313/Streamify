@@ -193,10 +193,10 @@ jobs:
               SELECTORS=(-only-testing:StreamifyUITests/MoviePickFlowTests)
               ;;
             ipad-carousel)
-              SELECTORS=(-only-testing:StreamifyUITests/IPadLayoutFlowTests/testIPadFeaturedCarouselFillsTheWindowWhenHomeRotates)
+              SELECTORS=(-only-testing:StreamifyTests/AdaptiveLayoutTests -only-testing:StreamifyUITests/IPadLayoutFlowTests/testIPadFeaturedCarouselFillsTheWindowWhenHomeRotates -only-testing:StreamifyUITests/MoviePickFlowTests)
               ;;
             iphone-carousel)
-              SELECTORS=(-only-testing:StreamifyUITests/ParityFlowTests/testHomeHeroProgressPauseSwipeAndFilledSelectors)
+              SELECTORS=(-only-testing:StreamifyUITests/ParityFlowTests/testHomeHeroProgressPauseSwipeAndFilledSelectors -only-testing:StreamifyUITests/MoviePickFlowTests)
               ;;
             ipad-tennis-recheck)
               SELECTORS=(-only-testing:StreamifyUITests/TennisFlowTests/testTennisShowsAllToursThenFiltersAndOpensSetScoring)

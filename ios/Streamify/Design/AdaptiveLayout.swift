@@ -4,6 +4,9 @@ import UIKit
 /// Measures the available window, including Split View and Stage Manager,
 /// rather than assuming that every iPad has a full-screen 12.9-inch viewport.
 enum AdaptiveLayout {
+    static func tabletHeroHeight(width: CGFloat, accessibility: Bool) -> CGFloat {
+        accessibility ? 620 : min(520, max(420, width * 0.39))
+    }
     static func columns(width: CGFloat, minimum: CGFloat, spacing: CGFloat = 16, maximum: Int = 4) -> Int {
         max(1, min(maximum, Int((max(0, width) + spacing) / (minimum + spacing))))
     }

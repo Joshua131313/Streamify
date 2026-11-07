@@ -24,6 +24,11 @@ final class IPadLayoutFlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["tab-home"].isSelected)
         let banner = element("hero-carousel")
         XCTAssertTrue(banner.waitForExistence(timeout: 15))
+        let pause = app.buttons["hero-carousel-pause"]
+        if pause.label == "Pause carousel" { pause.tap() }
+        let title = app.staticTexts["hero-title-movie:42"]
+        let synopsis = app.staticTexts["hero-overview-movie:42"]
+        let watch = app.buttons["hero-watch-movie:42"]
         for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
             XCUIDevice.shared.orientation = orientation
             XCTAssertTrue(wait {
@@ -34,11 +39,34 @@ final class IPadLayoutFlowTests: XCTestCase {
             XCTAssertTrue(wait { banner.exists && banner.frame.width >= self.app.frame.width - 40 },
                 "The actual native pager must fill the window with standard side margins.")
             let frame = banner.frame
-            XCTAssertLessThan(frame.height, 650)
+            XCTAssertGreaterThanOrEqual(frame.height, 420)
+            XCTAssertLessThanOrEqual(frame.height, 520)
             XCTAssertGreaterThanOrEqual(frame.minX, app.frame.minX + 12)
             XCTAssertLessThanOrEqual(frame.maxX, app.frame.maxX - 12)
-            capture("Wide featured banner \(orientation == .portrait ? "portrait" : "landscape")")
+            XCTAssertTrue(title.exists && synopsis.exists && watch.isHittable)
+            XCTAssertGreaterThanOrEqual(title.frame.height, 40, "Tablet headlines must be readable at tablet viewing distance.")
+            XCTAssertGreaterThanOrEqual(watch.frame.height, 50)
+            XCTAssertLessThanOrEqual(watch.frame.width, 220, "The Watch action must remain compact rather than stretch across the banner.")
+            XCTAssertTrue(frame.contains(title.frame))
+            XCTAssertTrue(frame.contains(synopsis.frame))
+            XCTAssertTrue(frame.contains(watch.frame))
+            XCTAssertLessThan(title.frame.maxY, synopsis.frame.minY)
+            XCTAssertLessThan(synopsis.frame.maxY, watch.frame.minY)
+            capture("Featured banner readable content \(orientation == .portrait ? "portrait" : "landscape")")
         }
+        // Exercise the actual pager after rotation, rather than only measuring a
+        // static card. The next slide must keep a working Watch action.
+        let current = app.buttons["hero-main-progress"].label
+        banner.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.35))
+            .press(forDuration: 0.05, thenDragTo: banner.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.35)))
+        XCTAssertTrue(wait { self.app.buttons["hero-main-progress"].label != current })
+        let nextWatch = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "hero-watch-")).allElementsBoundByIndex.first { $0.isHittable }
+        XCTAssertNotNil(nextWatch)
+        nextWatch?.tap()
+        XCTAssertTrue(app.buttons["Close player"].waitForExistence(timeout: 8))
+        app.buttons["Close player"].tap()
+        XCTAssertTrue(banner.waitForExistence(timeout: 8))
+        capture("iPad landscape carousel preserves selected slide after playback")
     }
 
     func testIPadProHomeAndSportsUseTheCanvasInBothOrientations() {

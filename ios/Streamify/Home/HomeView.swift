@@ -218,8 +218,10 @@ struct FeaturedCarousel: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @EnvironmentObject private var library: LibraryStore
     @ScaledMetric(relativeTo: .title2) private var heroTitleSize: CGFloat = 24
+    @ScaledMetric(relativeTo: .largeTitle) private var tabletTitleSize: CGFloat = 40
     @State private var index = 0
     @State private var paused = false
     @State private var voiceOver = UIAccessibility.isVoiceOverRunning
@@ -244,9 +246,9 @@ struct FeaturedCarousel: View {
         VStack(spacing: 4) {
             Group {
                 if horizontalSizeClass == .regular {
-                    // Size the tablet banner from its available width. Fitting a
-                    // 16:9 view inside a height cap also shrinks its width.
-                    pages.frame(height: 460)
+                    // Size from the available window, including Split View,
+                    // while keeping the artwork edge to edge inside the card.
+                    TabletHeroLayout(accessibility: dynamicTypeSize.isAccessibilitySize) { pages }
                 } else {
                     pages.aspectRatio(0.82, contentMode: .fit).frame(maxHeight: 620)
                 }
@@ -364,6 +366,13 @@ struct FeaturedCarousel: View {
             MediaDetailLink(media: media, onPresentationChanged: { detailsPresented = $0 }, cardCornerRadius: 16, includesCardMenu: true) {
                 RemoteArtwork(url: horizontalSizeClass == .regular ? media.heroBackdropURL : media.heroPosterURL)
                     .overlay {
+                        if horizontalSizeClass == .regular {
+                            LinearGradient(stops: [.init(color: .black.opacity(0.82), location: 0),
+                                                   .init(color: .black.opacity(0.48), location: 0.38),
+                                                   .init(color: .clear, location: 0.75)], startPoint: .leading, endPoint: .trailing)
+                        }
+                    }
+                    .overlay {
                         LinearGradient(stops: [.init(color: .clear, location: 0.45),
                                                .init(color: Color(red: 27 / 255, green: 23 / 255, blue: 32 / 255).opacity(0.7), location: 0.8),
                                                .init(color: Color(red: 27 / 255, green: 23 / 255, blue: 32 / 255), location: 1)], startPoint: .top, endPoint: .bottom)
@@ -372,26 +381,39 @@ struct FeaturedCarousel: View {
                     .contentShape(Rectangle())
             }.accessibilityLabel("Details for \(media.title)")
             VStack(alignment: .leading, spacing: 14) {
-                Text(media.title).font(.system(size: heroTitleSize, weight: .bold)).lineLimit(2).allowsHitTesting(false)
+                if horizontalSizeClass == .regular {
+                    Text("FEATURED ON STREAMIFY").font(.caption.weight(.semibold)).tracking(2)
+                        .foregroundStyle(.white.opacity(0.75)).allowsHitTesting(false)
+                }
+                Text(media.title).font(.system(size: horizontalSizeClass == .regular ? tabletTitleSize : heroTitleSize, weight: .bold))
+                    .lineLimit(2).fixedSize(horizontal: false, vertical: true).allowsHitTesting(false)
+                    .accessibilityIdentifier("hero-title-\(media.key)")
                 Text([media.year, media.kind.singular, String(format: "★ %.1f", media.rating)].filter { !$0.isEmpty }.joined(separator: "  ·  "))
-                    .font(.caption.weight(.medium)).foregroundStyle(Color(red: 212 / 255, green: 212 / 255, blue: 216 / 255))
+                    .font(horizontalSizeClass == .regular ? .subheadline.weight(.medium) : .caption.weight(.medium))
+                    .foregroundStyle(Color(red: 212 / 255, green: 212 / 255, blue: 216 / 255))
                     .allowsHitTesting(false)
+                if horizontalSizeClass == .regular && !media.overview.isEmpty {
+                    Text(media.overview).font(.body).lineLimit(2)
+                        .foregroundStyle(.white.opacity(0.85)).allowsHitTesting(false)
+                        .accessibilityIdentifier("hero-overview-\(media.key)")
+                }
                 HStack(spacing: 12) {
                     Button { playbackOrigin = origin; player = media } label: {
                         Label("Watch", systemImage: "play.fill")
-                            .font(.subheadline.bold()).frame(maxWidth: .infinity).frame(minHeight: 44)
+                            .font(.subheadline.bold()).frame(maxWidth: .infinity).frame(minHeight: horizontalSizeClass == .regular ? 50 : 44)
                             .foregroundStyle(.black).background(.white, in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
-                    }.accessibilityLabel("Watch \(media.title)")
+                    }.accessibilityLabel("Watch \(media.title)").accessibilityIdentifier("hero-watch-\(media.key)")
                     Button { library.toggleSaved(media) } label: {
                         Label(library.isSaved(media) ? "Added" : "My list", systemImage: library.isSaved(media) ? "checkmark" : "plus")
-                            .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity).frame(minHeight: 44)
+                            .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity).frame(minHeight: horizontalSizeClass == .regular ? 50 : 44)
                             .background(.white.opacity(0.24), in: RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius))
                             .overlay { RoundedRectangle(cornerRadius: AppTheme.buttonCornerRadius).strokeBorder(.white.opacity(0.15), lineWidth: 0.7) }
                     }.accessibilityLabel(library.isSaved(media) ? "Remove \(media.title) from My list" : "Save \(media.title)")
                 }.buttonStyle(HapticPlainButtonStyle()).padding(.top, 6)
+                    .frame(maxWidth: horizontalSizeClass == .regular ? 420 : .infinity, alignment: .leading)
             }
-            .padding(horizontalSizeClass == .regular ? 24 : 14)
-            .frame(maxWidth: horizontalSizeClass == .regular ? 560 : .infinity, alignment: .leading)
+            .padding(horizontalSizeClass == .regular ? 32 : 14)
+            .frame(maxWidth: horizontalSizeClass == .regular ? 600 : .infinity, alignment: .leading)
             .foregroundStyle(.white)
         }
         .overlay(alignment: .topTrailing) {
@@ -401,6 +423,19 @@ struct FeaturedCarousel: View {
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .contentShape(RoundedRectangle(cornerRadius: 16))
         .overlay { RoundedRectangle(cornerRadius: 16).strokeBorder(.white.opacity(0.16), lineWidth: 1) }
+    }
+}
+
+/// A finite proposal for the native pager without shrinking the full-width
+/// artwork to fit a fixed aspect ratio inside a height cap.
+private struct TabletHeroLayout: Layout {
+    let accessibility: Bool
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? 1024
+        return CGSize(width: width, height: AdaptiveLayout.tabletHeroHeight(width: width, accessibility: accessibility))
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        for view in subviews { view.place(at: bounds.origin, proposal: ProposedViewSize(bounds.size)) }
     }
 }
 
