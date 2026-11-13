@@ -16,7 +16,116 @@ final class TennisCoverageTests: XCTestCase {
         XCTAssertEqual(game.tennis?.tour, .challenger)
         XCTAssertEqual(game.tennis?.servingID, game.away.id)
         XCTAssertEqual(game.tennis?.awaySets, ["4"])
+        XCTAssertEqual(game.tennis?.awayPoint, "40")
+        XCTAssertEqual(game.tennis?.homePoint, "40")
         XCTAssertTrue(game.tennis?.historyURL?.contains("sioux-falls") == true)
+    }
+
+    private func finalsFixture() throws -> [String: Any] {
+        let bundle = Bundle(for: Self.self)
+        let name = "tennis-wta-finals-live"
+        let url = try XCTUnwrap(bundle.url(forResource: name, withExtension: "json") ?? bundle.url(forResource: name, withExtension: "json", subdirectory: "Fixtures"))
+        return try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+    }
+
+    private func snapshots(_ data: [String: Any]) throws -> [SportsGame] {
+        let encoded = try JSONSerialization.data(withJSONObject: data)
+        return try TennisLiveFeed.parse("<script>window.TENNISLIVE_RUNTIME = \(String(decoding: encoded, as: UTF8.self));</script>")
+    }
+
+    func testCapturedWTAFinalsReversedFeedMergesAcrossLocationsAndDays() throws {
+        let fixture = try finalsFixture()
+        let espn = try XCTUnwrap(SportsTennisFeed.parse(fixture.sportsObject("espn"), tour: .wta).first)
+        let live = try XCTUnwrap(snapshots(fixture.sportsObject("tennisLive")).first)
+        let result = TennisLiveFeed.merge([espn, espn], live: [live, live])
+        XCTAssertEqual(result.map(\.eventID), ["espn-wta-187384"])
+        let game = try XCTUnwrap(result.first)
+        XCTAssertEqual(game.tennis?.competitionID, "187384")
+        XCTAssertEqual(game.tennis?.source, "espn")
+        XCTAssertEqual(game.away.name, "Diana Shnaider")
+        XCTAssertEqual(game.tennis?.awaySets, ["2"])
+        XCTAssertEqual(game.tennis?.homeSets, ["5"])
+        XCTAssertEqual(game.tennis?.awayPoint, "0")
+        XCTAssertEqual(game.tennis?.homePoint, "0")
+        XCTAssertEqual(game.tennis?.servingID, espn.home.id)
+        XCTAssertEqual(TennisLiveFeed.findGame(eventID: live.eventID, in: result)?.eventID, espn.eventID)
+    }
+
+    func testWTAFinalsAliasRejectsDifferentRoundSeasonOrStart() throws {
+        let fixture = try finalsFixture()
+        let espn = try XCTUnwrap(SportsTennisFeed.parse(fixture.sportsObject("espn"), tour: .wta).first)
+        var group = try XCTUnwrap(fixture.sportsObject("tennisLive").sportsObjects("homepageTournaments").first)
+        var match = try XCTUnwrap(group.sportsObjects("matches").first)
+        func matches(_ group: [String: Any]) throws -> Bool {
+            let live = try XCTUnwrap(snapshots(["homepageTournaments": [group]]).first)
+            return TennisLiveFeed.sameMatch(espn, live)
+        }
+        group["stageCode"] = "semifinal"
+        XCTAssertFalse(try matches(group))
+        group["stageCode"] = "round_robin"
+        match["url"] = match.sportsText("url").replacingOccurrences(of: "2026", with: "2025")
+        group["matches"] = [match]
+        XCTAssertFalse(try matches(group))
+        match["url"] = match.sportsText("url").replacingOccurrences(of: "2025", with: "2026")
+        match["startTimestamp"] = 1794600900 + 31 * 60
+        group["matches"] = [match]
+        XCTAssertFalse(try matches(group))
+    }
+
+    func testLiveSnapshotsPreserveRematchesAndFinalCannotRegress() throws {
+        let fixture = try finalsFixture()
+        var group = try XCTUnwrap(fixture.sportsObject("tennisLive").sportsObjects("homepageTournaments").first)
+        var match = try XCTUnwrap(group.sportsObjects("matches").first)
+        var finished = match
+        finished["state"] = "finished"
+        finished["winnerId"] = 77934
+        var rematch = match
+        rematch["drawPosition"] = 12
+        rematch["favoriteKey"] = "m1:wta:16758:8:12:65911:77934"
+        rematch["startTimestamp"] = 1794600900 + 40 * 60
+        rematch["points"] = [NSNull(), "AD"] as [Any]
+        group["matches"] = [finished, match, rematch]
+        let games = TennisLiveFeed.merge([], live: try snapshots(["homepageTournaments": [group]]))
+        XCTAssertEqual(games.map(\.eventID), ["tennislive-wta-16758-77934-65911", "tennislive-wta-16758-77934-65911-8-12"])
+        XCTAssertEqual(games.first?.state, "post")
+        XCTAssertNil(games.first?.tennis?.homePoint)
+        XCTAssertNil(games.last?.tennis?.awayPoint)
+        XCTAssertEqual(games.last?.tennis?.homePoint, "AD")
+        XCTAssertTrue(SportsService.validTennisEventID(try XCTUnwrap(games.last?.eventID)))
+
+        let espn = try XCTUnwrap(SportsTennisFeed.parse(fixture.sportsObject("espn"), tour: .wta).first)
+        let final = SportsGame(eventID: espn.eventID, league: espn.league, date: espn.date, state: "post", status: "Final", home: espn.home,
+            away: espn.away, venue: espn.venue, broadcasts: espn.broadcasts, link: espn.link, tennis: espn.tennis)
+        match["points"] = ["15", "30"]
+        group["matches"] = [match]
+        let merged = TennisLiveFeed.merge([final], live: try snapshots(["homepageTournaments": [group]]))
+        XCTAssertEqual(merged.map(\.state), ["post"])
+        XCTAssertNil(merged.first?.tennis?.awayPoint)
+    }
+
+    func testPointValuesAcceptExplicitZeroAndAdvantageAndRejectPlaceholders() {
+        XCTAssertEqual(TennisLiveFeed.point(0), "0")
+        XCTAssertEqual(TennisLiveFeed.point("A"), "AD")
+        XCTAssertEqual(TennisLiveFeed.point(7), "7")
+        XCTAssertNil(TennisLiveFeed.point(true))
+        XCTAssertNil(TennisLiveFeed.point("–"))
+        XCTAssertNil(TennisLiveFeed.point("15-30"))
+        XCTAssertNil(TennisLiveFeed.point(NSNull()))
+    }
+
+    func testLatestPublishedLiveSnapshotCanClearOldPoints() throws {
+        let fixture = try finalsFixture()
+        var old = fixture.sportsObject("tennisLive")
+        old["serverTimestamp"] = 1794602511
+        var group = try XCTUnwrap(old.sportsObjects("homepageTournaments").first)
+        var match = try XCTUnwrap(group.sportsObjects("matches").first)
+        match.removeValue(forKey: "points")
+        group["matches"] = [match]
+        let recent: [String: Any] = ["serverTimestamp": 1794602551, "homepageTournaments": [group]]
+        let games = TennisLiveFeed.merge([], live: try snapshots(recent) + snapshots(old))
+        XCTAssertEqual(games.count, 1)
+        XCTAssertNil(games.first?.tennis?.awayPoint)
+        XCTAssertNil(games.first?.tennis?.homePoint)
     }
     func testChallenger125AndWTA125AreIncludedAlongsideSeparateDoubles() throws {
         let games = try games()

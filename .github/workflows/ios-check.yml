@@ -274,7 +274,7 @@ jobs:
               SELECTORS=(-only-testing:StreamifyTests/SportsPlaybackSessionTests -only-testing:StreamifyTests/ProfileStoreTests -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testGameAndStreamSelectorsSwitchIndependentlyAndKeepOnePlayer)
               ;;
             tennis-data-recheck)
-              SELECTORS=(-only-testing:StreamifyTests/TennisCoverageTests -only-testing:StreamifyTests/SportsTennisTests)
+              SELECTORS=(-only-testing:StreamifyTests/TennisCoverageTests -only-testing:StreamifyTests/SportsTennisTests -only-testing:StreamifyUITests/ParityFlowTests/testGameCenterWatchActionUsesACompactButtonWithAnAccessibleTapTarget -only-testing:StreamifyUITests/ParityFlowTests/testFinalGameHasGroupedPlayByPlayAndBothTeamsPlayerTables -only-testing:StreamifyUITests/TennisFlowTests/testTennisShowsAllToursThenFiltersAndOpensSetScoring)
               ;;
             tennis-recheck)
               SELECTORS=(-only-testing:StreamifyTests -only-testing:StreamifyUITests/TennisFlowTests -only-testing:StreamifyUITests/ParityFlowTests/testBaseballDiamondUsesLiveBaseStatesAndSymmetricFieldLayout -only-testing:StreamifyUITests/ParityFlowTests/testBasketballPossessionIconSitsImmediatelyBeforeTheCorrectScoreForBothLeagues)

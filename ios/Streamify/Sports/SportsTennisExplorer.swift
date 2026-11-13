@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 
 /// Published scoreboard state supplements schedule-only Challenger rows. A
 /// scheduled start time is never evidence that a match has actually started.
@@ -15,6 +16,10 @@ enum TennisLiveFeed {
     static func parse(_ html: String) throws -> [SportsGame] {
         let raw = try runtime(html)
         guard raw["homepageTournaments"] is [[String: Any]] else { throw SportsServiceError.invalidResponse }
+        let observedAt = (raw["serverTimestamp"] as? NSNumber).flatMap { value -> Double? in
+            let timestamp = value.doubleValue
+            return CFGetTypeID(value) != CFBooleanGetTypeID() && timestamp.isFinite && timestamp > 0 ? timestamp : nil
+        }
         return raw.sportsObjects("homepageTournaments").flatMap { group -> [SportsGame] in
             let path = group.sportsText("url"), tour = group.sportsText("tour")
             guard ["atp", "wta"].contains(tour), group["junior"] as? Bool != true,
@@ -25,25 +30,32 @@ enum TennisLiveFeed {
                 let players = match.sportsObjects("players")
                 let state = ["live": "in", "finished": "post", "scheduled": "pre", "upcoming": "pre"][match.sportsText("state")]
                 guard players.count == 2, let state,
-                      let start = match["startTimestamp"] as? NSNumber, start.doubleValue > 0,
+                      let start = match["startTimestamp"] as? NSNumber, CFGetTypeID(start) != CFBooleanGetTypeID(),
+                      start.doubleValue.isFinite, start.doubleValue > 0,
                       let route = historyURL(match.sportsText("url")),
                       let a = player(players[0], tour: tour), let b = player(players[1], tour: tour), a.id != b.id else { return nil }
                 let tournament = group.sportsText("tournamentId")
                 guard tournament.range(of: "^[0-9]{1,18}$", options: .regularExpression) != nil else { return nil }
+                let playerIDs = players.map { $0.sportsText("id") }
+                let eventID = "tennislive-\(tour)-\(tournament)-\(playerIDs[0])-\(playerIDs[1])"
+                let name = group.sportsText("name")
+                let displayName = name.hasPrefix("WTA Finals") ? name : name.replacingOccurrences(of: "^(ATP|WTA) ", with: "", options: .regularExpression)
                 var metadata = SportsTennisMatch(tour: tour == "wta" ? .wta : path.contains("challenger") || group["rank"] as? Int == 1 ? .challenger : .atp,
-                    tournament: group.sportsText("name").replacingOccurrences(of: "^(ATP|WTA) ", with: "", options: .regularExpression),
-                    tournamentID: "tl-\(tour)-\(tournament)", discipline: match["doubles"] as? Bool == true ? "Doubles" : "Singles",
-                    awaySets: sets(players[0]), homeSets: sets(players[1]), source: "tennislive", historyURL: route)
-                let point = match["points"] as? [String] ?? []
+                    tournament: displayName, tournamentID: "tl-\(tour)-\(tournament)",
+                    discipline: match["mixed"] as? Bool == true ? "Mixed Doubles" : match["doubles"] as? Bool == true ? "Doubles" : "Singles",
+                    round: rounds[group.sportsText("stageCode")] ?? "",
+                    awaySets: sets(players[0]), homeSets: sets(players[1]), source: "tennislive", historyURL: route,
+                    tennisLiveEventID: eventID, tennisLiveDraw: draw(match, group: group, playerIDs: playerIDs), tennisLiveObservedAt: observedAt)
+                let points = match["points"] as? [Any] ?? []
                 if state == "in" {
-                    metadata.awayPoint = point.indices.contains(0) ? point[0] : nil
-                    metadata.homePoint = point.indices.contains(1) ? point[1] : nil
+                    metadata.awayPoint = points.indices.contains(0) ? point(points[0]) : nil
+                    metadata.homePoint = points.indices.contains(1) ? point(points[1]) : nil
                     if let index = match["server"] as? Int, [0, 1].contains(index) { metadata.servingID = index == 0 ? a.id : b.id }
                 }
                 if state == "post", let winner = match["winnerId"] as? NSNumber {
                     metadata.winnerID = players[0].sportsText("id") == winner.stringValue ? a.id : players[1].sportsText("id") == winner.stringValue ? b.id : nil
                 }
-                return SportsGame(eventID: "tennislive-\(tour)-\(tournament)-\(players[0].sportsText("id"))-\(players[1].sportsText("id"))",
+                return SportsGame(eventID: eventID,
                     league: .tennis, date: Date(timeIntervalSince1970: start.doubleValue), state: state,
                     status: state == "post" ? "Final" : state == "in" ? match.sportsText("setLabel") : "Scheduled",
                     home: b, away: a, venue: "", broadcasts: "", link: route, tennis: metadata)
@@ -51,40 +63,144 @@ enum TennisLiveFeed {
         }
     }
 
+    static func point(_ raw: Any?) -> String? {
+        let text: String
+        if let value = raw as? String { text = value.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() }
+        else if let value = raw as? NSNumber, CFGetTypeID(value) != CFBooleanGetTypeID() { text = value.stringValue }
+        else { return nil }
+        if ["A", "AD", "ADV", "ADVANTAGE"].contains(text) { return "AD" }
+        guard text.range(of: "^(0|[1-9][0-9]{0,2})$", options: .regularExpression) != nil else { return nil }
+        return text
+    }
+
+    private static let rounds = ["round_robin": "Group Stage", "quarterfinal": "Quarterfinal", "semifinal": "Semifinal", "final": "Final",
+        "round_1": "Round 1", "round_2": "Round 2", "round_3": "Round 3", "round_4": "Round 4"]
+
+    private static func draw(_ match: [String: Any], group: [String: Any], playerIDs: [String]) -> String? {
+        let round = group.sportsText("roundId"), position = match.sportsText("drawPosition")
+        guard [round, position].allSatisfy({ $0.range(of: "^[0-9]{1,8}$", options: .regularExpression) != nil }),
+              let a = UInt64(playerIDs[0]), let b = UInt64(playerIDs[1]),
+              match.sportsText("favoriteKey") == "m1:\(group.sportsText("tour")):\(group.sportsText("tournamentId")):\(round):\(position):\(min(a, b)):\(max(a, b))" else { return nil }
+        return "\(round)-\(position)"
+    }
+
     static func merge(_ scheduled: [SportsGame], live: [SportsGame]) -> [SportsGame] {
         var result = SportsScheduleDayPolicy.canonicalGames(scheduled)
-        for snapshot in SportsScheduleDayPolicy.canonicalGames(live) {
-            let candidates = result.indices.filter { sameMatch(result[$0], snapshot) }
-            guard candidates.count == 1, let index = candidates.first else {
-                if candidates.isEmpty { result.append(snapshot) }; continue
+        let snapshots = canonicalSnapshots(live)
+        let matches = snapshots.map { snapshot in result.indices.filter { sameMatch(result[$0], snapshot) } }
+        var claims: [Int: Int] = [:]
+        for candidates in matches { for index in candidates { claims[index, default: 0] += 1 } }
+        for (offset, snapshot) in snapshots.enumerated() {
+            guard matches[offset].count == 1, let index = matches[offset].first, claims[index] == 1 else {
+                result.append(snapshot); continue
             }
             let original = result[index]
-            guard var metadata = original.tennis, let fresh = snapshot.tennis else { continue }
-            let aligned = samePlayer(original.away.name, snapshot.away.name)
-            let away = aligned ? snapshot.away : snapshot.home, home = aligned ? snapshot.home : snapshot.away
-            metadata.awaySets = aligned ? fresh.awaySets : fresh.homeSets
-            metadata.homeSets = aligned ? fresh.homeSets : fresh.awaySets
-            metadata.awayPoint = aligned ? fresh.awayPoint : fresh.homePoint
-            metadata.homePoint = aligned ? fresh.homePoint : fresh.awayPoint
-            metadata.servingID = fresh.servingID == away.id ? original.away.id : fresh.servingID == home.id ? original.home.id : nil
-            metadata.winnerID = fresh.winnerID == away.id ? original.away.id : fresh.winnerID == home.id ? original.home.id : nil
-            metadata.historyURL = fresh.historyURL
-            var a = original.away, b = original.home
-            a.score = away.score; b.score = home.score
-            // Preserve the ESPN/Challenger identity used by tracking and sources.
-            result[index] = SportsGame(eventID: original.eventID, league: .tennis, date: original.date ?? snapshot.date,
-                state: snapshot.state, status: snapshot.status, home: b, away: a, venue: original.venue,
-                broadcasts: original.broadcasts, link: original.link, tennis: metadata)
+            result[index] = overlay(snapshot, onto: original)
         }
         return SportsScheduleDayPolicy.canonicalGames(result)
     }
 
+    private static func canonicalSnapshots(_ games: [SportsGame]) -> [SportsGame] {
+        var snapshots: [String: SportsGame] = [:]
+        for game in games {
+            let key: String
+            if let metadata = game.tennis, let draw = metadata.tennisLiveDraw {
+                key = ([metadata.tournamentID, draw] + [game.away.id, game.home.id].sorted()).joined(separator: ":")
+            } else { key = game.eventID }
+            if let old = snapshots[key], shouldKeep(old, over: game) { continue }
+            snapshots[key] = game
+        }
+        return Dictionary(grouping: snapshots.values, by: \.eventID).values.flatMap { occurrences in
+            occurrences.sorted { a, b in
+                if a.date != b.date { return (a.date ?? .distantFuture) < (b.date ?? .distantFuture) }
+                return (a.tennis?.tennisLiveDraw ?? "") < (b.tennis?.tennisLiveDraw ?? "")
+            }.enumerated().map { index, game in
+                guard index > 0, let draw = game.tennis?.tennisLiveDraw else { return game }
+                return SportsGame(eventID: "\(game.eventID)-\(draw)", league: game.league, date: game.date,
+                    state: game.state, status: game.status, home: game.home, away: game.away, venue: game.venue,
+                    broadcasts: game.broadcasts, link: game.link, tennis: game.tennis)
+            }
+        }
+    }
+
+    static func findGame(eventID: String, in games: [SportsGame]) -> SportsGame? {
+        if let exact = games.first(where: { $0.eventID == eventID }) { return exact }
+        let candidates = games.filter { game in
+            guard let tennis = game.tennis, let base = tennis.tennisLiveEventID else { return false }
+            let reverse = base.split(separator: "-")
+            guard reverse.count == 5 else { return false }
+            let reversed = "\(reverse[0])-\(reverse[1])-\(reverse[2])-\(reverse[4])-\(reverse[3])"
+            if eventID == base || eventID == reversed { return true }
+            return tennis.tennisLiveDraw.map { eventID == "\(base)-\($0)" || eventID == "\(reversed)-\($0)" } == true
+        }
+        return candidates.count == 1 ? candidates.first : nil
+    }
+
+    private static func phase(_ game: SportsGame) -> Int { game.isFinal ? 2 : game.isLive ? 1 : 0 }
+    private static func pointCount(_ game: SportsGame) -> Int { [game.tennis?.awayPoint, game.tennis?.homePoint].compactMap { $0 }.count }
+
+    private static func shouldKeep(_ old: SportsGame, over new: SportsGame) -> Bool {
+        if phase(old) != phase(new) { return phase(old) > phase(new) }
+        if let oldTime = old.tennis?.tennisLiveObservedAt, let newTime = new.tennis?.tennisLiveObservedAt, oldTime != newTime {
+            return oldTime > newTime
+        }
+        return pointCount(old) > pointCount(new)
+    }
+
+    private static func overlay(_ snapshot: SportsGame, onto original: SportsGame) -> SportsGame {
+        guard var metadata = original.tennis, let fresh = snapshot.tennis else { return original }
+        metadata.historyURL = fresh.historyURL ?? metadata.historyURL
+        metadata.tennisLiveEventID = fresh.tennisLiveEventID
+        metadata.tennisLiveDraw = fresh.tennisLiveDraw
+        if metadata.round.isEmpty { metadata.round = fresh.round }
+        let takeScore = phase(snapshot) >= phase(original)
+        let preferred = takeScore ? snapshot : original
+        var a = original.away, b = original.home
+        if takeScore {
+            let aligned = sameSide(original.away.name, snapshot.away.name, doubles: metadata.isDoubles)
+            let away = aligned ? snapshot.away : snapshot.home, home = aligned ? snapshot.home : snapshot.away
+            let awaySets = aligned ? fresh.awaySets : fresh.homeSets, homeSets = aligned ? fresh.homeSets : fresh.awaySets
+            let sameScore = original.isLive && awaySets == metadata.awaySets && homeSets == metadata.homeSets
+            let awayPoint = aligned ? fresh.awayPoint : fresh.homePoint, homePoint = aligned ? fresh.homePoint : fresh.awayPoint
+            if !awaySets.isEmpty { metadata.awaySets = awaySets }
+            if !homeSets.isEmpty { metadata.homeSets = homeSets }
+            metadata.awayPoint = snapshot.isLive ? awayPoint ?? (sameScore ? metadata.awayPoint : nil) : nil
+            metadata.homePoint = snapshot.isLive ? homePoint ?? (sameScore ? metadata.homePoint : nil) : nil
+            if let server = fresh.servingID { metadata.servingID = server == away.id ? a.id : server == home.id ? b.id : nil }
+            else if !snapshot.isLive || !sameScore { metadata.servingID = nil }
+            if let winner = fresh.winnerID { metadata.winnerID = winner == away.id ? a.id : winner == home.id ? b.id : nil }
+            if !away.score.isEmpty { a.score = away.score }
+            if !home.score.isEmpty { b.score = home.score }
+        }
+        return SportsGame(eventID: original.eventID, league: .tennis, date: original.date ?? snapshot.date,
+            state: preferred.state, status: preferred.status, home: b, away: a, venue: original.venue,
+            broadcasts: original.broadcasts, link: original.link, tennis: metadata)
+    }
+
     static func sameMatch(_ a: SportsGame, _ b: SportsGame) -> Bool {
-        guard let at = a.tennis, let bt = b.tennis, at.isDoubles == bt.isDoubles,
-              let ad = a.date, let bd = b.date, abs(ad.timeIntervalSince(bd)) < 18 * 3600,
-              tournamentMatches(a, b) else { return false }
-        return (samePlayer(a.away.name, b.away.name) && samePlayer(a.home.name, b.home.name)) ||
-            (samePlayer(a.away.name, b.home.name) && samePlayer(a.home.name, b.away.name))
+        guard let at = a.tennis, let bt = b.tennis, at.tour == bt.tour, at.isDoubles == bt.isDoubles,
+              at.discipline.lowercased().contains("mixed") == bt.discipline.lowercased().contains("mixed"),
+              let ad = a.date, let bd = b.date else { return false }
+        let ar = roundKey(at.round), br = roundKey(bt.round)
+        if !ar.isEmpty, !br.isEmpty, ar != br { return false }
+        let difference = abs(ad.timeIntervalSince(bd))
+        guard difference <= (at.timeConfirmed ? 30 * 60 : 2 * 3600) else { return false }
+        func matches(_ first: SportsTeam, _ second: SportsTeam) -> Bool { sameSide(first.name, second.name, doubles: at.isDoubles) }
+        guard (matches(a.away, b.away) && matches(a.home, b.home)) || (matches(a.away, b.home) && matches(a.home, b.away)) else { return false }
+        return tournamentMatches(a, b) || (difference <= 30 * 60 && (finalsAlias(a, b) || (!ar.isEmpty && ar == br && cityAlias(a, b))))
+    }
+
+    private static func sameSide(_ a: String, _ b: String, doubles: Bool) -> Bool {
+        if !doubles { return samePlayer(a, b) }
+        let x = a.split(whereSeparator: { $0 == "/" || $0 == "&" }).map(String.init)
+        let y = b.split(whereSeparator: { $0 == "/" || $0 == "&" }).map(String.init)
+        guard x.count == 2, y.count == 2 else { return false }
+        func matches(_ first: String, _ second: String) -> Bool {
+            if samePlayer(first, second) { return true }
+            let a = words(first), b = words(second)
+            return a.count == 2 && b.count == 2 && (a + b).allSatisfy { $0.count > 1 } && a == Array(b.reversed())
+        }
+        return (matches(x[0], y[0]) && matches(x[1], y[1])) || (matches(x[0], y[1]) && matches(x[1], y[0]))
     }
 
     static func samePlayer(_ a: String, _ b: String) -> Bool {
@@ -160,13 +276,55 @@ enum TennisLiveFeed {
         return words(value).filter { !["atp", "wta", "challenger", "open", "tennis", "125"].contains($0) &&
             !((1900...2100).contains(Int($0) ?? 0)) && seen.insert($0).inserted }.joined()
     }
+
+    private static func roundKey(_ value: String) -> String {
+        let key = words(value).joined()
+        switch key {
+        case "groupstage", "roundrobin": return "group"
+        case "quarterfinals", "roundof8": return "quarterfinal"
+        case "semifinals", "roundof4": return "semifinal"
+        case "1stround", "firstround": return "round1"
+        case "2ndround", "secondround": return "round2"
+        case "3rdround", "thirdround": return "round3"
+        case "4thround", "fourthround": return "round4"
+        default: return key
+        }
+    }
+
+    private static func tennisLiveTournament(_ game: SportsGame) -> String? {
+        guard let route = game.tennis?.historyURL.flatMap(historyURL) else { return nil }
+        return URL(string: route)?.lastPathComponent
+    }
+
+    private static func sameEdition(_ official: SportsGame, liveSlug: String) -> Bool {
+        let year = liveSlug.suffix(4)
+        guard year.count == 4, (1900...2100).contains(Int(year) ?? 0), let tournament = official.tennis?.tournamentID else { return false }
+        return tournament.hasSuffix("-\(year)")
+    }
+
+    private static func finalsAlias(_ official: SportsGame, _ live: SportsGame) -> Bool {
+        guard official.tennis?.tour == .wta, live.tennis?.tour == .wta,
+              let title = official.tennis?.tournament, let slug = tennisLiveTournament(live),
+              slug.hasPrefix("wta-finals-"), sameEdition(official, liveSlug: slug) else { return false }
+        let tokens = words(title)
+        return zip(tokens, tokens.dropFirst()).contains { $0.0 == "wta" && $0.1 == "finals" }
+    }
+
+    private static func cityAlias(_ official: SportsGame, _ live: SportsGame) -> Bool {
+        guard official.tennis?.source == "espn", official.venue.contains(","),
+              let city = official.venue.split(separator: ",").first,
+              let slug = tennisLiveTournament(live), sameEdition(official, liveSlug: slug) else { return false }
+        let citySlug = words(String(city)).joined(separator: "-")
+        return citySlug.count >= 4 && slug.dropLast(5).hasSuffix("-\(citySlug)")
+    }
+
     private static func tournamentMatches(_ a: SportsGame, _ b: SportsGame) -> Bool {
         func aliases(_ game: SportsGame) -> [String] {
             var names = [game.tennis?.tournament ?? ""]
             // The published route retains the official event name even when
             // the live header abbreviates it to its host city (e.g. Vienna).
-            if let route = game.tennis?.historyURL.flatMap(historyURL), let url = URL(string: route) {
-                names.append(url.lastPathComponent.replacingOccurrences(of: "-", with: " "))
+            if let slug = tennisLiveTournament(game) {
+                names.append(slug.replacingOccurrences(of: "-", with: " "))
             }
             return names.map(tournament).filter { !$0.isEmpty }
         }

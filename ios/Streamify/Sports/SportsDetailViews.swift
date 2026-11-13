@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct SportsGameView: View {
+    private enum Presentation { case watch, field }
     let game: SportsGame
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var queue: SportsWatchQueue
@@ -10,6 +11,7 @@ struct SportsGameView: View {
     @State private var center: SportsGameCenter?
     @State private var error: String?
     @State private var tab = "Overview"
+    @State private var presentation: Presentation?
     @State private var revision = 0
     @State private var streams: [SportsStream] = []
     @State private var streamsLoading = true
@@ -19,11 +21,22 @@ struct SportsGameView: View {
     @State private var showChat = false
     private var current: SportsGame { center?.game ?? game }
     private var tabs: [String] { current.league == .tennis ? ["Overview", "Sets", "Chat"] : ["Overview", "Scoring", "Team stats"] + (current.state == "pre" ? [] : ["Players"]) + [current.isFinal ? "Play-by-play" : "Latest play", "Chat"] }
+    private var hasStreams: Bool { current.canWatch && !streams.isEmpty }
+    private var showingWatch: Bool { hasStreams && presentation != .field }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 scoreboard
+                HStack(spacing: 8) {
+                    Pill(title: "Watch", selected: showingWatch) { presentation = .watch; tab = "Overview" }
+                        .disabled(!hasStreams).opacity(hasStreams ? 1 : 0.55)
+                        .accessibilityIdentifier("sports-center-mode-watch")
+                    Pill(title: "Field", selected: !showingWatch) { presentation = .field; tab = "Overview" }
+                        .accessibilityIdentifier("sports-center-mode-field")
+                    Spacer(minLength: 0)
+                    if !showingWatch && !current.isFinal { SportsTrackGameButton(game: current) }
+                }
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) { ForEach(tabs, id: \.self) { value in Pill(title: value, selected: tab == value) {
                         if value == "Chat" { showChat = true } else { tab = value }
@@ -32,7 +45,10 @@ struct SportsGameView: View {
                 if let error {
                     StateMessage(symbol: "exclamationmark.circle", title: "Detailed feed unavailable", message: error, actionTitle: "Retry", action: { revision += 1 })
                 }
-                if tab == "Overview" { overview }
+                if tab == "Overview" {
+                    if showingWatch { watchSources } else { field }
+                    overview
+                }
                 if tab == "Scoring" || tab == "Sets" {
                     if let scoring = center?.scoring, !scoring.isEmpty { SportsScoringTable(game: current, periods: scoring) }
                     else { StateMessage(symbol: "chart.bar.xaxis", title: "Awaiting scoring", message: "A breakdown is not available in the current feed.") }
@@ -56,7 +72,11 @@ struct SportsGameView: View {
         .task(id: "\(game.id)-\(revision)-\(scenePhase == .active)") {
             guard scenePhase == .active else { return }
             repeat {
-                do { center = try await SportsService().center(game); error = nil }
+                do {
+                    let loaded = try await SportsService().center(game)
+                    try Task.checkCancellation()
+                    center = loaded; error = nil
+                }
                 catch is CancellationError { return }
                 catch { if !Task.isCancelled { self.error = error.localizedDescription } }
                 do { try await Task.sleep(for: .seconds(60)) } catch { return }
@@ -64,6 +84,7 @@ struct SportsGameView: View {
         }
         .task(id: "\(game.id)-\(revision)-\(current.canWatch)-\(scenePhase == .active)") {
             guard scenePhase == .active else { return }
+            guard current.canWatch else { streams = []; streamsLoading = false; streamsError = nil; return }
             repeat {
                 await loadStreams()
                 guard current.canWatch, streams.isEmpty else { return }
@@ -96,6 +117,7 @@ struct SportsGameView: View {
             if let tennis = current.tennis {
                 Text([tennis.tour.rawValue, tennis.tournament, tennis.discipline, tennis.round].filter { !$0.isEmpty }.joined(separator: " · "))
                     .font(.caption).foregroundStyle(AppTheme.muted)
+                if current.isLive { SportsTennisPointsHeading(trailing: 69) }
                 ForEach([current.away, current.home]) { player in
                     HStack { SportsTennisScoreRow(game: current, player: player); followButton(player) }
                 }
@@ -128,7 +150,7 @@ struct SportsGameView: View {
                     if team.id == current.away.id { Rectangle().fill(AppTheme.border.opacity(0.6)).frame(height: 0.5).accessibilityHidden(true) }
                 }
             } }
-            if current.isLive { SportsLiveSituationView(game: current) }
+            if current.isLive, showingWatch { SportsLiveSituationView(game: current) }
             Text([current.tennis?.timeConfirmed == false ? (current.date?.formatted(date: .abbreviated, time: .omitted) ?? "") + " · Time TBA" : current.date?.formatted(date: .abbreviated, time: .shortened) ?? "Time to be announced", current.venue]
                 .filter { !$0.isEmpty }.joined(separator: " · "))
                 .font(.caption2).foregroundStyle(AppTheme.muted).lineLimit(2)
@@ -140,10 +162,28 @@ struct SportsGameView: View {
 
     private var overview: some View {
         VStack(alignment: .leading, spacing: 16) {
+            if current.league == .tennis, current.state != "pre" { TennisHistoryView(game: current, sets: center?.tennisHistory ?? []) }
+            if let scoring = center?.scoring, !scoring.isEmpty { SportsScoringTable(game: current, periods: scoring) }
+        }
+    }
+
+    private var field: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SportsGameField(game: current)
+            if current.canWatch {
+                if let streamsError { SportsSourcesUnavailableView(message: streamsError) { revision += 1 } }
+                else if streamsLoading { Label("Finding streams…", systemImage: "tv").font(.caption).foregroundStyle(AppTheme.muted) }
+                else if !hasStreams { Text("No matching stream is available.").font(.caption).foregroundStyle(AppTheme.muted) }
+            }
+        }
+    }
+
+    private var watchSources: some View {
+        VStack(alignment: .leading, spacing: 16) {
             SportsPlaybackOriginCard { origin in
                 HStack(spacing: 10) {
                     if !current.isFinal { SportsTrackGameButton(game: current) }
-                    if current.canWatch, let first = playback.preferredSource(in: streams) {
+                    if let first = playback.preferredSource(in: streams) {
                         Button { play(first, origin: origin) } label: {
                             HStack(spacing: 7) {
                                 Text("Watch")
@@ -154,11 +194,6 @@ struct SportsGameView: View {
                                 .frame(minHeight: 44).contentShape(Rectangle())
                         }.buttonStyle(HapticPlainButtonStyle())
                             .accessibilityLabel("Watch game").accessibilityIdentifier("sports-center-watch")
-                    } else if current.canWatch && streamsLoading {
-                        HStack { ProgressView(); Text("Finding streams…").font(.subheadline) }.frame(maxWidth: .infinity, minHeight: 44)
-                    } else {
-                        Label(current.broadcasts.isEmpty ? current.league.title : current.broadcasts, systemImage: "tv")
-                            .font(.caption).foregroundStyle(AppTheme.muted).frame(maxWidth: .infinity, alignment: .leading)
                     }
                     Button {
                         guard let first = streams.first else { return }
@@ -173,16 +208,8 @@ struct SportsGameView: View {
                         .accessibilityLabel("Add to multi-watch")
                 }
             }
-            if current.league == .tennis, current.state != "pre" { TennisHistoryView(game: current, sets: center?.tennisHistory ?? []) }
-            if let scoring = center?.scoring, !scoring.isEmpty { SportsScoringTable(game: current, periods: scoring) }
             VStack(alignment: .leading, spacing: 12) {
-                HStack { Text("Watch sources").font(.title3.bold()); Spacer(); if streamsLoading { ProgressView() } }
-                if let streamsError {
-                    SportsSourcesUnavailableView(message: streamsError) { revision += 1 }
-                } else if !streamsLoading && streams.isEmpty {
-                    Text(current.canWatch ? "No matching stream is available. Sources depend on the provider and may appear closer to game time." : "Sources are available for live games and games starting within an hour.")
-                        .font(.subheadline).foregroundStyle(AppTheme.muted)
-                }
+                Text("Watch sources").font(.title3.bold())
                 ForEach(streams) { stream in
                     SportsPlaybackOriginCard { origin in
                         HStack(spacing: 10) {
@@ -221,10 +248,14 @@ struct SportsGameView: View {
 
     private func loadStreams() async {
         streamsLoading = true
-        defer { streamsLoading = false }
-        do { streams = try await SportsService().streams(current); streamsError = nil }
+        defer { if !Task.isCancelled { streamsLoading = false } }
+        do {
+            let loaded = try await SportsService().streams(current)
+            try Task.checkCancellation()
+            streams = loaded; streamsError = nil
+        }
         catch is CancellationError { }
-        catch { if !Task.isCancelled { streamsError = error.localizedDescription } }
+        catch { if !Task.isCancelled { streams = []; streamsError = error.localizedDescription } }
     }
 }
 

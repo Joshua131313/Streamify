@@ -1,0 +1,145 @@
+{
+  "espn": {
+    "events": [
+      {
+        "id": "382-2026",
+        "name": "FAGE WTA Finals Indian Wells",
+        "groupings": [
+          {
+            "grouping": {
+              "id": "2",
+              "slug": "womens-singles",
+              "displayName": "Women's Singles"
+            },
+            "competitions": [
+              {
+                "id": "187384",
+                "date": "2026-11-13T20:10Z",
+                "startDate": "2026-11-13T20:10Z",
+                "timeValid": true,
+                "status": {
+                  "period": 1,
+                  "type": {
+                    "id": "2",
+                    "name": "STATUS_IN_PROGRESS",
+                    "state": "in",
+                    "completed": false,
+                    "description": "In Progress",
+                    "detail": "1st Set",
+                    "shortDetail": "1st"
+                  }
+                },
+                "venue": {
+                  "fullName": "Indian Wells, USA",
+                  "court": "Indian Wells Tennis Garden"
+                },
+                "round": {
+                  "id": "15",
+                  "displayName": "Group Stage"
+                },
+                "competitors": [
+                  {
+                    "id": "8017",
+                    "homeAway": "away",
+                    "linescores": [
+                      {
+                        "value": 2.0
+                      }
+                    ],
+                    "athlete": {
+                      "displayName": "Diana Shnaider",
+                      "shortName": "D. Shnaider",
+                      "flag": {
+                        "href": "https://a.espncdn.com/i/teamlogos/countries/500/rus.png",
+                        "alt": "Russia",
+                        "rel": [
+                          "country-flag"
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "id": "9820",
+                    "homeAway": "home",
+                    "linescores": [
+                      {
+                        "value": 5.0
+                      }
+                    ],
+                    "athlete": {
+                      "displayName": "Mirra Andreeva",
+                      "shortName": "M. Andreeva",
+                      "flag": {
+                        "href": "https://a.espncdn.com/i/teamlogos/countries/500/rus.png",
+                        "alt": "Russia",
+                        "rel": [
+                          "country-flag"
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "tennisLive": {
+    "homepageTournaments": [
+      {
+        "tour": "wta",
+        "tournamentId": 16758,
+        "name": "WTA Finals - Riyadh",
+        "url": "/wta-women/wta-finals-riyadh-2026/",
+        "stageCode": "round_robin",
+        "roundId": 8,
+        "matches": [
+          {
+            "url": "/wta/match/mirra-andreeva-VS-diana-shnaider/wta-finals-riyadh-2026/",
+            "state": "live",
+            "setLabel": "1. set",
+            "doubles": false,
+            "points": [
+              "0",
+              "0"
+            ],
+            "server": 0,
+            "players": [
+              {
+                "id": 77934,
+                "name": "Mirra Andreeva",
+                "url": "/wta/mirra-andreeva/",
+                "flag": "russia",
+                "seed": "3",
+                "members": [],
+                "setsWon": 0,
+                "sets": [
+                  5
+                ],
+                "ranking": 3
+              },
+              {
+                "id": 65911,
+                "name": "Diana Shnaider",
+                "url": "/wta/diana-shnaider/",
+                "flag": "russia",
+                "seed": "",
+                "members": [],
+                "setsWon": 0,
+                "sets": [
+                  2
+                ],
+                "ranking": 11
+              }
+            ],
+            "startTimestamp": 1794600900,
+            "drawPosition": 11,
+            "favoriteKey": "m1:wta:16758:8:11:65911:77934"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -120,10 +120,14 @@ final class SportsTennisTests: XCTestCase {
         var match = grouping.sportsObjects("competitions")[0]
         var players = match.sportsObjects("competitors")
         players[0]["possession"] = false; players[1]["possession"] = true
+        players[0]["point"] = 0
+        players[1]["statistics"] = [["name": "currentPoint", "displayValue": "15"]]
         match["competitors"] = players; grouping["competitions"] = [match]
         tournament["groupings"] = [grouping]; raw["events"] = [tournament]
         let live = try XCTUnwrap(SportsTennisFeed.parse(raw, tour: .atp).first)
         XCTAssertEqual(live.tennis?.servingID, live.home.id)
+        XCTAssertEqual(live.tennis?.awayPoint, "0")
+        XCTAssertEqual(live.tennis?.homePoint, "15")
         XCTAssertFalse(live.tennis!.isDoubles)
         players[0]["possession"] = true; match["competitors"] = players
         grouping["grouping"] = ["displayName": "Men's Doubles"]
@@ -217,7 +221,7 @@ final class SportsTennisTests: XCTestCase {
         let atp = SportsTennisFeed.parse(scoreboard(), tour: .atp), wta = SportsTennisFeed.parse(scoreboard(), tour: .wta)
         let groups = SportsTennisGroup.groups(try SportsTennisExplorer.parse(challengerHTML()) + wta + atp)
         XCTAssertEqual(Array(groups.prefix(3).map(\.tour)), [.atp, .wta, .challenger])
-        XCTAssertEqual(SportsLeague.allCases, [.nhl, .nba, .wnba, .nfl, .ncaaf, .tennis, .mlb])
+        XCTAssertEqual(SportsLeague.allCases, [.nhl, .nba, .wnba, .nfl, .ncaaf, .ncaam, .ncaaw, .tennis, .mlb])
         XCTAssertTrue(SportsService.validTennisEventID("challenger-3361803"))
         XCTAssertFalse(SportsService.validTennisEventID("185682"))
         XCTAssertFalse(SportsService.validTennisEventID("espn-atp-../185682"))

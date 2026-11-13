@@ -42,6 +42,11 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertLessThan(watch.frame.width, 150)
         XCTAssertEqual(watch.frame.height, 44, accuracy: 2)
         capture("Game center with a compact Watch action")
+        app.buttons["sports-center-mode-field"].tap()
+        XCTAssertTrue(element("sports-center-field-nba").waitForExistence(timeout: 5))
+        XCTAssertFalse(watch.exists)
+        app.buttons["sports-center-mode-watch"].tap()
+        XCTAssertTrue(watch.waitForExistence(timeout: 5))
     }
 
     func testFinalGameHasGroupedPlayByPlayAndBothTeamsPlayerTables() {
@@ -49,6 +54,8 @@ final class ParityFlowTests: XCTestCase {
         app.buttons["sports-filter-Final"].tap()
         let finalGame = app.buttons["sports-game-nba:nba-final"]
         XCTAssertTrue(finalGame.waitForExistence(timeout: 8)); finalGame.tap()
+        XCTAssertTrue(element("sports-center-field-nba").waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["sports-center-mode-watch"].isEnabled)
         XCTAssertFalse(app.staticTexts["Teams"].exists)
         selectGameCenterTab("Players")
         XCTAssertTrue(element("sports-player-row-p100").waitForExistence(timeout: 8))

@@ -29,6 +29,7 @@ enum SportsTennisFeed {
                         discipline: discipline.isEmpty ? "Singles" : discipline,
                         round: competition.sportsObject("round").sportsText("displayName"),
                         awaySets: sets(awayRaw), homeSets: sets(homeRaw),
+                        awayPoint: state == "in" ? point(awayRaw) : nil, homePoint: state == "in" ? point(homeRaw) : nil,
                         servingID: state == "in" && serving.count == 1 ? serving.first?.1.id : nil,
                         winnerID: winners.count == 1 ? winners.first?.1.id : nil, competitionID: competitionID,
                         timeConfirmed: explicitBool(competition["timeValid"]) == true)
@@ -78,6 +79,11 @@ enum SportsTennisFeed {
             return String(value)
         }
     }
+    private static func point(_ raw: [String: Any]) -> String? {
+        if let point = TennisLiveFeed.point(raw["point"]) { return point }
+        let current = raw.sportsObjects("statistics").first { $0.sportsText("name") == "currentPoint" }
+        return TennisLiveFeed.point(current?["displayValue"])
+    }
     private static func number(_ value: Any?) -> Int? {
         guard let value = value as? NSNumber, CFGetTypeID(value) != CFBooleanGetTypeID(),
               value.doubleValue.isFinite, value.doubleValue.rounded() == value.doubleValue,
@@ -92,7 +98,7 @@ enum SportsTennisFeed {
 
 extension SportsService {
     static func validTennisEventID(_ value: String) -> Bool {
-        value.range(of: "^(?:espn-(atp|wta)-[0-9]{1,32}|challenger-[0-9]{1,18}|tennislive-(atp|wta)-[0-9]{1,18}-[0-9]{1,18}-[0-9]{1,18})$", options: .regularExpression) != nil
+        value.range(of: "^(?:espn-(atp|wta)-[0-9]{1,32}|challenger-[0-9]{1,18}|tennislive-(atp|wta)-[0-9]{1,18}-[0-9]{1,18}-[0-9]{1,18}(?:-[0-9]{1,8}-[0-9]{1,8})?)$", options: .regularExpression) != nil
     }
     func tennisSchedule(day: Date, now reference: Date) async throws -> SportsSchedule {
         let raw = try await tennisEvents(around: day)
@@ -157,7 +163,7 @@ extension SportsService {
     func tennisGame(eventID: String, around day: Date? = nil) async throws -> SportsGame {
         guard Self.validTennisEventID(eventID) else { throw SportsServiceError.invalidURL }
         let schedule = try await tennisEvents(around: day ?? now())
-        guard let game = schedule.games.first(where: { $0.eventID == eventID }) else { throw SportsServiceError.noSchedule }
+        guard let game = TennisLiveFeed.findGame(eventID: eventID, in: schedule.games) else { throw SportsServiceError.noSchedule }
         return game
     }
 

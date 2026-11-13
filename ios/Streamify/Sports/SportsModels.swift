@@ -59,8 +59,12 @@ struct SportsTennisMatch: Hashable, Sendable {
     var competitionID = ""
     var timeConfirmed = true
     var historyURL: String? = nil
+    var tennisLiveEventID: String? = nil
+    var tennisLiveDraw: String? = nil
+    var tennisLiveObservedAt: Double? = nil
     var groupID: String { "\(tour.rawValue):\(tournamentID):\(discipline)" }
     var isDoubles: Bool { discipline.localizedCaseInsensitiveContains("doubles") }
+    func point(for playerID: String, awayID: String) -> String? { playerID == awayID ? awayPoint : homePoint }
 }
 
 struct SportsTennisPlayerIdentity: Identifiable, Hashable, Sendable {

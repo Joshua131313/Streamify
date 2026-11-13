@@ -76,7 +76,7 @@ struct SportsTennisScoreRow: View {
     var body: some View {
         let metadata = game.tennis
         let sets = player.id == game.away.id ? metadata?.awaySets ?? [] : metadata?.homeSets ?? []
-        let point = player.id == game.away.id ? metadata?.awayPoint : metadata?.homePoint
+        let point = metadata?.point(for: player.id, awayID: game.away.id)
         HStack(spacing: 9) {
             HStack(spacing: -4) {
                 ForEach(Array(player.tennisPortraitSubjects.prefix(2).enumerated()), id: \.element.id) { index, person in
@@ -98,16 +98,27 @@ struct SportsTennisScoreRow: View {
                 ForEach(Array(sets.enumerated()), id: \.offset) { _, value in
                     Text(value).font(.subheadline.monospacedDigit().weight(.semibold)).lineLimit(1).minimumScaleFactor(0.65).frame(width: value.count > 2 ? 36 : 23)
                 }
-                if let point, !point.isEmpty, game.isLive {
-                    Text(point).font(.subheadline.monospacedDigit().bold()).frame(width: 30, height: 28)
-                        .background(AppTheme.foreground.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
-                }
                 if sets.isEmpty && game.state != "pre" { Text("—").foregroundStyle(AppTheme.muted).frame(width: 23) }
+                if game.isLive {
+                    Text(point ?? "—").font(.subheadline.monospacedDigit().bold()).lineLimit(1).minimumScaleFactor(0.65)
+                        .foregroundStyle(point == nil ? AppTheme.muted : AppTheme.foreground).frame(width: 34, height: 28)
+                        .background(AppTheme.foreground.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
+                        .accessibilityLabel(point.map { "Current game points: \($0)" } ?? "Current game points unavailable")
+                }
                 SportsWinnerChevron(visible: game.winner?.id == player.id)
             }
         }.frame(minHeight: 56).task(id: game.id) {
             portraits = await SportsTennisPortraits.shared.photos(game)
         }
+    }
+}
+
+struct SportsTennisPointsHeading: View {
+    var trailing: CGFloat = 17
+    var body: some View {
+        Text("Points").font(.caption2.weight(.medium)).foregroundStyle(AppTheme.muted)
+            .frame(width: 34).frame(maxWidth: .infinity, alignment: .trailing).padding(.trailing, trailing)
+            .accessibilityHidden(true)
     }
 }
 

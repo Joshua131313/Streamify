@@ -71,6 +71,9 @@ final class TennisFlowTests: XCTestCase {
         live.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: 0.5)).tap()
         let card = app.buttons["sports-game-tennis:espn-atp-185682"]
         XCTAssertTrue(card.waitForExistence(timeout: 8))
+        let player = app.buttons["sports-card-team-tennis:espn-atp-185682-atp-1000"]
+        XCTAssertTrue(player.label.contains("Set scores: 6, 3"))
+        XCTAssertTrue(player.label.contains("Current game points: 15"))
         let liveCard = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         liveCard.name = "Tennis Soft Spotlight live card"; liveCard.lifetime = .keepAlways; add(liveCard)
         card.tap()

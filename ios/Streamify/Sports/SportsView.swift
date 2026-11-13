@@ -873,6 +873,7 @@ struct SportsGameCard: View {
                         .font(.caption2).foregroundStyle(AppTheme.muted)
                 }
                 VStack(spacing: 2) {
+                    if game.isLive, game.tennis != nil { SportsTennisPointsHeading() }
                     teamControl(game.away)
                     teamControl(game.home)
                 }
@@ -1011,9 +1012,18 @@ struct SportsGameCard: View {
                 .foregroundStyle(AppTheme.foreground)
         }
         .accessibilityIdentifier("sports-card-team-\(game.id)-\(team.id)")
-        .accessibilityLabel("\(team.name), \(team.score.isEmpty ? "" : team.score)")
+        .accessibilityLabel(teamAccessibilityLabel(team))
         .accessibilityValue(following ? "Following" : "Not followed")
         .sportsDaySwipeExcluded(daySwipeScope)
+    }
+
+    private func teamAccessibilityLabel(_ team: SportsTeam) -> String {
+        guard let tennis = game.tennis else { return "\(team.name), \(team.score)" }
+        let sets = team.id == game.away.id ? tennis.awaySets : tennis.homeSets
+        var parts = [team.name]
+        if !sets.isEmpty { parts.append("Set scores: \(sets.joined(separator: ", "))") }
+        if game.isLive { parts.append(tennis.point(for: team.id, awayID: game.away.id).map { "Current game points: \($0)" } ?? "Current game points unavailable") }
+        return parts.joined(separator: ", ")
     }
 
     private func openTeam(_ team: SportsTeam) {
