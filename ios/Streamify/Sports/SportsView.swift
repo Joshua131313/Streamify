@@ -79,7 +79,7 @@ struct SportsView: View {
     @State private var manualReload = false
     @State private var error: String?
     @State private var partial = false
-    @State private var selectedGame: SportsGame?
+    @State private var selectedGame: SportsGameSelection?
     @State private var showMultiWatch = false
     @State private var showCalendar = false
     @State private var showFilters = false
@@ -237,8 +237,8 @@ struct SportsView: View {
             if let calendarLoadedAt, calendarLoadedScope == calendarScope, Date().timeIntervalSince(calendarLoadedAt) < 600, calendarUnavailable.isEmpty { return }
             await loadCalendarMarkers()
         }
-        .sheet(item: $selectedGame) { game in
-            NavigationStack { SportsGameView(game: game).environmentObject(queue) }.streamifyPageSheet()
+        .sheet(item: $selectedGame) { selection in
+            NavigationStack { SportsGameView(game: selection.game, startsInField: selection.startsInField).environmentObject(queue) }.streamifyPageSheet()
         }
         .streamifySearchPresentation(isPresented: $showSportsSearch, sourceID: searchSourceID, in: searchNamespace) {
             SportsSearchDialog(day: day, initialGames: games).environmentObject(queue)
@@ -733,7 +733,7 @@ struct SportsView: View {
         }.accessibilityIdentifier("sports-game-grid")
     }
     private func scheduleCard(_ game: SportsGame, protected: Bool = true) -> some View {
-        SportsGameCard(game: game, daySwipeScope: protected ? daySwipeScope : nil) { selectedGame = game }
+        SportsGameCard(game: game, daySwipeScope: protected ? daySwipeScope : nil) { selectedGame = $0 }
             .onAppear { visibleGameIDs.insert(game.id) }
             .onDisappear { visibleGameIDs.remove(game.id) }
     }
@@ -853,7 +853,7 @@ private struct SportsMarkerBatch: Sendable {
 struct SportsGameCard: View {
     let game: SportsGame
     var daySwipeScope: SportsDaySwipeScope? = nil
-    var action: () -> Void
+    var action: (SportsGameSelection) -> Void
     @EnvironmentObject private var playback: SportsPlaybackSession
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var queue: SportsWatchQueue
@@ -862,7 +862,6 @@ struct SportsGameCard: View {
     @State private var watchRevision = 0
     @State private var handledWatchRevision = 0
     @State private var watchLoading = false
-    @State private var watchError: String?
     @State private var selectedTeam: SportsTeamResult?
     var body: some View {
         VStack(spacing: 0) {
@@ -901,7 +900,7 @@ struct SportsGameCard: View {
             .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             .onTapGesture {
                 guard daySwipeScope?.permitsProtectedAction != false else { return }
-                AppHaptics.tap(); action()
+                AppHaptics.tap(); openGame()
             }
             .sportsPlaybackOrigin(playbackOrigin)
             .sheet(item: $selectedTeam) { result in
@@ -922,7 +921,6 @@ struct SportsGameCard: View {
                 let scheduleGeneration = daySwipeScope?.generation
                 let requestOrigin = playbackOrigin
                 watchLoading = true
-                watchError = nil
                 defer { if watchRevision == request { watchLoading = false } }
                 do {
                     let streams = try await SportsService().streams(game)
@@ -931,13 +929,17 @@ struct SportsGameCard: View {
                     if let first = playback.preferredSource(in: streams) {
                         playback.play(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: first.url, sources: streams, origin: requestOrigin, game: game)
                     }
-                    else { watchError = "No source is available for this game yet. Try again closer to game time." }
+                    else { openGame(startsInField: true) }
                 } catch is CancellationError { }
-                catch { if !Task.isCancelled && daySwipeScope?.generation == scheduleGeneration { watchError = error.localizedDescription } }
+                catch {
+                    guard !Task.isCancelled, watchRevision == request, daySwipeScope?.generation == scheduleGeneration else { return }
+                    openGame(startsInField: true)
+                }
             }
-            .alert("Source unavailable", isPresented: Binding(get: { watchError != nil }, set: { if !$0 { watchError = nil } })) {
-                Button("OK", role: .cancel) { watchError = nil }
-            } message: { Text(watchError ?? "Try again shortly.") }
+    }
+
+    private func openGame(startsInField: Bool = false) {
+        action(SportsGameSelection(game: game, startsInField: startsInField))
     }
 
     private var hasFooterSituation: Bool {
@@ -972,7 +974,7 @@ struct SportsGameCard: View {
     private var gameHeader: some View {
         Button {
             guard daySwipeScope?.permitsProtectedAction != false else { return }
-            action()
+            openGame()
         } label: {
             HStack(spacing: 7) {
                 SportsLeagueIcon(league: game.league)
@@ -990,7 +992,7 @@ struct SportsGameCard: View {
         let following = library.followedTeams.contains(team.key(in: game.league))
         return Button {
             guard daySwipeScope?.permitsProtectedAction != false else { return }
-            AppHaptics.tap(); action()
+            AppHaptics.tap(); openGame()
         } label: {
             matchTeam(team).contentShape(Rectangle())
         }

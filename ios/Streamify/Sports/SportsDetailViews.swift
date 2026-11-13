@@ -1,5 +1,11 @@
 import SwiftUI
 
+struct SportsGameSelection: Identifiable {
+    let game: SportsGame
+    let startsInField: Bool
+    var id: String { game.id }
+}
+
 struct SportsGameView: View {
     private enum Presentation { case watch, field }
     let game: SportsGame
@@ -23,6 +29,11 @@ struct SportsGameView: View {
     private var tabs: [String] { current.league == .tennis ? ["Overview", "Sets", "Chat"] : ["Overview", "Scoring", "Team stats"] + (current.state == "pre" ? [] : ["Players"]) + [current.isFinal ? "Play-by-play" : "Latest play", "Chat"] }
     private var hasStreams: Bool { current.canWatch && !streams.isEmpty }
     private var showingWatch: Bool { hasStreams && presentation != .field }
+
+    init(game: SportsGame, startsInField: Bool = false) {
+        self.game = game
+        _presentation = State(initialValue: startsInField ? .field : nil)
+    }
 
     var body: some View {
         ScrollView {
@@ -302,7 +313,7 @@ struct SportsTeamView: View {
     @State private var loading = true
     @State private var tab = "Schedule"
     @State private var revision = 0
-    @State private var selectedGame: SportsGame?
+    @State private var selectedGame: SportsGameSelection?
     @State private var pageWindow = SportsPageWindow()
     private var team: SportsTeam { profile?.team ?? result.team }
     private var following: Bool { library.followedTeams.contains(result.id) }
@@ -344,7 +355,9 @@ struct SportsTeamView: View {
                     do { try await Task.sleep(for: .seconds(30)) } catch { return }
                 } while !Task.isCancelled
             }
-            .sheet(item: $selectedGame) { game in NavigationStack { SportsGameView(game: game).environmentObject(queue) } }
+            .sheet(item: $selectedGame) { selection in
+                NavigationStack { SportsGameView(game: selection.game, startsInField: selection.startsInField).environmentObject(queue) }
+            }
     }
 
     @ViewBuilder private func roster(_ profile: SportsTeamProfile) -> some View {
@@ -365,7 +378,7 @@ struct SportsTeamView: View {
             ForEach(games.prefix(count)) { game in
                 VStack(alignment: .leading, spacing: 8) {
                     Text(game.date?.formatted(date: .abbreviated, time: .omitted) ?? "Date TBD").font(.caption).foregroundStyle(AppTheme.muted)
-                    SportsGameCard(game: game) { selectedGame = game }
+                    SportsGameCard(game: game) { selectedGame = $0 }
                 }
             }
             if count < games.count {

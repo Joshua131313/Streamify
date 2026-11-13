@@ -76,7 +76,16 @@ final class TennisFlowTests: XCTestCase {
         XCTAssertTrue(player.label.contains("Current game points: 15"))
         let liveCard = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         liveCard.name = "Tennis Soft Spotlight live card"; liveCard.lifetime = .keepAlways; add(liveCard)
-        card.tap()
+        let watch = app.buttons["sports-watch-tennis:espn-atp-185682"]
+        XCTAssertTrue(watch.waitForExistence(timeout: 5))
+        if !watch.isHittable { app.swipeUp() }
+        XCTAssertTrue(watch.isHittable); watch.tap()
+        let field = app.descendants(matching: .any).matching(identifier: "sports-center-field-tennis").firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["sports-center-mode-field"].isSelected)
+        XCTAssertFalse(app.alerts["Source unavailable"].exists)
+        let fieldCapture = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        fieldCapture.name = "Tennis Field after Watch with no stream"; fieldCapture.lifetime = .keepAlways; add(fieldCapture)
         let sets = app.buttons["sports-game-tab-Sets"]
         let setOne = app.buttons["Set 1"]
         XCTAssertTrue(setOne.waitForExistence(timeout: 10)); setOne.tap()
