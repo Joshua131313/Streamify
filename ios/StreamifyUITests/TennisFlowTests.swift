@@ -97,33 +97,55 @@ final class TennisFlowTests: XCTestCase {
         let schedule = app.scrollViews["sports-screen"].firstMatch
         XCTAssertTrue(schedule.waitForExistence(timeout: 10))
         let watch = app.buttons["sports-watch-tennis:espn-atp-185682"]
-        let screen = app.frame
-        let viewport = schedule.frame.intersection(screen).insetBy(dx: 8, dy: 24)
-        XCTAssertFalse(viewport.isEmpty)
-        let origin = app.coordinate(withNormalizedOffset: .zero)
-        func tapPoint() -> CGPoint? {
-            guard watch.exists else { return nil }
-            let frame = watch.frame
-            let point = CGPoint(x: frame.midX, y: frame.midY)
-            return !frame.isEmpty && viewport.contains(point) ? point : nil
-        }
-        for _ in 0..<14 {
-            if tapPoint() != nil { break }
-            // A clipped SwiftUI control can throw when asked for its AX hit point.
-            // Scroll the visible content gutter and tap only after its center is visible.
-            let start = schedule.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: 0.77))
-            let end = schedule.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: 0.31))
-            start.press(forDuration: 0.05, thenDragTo: end)
-        }
-        guard let point = tapPoint() else { return XCTFail("The live tennis Watch button did not enter the schedule viewport") }
-        origin.withOffset(CGVector(dx: point.x - screen.minX, dy: point.y - screen.minY)).tap()
+        let navigation = app.descendants(matching: .any).matching(identifier: "floating-navigation").firstMatch
+        let navigationTop = navigation.exists && !navigation.frame.isEmpty ? navigation.frame.minY : app.frame.maxY - 110
+        guard tapWhenVisible(watch, in: schedule, below: schedule.frame.minY + 12, above: navigationTop - 12, attempts: 14) else { return }
 
+        let gameCenter = app.navigationBars["Game center"]
+        XCTAssertTrue(gameCenter.waitForExistence(timeout: 12), "Watch should open Game Center when the stream lookup is empty")
         let field = app.descendants(matching: .any).matching(identifier: "sports-center-field-tennis").firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 12))
         XCTAssertTrue(app.buttons["sports-center-mode-field"].isSelected)
         XCTAssertFalse(app.alerts["Source unavailable"].exists)
+        let tracker = app.webViews.firstMatch
+        let pointDetails = tracker.buttons["Show point details"]
+        XCTAssertTrue(pointDetails.waitForExistence(timeout: 10))
+        let scroll = app.scrollViews.containing(.any, identifier: "sports-center-mode-field").firstMatch
+        XCTAssertTrue(scroll.exists)
+        guard tapWhenVisible(pointDetails, in: scroll, below: gameCenter.frame.maxY + 12, above: app.frame.maxY - 40, attempts: 4) else { return }
+        XCTAssertTrue(tracker.staticTexts["Point details displayed"].waitForExistence(timeout: 5))
         let fieldCapture = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        fieldCapture.name = "Tennis Field after Watch with no stream"; fieldCapture.lifetime = .keepAlways; add(fieldCapture)
+        fieldCapture.name = "Interactive Tennis Field after Watch with no stream"; fieldCapture.lifetime = .keepAlways; add(fieldCapture)
+    }
+
+    @discardableResult private func tapWhenVisible(_ target: XCUIElement, in scroll: XCUIElement,
+                                                   below top: CGFloat, above bottom: CGFloat, attempts: Int) -> Bool {
+        let screen = app.frame
+        let origin = app.coordinate(withNormalizedOffset: .zero)
+        for attempt in 0...attempts {
+            let area = scroll.frame.intersection(screen)
+            let minY = max(area.minY + 8, top), maxY = min(area.maxY - 8, bottom)
+            guard !area.isEmpty, maxY > minY + 48 else { break }
+            let frame = target.exists ? target.frame : .null
+            if !frame.isEmpty, frame.midX >= area.minX + 8, frame.midX <= area.maxX - 8,
+               frame.midY >= minY + 8, frame.midY <= maxY - 8 {
+                origin.withOffset(CGVector(dx: frame.midX - screen.minX, dy: frame.midY - screen.minY)).tap()
+                return true
+            }
+            guard attempt < attempts else { break }
+            // Stay inside the visible content gutter to avoid the floating tab bar,
+            // and avoid querying the AX hit point for a clipped SwiftUI control.
+            let reverse = !frame.isEmpty && frame.midY < minY
+            let x = area.maxX - screen.minX - 5
+            let distance = frame.isEmpty ? (maxY - minY) * 0.58 : min(160, (maxY - minY) * 0.4)
+            let startY = (minY + maxY) / 2 + (reverse ? -distance / 2 : distance / 2)
+            let endY = startY + (reverse ? distance : -distance)
+            let start = origin.withOffset(CGVector(dx: x, dy: startY - screen.minY))
+            let end = origin.withOffset(CGVector(dx: x, dy: endY - screen.minY))
+            start.press(forDuration: 0.05, thenDragTo: end)
+        }
+        XCTFail("\(target) did not enter the unobstructed scroll viewport")
+        return false
     }
 
     func testDoubleTapActiveHomeTabReturnsToTopWithoutChangingTab() {

@@ -36,7 +36,7 @@ enum CatalogCredentialError: LocalizedError {
     private nonisolated static func decode(_ document: DocumentSnapshot) throws -> String? {
         guard document.exists else { return nil }
         guard let data = document.data(), data["schemaVersion"] as? Int == 1,
-              let key = data["tmdbKey"] as? String, key.count <= 512,
+              let key = data["tmdbKey"] as? String, key.utf16.count <= 512,
               key == key.trimmingCharacters(in: .whitespacesAndNewlines) else { throw CatalogCredentialError.unavailable }
         return key
     }
@@ -173,7 +173,7 @@ enum CatalogCredentialError: LocalizedError {
     func save(_ input: String, owner expected: String?) throws {
         try validateOwner(expected)
         let clean = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard clean.count <= 512 else { throw CatalogCredentialError.invalid }
+        guard clean.utf16.count <= 512 else { throw CatalogCredentialError.invalid }
         let key = clean == packagedDefault ? "" : clean
         if !syncEnabled { state = State(owner: expected, key: key); return }
         guard let uid = expected else {
@@ -205,7 +205,7 @@ enum CatalogCredentialError: LocalizedError {
             if let uid, isAuthorized(uid), stored.pending == nil, stored.remote == nil,
                let raw = try read(Self.guestKey) {
                 let key = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !key.isEmpty, key != packagedDefault, key.count <= 512 {
+                if !key.isEmpty, key != packagedDefault, key.utf16.count <= 512 {
                     var claimed = stored
                     claimed.migration = key
                     try persist(claimed, uid: uid)

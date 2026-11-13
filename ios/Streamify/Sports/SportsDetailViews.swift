@@ -180,7 +180,9 @@ struct SportsGameView: View {
 
     private var field: some View {
         VStack(alignment: .leading, spacing: 10) {
-            SportsGameField(game: current)
+            if presentation == .field || !current.canWatch || !streamsLoading {
+                SportsGameField(game: current)
+            }
             if current.canWatch {
                 if let streamsError { SportsSourcesUnavailableView(message: streamsError) { revision += 1 } }
                 else if streamsLoading { Label("Finding streams…", systemImage: "tv").font(.caption).foregroundStyle(AppTheme.muted) }

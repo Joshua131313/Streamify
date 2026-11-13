@@ -44,6 +44,7 @@ final class ParityFlowTests: XCTestCase {
         capture("Game center with a compact Watch action")
         app.buttons["sports-center-mode-field"].tap()
         XCTAssertTrue(element("sports-center-field-nba").waitForExistence(timeout: 5))
+        XCTAssertTrue(app.webViews.firstMatch.staticTexts["SportScore tracker fixture"].waitForExistence(timeout: 8))
         XCTAssertFalse(watch.exists)
         app.buttons["sports-center-mode-watch"].tap()
         XCTAssertTrue(watch.waitForExistence(timeout: 5))
@@ -55,6 +56,7 @@ final class ParityFlowTests: XCTestCase {
         let finalGame = app.buttons["sports-game-nba:nba-final"]
         XCTAssertTrue(finalGame.waitForExistence(timeout: 8)); finalGame.tap()
         XCTAssertTrue(element("sports-center-field-nba").waitForExistence(timeout: 5))
+        XCTAssertTrue(element("sports-field-provider-link").waitForExistence(timeout: 8))
         XCTAssertFalse(app.buttons["sports-center-mode-watch"].isEnabled)
         XCTAssertFalse(app.staticTexts["Teams"].exists)
         selectGameCenterTab("Players")
