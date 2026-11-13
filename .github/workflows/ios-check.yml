@@ -277,7 +277,7 @@ jobs:
               SELECTORS=(-only-testing:StreamifyUITests/TennisFlowTests/testLiveCardWatchWithoutStreamOpensField -only-testing:StreamifyUITests/ParityFlowTests/testGameCenterWatchActionUsesACompactButtonWithAnAccessibleTapTarget)
               ;;
             tennis-data-recheck)
-              SELECTORS=(-only-testing:StreamifyTests/TennisCoverageTests -only-testing:StreamifyTests/SportsTennisTests -only-testing:StreamifyUITests/ParityFlowTests/testGameCenterWatchActionUsesACompactButtonWithAnAccessibleTapTarget -only-testing:StreamifyUITests/ParityFlowTests/testFinalGameHasGroupedPlayByPlayAndBothTeamsPlayerTables -only-testing:StreamifyUITests/TennisFlowTests/testLiveCardWatchWithoutStreamOpensField)
+              SELECTORS=(-only-testing:StreamifyTests/TennisCoverageTests -only-testing:StreamifyTests/SportsTennisTests -only-testing:StreamifyUITests/ParityFlowTests/testGameCenterWatchActionUsesACompactButtonWithAnAccessibleTapTarget -only-testing:StreamifyUITests/ParityFlowTests/testFinalGameHasGroupedPlayByPlayAndBothTeamsPlayerTables -only-testing:StreamifyUITests/TennisFlowTests/testLiveCardWatchWithoutStreamOpensField -only-testing:StreamifyTests/CatalogCredentialSyncTests -only-testing:StreamifyTests/DataContractTests)
               ;;
             tennis-recheck)
               SELECTORS=(-only-testing:StreamifyTests -only-testing:StreamifyUITests/TennisFlowTests -only-testing:StreamifyUITests/ParityFlowTests/testBaseballDiamondUsesLiveBaseStatesAndSymmetricFieldLayout -only-testing:StreamifyUITests/ParityFlowTests/testBasketballPossessionIconSitsImmediatelyBeforeTheCorrectScoreForBothLeagues)

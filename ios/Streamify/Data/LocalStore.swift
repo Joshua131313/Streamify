@@ -184,15 +184,8 @@ final class LibraryStore: ObservableObject {
 
 @MainActor
 final class SettingsStore: ObservableObject {
-    @Published var tmdbToken: String = "" {
-        didSet {
-            #if DEBUG
-            if PreviewFixtures.enabled { credentialError = nil; return }
-            #endif
-            do { try SecureCredentialStore.set(tmdbToken, for: "tmdbToken"); credentialError = nil }
-            catch { credentialError = error.localizedDescription }
-        }
-    }
+    @Published private(set) var catalogKey: String = ""
+    var tmdbToken: String { catalogKey.isEmpty ? catalogCredential.packagedDefault : catalogKey }
     @Published var apiBase: String = "" { didSet { defaults.set(apiBase, forKey: "streamify.ios.apiBase") } }
     @Published var serverID: String = "vidy" { didSet { persistPreferences() } }
     @Published var appearance: String = "Dark" { didSet { persistPreferences() } }
@@ -201,6 +194,9 @@ final class SettingsStore: ObservableObject {
     var onPreferencesChange: (() -> Void)?
     private let defaults: UserDefaults
     private let profileKey: String?
+    private let ownerUID: String?
+    private let catalogCredential: CatalogCredentialSync
+    private var credentialObservation: AnyCancellable?
     private var storageEnabled = true
     private var applyingPreferences = false
     // Device-local per-profile playback choice; temporary signed URLs are not saved.
@@ -217,22 +213,35 @@ final class SettingsStore: ObservableObject {
     var client: TMDBClient { TMDBClient(token: tmdbToken) }
     var servers: [MediaServer] { MediaServer.bundled }
 
-    init(defaults: UserDefaults = .standard, profileKey: String? = nil, migrateLegacy: Bool = false) {
+    init(defaults: UserDefaults = .standard, profileKey: String? = nil, migrateLegacy: Bool = false,
+         ownerUID: String? = nil, catalogCredential: CatalogCredentialSync? = nil) {
         self.defaults = defaults
         self.profileKey = profileKey
-        do { tmdbToken = try SecureCredentialStore.get("tmdbToken") ?? "" }
-        catch { credentialError = error.localizedDescription }
+        self.ownerUID = ownerUID
+        #if DEBUG
+        let fixture = PreviewFixtures.enabled
+        let credential = catalogCredential ?? CatalogCredentialSync(packagedDefault: fixture ? PreviewFixtures.token : "", syncEnabled: !fixture)
+        #else
+        let credential = catalogCredential ?? CatalogCredentialSync()
+        #endif
+        self.catalogCredential = credential
         apiBase = defaults.string(forKey: "streamify.ios.apiBase") ?? ""
         let stored = profileKey.flatMap { defaults.data(forKey: $0) }.flatMap { try? JSONDecoder().decode(Preferences.self, from: $0) }
         serverID = stored?.serverID ?? ((profileKey == nil || migrateLegacy) ? defaults.string(forKey: "streamify.ios.serverID") : nil) ?? "vidy"
         let storedAppearance = stored?.appearance ?? ((profileKey == nil || migrateLegacy) ? defaults.string(forKey: "streamify.ios.appearance") : nil) ?? "Dark"
         appearance = ["Dark", "Light", "System"].contains(storedAppearance) ? storedAppearance : "Dark"
         liveTeamAlerts = stored?.liveTeamAlerts ?? false
-        #if DEBUG
-        if PreviewFixtures.enabled { tmdbToken = PreviewFixtures.token }
-        #endif
+        credentialObservation = credential.$state.sink { [weak self] state in
+            guard let self else { return }
+            let key = state.owner == ownerUID ? state.key : ""
+            let error = state.owner == ownerUID ? state.error : nil
+            if self.catalogKey != key { self.catalogKey = key }
+            if self.credentialError != error { self.credentialError = error }
+        }
         persistPreferences()
     }
+    func validateCredentialOwner() throws { try catalogCredential.validateOwner(ownerUID) }
+    func saveCatalogKey(_ key: String) throws { try catalogCredential.save(key, owner: ownerUID) }
     func applyPreferences(appearance: String, serverID: String) {
         applyingPreferences = true
         self.appearance = appearance
@@ -241,11 +250,6 @@ final class SettingsStore: ObservableObject {
     }
     func refreshDeviceConfiguration() {
         apiBase = defaults.string(forKey: "streamify.ios.apiBase") ?? ""
-        #if DEBUG
-        if PreviewFixtures.enabled { return }
-        #endif
-        do { tmdbToken = try SecureCredentialStore.get("tmdbToken") ?? "" }
-        catch { credentialError = error.localizedDescription }
     }
     func discardProfilePreferences() {
         storageEnabled = false
@@ -264,7 +268,7 @@ final class SettingsStore: ObservableObject {
     }
 }
 
-/// The catalog credential is protected by the device Keychain, not UserDefaults or a source file.
+/// Device and account credential caches are protected by the device Keychain.
 enum SecureCredentialStore {
     private static var service: String { (Bundle.main.bundleIdentifier ?? "com.streamify.ios") + ".credentials" }
     private static func query(_ key: String) -> [String: Any] {

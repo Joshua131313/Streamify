@@ -42,6 +42,25 @@ final class DataContractTests: XCTestCase {
         XCTAssertNil(result.items[1].posterURL)
     }
 
+    func testBearerPrefixUsesAuthorizationAndTransportErrorsHideTheCredential() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [CatalogFixtureProtocol.self]
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
+        let result = try await TMDBClient(token: " bEaReR fixture-v4-token ", session: session)
+            .catalog(path: "search/multi", page: 2, query: "Fixture & series")
+        XCTAssertEqual(result.items.count, 2)
+
+        do {
+            _ = try await TMDBClient(token: "fixture-v3-private", session: session).catalog(path: "movie/popular")
+            XCTFail("Expected the fixture transport to fail")
+        } catch CatalogError.connection {
+            XCTAssertFalse(CatalogError.connection.localizedDescription.contains("fixture-v3-private"))
+        } catch {
+            XCTFail("Expected a credential-free catalog connection error")
+        }
+    }
+
     func testProviderCannotPlayAniListIdentityAsTMDBTitle() {
         let provider = MediaServer(id: "fixture", label: "Fixture", movie: "https://example.com/movie/{id}",
             tv: "https://example.com/tv/{id}/{season}/{episode}")
@@ -145,7 +164,7 @@ private final class CatalogFixtureProtocol: URLProtocol {
             guard let url = request.url, let parts = URLComponents(url: url, resolvingAgainstBaseURL: false),
                   parts.path == "/3/search/multi",
                   parts.queryItems?.first(where: { $0.name == "query" })?.value == "Fixture & series",
-                  parts.queryItems?.first(where: { $0.name == "api_key" })?.value == "fixture-v3-api-key",
+                  Self.acceptsCredential(request, query: parts.queryItems ?? []),
                   parts.queryItems?.first(where: { $0.name == "include_adult" })?.value == "false",
                   let fixture = Bundle(for: DataContractTests.self).url(forResource: "mixed-search", withExtension: "json"),
                   let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "application/json"])
@@ -154,6 +173,11 @@ private final class CatalogFixtureProtocol: URLProtocol {
             client?.urlProtocol(self, didLoad: try Data(contentsOf: fixture))
             client?.urlProtocolDidFinishLoading(self)
         } catch { client?.urlProtocol(self, didFailWithError: error) }
+    }
+    private static func acceptsCredential(_ request: URLRequest, query: [URLQueryItem]) -> Bool {
+        let key = query.first { $0.name == "api_key" }?.value
+        let bearer = request.value(forHTTPHeaderField: "Authorization")
+        return (key == "fixture-v3-api-key" && bearer == nil) || (key == nil && bearer == "Bearer fixture-v4-token")
     }
     override func stopLoading() {}
 }

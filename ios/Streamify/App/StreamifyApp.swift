@@ -143,6 +143,9 @@ private struct ProfileAppGate: View {
             }
         }
         .preferredColorScheme(showsChooser ? .dark : settings.appearance == "System" ? nil : settings.appearance == "Light" ? .light : .dark)
+        .task(id: "\(account.isResolved):\(account.identity?.uid ?? "")") {
+            if account.isResolved { profiles.catalogCredential.connect(account.identity) }
+        }
         .task(id: account.identity?.uid) { await profiles.setAccount(account.identity); completeSignIn() }
         .onChange(of: account.homeIntent) { _, _ in completeSignIn() }
         .onChange(of: profiles.syncStatus) { _, _ in completeSignIn() }

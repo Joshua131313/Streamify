@@ -106,6 +106,8 @@ struct SettingsView: View {
     @EnvironmentObject private var profiles: ProfileStore
     @Environment(\.dismiss) private var dismiss
     @State private var token = ""
+    @State private var loadedToken = ""
+    @State private var tokenOwner: String?
     @State private var api = ""
     @State private var serverID = ""
     @State private var error: String?
@@ -131,7 +133,9 @@ struct SettingsView: View {
                 Link("Get a TMDB API key", destination: URL(string: "https://www.themoviedb.org/settings/api")!)
                 TextField("Sports backend URL (optional)", text: $api).keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
             } header: { Text("Catalog & connections") } footer: {
-                Text("Your catalog key is stored in the device Keychain. Leave the sports backend empty to use ESPN directly.")
+                Text(profiles.ownerUID == nil
+                    ? "Your catalog key is saved on this device. Leave the sports backend empty to use ESPN directly."
+                    : "Your catalog key syncs with your Streamify account. Clear the field to remove your account key. Leave the sports backend empty to use ESPN directly.")
             }.listRowBackground(AppTheme.panel)
             Section("Default video provider") {
                 Picker("Provider", selection: $serverID) { ForEach(settings.servers) { Text($0.label).tag($0.id) } }.tint(AppTheme.foreground).disabled(!profiles.canEditProfiles)
@@ -162,7 +166,16 @@ struct SettingsView: View {
         .scrollContentBackground(.hidden).background(AppTheme.canvas).foregroundStyle(AppTheme.foreground)
         .navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-        .onAppear { token = settings.tmdbToken; api = settings.apiBase; serverID = settings.serverID }
+        .onAppear {
+            tokenOwner = profiles.ownerUID
+            token = settings.catalogKey; loadedToken = token; api = settings.apiBase; serverID = settings.serverID
+        }
+        .onChange(of: settings.catalogKey) { _, key in
+            guard tokenOwner == profiles.ownerUID else { return }
+            if token == loadedToken { token = key }
+            loadedToken = key
+        }
+        .onChange(of: profiles.ownerUID) { _, _ in token = ""; loadedToken = ""; showToken = false }
     }
 
     private func save() {
@@ -174,8 +187,14 @@ struct SettingsView: View {
                 return
             }
         }
-        settings.tmdbToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard settings.credentialError == nil else { return }
+        do {
+            guard tokenOwner == profiles.ownerUID else { throw CatalogCredentialError.accountChanged }
+            try settings.validateCredentialOwner()
+            if token != loadedToken { try settings.saveCatalogKey(token) }
+        } catch {
+            self.error = error.localizedDescription
+            return
+        }
         settings.apiBase = trimmed.hasSuffix("/") ? String(trimmed.dropLast()) : trimmed
         if profiles.canEditProfiles { settings.serverID = serverID }
         dismiss()

@@ -1,11 +1,12 @@
 import Foundation
 
 enum CatalogError: LocalizedError {
-    case missingToken, invalidResponse, service(String), http(Int)
+    case missingToken, invalidResponse, connection, service(String), http(Int)
     var errorDescription: String? {
         switch self {
         case .missingToken: return "Add your TMDB API key or read access token in Settings to browse movies and shows."
         case .invalidResponse: return "The catalog returned an unreadable response. Please retry."
+        case .connection: return "The catalog could not be reached. Please retry."
         case .service(let message): return message
         case .http(let status):
             switch status {
@@ -133,30 +134,39 @@ struct TMDBClient {
 
     private func request(path: String, parameters: [String: String] = [:]) async throws -> CatalogJSON {
         let cleanToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleanToken.isEmpty else { throw CatalogError.missingToken }
+        let hasBearerPrefix = cleanToken.lowercased().hasPrefix("bearer ")
+        let credential = hasBearerPrefix ? String(cleanToken.dropFirst(7)).trimmingCharacters(in: .whitespacesAndNewlines) : cleanToken
+        guard !credential.isEmpty else { throw CatalogError.missingToken }
         guard !path.isEmpty, !path.contains(".."), !path.contains(":") else { throw CatalogError.invalidResponse }
         var components = URLComponents(string: "https://api.themoviedb.org/3/\(path)")!
         var values = parameters.filter { !$0.value.isEmpty }
         values["language"] = "en-US"; values["include_adult"] = "false"
-        let bearer = cleanToken.hasPrefix("eyJ")
-        if !bearer { values["api_key"] = cleanToken }
+        let bearer = hasBearerPrefix || credential.hasPrefix("eyJ")
+        if !bearer { values["api_key"] = credential }
         components.queryItems = values.sorted(by: { $0.key < $1.key }).map { URLQueryItem(name: $0.key, value: $0.value) }
         guard let url = components.url else { throw CatalogError.invalidResponse }
         var request = URLRequest(url: url, cachePolicy: .useProtocolCachePolicy, timeoutInterval: 25)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        if bearer { request.setValue("Bearer \(cleanToken)", forHTTPHeaderField: "Authorization") }
+        if bearer { request.setValue("Bearer \(credential)", forHTTPHeaderField: "Authorization") }
         if forceReload { request.cachePolicy = .reloadIgnoringLocalCacheData }
         let prepared = request
         let data = try await ResponseMemoryCache.shared.data(key: ResponseMemoryCache.key(for: prepared, session: session),
             lifetime: path.hasPrefix("genre/") ? 3600 : 300, reload: forceReload) {
-                let (data, response) = try await session.data(for: prepared)
+                let result: (Data, URLResponse)
+                do { result = try await session.data(for: prepared) }
+                catch {
+                    try Task.checkCancellation()
+                    if error is CancellationError || (error as? URLError)?.code == .cancelled { throw CancellationError() }
+                    throw CatalogError.connection
+                }
+                let (data, response) = result
                 guard let http = response as? HTTPURLResponse else { throw CatalogError.invalidResponse }
                 guard (200..<300).contains(http.statusCode) else { throw CatalogError.http(http.statusCode) }
-                guard (try JSONSerialization.jsonObject(with: data)) is CatalogJSON else { throw CatalogError.invalidResponse }
+                guard (try? JSONSerialization.jsonObject(with: data)) is CatalogJSON else { throw CatalogError.invalidResponse }
                 return data
             }
         try Task.checkCancellation()
-        guard let json = try JSONSerialization.jsonObject(with: data) as? CatalogJSON else { throw CatalogError.invalidResponse }
+        guard let json = (try? JSONSerialization.jsonObject(with: data)) as? CatalogJSON else { throw CatalogError.invalidResponse }
         return json
     }
 

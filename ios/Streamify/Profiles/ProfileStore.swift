@@ -53,6 +53,7 @@ enum ProfileSyncStatus: Equatable {
     var canEditProfiles: Bool { ownerUID == nil || journal.baselineRevision != nil }
     private let defaults: UserDefaults
     private let backend: any ProfileSyncBackend
+    let catalogCredential: CatalogCredentialSync
     private var libraries: [UUID: LibraryStore] = [:]
     private var preferences: [UUID: SettingsStore] = [:]
     private var session = UUID()
@@ -74,6 +75,13 @@ enum ProfileSyncStatus: Equatable {
     init(defaults: UserDefaults = .standard, chooseOnLaunch: Bool = true, backend: (any ProfileSyncBackend)? = nil) {
         self.defaults = defaults
         self.backend = backend ?? FirebaseProfileSyncBackend()
+        #if DEBUG
+        let fixture = PreviewFixtures.enabled
+        let credential = CatalogCredentialSync(packagedDefault: fixture ? PreviewFixtures.token : "", syncEnabled: !fixture)
+        #else
+        let credential = CatalogCredentialSync()
+        #endif
+        catalogCredential = credential
         let snapshot = Self.restore(defaults: defaults, owner: nil)
         profiles = snapshot.profiles
         let selected = snapshot.profiles.first { $0.id == snapshot.selectedID } ?? snapshot.profiles[0]
@@ -89,9 +97,11 @@ enum ProfileSyncStatus: Equatable {
         // Only the original guest inherits the former device-wide preferences.
         let firstID = snapshot.profiles[0].id
         let preferenceMigrationKey = "streamify.ios.profiles.preferencesMigrated.v1"
-        let firstSettings = SettingsStore(defaults: defaults, profileKey: Self.preferenceKey(firstID, owner: nil), migrateLegacy: !defaults.bool(forKey: preferenceMigrationKey))
+        let firstSettings = SettingsStore(defaults: defaults, profileKey: Self.preferenceKey(firstID, owner: nil),
+            migrateLegacy: !defaults.bool(forKey: preferenceMigrationKey), catalogCredential: credential)
         defaults.set(true, forKey: preferenceMigrationKey)
-        settings = selected.id == firstID ? firstSettings : SettingsStore(defaults: defaults, profileKey: Self.preferenceKey(selected.id, owner: nil))
+        settings = selected.id == firstID ? firstSettings : SettingsStore(defaults: defaults,
+            profileKey: Self.preferenceKey(selected.id, owner: nil), catalogCredential: credential)
         library = LibraryStore(defaults: defaults, storageKey: Self.libraryKey(selected.id, owner: nil))
         libraries[selected.id] = library
         preferences[firstID] = firstSettings
@@ -325,7 +335,8 @@ enum ProfileSyncStatus: Equatable {
     }
     private func settingsFor(_ id: UUID) -> SettingsStore {
         if let store = preferences[id] { return store }
-        let store = SettingsStore(defaults: defaults, profileKey: Self.preferenceKey(id, owner: ownerUID))
+        let store = SettingsStore(defaults: defaults, profileKey: Self.preferenceKey(id, owner: ownerUID),
+            ownerUID: ownerUID, catalogCredential: catalogCredential)
         preferences[id] = store
         bindStores(id: id)
         return store
@@ -343,7 +354,8 @@ enum ProfileSyncStatus: Equatable {
         let values = owner == ownerUID ? profiles : Self.restore(defaults: defaults, owner: owner).profiles
         return ProfileCloudPayload(profiles: values.map { profile in
             let library = owner == ownerUID ? libraryFor(profile.id) : LibraryStore(defaults: defaults, storageKey: Self.libraryKey(profile.id, owner: owner))
-            let settings = owner == ownerUID ? settingsFor(profile.id) : SettingsStore(defaults: defaults, profileKey: Self.preferenceKey(profile.id, owner: owner))
+            let settings = owner == ownerUID ? settingsFor(profile.id) : SettingsStore(defaults: defaults,
+                profileKey: Self.preferenceKey(profile.id, owner: owner), ownerUID: owner, catalogCredential: catalogCredential)
             return ProfileCloudEntry(profile: profile, appearance: settings.appearance, serverID: settings.serverID,
                 favoriteGenres: library.favoriteGenres, followedTeams: library.followedTeams)
         })
