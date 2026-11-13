@@ -76,16 +76,7 @@ final class TennisFlowTests: XCTestCase {
         XCTAssertTrue(player.label.contains("Current game points: 15"))
         let liveCard = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         liveCard.name = "Tennis Soft Spotlight live card"; liveCard.lifetime = .keepAlways; add(liveCard)
-        let watch = app.buttons["sports-watch-tennis:espn-atp-185682"]
-        XCTAssertTrue(watch.waitForExistence(timeout: 5))
-        if !watch.isHittable { app.swipeUp() }
-        XCTAssertTrue(watch.isHittable); watch.tap()
-        let field = app.descendants(matching: .any).matching(identifier: "sports-center-field-tennis").firstMatch
-        XCTAssertTrue(field.waitForExistence(timeout: 8))
-        XCTAssertTrue(app.buttons["sports-center-mode-field"].isSelected)
-        XCTAssertFalse(app.alerts["Source unavailable"].exists)
-        let fieldCapture = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        fieldCapture.name = "Tennis Field after Watch with no stream"; fieldCapture.lifetime = .keepAlways; add(fieldCapture)
+        card.tap()
         let sets = app.buttons["sports-game-tab-Sets"]
         let setOne = app.buttons["Set 1"]
         XCTAssertTrue(setOne.waitForExistence(timeout: 10)); setOne.tap()
@@ -98,6 +89,41 @@ final class TennisFlowTests: XCTestCase {
         XCTAssertFalse(app.buttons["sports-game-tab-Team stats"].exists)
         let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); screenshot.name = "Tennis set scoring"; screenshot.lifetime = .keepAlways
         add(screenshot)
+    }
+
+    func testLiveCardWatchWithoutStreamOpensField() {
+        let sports = app.buttons["tab-sports"]
+        XCTAssertTrue(sports.waitForExistence(timeout: 15)); sports.tap()
+        let schedule = app.scrollViews["sports-screen"].firstMatch
+        XCTAssertTrue(schedule.waitForExistence(timeout: 10))
+        let watch = app.buttons["sports-watch-tennis:espn-atp-185682"]
+        let screen = app.frame
+        let viewport = schedule.frame.intersection(screen).insetBy(dx: 8, dy: 24)
+        XCTAssertFalse(viewport.isEmpty)
+        let origin = app.coordinate(withNormalizedOffset: .zero)
+        func tapPoint() -> CGPoint? {
+            guard watch.exists else { return nil }
+            let frame = watch.frame
+            let point = CGPoint(x: frame.midX, y: frame.midY)
+            return !frame.isEmpty && viewport.contains(point) ? point : nil
+        }
+        for _ in 0..<14 {
+            if tapPoint() != nil { break }
+            // A clipped SwiftUI control can throw when asked for its AX hit point.
+            // Scroll the visible content gutter and tap only after its center is visible.
+            let start = schedule.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: 0.77))
+            let end = schedule.coordinate(withNormalizedOffset: CGVector(dx: 0.985, dy: 0.31))
+            start.press(forDuration: 0.05, thenDragTo: end)
+        }
+        guard let point = tapPoint() else { return XCTFail("The live tennis Watch button did not enter the schedule viewport") }
+        origin.withOffset(CGVector(dx: point.x - screen.minX, dy: point.y - screen.minY)).tap()
+
+        let field = app.descendants(matching: .any).matching(identifier: "sports-center-field-tennis").firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 12))
+        XCTAssertTrue(app.buttons["sports-center-mode-field"].isSelected)
+        XCTAssertFalse(app.alerts["Source unavailable"].exists)
+        let fieldCapture = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        fieldCapture.name = "Tennis Field after Watch with no stream"; fieldCapture.lifetime = .keepAlways; add(fieldCapture)
     }
 
     func testDoubleTapActiveHomeTabReturnsToTopWithoutChangingTab() {
