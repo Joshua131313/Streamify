@@ -56,7 +56,9 @@ final class ParityFlowTests: XCTestCase {
         let finalGame = app.buttons["sports-game-nba:nba-final"]
         XCTAssertTrue(finalGame.waitForExistence(timeout: 8)); finalGame.tap()
         XCTAssertTrue(element("sports-center-field-nba").waitForExistence(timeout: 5))
-        XCTAssertTrue(element("sports-field-provider-link").waitForExistence(timeout: 8))
+        let tracker = app.webViews.firstMatch
+        XCTAssertTrue(tracker.staticTexts["Recorded court plays"].waitForExistence(timeout: 8))
+        XCTAssertTrue(tracker.links["Open ESPN coverage"].exists)
         XCTAssertFalse(app.buttons["sports-center-mode-watch"].isEnabled)
         XCTAssertFalse(app.staticTexts["Teams"].exists)
         selectGameCenterTab("Players")

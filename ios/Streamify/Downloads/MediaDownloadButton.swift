@@ -18,7 +18,7 @@ struct MediaDownloadButton: View {
     private var label: String {
         switch item?.status {
         case .completed: return "Downloaded"
-        case .downloading: return "Downloading"
+        case .downloading: return item?.isTransferPaused == true ? "Download paused" : "Downloading"
         case .failed: return "Retry download"
         case .cancelled: return "Download again"
         case nil: return media.kind == .tv ? "Download S\(season) E\(episode)" : "Download"
@@ -45,7 +45,7 @@ struct MediaDownloadButton: View {
                             DownloadActivityIndicator(progress: item?.progress, size: 26, animated: false)
                             // This action opens Downloads, so retain a download
                             // arrow instead of suggesting that tapping cancels.
-                            Image(systemName: "arrow.down").font(.system(size: 11, weight: .semibold))
+                            Image(systemName: item?.isTransferPaused == true ? "pause.fill" : "arrow.down").font(.system(size: 11, weight: .semibold))
                         }.accessibilityHidden(true)
                     }
                     else { Image(systemName: symbol).font(compact ? .title3 : .body) }
@@ -61,7 +61,7 @@ struct MediaDownloadButton: View {
             .buttonStyle(HapticPlainButtonStyle())
             .accessibilityLabel(compact ? "\(label) · Episode \(episode)" : label)
             .accessibilityValue(item?.status == .downloading
-                ? item?.progress.map { "\(Int($0 * 100)) percent" } ?? "Downloading. Total size unknown"
+                ? item?.progress.map { "\(Int($0 * 100)) percent" } ?? "\(item?.isTransferPaused == true ? "Paused" : "Downloading"). Total size unknown"
                 : "")
             .accessibilityIdentifier("download-\(DownloadStore.catalogKey(media: media, season: season, episode: episode))")
             .sheet(isPresented: $showOptions) {

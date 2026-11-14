@@ -9,7 +9,8 @@ final class SportsFieldSourceTests: XCTestCase {
         XCTAssertEqual(parts.host, "streamify.watch")
         XCTAssertEqual(parts.path, "/api/field")
         XCTAssertEqual(parts.queryItems, [URLQueryItem(name: "league", value: "womens-college-basketball"),
-            URLQueryItem(name: "gameId", value: "401918849"), URLQueryItem(name: "date", value: "20261114")])
+            URLQueryItem(name: "gameId", value: "401918849"), URLQueryItem(name: "date", value: "20261114"),
+            URLQueryItem(name: "inline", value: "1")])
 
         let tennis = SportsTennisMatch(tour: .wta, tournament: "WTA Finals", tournamentID: "382-2026", competitionID: "187384")
         let address = try XCTUnwrap(SportsFieldSource.lookupURL(for: game(.tennis, id: "espn-wta-187384", tennis: tennis)))
@@ -39,6 +40,40 @@ final class SportsFieldSourceTests: XCTestCase {
         let invalid = Data(#"{"provider":"ESPN","externalUrl":"https://www.espn.com.evil.example/nfl/game/_/gameId/401772510"}"#.utf8)
         XCTAssertThrowsError(try SportsFieldSource.decode(invalid, league: .nfl))
         XCTAssertNil(try SportsFieldSource.decode(Data("null".utf8), league: .nhl))
+    }
+
+    func testBuiltInTrackerRequiresExactOriginAndGameIdentity() throws {
+        let lookup = try XCTUnwrap(SportsFieldSource.lookupURL(for: game(.nfl, id: "401772510")))
+        let address = "https://streamify.watch/api/field-view?league=nfl&gameId=401772510"
+        func decode(_ address: String) throws -> SportsFieldSource? {
+            try SportsFieldSource.decode(Data(#"{"provider":"Streamify","embedUrl":"\#(address)"}"#.utf8), league: .nfl, requestURL: lookup)
+        }
+        let tracker = try XCTUnwrap(URL(string: address))
+        XCTAssertEqual(try decode(address), .embed(tracker))
+        XCTAssertThrowsError(try decode(address.replacingOccurrences(of: "401772510", with: "401772511")))
+        XCTAssertThrowsError(try decode(address.replacingOccurrences(of: "league=nfl", with: "league=college-football")))
+        XCTAssertThrowsError(try decode(address.replacingOccurrences(of: "streamify.watch", with: "streamify.watch.example")))
+        XCTAssertThrowsError(try decode(address.replacingOccurrences(of: "streamify.watch", with: "streamify.watch:443")))
+        XCTAssertThrowsError(try decode(address.replacingOccurrences(of: "/api/field-view", with: "/api/field%2dview")))
+        XCTAssertThrowsError(try decode(address + "&gameId=401772510"))
+        XCTAssertThrowsError(try decode(address + "#external"))
+
+        let coverage = try XCTUnwrap(URL(string: "https://www.espn.com/nfl/game/_/gameId/401772510"))
+        let otherGame = try XCTUnwrap(URL(string: "https://www.espn.com/nfl/game/_/gameId/401772511"))
+        XCTAssertTrue(SportsFieldSource.permitsCoverageLink(coverage, from: tracker))
+        XCTAssertFalse(SportsFieldSource.permitsCoverageLink(otherGame, from: tracker))
+    }
+
+    func testBuiltInTennisTrackerPreservesCanonicalTourAndDate() throws {
+        let tennis = SportsTennisMatch(tour: .wta, tournament: "WTA Finals", tournamentID: "382-2026", competitionID: "187384")
+        let lookup = try XCTUnwrap(SportsFieldSource.lookupURL(for: game(.tennis, id: "espn-wta-187384", tennis: tennis)))
+        let address = "https://streamify.watch/api/field-view?league=tennis&gameId=187384&date=20261114&tour=wta"
+        func decode(_ address: String) throws -> SportsFieldSource? {
+            try SportsFieldSource.decode(Data(#"{"provider":"Streamify","embedUrl":"\#(address)"}"#.utf8), league: .tennis, requestURL: lookup)
+        }
+        XCTAssertEqual(try decode(address), .embed(try XCTUnwrap(URL(string: address))))
+        XCTAssertThrowsError(try decode(address.replacingOccurrences(of: "tour=wta", with: "tour=atp")))
+        XCTAssertThrowsError(try decode(address.replacingOccurrences(of: "date=20261114&", with: "")))
     }
 
     private func game(_ league: SportsLeague, id: String, tennis: SportsTennisMatch? = nil) -> SportsGame {

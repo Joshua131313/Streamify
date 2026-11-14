@@ -5,6 +5,10 @@ enum SportsFieldSource: Equatable {
     case embed(URL)
     case external(provider: String, url: URL)
 
+    private static let host = "streamify.watch"
+    private static let lookupPath = "/api/field"
+    private static let viewPath = "/api/field-view"
+
     private struct Response: Decodable {
         let provider: String
         let embedUrl: String?
@@ -33,7 +37,7 @@ enum SportsFieldSource: Equatable {
             guard SportsService.validEventID(id) || isFixture else { return nil }
         }
         var parts = URLComponents()
-        parts.scheme = "https"; parts.host = "streamify.watch"; parts.path = "/api/field"
+        parts.scheme = "https"; parts.host = host; parts.path = lookupPath
         var query = [URLQueryItem(name: "league", value: game.league.rawValue), URLQueryItem(name: "gameId", value: id)]
         if let tour { query.append(URLQueryItem(name: "tour", value: tour)) }
         if let date = game.date, date.timeIntervalSince1970.isFinite {
@@ -43,6 +47,7 @@ enum SportsFieldSource: Equatable {
             formatter.dateFormat = "yyyyMMdd"
             query.append(URLQueryItem(name: "date", value: formatter.string(from: date)))
         }
+        query.append(URLQueryItem(name: "inline", value: "1"))
         parts.queryItems = query
         return parts.url
     }
@@ -54,13 +59,15 @@ enum SportsFieldSource: Equatable {
         try Task.checkCancellation()
         guard let response = response as? HTTPURLResponse, response.url == url,
               (200..<300).contains(response.statusCode), data.count <= 16_384 else { throw SportsServiceError.invalidResponse }
-        return try decode(data, league: league)
+        return try decode(data, league: league, requestURL: url)
     }
 
-    static func decode(_ data: Data, league: SportsLeague) throws -> Self? {
+    static func decode(_ data: Data, league: SportsLeague, requestURL: URL? = nil) throws -> Self? {
         guard let response = try JSONDecoder().decode(Response?.self, from: data) else { return nil }
         if response.provider == "SportScore", let address = response.embedUrl,
            let url = embedURL(address, league: league), response.externalUrl == nil { return .embed(url) }
+        if response.provider == "Streamify", let address = response.embedUrl, let requestURL,
+           let url = builtInURL(address, league: league, requestURL: requestURL), response.externalUrl == nil { return .embed(url) }
         if let address = response.externalUrl, response.embedUrl == nil,
            let url = trustedHTTPS(address), let host = url.host?.lowercased() {
             switch (response.provider, host, league) {
@@ -72,6 +79,50 @@ enum SportsFieldSource: Equatable {
             }
         }
         throw SportsServiceError.invalidResponse
+    }
+
+    static func isBuiltIn(_ url: URL) -> Bool {
+        url.scheme == "https" && url.host == host && url.port == nil && url.user == nil && url.password == nil && url.path == viewPath
+    }
+
+    private static func builtInURL(_ address: String, league: SportsLeague, requestURL: URL) -> URL? {
+        guard let url = trustedHTTPS(address), isBuiltIn(url),
+              let parts = URLComponents(url: url, resolvingAgainstBaseURL: false), parts.fragment == nil,
+              parts.percentEncodedPath == viewPath,
+              let request = URLComponents(url: requestURL, resolvingAgainstBaseURL: false), request.host == host,
+              request.percentEncodedPath == lookupPath, let query = request.queryItems,
+              query.first(where: { $0.name == "league" })?.value == league.rawValue,
+              let event = query.first(where: { $0.name == "gameId" }), event.value?.isEmpty == false else { return nil }
+        var expected = [URLQueryItem(name: "league", value: league.rawValue), event]
+        if league == .tennis {
+            for name in ["date", "tour"] {
+                if let item = query.first(where: { $0.name == name }) { expected.append(item) }
+            }
+        }
+        var canonical = URLComponents()
+        canonical.queryItems = expected
+        return parts.percentEncodedQuery == canonical.percentEncodedQuery ? url : nil
+    }
+
+    static func permitsCoverageLink(_ url: URL, from tracker: URL) -> Bool {
+        guard isBuiltIn(tracker), trustedHTTPS(url.absoluteString) != nil,
+              let trackerQuery = URLComponents(url: tracker, resolvingAgainstBaseURL: false)?.queryItems,
+              let league = trackerQuery.first(where: { $0.name == "league" })?.value,
+              let event = trackerQuery.first(where: { $0.name == "gameId" })?.value,
+              let parts = URLComponents(url: url, resolvingAgainstBaseURL: false), parts.query == nil,
+              parts.fragment == nil else { return false }
+        let path: String
+        switch (parts.host, league) {
+        case ("www.mlb.com", "mlb"):
+            path = #"^/gameday/(?:[a-z0-9-]+/){0,4}[0-9]{1,15}(?:/[a-z0-9-]+)?/?$"#
+        case ("www.nhl.com", "nhl"):
+            path = #"^/gamecenter/(?:[a-z0-9-]+/){0,4}[0-9]{10}/?$"#
+        case ("www.espn.com", _):
+            guard SportsService.validEventID(event), SportsLeague(rawValue: league) != nil, league != "tennis" else { return false }
+            path = "^/\(league)/(?:game|playbyplay)/_/gameId/\(event)(?:/[a-z0-9-]+)?/?$"
+        default: return false
+        }
+        return parts.percentEncodedPath.range(of: path, options: .regularExpression) != nil
     }
 
     static func embedURL(_ address: String, league: SportsLeague) -> URL? {
@@ -145,6 +196,12 @@ struct SportsGameField: View {
 private struct SportsFieldWebView: UIViewRepresentable {
     let url: URL
     @Binding var failed: Bool
+    @Environment(\.openURL) private var openURL
+
+    init(url: URL, failed: Binding<Bool>) {
+        self.url = url
+        _failed = failed
+    }
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeUIView(context: Context) -> WKWebView {
@@ -189,16 +246,24 @@ private struct SportsFieldWebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction,
                      decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-            guard let frame = action.targetFrame, let url = action.request.url else { decisionHandler(.cancel); return }
+            guard let loadedURL, let url = action.request.url else { decisionHandler(.cancel); return }
+            if action.navigationType == .linkActivated, action.sourceFrame.isMainFrame,
+               action.targetFrame?.isMainFrame != false, SportsFieldSource.permitsCoverageLink(url, from: loadedURL) {
+                decisionHandler(.cancel)
+                parent.openURL(url)
+                return
+            }
+            guard let frame = action.targetFrame else { decisionHandler(.cancel); return }
             if frame.isMainFrame {
                 #if DEBUG
-                if url.absoluteString == "about:blank", let loadedURL, PreviewFixtures.fieldTrackerHTML(for: loadedURL) != nil {
+                if url.absoluteString == "about:blank", PreviewFixtures.fieldTrackerHTML(for: loadedURL) != nil {
                     decisionHandler(.allow); return
                 }
                 #endif
                 decisionHandler(url == loadedURL ? .allow : .cancel)
                 return
             }
+            guard !SportsFieldSource.isBuiltIn(loadedURL) else { decisionHandler(.cancel); return }
             let allowed = SportsFieldSource.trustedHTTPS(url.absoluteString) != nil &&
                 ["sportscore.com", "widgets.thesports01.com", "widgets-v2.thesports01.com"].contains(url.host?.lowercased() ?? "")
             decisionHandler(allowed || url.absoluteString == "about:blank" ? .allow : .cancel)

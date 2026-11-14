@@ -77,7 +77,7 @@ struct DownloadsView: View {
                 if let selectedSeries { DownloadSeriesView(seriesID: selectedSeries.id, initialTitle: selectedSeries.title) }
             }
             .sheet(isPresented: $showAdd) { NavigationStack { AddDownloadView() } }
-            .fullScreenCover(item: $selected) { item in OfflineVideoView(item: item) }
+            .fullScreenCover(item: $selected) { item in DownloadPlaybackView(item: item) }
             .fileImporter(isPresented: $showImporter, allowedContentTypes: [.mpeg4Movie, .quickTimeMovie, UTType(filenameExtension: "m4v") ?? .movie], allowsMultipleSelection: false) { result in
                 do {
                     guard let url = try result.get().first else { return }
@@ -227,7 +227,7 @@ private struct DownloadSeriesView: View {
             .streamifyReadableWidth(960).scrollContentBackground(.hidden).background(AppTheme.canvas)
             .navigationTitle(series?.title ?? initialTitle).navigationBarTitleDisplayMode(.inline)
             .accessibilityIdentifier("download-series-page-\(seriesID)")
-            .fullScreenCover(item: $selected) { item in OfflineVideoView(item: item) }
+            .fullScreenCover(item: $selected) { item in DownloadPlaybackView(item: item) }
             .onChange(of: series == nil) { _, empty in if empty { dismiss() } }
     }
 }
@@ -280,6 +280,7 @@ private struct DownloadRow: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
                 primaryButton
+                if episodePage { episodePlayButton }
                 trailingControl
             }
             if let error = item.error {
@@ -290,7 +291,12 @@ private struct DownloadRow: View {
     }
 
     @ViewBuilder private var primaryButton: some View {
-        if item.status == .completed {
+        if episodePage, let media = item.catalog?.media {
+            MediaDetailLink(media: media) { primaryLabel }
+                .foregroundStyle(AppTheme.foreground)
+                .accessibilityLabel("\(rowTitle), View \(media.title)")
+                .accessibilityIdentifier("download-episode-title-\(item.id)")
+        } else if item.status == .completed {
             // One native control owns the tap and menu recognizers. A SwiftUI
             // Menu with a primaryAction inside this List row fired playback on
             // release of a hold instead of presenting its actions on iOS26.
@@ -312,6 +318,15 @@ private struct DownloadRow: View {
                 .accessibilityLabel(item.title)
                 .accessibilityIdentifier("download-play-\(item.id)")
         }
+    }
+
+    private var episodePlayButton: some View {
+        Button(action: play) {
+            Image(systemName: "play.fill").font(.system(size: 16, weight: .semibold))
+                .frame(width: 44, height: 44).contentShape(Rectangle())
+        }.buttonStyle(HapticPlainButtonStyle()).foregroundStyle(AppTheme.foreground)
+            .accessibilityLabel("Play \(rowTitle)\(item.status == .completed ? " offline" : " online")")
+            .accessibilityIdentifier("download-play-\(item.id)")
     }
 
     private var primaryLabel: some View {
@@ -356,14 +371,15 @@ private struct DownloadRow: View {
 
     @ViewBuilder private var trailingControl: some View {
         if item.status == .downloading {
-            Button { downloads.cancel(id: item.id) } label: {
+            Button { downloads.togglePause(id: item.id) } label: {
                 ZStack {
                     DownloadActivityIndicator(progress: item.progress, size: 26, animated: false)
-                    Image(systemName: "stop.fill").font(.system(size: 10))
+                    Image(systemName: item.isTransferPaused ? "play.fill" : "pause.fill").font(.system(size: 10))
                 }.frame(width: 44, height: 44).contentShape(Rectangle())
             }.buttonStyle(HapticPlainButtonStyle()).foregroundStyle(AppTheme.foreground)
-                .accessibilityLabel("Cancel download of \(item.title)")
-                .accessibilityValue(item.progress.map { "\(Int($0 * 100)) percent" } ?? "Downloading. Total size unknown")
+                .disabled(item.pendingFileName != nil || item.hlsTransferSucceeded == true)
+                .accessibilityLabel("\(item.isTransferPaused ? "Resume" : "Pause") download of \(item.title)")
+                .accessibilityValue(item.progress.map { "\(Int($0 * 100)) percent" } ?? "\(item.isTransferPaused ? "Paused" : "Downloading"). Total size unknown")
                 .accessibilityIdentifier("download-activity-\(item.id)")
         } else {
             Menu { downloadActions } label: {
@@ -380,6 +396,7 @@ private struct DownloadRow: View {
 
     @ViewBuilder private var downloadActions: some View {
         if item.status == .completed { Button("Play offline", systemImage: "play.fill", action: play) }
+        else if episodePage { Button("Play episode", systemImage: "play.fill", action: play) }
         if item.status == .downloading { Button("Cancel download", systemImage: "xmark") { downloads.cancel(id: item.id) } }
         if canRetry { Button("Retry download", systemImage: "arrow.clockwise") { downloads.retry(id: item.id) } }
         if item.status != .downloading, item.catalog?.media != nil {
@@ -394,7 +411,7 @@ private struct DownloadRow: View {
             RoundedRectangle(cornerRadius: 4).fill(AppTheme.foreground.opacity(0.06))
             if let artwork { Image(uiImage: artwork).resizable().scaledToFit().accessibilityHidden(true) }
             else { Image(systemName: "film").font(.title3).foregroundStyle(AppTheme.muted).accessibilityHidden(true) }
-            if item.status == .completed {
+            if item.status == .completed && !episodePage {
                 Image(systemName: "play.fill").font(.system(size: 16, weight: .bold)).foregroundStyle(.white)
                     .frame(width: 36, height: 36).background(.black.opacity(0.65), in: Circle())
                     .overlay { Circle().strokeBorder(.white.opacity(0.8), lineWidth: 1) }.accessibilityHidden(true)
@@ -507,9 +524,15 @@ private struct AddDownloadView: View {
     }
 }
 
-private struct OfflineVideoView: View {
+private struct DownloadPlaybackView: View {
     let item: DownloadItem
     var body: some View {
-        OfflinePlayerView(item: item)
+        if item.status == .completed, let file = item.fileURL, FileManager.default.fileExists(atPath: file.path) {
+            OfflinePlayerView(item: item)
+        } else if let episode = item.catalog, let media = episode.media, media.kind == .tv {
+            MediaPlayerView(media: media, season: episode.season, episode: episode.episode)
+        } else {
+            OfflinePlayerView(item: item)
+        }
     }
 }

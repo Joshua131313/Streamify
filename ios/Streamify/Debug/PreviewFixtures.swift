@@ -239,7 +239,17 @@ enum PreviewFixtures {
          MediaItem(id: 53, kind: .tv, title: "Northbound", overview: synopsis, posterPath: "/fixture-pirates.jpg", backdropPath: "/fixture-pirates.jpg", rating: 8.3, releaseDate: "2024-12-10", genreIDs: [18])].map(mediaJSON)
     }
     static func fieldTrackerHTML(for url: URL) -> String? {
-        guard enabled, url.host == "sportscore.com",
+        guard enabled else { return nil }
+        if SportsFieldSource.isBuiltIn(url), url.query == "league=nba&gameId=nba-final" {
+            return """
+            <!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>body{margin:0;padding:18px;background:#192131;color:#fff;font:16px system-ui}button{font:inherit;padding:10px}</style></head>
+            <body><h1>Recorded court plays</h1><p id="play">Boston Harbor made a three-pointer</p>
+            <button onclick="document.getElementById('play').textContent='Toronto Towers made a layup'">Next recorded play</button>
+            <p><a style="color:#b9def9" href="https://www.espn.com/nba/game/_/gameId/401020304">Open ESPN coverage</a></p></body></html>
+            """
+        }
+        guard url.host == "sportscore.com",
               ["/embed/tracker/tennis/jannik-sinner-vs-carlos-alcaraz/", "/embed/tracker/basketball/boston-harbor-vs-toronto-towers/"].contains(url.path.hasSuffix("/") ? url.path : url.path + "/") else { return nil }
         return """
         <!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -296,7 +306,7 @@ enum PreviewFixtures {
             switch game {
             case "185682": value = ["provider": "SportScore", "embedUrl": "https://sportscore.com/embed/tracker/tennis/jannik-sinner-vs-carlos-alcaraz/"]
             case "nba-fixture": value = ["provider": "SportScore", "embedUrl": "https://sportscore.com/embed/tracker/basketball/boston-harbor-vs-toronto-towers/"]
-            case "nba-final": value = ["provider": "ESPN", "externalUrl": "https://www.espn.com/nba/game/_/gameId/401020304"]
+            case "nba-final": value = ["provider": "Streamify", "embedUrl": "https://streamify.watch/api/field-view?league=nba&gameId=nba-final"]
             default: return (200, "application/json", Data("null".utf8))
             }
         } else if host == "site.api.espn.com" { value = sportsJSON(url) }

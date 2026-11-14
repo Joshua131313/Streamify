@@ -138,6 +138,7 @@ final class HLSDownloadSessionOwner {
     private var restorationCount = 0
     private let identifier: String
     private let shouldRemovePartialPackage: @MainActor (HLSOwnedPackageReference) -> Bool
+    private let isPaused: @MainActor (HLSDownloadIdentity) -> Bool
 
     private lazy var delegate: HLSAssetDownloadDelegate = {
         let removalPolicy = shouldRemovePartialPackage
@@ -169,9 +170,11 @@ final class HLSDownloadSessionOwner {
 
     init(observer: HLSDownloadSessionObserver? = nil,
          shouldRemovePartialPackage: @escaping @MainActor (HLSOwnedPackageReference) -> Bool = { _ in true },
+         isPaused: @escaping @MainActor (HLSDownloadIdentity) -> Bool = { _ in false },
          sessionIdentifier: String = HLSDownloadSessionOwner.sessionIdentifier) {
         self.observer = observer; identifier = sessionIdentifier
         self.shouldRemovePartialPackage = shouldRemovePartialPackage
+        self.isPaused = isPaused
     }
 
     var activeIdentities: Set<HLSDownloadIdentity> {
@@ -235,7 +238,7 @@ final class HLSDownloadSessionOwner {
             quality: source.quality, audioLanguage: source.audioLanguage), audioGroup: metadata.audioGroup, event: .prepared)
         receive(snapshot)
         // Observer persistence may synchronously cancel this attempt.
-        if tasks[key] === task, !delegate.isCancelled(identity) { task.resume() }
+        if tasks[key] === task, !delegate.isCancelled(identity), !isPaused(identity) { task.resume() }
         return identity
     }
 
@@ -276,14 +279,21 @@ final class HLSDownloadSessionOwner {
             // This exact native task already owns the source/quality/audio
             // configuration verified before .prepared was persisted. A fresh
             // metadata request is not permission to cancel/recreate it.
-            if !cancelledIdentities.contains(identity), tasks[identity.attemptKey] === task,
-               delegate.canResume(identity), task.state == .suspended {
-                task.resume()
+            if !cancelledIdentities.contains(identity), tasks[identity.attemptKey] === task, delegate.canResume(identity) {
+                if isPaused(identity) {
+                    if task.state == .running { task.suspend() }
+                } else if task.state == .suspended { task.resume() }
             }
             if delegate.needsAudioRebinding(identity) {
                 rebindRestoredAudio(task, identity: identity, language: record.audioLanguage, timeout: metadataTimeout)
             } else { delegate.finishPendingCompletion(identity) }
         }
+    }
+
+    func setPaused(_ paused: Bool, identity: HLSDownloadIdentity) {
+        guard let task = tasks[identity.attemptKey], task.taskIdentifier == identity.taskIdentifier else { return }
+        if paused, task.state == .running { task.suspend() }
+        else if !paused, task.state == .suspended { task.resume() }
     }
 
     private func rebindRestoredAudio(_ task: AVAssetDownloadTask, identity: HLSDownloadIdentity,

@@ -1,7 +1,7 @@
 import XCTest
 
 /// Deterministic transfer states only; these fixtures never start a network
-/// download. The production buttons still perform their normal navigation/cancel.
+/// download. The production buttons still perform their normal navigation and transfer actions.
 final class DownloadIndicatorFlowTests: XCTestCase {
     private var app: XCUIApplication!
     private let knownID = "00000000-0000-0000-0000-000000000143"
@@ -58,7 +58,7 @@ final class DownloadIndicatorFlowTests: XCTestCase {
         let unknown = app.buttons["download-activity-\(unknownID)"]
         XCTAssertTrue(known.waitForExistence(timeout: 5))
         XCTAssertEqual(value(known), "25 percent")
-        XCTAssertTrue(known.label.contains("Cancel download"))
+        XCTAssertTrue(known.label.contains("Pause download"))
         XCTAssertGreaterThanOrEqual(known.frame.width, 44)
         XCTAssertGreaterThanOrEqual(known.frame.height, 44)
         let series = app.buttons["download-series-43"]
@@ -73,7 +73,14 @@ final class DownloadIndicatorFlowTests: XCTestCase {
         capture("Show episode displays its actual indeterminate download ring")
 
         unknown.tap()
-        XCTAssertTrue(wait { !unknown.exists }, "The ring's stop control must cancel its own transfer.")
+        XCTAssertTrue(wait { unknown.label.contains("Resume download") })
+        XCTAssertEqual(value(unknown), "Paused. Total size unknown")
+        unknown.tap()
+        XCTAssertTrue(wait { unknown.label.contains("Pause download") })
+        element("download-card-\(unknownID)").swipeLeft()
+        let cancelUnknown = app.buttons["download-swipe-cancel-\(unknownID)"]
+        XCTAssertTrue(cancelUnknown.waitForExistence(timeout: 5)); cancelUnknown.tap()
+        XCTAssertTrue(wait { !unknown.exists }, "The swipe action still cancels its own transfer.")
         returnFromSeries()
         XCTAssertTrue(known.exists, "Canceling another episode must preserve the movie's active transfer.")
         XCTAssertEqual(value(known), "25 percent")
@@ -87,12 +94,37 @@ final class DownloadIndicatorFlowTests: XCTestCase {
         toolbar.tap()
         XCTAssertTrue(known.waitForExistence(timeout: 5))
         known.tap()
+        XCTAssertTrue(wait { known.label.contains("Resume download") })
+        XCTAssertEqual(value(known), "25 percent", "Pause must retain the downloaded byte fraction")
+        known.tap()
+        XCTAssertTrue(wait { known.label.contains("Pause download") })
+        XCTAssertEqual(value(known), "25 percent")
+        element("download-card-\(knownID)").swipeLeft()
+        let cancelKnown = app.buttons["download-swipe-cancel-\(knownID)"]
+        XCTAssertTrue(cancelKnown.waitForExistence(timeout: 5)); cancelKnown.tap()
         XCTAssertTrue(wait { !known.exists })
         XCTAssertTrue(app.buttons["download-play-00000000-0000-0000-0000-000000000042"].exists,
             "Canceling active transfers must preserve the completed offline video.")
         app.navigationBars["Downloads"].buttons["Close"].tap()
         XCTAssertTrue(wait { toolbar.isHittable && self.value(toolbar) == "No active downloads" })
         capture("Download activity clears after the last transfer is canceled")
+    }
+
+    func testDownloadedEpisodeTitleAndPlayAreSeparateActions() {
+        let toolbar = app.buttons["open-downloads"]
+        XCTAssertTrue(toolbar.waitForExistence(timeout: 15)); toolbar.tap()
+        openSeries()
+        let title = app.buttons["download-episode-title-\(unknownID)"]
+        let play = app.buttons["download-play-\(unknownID)"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        title.tap()
+        XCTAssertTrue(app.buttons["close-media-details"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts["Midnight Dispatch"].exists)
+        app.buttons["close-media-details"].tap()
+
+        XCTAssertTrue(play.waitForExistence(timeout: 5)); play.tap()
+        XCTAssertTrue(app.buttons["Close player"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts["Season 1 · Episode 1"].exists)
     }
 
     func testSwipeLeftRevealsActionsAndCancelOnlyStopsItsTransfer() {

@@ -26,6 +26,7 @@ struct DownloadItem: Identifiable, Codable, Sendable {
     var status: DownloadStatus
     var bytesWritten: Int64 = 0
     var expectedBytes: Int64 = 0
+    var transferPaused: Bool? = nil
     var error: String?
     /// Persisted because URLSession task identifiers survive background relaunches.
     var taskIdentifier: Int?
@@ -120,6 +121,7 @@ struct DownloadItem: Identifiable, Codable, Sendable {
         }
         return expectedBytes > 0 ? min(1, max(0, Double(bytesWritten) / Double(expectedBytes))) : nil
     }
+    var isTransferPaused: Bool { status == .downloading && transferPaused == true }
     var fileURL: URL? {
         if transport == .hlsVOD {
             if var reference = hlsPackageReference {
@@ -243,6 +245,8 @@ final class DownloadStore: ObservableObject {
     private lazy var hlsSession = HLSDownloadSessionOwner(observer: self,
         shouldRemovePartialPackage: { [weak self] reference in
             self?.canDiscardPartialHLSPackage(reference) ?? false
+        }, isPaused: { [weak self] identity in
+            self?.items.first(where: { $0.acceptsHLS(identity) })?.isTransferPaused == true
         })
     private var hlsRestoration: Task<Void, Never>?
     private var hlsRestorationPending = false
@@ -355,6 +359,7 @@ final class DownloadStore: ObservableObject {
             items[index].taskIdentifier = nil
             items[index].bytesWritten = 0
             items[index].expectedBytes = 0
+            items[index].transferPaused = nil
             items[index].error = nil
             start(items[index])
         } else {
@@ -383,9 +388,25 @@ final class DownloadStore: ObservableObject {
         tasks[id]?.cancel()
         tasks[id] = nil
         items[index].status = .cancelled
+        items[index].transferPaused = nil
         items[index].taskIdentifier = nil
         items[index].error = nil
         save()
+    }
+
+    func togglePause(id: UUID) {
+        guard let index = items.firstIndex(where: { $0.id == id }), items[index].status == .downloading,
+              items[index].pendingFileName == nil, items[index].hlsTransferSucceeded != true else { return }
+        let paused = !items[index].isTransferPaused
+        items[index].transferPaused = paused ? true : nil
+        save()
+        // Keep the native task and its partial bytes/package. Cancel and Retry
+        // intentionally remain separate actions that can request a new source.
+        if let identity = items[index].hlsIdentity { hlsSession.setPaused(paused, identity: identity) }
+        else if let task = tasks[id] {
+            if paused, task.state == .running { task.suspend() }
+            else if !paused, task.state == .suspended { task.resume() }
+        }
     }
 
     func retry(id: UUID) {
@@ -409,6 +430,7 @@ final class DownloadStore: ObservableObject {
         items[index].status = .downloading
         items[index].bytesWritten = 0
         items[index].expectedBytes = 0
+        items[index].transferPaused = nil
         items[index].error = nil
         cacheArtwork(id: id)
         if let descriptor = items[index].catalog, let media = descriptor.media {
@@ -605,7 +627,9 @@ final class DownloadStore: ObservableObject {
                     active.insert(id)
                     self.tasks[id] = download
                     self.items[index].taskIdentifier = download.taskIdentifier
-                    if task.state == .suspended { task.resume() }
+                    if self.items[index].isTransferPaused {
+                        if task.state == .running { task.suspend() }
+                    } else if task.state == .suspended { task.resume() }
                 }
                 for index in self.items.indices where self.items[index].transport != .hlsVOD && self.items[index].status == .downloading && !active.contains(self.items[index].id) && self.tasks[self.items[index].id] == nil && self.resolutions[self.items[index].id] == nil && self.validations[self.items[index].id] == nil {
                     self.items[index].status = .failed
@@ -636,6 +660,7 @@ final class DownloadStore: ObservableObject {
         items[index].pendingFileName = fileName
         items[index].bytesWritten = size
         items[index].expectedBytes = size
+        items[index].transferPaused = nil
         items[index].error = nil
         save()
         validatePending(id: id, taskIdentifier: taskIdentifier, fileName: fileName)
@@ -643,13 +668,15 @@ final class DownloadStore: ObservableObject {
 
     fileprivate func failed(id: UUID, taskIdentifier: Int, message: String, expiredSource: Bool = false) {
         guard let index = items.firstIndex(where: { $0.id == id }), items[index].acceptsCallback(taskIdentifier: taskIdentifier) else { return }
+        let mayRecover = !items[index].isTransferPaused
         cancelValidation(id: id)
         tasks[id] = nil
         items[index].status = .failed
+        items[index].transferPaused = nil
         items[index].taskIdentifier = nil
         items[index].error = message
         save()
-        if expiredSource, items[index].catalog?.media != nil,
+        if mayRecover, expiredSource, items[index].catalog?.media != nil,
            (items[index].automaticSourceRefreshes ?? 0) < 1 {
             retry(id: id, refreshingExpiredSource: true)
         }
@@ -783,8 +810,10 @@ final class DownloadStore: ObservableObject {
         let task = session.downloadTask(with: request)
         task.taskDescription = item.id.uuidString
         tasks[item.id] = task
-        if let index = items.firstIndex(where: { $0.id == item.id }) { items[index].taskIdentifier = task.taskIdentifier }
-        task.resume()
+        if let index = items.firstIndex(where: { $0.id == item.id }) {
+            items[index].taskIdentifier = task.taskIdentifier
+            if !items[index].isTransferPaused { task.resume() }
+        }
     }
 
     private func save() {
@@ -944,6 +973,7 @@ extension DownloadStore: HLSDownloadSessionObserver {
                 }
             }
             items[index].hlsTransferSucceeded = true
+            items[index].transferPaused = nil
             save()
             validateHLSPackage(identity: identity)
         case .failed:
@@ -969,13 +999,15 @@ extension DownloadStore: HLSDownloadSessionObserver {
         // A relaunched replacement may have no surviving resolver; restoration
         // may fail that orphaned row. A live replacement still owns the row.
         guard firstFailure || (!recover && resolutions[id] == nil && validations[id] == nil) else { return }
+        let mayRecover = recover && !items[index].isTransferPaused
         let failedSource = items[index].source
         cancelHLSTransfer(items[index])
         cancelValidation(id: id)
         items[index].status = .failed; items[index].taskIdentifier = nil
+        items[index].transferPaused = nil
         items[index].hlsTransferSucceeded = false; items[index].error = message
         save()
-        if recover, firstFailure, items[index].catalog != nil, (items[index].automaticSourceRefreshes ?? 0) < 1 {
+        if mayRecover, firstFailure, items[index].catalog != nil, (items[index].automaticSourceRefreshes ?? 0) < 1 {
             retry(id: id, refreshingExpiredSource: true, excludingSource: failedSource)
         }
     }
