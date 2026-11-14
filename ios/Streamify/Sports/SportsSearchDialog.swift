@@ -20,7 +20,7 @@ struct SportsSearchDialog: View {
     @State private var teamError: String?
     @State private var gameError: String?
     @State private var recents: [String] = []
-    @State private var selectedGame: SportsGameSelection?
+    @State private var selectedGame: SportsGame?
     @State private var selectedTeam: SportsTeamResult?
     @State private var revision = 0
     @State private var hasFocused = false
@@ -103,8 +103,8 @@ struct SportsSearchDialog: View {
                     search = query.trimmingCharacters(in: .whitespacesAndNewlines)
                 } catch { }
             }
-            .sheet(item: $selectedGame) { selection in
-                NavigationStack { SportsGameView(game: selection.game, startsInField: selection.startsInField).environmentObject(queue) }.streamifyPageSheet()
+            .sheet(item: $selectedGame) { game in
+                NavigationStack { SportsGameView(game: game).environmentObject(queue) }.streamifyPageSheet()
             }
             .sheet(item: $selectedTeam) { team in
                 NavigationStack { SportsTeamView(result: team).environmentObject(queue) }.streamifyPageSheet()

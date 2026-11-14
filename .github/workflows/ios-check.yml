@@ -274,10 +274,10 @@ jobs:
               SELECTORS=(-only-testing:StreamifyTests/SportsPlaybackSessionTests -only-testing:StreamifyTests/ProfileStoreTests -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testGameAndStreamSelectorsSwitchIndependentlyAndKeepOnePlayer)
               ;;
             field-ui-recheck)
-              SELECTORS=(-only-testing:StreamifyUITests/TennisFlowTests/testLiveCardWatchWithoutStreamOpensField -only-testing:StreamifyUITests/ParityFlowTests/testGameCenterWatchActionUsesACompactButtonWithAnAccessibleTapTarget -only-testing:StreamifyTests/SportsFieldSourceTests)
+              SELECTORS=(-only-testing:StreamifyUITests/TennisFlowTests/testLiveCardWatchWithoutStreamOpensGameCenter -only-testing:StreamifyUITests/ParityFlowTests/testGameCenterWatchActionUsesACompactButtonWithAnAccessibleTapTarget -only-testing:StreamifyTests/SportsGameDataTests)
               ;;
             tennis-data-recheck)
-              SELECTORS=(-only-testing:StreamifyTests/SportsFieldSourceTests -only-testing:StreamifyUITests/ParityFlowTests/testGameCenterWatchActionUsesACompactButtonWithAnAccessibleTapTarget -only-testing:StreamifyUITests/ParityFlowTests/testFinalGameHasGroupedPlayByPlayAndBothTeamsPlayerTables -only-testing:StreamifyUITests/TennisFlowTests/testLiveCardWatchWithoutStreamOpensField -only-testing:StreamifyTests/DownloadLibraryGroupingTests -only-testing:StreamifyUITests/DownloadIndicatorFlowTests/testRealFractionsUnknownTotalsAndCancellationUpdateHeader -only-testing:StreamifyUITests/DownloadIndicatorFlowTests/testDownloadedEpisodeTitleAndPlayAreSeparateActions)
+              SELECTORS=(-only-testing:StreamifyTests/SportsGameDataTests -only-testing:StreamifyUITests/ParityFlowTests/testGameCenterWatchActionUsesACompactButtonWithAnAccessibleTapTarget -only-testing:StreamifyUITests/ParityFlowTests/testFinalGameHasGroupedPlayByPlayAndBothTeamsPlayerTables -only-testing:StreamifyUITests/TennisFlowTests/testLiveCardWatchWithoutStreamOpensGameCenter -only-testing:StreamifyTests/SportsSourceAggregationTests -only-testing:StreamifyUITests/SportsPlaybackFlowTests/testSportsWatchAutoplaysReadyVideoAndPreservesAnExplicitPause)
               ;;
             tennis-recheck)
               SELECTORS=(-only-testing:StreamifyTests -only-testing:StreamifyUITests/TennisFlowTests -only-testing:StreamifyUITests/ParityFlowTests/testBaseballDiamondUsesLiveBaseStatesAndSymmetricFieldLayout -only-testing:StreamifyUITests/ParityFlowTests/testBasketballPossessionIconSitsImmediatelyBeforeTheCorrectScoreForBothLeagues)

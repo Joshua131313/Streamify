@@ -1,13 +1,6 @@
 import SwiftUI
 
-struct SportsGameSelection: Identifiable {
-    let game: SportsGame
-    let startsInField: Bool
-    var id: String { game.id }
-}
-
 struct SportsGameView: View {
-    private enum Presentation { case watch, field }
     let game: SportsGame
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var queue: SportsWatchQueue
@@ -17,7 +10,6 @@ struct SportsGameView: View {
     @State private var center: SportsGameCenter?
     @State private var error: String?
     @State private var tab = "Overview"
-    @State private var presentation: Presentation?
     @State private var revision = 0
     @State private var streams: [SportsStream] = []
     @State private var streamsLoading = true
@@ -28,25 +20,15 @@ struct SportsGameView: View {
     private var current: SportsGame { center?.game ?? game }
     private var tabs: [String] { current.league == .tennis ? ["Overview", "Sets", "Chat"] : ["Overview", "Scoring", "Team stats"] + (current.state == "pre" ? [] : ["Players"]) + [current.isFinal ? "Play-by-play" : "Latest play", "Chat"] }
     private var hasStreams: Bool { current.canWatch && !streams.isEmpty }
-    private var showingWatch: Bool { hasStreams && presentation != .field }
 
-    init(game: SportsGame, startsInField: Bool = false) {
-        self.game = game
-        _presentation = State(initialValue: startsInField ? .field : nil)
-    }
+    init(game: SportsGame) { self.game = game }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 scoreboard
-                HStack(spacing: 8) {
-                    Pill(title: "Watch", selected: showingWatch) { presentation = .watch; tab = "Overview" }
-                        .disabled(!hasStreams).opacity(hasStreams ? 1 : 0.55)
-                        .accessibilityIdentifier("sports-center-mode-watch")
-                    Pill(title: "Field", selected: !showingWatch) { presentation = .field; tab = "Overview" }
-                        .accessibilityIdentifier("sports-center-mode-field")
-                    Spacer(minLength: 0)
-                    if !showingWatch && !current.isFinal { SportsTrackGameButton(game: current) }
+                if !hasStreams && !current.isFinal {
+                    SportsTrackGameButton(game: current).frame(maxWidth: .infinity, alignment: .trailing)
                 }
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) { ForEach(tabs, id: \.self) { value in Pill(title: value, selected: tab == value) {
@@ -57,7 +39,8 @@ struct SportsGameView: View {
                     StateMessage(symbol: "exclamationmark.circle", title: "Detailed feed unavailable", message: error, actionTitle: "Retry", action: { revision += 1 })
                 }
                 if tab == "Overview" {
-                    if showingWatch { watchSources } else { field }
+                    if hasStreams { watchSources }
+                    else if current.canWatch { streamAvailability }
                     overview
                 }
                 if tab == "Scoring" || tab == "Sets" {
@@ -161,7 +144,7 @@ struct SportsGameView: View {
                     if team.id == current.away.id { Rectangle().fill(AppTheme.border.opacity(0.6)).frame(height: 0.5).accessibilityHidden(true) }
                 }
             } }
-            if current.isLive, showingWatch { SportsLiveSituationView(game: current) }
+            if current.isLive { SportsLiveSituationView(game: current) }
             Text([current.tennis?.timeConfirmed == false ? (current.date?.formatted(date: .abbreviated, time: .omitted) ?? "") + " · Time TBA" : current.date?.formatted(date: .abbreviated, time: .shortened) ?? "Time to be announced", current.venue]
                 .filter { !$0.isEmpty }.joined(separator: " · "))
                 .font(.caption2).foregroundStyle(AppTheme.muted).lineLimit(2)
@@ -178,17 +161,10 @@ struct SportsGameView: View {
         }
     }
 
-    private var field: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if presentation == .field || !current.canWatch || !streamsLoading {
-                SportsGameField(game: current)
-            }
-            if current.canWatch {
-                if let streamsError { SportsSourcesUnavailableView(message: streamsError) { revision += 1 } }
-                else if streamsLoading { Label("Finding streams…", systemImage: "tv").font(.caption).foregroundStyle(AppTheme.muted) }
-                else if !hasStreams { Text("No matching stream is available.").font(.caption).foregroundStyle(AppTheme.muted) }
-            }
-        }
+    @ViewBuilder private var streamAvailability: some View {
+        if let streamsError { SportsSourcesUnavailableView(message: streamsError) { revision += 1 } }
+        else if streamsLoading { Label("Finding streams…", systemImage: "tv").font(.caption).foregroundStyle(AppTheme.muted) }
+        else { Text("No matching stream is available.").font(.caption).foregroundStyle(AppTheme.muted) }
     }
 
     private var watchSources: some View {
@@ -315,7 +291,7 @@ struct SportsTeamView: View {
     @State private var loading = true
     @State private var tab = "Schedule"
     @State private var revision = 0
-    @State private var selectedGame: SportsGameSelection?
+    @State private var selectedGame: SportsGame?
     @State private var pageWindow = SportsPageWindow()
     private var team: SportsTeam { profile?.team ?? result.team }
     private var following: Bool { library.followedTeams.contains(result.id) }
@@ -357,8 +333,8 @@ struct SportsTeamView: View {
                     do { try await Task.sleep(for: .seconds(30)) } catch { return }
                 } while !Task.isCancelled
             }
-            .sheet(item: $selectedGame) { selection in
-                NavigationStack { SportsGameView(game: selection.game, startsInField: selection.startsInField).environmentObject(queue) }
+            .sheet(item: $selectedGame) { game in
+                NavigationStack { SportsGameView(game: game).environmentObject(queue) }
             }
     }
 

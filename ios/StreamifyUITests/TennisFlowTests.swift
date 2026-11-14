@@ -91,7 +91,7 @@ final class TennisFlowTests: XCTestCase {
         add(screenshot)
     }
 
-    func testLiveCardWatchWithoutStreamOpensField() {
+    func testLiveCardWatchWithoutStreamOpensGameCenter() {
         let sports = app.buttons["tab-sports"]
         XCTAssertTrue(sports.waitForExistence(timeout: 15)); sports.tap()
         let schedule = app.scrollViews["sports-screen"].firstMatch
@@ -103,19 +103,14 @@ final class TennisFlowTests: XCTestCase {
 
         let gameCenter = app.navigationBars["Game center"]
         XCTAssertTrue(gameCenter.waitForExistence(timeout: 12), "Watch should open Game Center when the stream lookup is empty")
-        let field = app.descendants(matching: .any).matching(identifier: "sports-center-field-tennis").firstMatch
-        XCTAssertTrue(field.waitForExistence(timeout: 12))
-        XCTAssertTrue(app.buttons["sports-center-mode-field"].isSelected)
+        XCTAssertTrue(app.staticTexts["No matching stream is available."].waitForExistence(timeout: 12))
+        XCTAssertTrue(app.buttons["sports-game-tab-Overview"].isSelected)
+        XCTAssertTrue(app.buttons["sports-game-tab-Sets"].exists)
+        XCTAssertFalse(app.buttons["sports-center-mode-field"].exists)
+        XCTAssertFalse(app.webViews.firstMatch.exists)
         XCTAssertFalse(app.alerts["Source unavailable"].exists)
-        let tracker = app.webViews.firstMatch
-        let pointDetails = tracker.buttons["Show point details"]
-        XCTAssertTrue(pointDetails.waitForExistence(timeout: 10))
-        let scroll = app.scrollViews.containing(.any, identifier: "sports-center-mode-field").firstMatch
-        XCTAssertTrue(scroll.exists)
-        guard tapWhenVisible(pointDetails, in: scroll, below: gameCenter.frame.maxY + 12, above: app.frame.maxY - 40, attempts: 4) else { return }
-        XCTAssertTrue(tracker.staticTexts["Point details displayed"].waitForExistence(timeout: 5))
-        let fieldCapture = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        fieldCapture.name = "Interactive Tennis Field after Watch with no stream"; fieldCapture.lifetime = .keepAlways; add(fieldCapture)
+        let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        screenshot.name = "Tennis Game Center after Watch with no stream"; screenshot.lifetime = .keepAlways; add(screenshot)
     }
 
     @discardableResult private func tapWhenVisible(_ target: XCUIElement, in scroll: XCUIElement,

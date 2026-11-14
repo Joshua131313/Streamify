@@ -79,7 +79,7 @@ struct SportsView: View {
     @State private var manualReload = false
     @State private var error: String?
     @State private var partial = false
-    @State private var selectedGame: SportsGameSelection?
+    @State private var selectedGame: SportsGame?
     @State private var showMultiWatch = false
     @State private var showCalendar = false
     @State private var showFilters = false
@@ -237,8 +237,8 @@ struct SportsView: View {
             if let calendarLoadedAt, calendarLoadedScope == calendarScope, Date().timeIntervalSince(calendarLoadedAt) < 600, calendarUnavailable.isEmpty { return }
             await loadCalendarMarkers()
         }
-        .sheet(item: $selectedGame) { selection in
-            NavigationStack { SportsGameView(game: selection.game, startsInField: selection.startsInField).environmentObject(queue) }.streamifyPageSheet()
+        .sheet(item: $selectedGame) { game in
+            NavigationStack { SportsGameView(game: game).environmentObject(queue) }.streamifyPageSheet()
         }
         .streamifySearchPresentation(isPresented: $showSportsSearch, sourceID: searchSourceID, in: searchNamespace) {
             SportsSearchDialog(day: day, initialGames: games).environmentObject(queue)
@@ -853,7 +853,7 @@ private struct SportsMarkerBatch: Sendable {
 struct SportsGameCard: View {
     let game: SportsGame
     var daySwipeScope: SportsDaySwipeScope? = nil
-    var action: (SportsGameSelection) -> Void
+    var action: (SportsGame) -> Void
     @EnvironmentObject private var playback: SportsPlaybackSession
     @EnvironmentObject private var library: LibraryStore
     @EnvironmentObject private var queue: SportsWatchQueue
@@ -929,17 +929,17 @@ struct SportsGameCard: View {
                     if let first = playback.preferredSource(in: streams) {
                         playback.play(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: first.url, sources: streams, origin: requestOrigin, game: game)
                     }
-                    else { openGame(startsInField: true) }
+                    else { openGame() }
                 } catch is CancellationError { }
                 catch {
                     guard !Task.isCancelled, watchRevision == request, daySwipeScope?.generation == scheduleGeneration else { return }
-                    openGame(startsInField: true)
+                    openGame()
                 }
             }
     }
 
-    private func openGame(startsInField: Bool = false) {
-        action(SportsGameSelection(game: game, startsInField: startsInField))
+    private func openGame() {
+        action(game)
     }
 
     private var hasFooterSituation: Bool {
