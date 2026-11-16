@@ -9,6 +9,7 @@ final class ParityFlowTests: XCTestCase {
         continueAfterFailure = false
         app = XCUIApplication()
         app.launchArguments = ["--ui-fixtures"]
+        if name.contains("testCFLScorecardOpensGameCenterWithBroadcastAndQuarterScores") { app.launchArguments.append("--ui-cfl-fixture") }
         if name.contains("testBaseballDiamondUsesLiveBaseStates") || name.contains("testBaseballFooter") { app.launchArguments.append("--ui-mlb-count-fixtures") }
         if name.contains("testBaseballFooterAdaptsToLargeTextInLightMode") {
             app.launchArguments += ["--ui-mlb-light", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityM"]
@@ -69,6 +70,21 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertTrue(element("sports-play-play-2").waitForExistence(timeout: 5))
         XCTAssertFalse(element("sports-play-play-1").exists)
         capture("Final play-by-play filters and expands Quarter2")
+    }
+
+    func testCFLScorecardOpensGameCenterWithBroadcastAndQuarterScores() {
+        app.buttons["tab-sports"].tap()
+        selectSportsLeagues(["cfl"])
+        let game = app.buttons["sports-game-cfl:6676"]
+        XCTAssertTrue(game.waitForExistence(timeout: 12))
+        game.tap()
+        XCTAssertTrue(app.navigationBars["Game center"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["TSN, CTV"].waitForExistence(timeout: 10))
+        XCTAssertTrue(element("sports-cfl-broadcast-TSN").exists)
+        XCTAssertFalse(element("sports-field-cfl:6676").exists)
+        selectGameCenterTab("Scoring")
+        XCTAssertTrue(element("sports-scoring-periods").waitForExistence(timeout: 10))
+        capture("CFL Game Center with quarter scoring")
     }
 
     func testGameCardTeamHoldAndNHLTagDoNotTriggerCardNavigation() {

@@ -42,11 +42,11 @@ extension View {
 /// Missing feed values never imply possession or a fabricated spot.
 struct SportsLiveSituationView: View {
     let game: SportsGame
-    private var football: Bool { game.league.sport == "football" }
+    private var usesAmericanFootballField: Bool { game.league == .nfl || game.league == .ncaaf }
     private var teamLabel: String? { game.possessionTeam.map { $0.abbreviation.isEmpty ? $0.name : $0.abbreviation } }
 
     var body: some View {
-        if football {
+        if usesAmericanFootballField {
             let situation = game.isLive ? game.liveSituation : nil
             let position = game.footballFieldPosition
             VStack(alignment: .leading, spacing: 5) {

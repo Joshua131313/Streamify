@@ -279,6 +279,15 @@ enum PreviewFixtures {
             let payload: [String: Any] = query.contains("Page(")
                 ? ["Page": ["pageInfo": ["hasNextPage": false], "media": [item]] as [String: Any]] : ["Media": item]
             value = ["data": payload]
+        } else if host == "streamify.watch", URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.contains(where: { $0.name == "league" && $0.value == "cfl" }) == true {
+            let game = cflGameFixture()
+            let enabled = ProcessInfo.processInfo.arguments.contains("--ui-cfl-fixture")
+            switch path {
+            case "/api/scores", "/api/game": value = enabled ? [game] : []
+            case "/api/teams": value = enabled ? game.sportsObjects("teams") : []
+            case "/api/calendar": value = ["dates": enabled ? [SportsService.cflDateKey(Date(), timeZone: .current)] : [], "partial": false]
+            default: value = [[String: Any]]()
+            }
         } else if host == "site.api.espn.com" { value = sportsJSON(url) }
         else if host == "api-web.nhle.com" {
             let date = Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: Date()) ?? Date()
@@ -331,6 +340,14 @@ enum PreviewFixtures {
         } else { return (404, "application/json", Data("{\"error\":\"No UI fixture for this request\"}".utf8)) }
         return (200, "application/json", (try? JSONSerialization.data(withJSONObject: value)) ?? Data("{}".utf8))
     }
+    private static func cflGameFixture() -> [String: Any] {
+        ["id": "6676", "league": "cfl", "date": ISO8601DateFormatter().string(from: Date().addingTimeInterval(-1800)),
+         "state": "in", "detail": "12:45 · Q3", "period": 3, "periodCount": 4, "clock": "12:45", "venue": "McMahon Stadium",
+         "broadcast": "TSN, CTV", "broadcastLinks": [["label": "TSN", "url": "https://www.tsn.ca/live"]],
+         "teams": [["id": "11", "name": "Montreal Alouettes", "abbrev": "MTL", "homeAway": "away", "score": "17", "linescores": ["7", "10", "0"]],
+                   ["id": "7", "name": "Edmonton Elks", "abbrev": "EDM", "homeAway": "home", "score": "21", "linescores": ["7", "7", "7"]]]]
+    }
+
     private static func requestBody(_ request: URLRequest) -> Data? {
         if let body = request.httpBody { return body }
         guard let stream = request.httpBodyStream else { return nil }

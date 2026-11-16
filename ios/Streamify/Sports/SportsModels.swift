@@ -3,7 +3,7 @@ import SwiftUI
 import ActivityKit
 
 enum SportsLeague: String, CaseIterable, Identifiable, Codable, Sendable {
-    case nhl, nba, wnba, nfl
+    case nhl, nba, wnba, nfl, cfl
     case ncaaf = "college-football"
     case ncaam = "mens-college-basketball"
     case ncaaw = "womens-college-basketball"
@@ -17,13 +17,23 @@ enum SportsLeague: String, CaseIterable, Identifiable, Codable, Sendable {
     var isCollege: Bool { self == .ncaaf || isCollegeBasketball }
     var regulationPeriods: Int { self == .ncaam ? 2 : self == .nhl ? 3 : 4 }
     var sport: String {
-        switch self { case .nfl, .ncaaf: return "football"; case .nba, .wnba, .ncaam, .ncaaw: return "basketball"; case .nhl: return "hockey"; case .mlb: return "baseball"; case .tennis: return "tennis" }
+        switch self { case .nfl, .ncaaf, .cfl: return "football"; case .nba, .wnba, .ncaam, .ncaaw: return "basketball"; case .nhl: return "hockey"; case .mlb: return "baseball"; case .tennis: return "tennis" }
     }
-    var category: String { self == .nfl || self == .ncaaf ? "american-football" : sport }
-    var subtitle: String { self == .ncaam ? "Men’s college basketball" : self == .ncaaw ? "Women’s college basketball" : self == .ncaaf ? "College football" : self == .nfl ? "American football" : sport.capitalized }
+    var category: String { self == .cfl ? "canadian-football" : sport == "football" ? "american-football" : sport }
+    var subtitle: String {
+        switch self {
+        case .ncaam: return "Men’s college basketball"
+        case .ncaaw: return "Women’s college basketball"
+        case .ncaaf: return "College football"
+        case .nfl: return "American football"
+        case .cfl: return "Canadian football"
+        default: return sport.capitalized
+        }
+    }
     var accent: Color {
         switch self { case .nfl: return Color(red: 0.71, green: 0.65, blue: 0.93)
         case .ncaaf: return Color(red: 0.35, green: 0.66, blue: 0.94)
+        case .cfl: return Color(red: 0.90, green: 0.33, blue: 0.41)
         case .ncaam: return Color(red: 0.45, green: 0.65, blue: 0.98)
         case .ncaaw: return Color(red: 0.80, green: 0.52, blue: 0.91)
         case .nba: return Color(red: 0.96, green: 0.64, blue: 0.36)
@@ -152,6 +162,12 @@ struct SportsBaseballSituation: Hashable, Sendable {
 
 enum SportsScheduledPhase { case pregame, upcoming }
 
+struct SportsBroadcastLink: Identifiable, Hashable, Sendable {
+    let label: String
+    let url: URL
+    var id: URL { url }
+}
+
 struct SportsGame: Identifiable, Hashable, Sendable {
     let eventID: String
     let league: SportsLeague
@@ -165,6 +181,7 @@ struct SportsGame: Identifiable, Hashable, Sendable {
     let link: String
     var liveSituation: SportsLiveSituation? = nil
     var tennis: SportsTennisMatch? = nil
+    var broadcastLinks: [SportsBroadcastLink] = []
     var id: String { "\(league.rawValue):\(eventID)" }
     var isLive: Bool { state == "in" }
     var isFinal: Bool { state == "post" }

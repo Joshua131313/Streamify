@@ -18,6 +18,7 @@ enum SportsSourceIdentity {
         let aliases: Set<String>
         switch game.league {
         case .nfl: aliases = ["nfl", "nationalfootballleague"]
+        case .cfl: aliases = ["cfl", "canadianfootballleague", "canadiancfl", "canadacfl", "greycup"]
         case .ncaaf: aliases = ["ncaaf", "cfb", "ncaafootball", "collegefootball", "ncaafbs", "ncaafcs", "ncaadivision1football"]
         case .ncaam: aliases = ["ncaam", "ncaamb", "ncaab", "menscollegebasketball", "ncaamensbasketball", "ncaamensdivision1", "ncaadivision1mensbasketball", "ncaabasketballmen"]
         case .ncaaw: aliases = ["ncaaw", "ncaawb", "wncaab", "womenscollegebasketball", "ncaawomensbasketball", "ncaawomensdivision1", "ncaadivision1womensbasketball", "ncaabasketballwomen"]

@@ -70,7 +70,8 @@ private enum LiveGamesLoader {
                 SportsLeague.allCases.compactMap { league -> Request? in
                     guard league.scoreboardParameters.indices.contains(parameterIndex) else { return nil }
                     let parameters = league.scoreboardParameters[parameterIndex]
-                    guard let url = URL(string: "\(league.endpoint)/scoreboard?dates=\(day)\(parameters)") else { return nil }
+                    let address = league == .cfl ? SportsService.cflScoreboardURL(date: day) : "\(league.endpoint)/scoreboard?dates=\(day)\(parameters)"
+                    guard let url = URL(string: address) else { return nil }
                     return Request(league: league, url: url)
                 }
             }
@@ -114,6 +115,10 @@ private enum LiveGamesLoader {
     private static func feed(_ request: Request, session: URLSession) async -> FeedResult {
         do {
             let data = try await read(request.url, session: session, maximumBytes: 1_500_000, images: false)
+            if request.league == .cfl {
+                guard let events = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return .failed }
+                return .loaded(events.compactMap(SportsService.cflGame))
+            }
             return .loaded(try SportsWidgetPolicy.parseScoreboard(data, league: request.league))
         } catch {
             return Task.isCancelled ? .cancelled : .failed
@@ -164,9 +169,11 @@ private enum LiveGamesLoader {
     }
 
     private static func logoURL(_ value: String) -> URL? {
-        guard let url = sportsHTTPSURL(value), let host = url.host?.lowercased(),
-              host == "espncdn.com" || host.hasSuffix(".espncdn.com") else { return nil }
-        return url
+        guard let url = sportsHTTPSURL(value), let host = url.host?.lowercased() else { return nil }
+        if host == "espncdn.com" || host.hasSuffix(".espncdn.com") { return url }
+        if host == "streamify.watch", url.port == nil, url.query == nil, url.fragment == nil,
+           url.path.range(of: #"^/images/leagues/cfl-teams/[a-zA-Z]+\.png$"#, options: .regularExpression) != nil { return url }
+        return nil
     }
 
     private static func read(_ url: URL, session: URLSession, maximumBytes: Int, images: Bool) async throws -> Data {
@@ -178,7 +185,7 @@ private enum LiveGamesLoader {
         guard let response = response as? HTTPURLResponse, (200...299).contains(response.statusCode),
               let final = response.url, final.scheme == "https", final.user == nil, final.password == nil,
               response.expectedContentLength <= Int64(maximumBytes),
-              (images ? logoURL(final.absoluteString) != nil && response.mimeType?.hasPrefix("image/") == true : final.host == "site.api.espn.com") else {
+              (images ? logoURL(final.absoluteString) != nil && response.mimeType?.hasPrefix("image/") == true : final.host == url.host) else {
             throw URLError(.badServerResponse)
         }
         var data = Data()

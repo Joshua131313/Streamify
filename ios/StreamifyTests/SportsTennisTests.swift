@@ -221,7 +221,7 @@ final class SportsTennisTests: XCTestCase {
         let atp = SportsTennisFeed.parse(scoreboard(), tour: .atp), wta = SportsTennisFeed.parse(scoreboard(), tour: .wta)
         let groups = SportsTennisGroup.groups(try SportsTennisExplorer.parse(challengerHTML()) + wta + atp)
         XCTAssertEqual(Array(groups.prefix(3).map(\.tour)), [.atp, .wta, .challenger])
-        XCTAssertEqual(SportsLeague.allCases, [.nhl, .nba, .wnba, .nfl, .ncaaf, .ncaam, .ncaaw, .tennis, .mlb])
+        XCTAssertEqual(SportsLeague.allCases, [.nhl, .nba, .wnba, .nfl, .cfl, .ncaaf, .ncaam, .ncaaw, .tennis, .mlb])
         XCTAssertTrue(SportsService.validTennisEventID("challenger-3361803"))
         XCTAssertFalse(SportsService.validTennisEventID("185682"))
         XCTAssertFalse(SportsService.validTennisEventID("espn-atp-../185682"))

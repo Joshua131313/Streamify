@@ -562,6 +562,7 @@ struct SportsView: View {
         switch league {
         case .nfl: return Color(red: 0.22, green: 0.61, blue: 0.96)
         case .ncaaf: return Color(red: 0.33, green: 0.65, blue: 0.94)
+        case .cfl: return league.accent
         case .ncaam, .ncaaw: return league.accent
         case .nba: return Color(red: 0.94, green: 0.53, blue: 0.24)
         case .wnba: return Color(red: 0.86, green: 0.40, blue: 0.71)
@@ -796,7 +797,7 @@ struct SportsView: View {
         let calendar = Calendar.current
         let jobs: [(SportsLeague, Date, String)] = {
             var result: [(SportsLeague, Date, String)] = []
-            for item in markerLeagues where item != .tennis {
+            for item in markerLeagues where item != .tennis && item != .cfl {
                 for offset in -3...14 {
                     guard let date = calendar.date(byAdding: .day, value: offset, to: referenceToday) else { continue }
                     for parameters in item.scoreboardParameters { result.append((item, date, parameters)) }
@@ -806,6 +807,18 @@ struct SportsView: View {
         }()
         do {
             let batches = try await withThrowingTaskGroup(of: SportsMarkerBatch.self, returning: [SportsMarkerBatch].self) { group in
+                if markerLeagues.contains(.cfl) {
+                    group.addTask {
+                        var batch = SportsMarkerBatch()
+                        do {
+                            let result = try await SportsService(calendar: calendar).cflCalendar(first: start, last: end)
+                            batch.cflDays = result.days
+                            if result.partial { batch.unavailable.insert(.cfl) }
+                        } catch is CancellationError { throw CancellationError() }
+                        catch { try Task.checkCancellation(); batch.unavailable.insert(.cfl) }
+                        return batch
+                    }
+                }
                 // Match Android's limit: three scoreboard requests at a time.
                 for worker in 0..<3 {
                     group.addTask {
@@ -838,8 +851,10 @@ struct SportsView: View {
             guard referenceToday == today, start == firstDay, referenceScope == calendarScope else { return }
             // Tennis's nested tournament feeds are already loaded by the page;
             // calendar dots must not trigger dozens of additional HTML requests.
-            let markers = batches.flatMap { Array($0.events.values) } + games.filter { $0.league == .tennis }.map(SportsCalendarEventMarker.init)
-            calendarMarkers = SportsCalendarEventMarker.days(markers, now: referenceTime, calendar: calendar, first: start, last: end)
+            let markers = batches.flatMap { Array($0.events.values) } + games.filter { $0.league == .tennis || $0.league == .cfl }.map(SportsCalendarEventMarker.init)
+            var days = SportsCalendarEventMarker.days(markers, now: referenceTime, calendar: calendar, first: start, last: end)
+            for day in batches.flatMap(\.cflDays) { days[day, default: []].insert(.cfl) }
+            calendarMarkers = days
             calendarUnavailable = Set(batches.flatMap(\.unavailable)); calendarLoadedAt = Date(); calendarLoadedScope = referenceScope
         } catch { }
     }
@@ -847,6 +862,7 @@ struct SportsView: View {
 
 private struct SportsMarkerBatch: Sendable {
     var events: [String: SportsCalendarEventMarker] = [:]
+    var cflDays: [Date] = []
     var unavailable = Set<SportsLeague>()
 }
 

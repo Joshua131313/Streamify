@@ -64,6 +64,133 @@ struct SportsService: Sendable {
     // Keep its normal .com API first when a device cannot resolve timst.top.
     var timStreamAPIHosts = ["tim-streams.com", "timst.top"]
     private static let timStreamHostnames: Set<String> = ["tim-streams.com", "timst.top"]
+    private static let cflAPI = "https://streamify.watch/api"
+
+    static func cflScoreboardURL(date: String, includeNeighbors: Bool = false) -> String {
+        "\(cflAPI)/scores?league=cfl&date=\(date)\(includeNeighbors ? "&live=1" : "")"
+    }
+
+    static func cflDateKey(_ date: Date, timeZone: TimeZone) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.timeZone = timeZone
+        formatter.dateFormat = "yyyyMMdd"
+        return formatter.string(from: date)
+    }
+
+    private static func cflGameURL(_ endpoint: String, game: SportsGame) -> String {
+        var url = "\(cflAPI)/\(endpoint)?league=cfl&gameId=\(game.eventID)"
+        if let date = game.date { url += "&date=\(cflDateKey(date, timeZone: TimeZone(secondsFromGMT: 0)!))" }
+        return url
+    }
+
+    private func cflArray(_ url: String) async throws -> [[String: Any]] {
+        guard let result = try await json(url) as? [[String: Any]] else { throw SportsServiceError.invalidResponse }
+        return result
+    }
+
+    func cflCalendar(first: Date, last: Date) async throws -> (days: [Date], partial: Bool) {
+        let dates = "\(Self.cflDateKey(first, timeZone: calendar.timeZone))-\(Self.cflDateKey(last, timeZone: calendar.timeZone))"
+        let value = try await object("\(Self.cflAPI)/calendar?league=cfl&date=\(dates)")
+        guard let keys = value["dates"] as? [String], keys.count <= 21 else { throw SportsServiceError.invalidResponse }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.timeZone = calendar.timeZone
+        formatter.dateFormat = "yyyyMMdd"
+        let days = keys.compactMap { key -> Date? in
+            guard let day = formatter.date(from: key), formatter.string(from: day) == key, day >= first, day <= last else { return nil }
+            return day
+        }
+        return (days, value["partial"] as? Bool ?? false)
+    }
+
+    static func cflTeam(_ value: [String: Any]) -> SportsTeam? {
+        let id = value.sportsText("id"), name = value.sportsText("name")
+        guard validEventID(id), !name.isEmpty else { return nil }
+        return SportsTeam(id: id, name: name, abbreviation: value.sportsText("abbrev"), logo: value.sportsText("logo"),
+            score: value.sportsText("score"), record: value.sportsText("record"),
+            streamNames: value["streamNames"] as? [String] ?? [], primaryColorHex: teamColor(value.sportsText("color")))
+    }
+
+    static func cflGame(_ value: [String: Any]) -> SportsGame? {
+        let id = value.sportsText("id"), state = value.sportsText("state")
+        let teams = value.sportsObjects("teams")
+        guard validEventID(id), value.sportsText("league") == "cfl", ["pre", "in", "post"].contains(state),
+              let date = parseDate(value.sportsText("date")), teams.count == 2,
+              let away = teams.first(where: { $0.sportsText("homeAway") == "away" }).flatMap(cflTeam),
+              let home = teams.first(where: { $0.sportsText("homeAway") == "home" }).flatMap(cflTeam), home.id != away.id else { return nil }
+        let situation = value.sportsObject("situation")
+        let status: [String: Any] = ["period": value["period"] ?? NSNull(), "displayClock": value["clock"] ?? NSNull()]
+        var seen = Set<URL>()
+        let broadcastLinks = value.sportsObjects("broadcastLinks").prefix(12).compactMap { link -> SportsBroadcastLink? in
+            let label = link.sportsText("label").trimmingCharacters(in: .whitespacesAndNewlines)
+            let hosts: Set<String> = ["www.tsn.ca", "www.ctv.ca", "www.crave.ca", "www.rds.ca", "www.cfl.ca", "www.dazn.com", "dazn.com"]
+            guard !label.isEmpty, let url = sportsHTTPSURL(link.sportsText("url")), let host = url.host, hosts.contains(host.lowercased()),
+                  url.port == nil || url.port == 443, seen.insert(url).inserted else { return nil }
+            return SportsBroadcastLink(label: String(label.prefix(80)), url: url)
+        }
+        return SportsGame(eventID: id, league: .cfl, date: date, state: state, status: value.sportsText("detail"),
+            home: home, away: away, venue: value.sportsText("venue"), broadcasts: value.sportsText("broadcast"), link: value.sportsText("link"),
+            liveSituation: liveSituation(situation, status: status, state: state, league: .cfl, home: home, away: away), broadcastLinks: broadcastLinks)
+    }
+
+    private func cflCenter(_ fallback: SportsGame) async throws -> SportsGameCenter {
+        guard Self.validEventID(fallback.eventID), let response = try await cflArray(Self.cflGameURL("game", game: fallback))
+            .first(where: { $0.sportsText("id") == fallback.eventID }), let game = Self.cflGame(response),
+            game.away.id == fallback.away.id, game.home.id == fallback.home.id else { throw SportsServiceError.invalidResponse }
+        let teams = response.sportsObjects("teams")
+        func scores(_ team: SportsTeam) -> [String] {
+            teams.first { $0.sportsText("id") == team.id }?["linescores"] as? [String] ?? []
+        }
+        let away = scores(game.away), home = scores(game.home)
+        let scoring = (0..<min(50, max(away.count, home.count))).compactMap { index -> SportsStatRow? in
+            let a = away.indices.contains(index) ? away[index] : ""
+            let h = home.indices.contains(index) ? home[index] : ""
+            guard !a.isEmpty || !h.isEmpty else { return nil }
+            let period = index + 1
+            return SportsStatRow(id: String(period), label: game.league.periodTitle(period),
+                away: a.isEmpty ? "—" : a, home: h.isEmpty ? "—" : h, period: period)
+        }
+        let details = response.sportsObject("details")
+        func stats(_ team: SportsTeam) -> [[String: Any]] {
+            details.sportsObjects("teamStats").first { $0.sportsText("id") == team.id }?.sportsObjects("stats")
+                ?? teams.first { $0.sportsText("id") == team.id }?.sportsObjects("stats") ?? []
+        }
+        let awayStats = stats(game.away), homeStats = stats(game.home)
+        var seen = Set<String>()
+        let statistics = (awayStats + homeStats).compactMap { stat -> SportsStatRow? in
+            let name = stat.sportsText("name"), label = stat.sportsText("label")
+            guard !name.isEmpty, seen.insert(name).inserted else { return nil }
+            return SportsStatRow(id: name, label: label.isEmpty ? name : label,
+                away: awayStats.first { $0.sportsText("name") == name }?.sportsText("value") ?? "—",
+                home: homeStats.first { $0.sportsText("name") == name }?.sportsText("value") ?? "—")
+        }
+        let plays = details.sportsObjects("scoringPlays").compactMap { play -> SportsGamePlay? in
+            let id = play.sportsText("id"), text = play.sportsText("text")
+            guard !id.isEmpty, !text.isEmpty, let period = Int(play.sportsText("period")), (1...50).contains(period) else { return nil }
+            return SportsGamePlay(id: id, period: period, clock: play.sportsText("clock"), text: text,
+                awayScore: play.sportsText("awayScore"), homeScore: play.sportsText("homeScore"), teamID: play.sportsText("teamId"), scoring: true)
+        }
+        let grouped = Dictionary(grouping: plays, by: \.period)
+        let periods = grouped.keys.sorted().map { SportsPlayPeriod(number: $0, plays: grouped[$0] ?? []) }
+        let latest = response.sportsObject("situation").sportsText("lastPlay")
+        let players = details.sportsObjects("playerStats").compactMap { group -> SportsPlayerStatGroup? in
+            let id = group.sportsText("teamId"), title = group.sportsText("label")
+            guard [game.away.id, game.home.id].contains(id), let columns = group["columns"] as? [String] else { return nil }
+            let rows = group.sportsObjects("players").compactMap { player -> SportsPlayerStatLine? in
+                let playerID = player.sportsText("id"), name = player.sportsText("name")
+                guard !playerID.isEmpty, !name.isEmpty, let values = player["values"] as? [String] else { return nil }
+                return SportsPlayerStatLine(id: playerID, name: name, number: player.sportsText("number"), position: player.sportsText("position"),
+                    photo: player.sportsText("portrait"), values: Array(values.prefix(columns.count)), didNotPlay: false)
+            }
+            guard !rows.isEmpty else { return nil }
+            return SportsPlayerStatGroup(id: "\(id):\(group.sportsText("name"))", teamID: id, title: title, labels: columns, descriptions: [], players: rows)
+        }
+        return SportsGameCenter(game: game, scoring: scoring, statistics: statistics, latest: latest.isEmpty ? plays.last?.text ?? "" : latest,
+            playByPlay: periods, playerStats: players)
+    }
 
     private func json(_ value: String) async throws -> Any {
         guard let url = sportsHTTPSURL(value) else { throw SportsServiceError.invalidURL }
@@ -329,7 +456,7 @@ struct SportsService: Sendable {
     /// possession data that the legacy backend omits, without clearing cards or
     /// turning a valid scoreboard into an error when an enrichment feed fails.
     func enrichLiveGames(_ games: [SportsGame], day: Date) async -> [SportsGame] {
-        let supported = Set(SportsLeague.allCases.filter { ["football", "basketball", "baseball"].contains($0.sport) })
+        let supported = Set(SportsLeague.allCases.filter { $0 != .cfl && ["football", "basketball", "baseball"].contains($0.sport) })
         let missing = games.filter {
             $0.isLive && supported.contains($0.league) &&
             ($0.home.primaryColorHex == nil || $0.away.primaryColorHex == nil ||
@@ -516,6 +643,12 @@ struct SportsService: Sendable {
 
     private func schedule(league: SportsLeague, day: Date, now: Date) async throws -> SportsSchedule {
         if league == .tennis { return try await tennisSchedule(day: day, now: now) }
+        if league == .cfl {
+            let date = Self.cflDateKey(day, timeZone: calendar.timeZone)
+            let url = Self.cflScoreboardURL(date: date, includeNeighbors: true)
+            let games = try await cflArray(url).compactMap(Self.cflGame)
+            return SportsSchedule(games: SportsScheduleDayPolicy.games(games, for: day, now: now, calendar: calendar), failedLeagues: [], partial: false)
+        }
         let date = DateFormatter()
         date.locale = Locale(identifier: "en_US_POSIX")
         date.timeZone = calendar.timeZone
@@ -567,12 +700,30 @@ struct SportsService: Sendable {
 
     func teams(league: SportsLeague) async throws -> [SportsTeamResult] {
         if league == .tennis { return [] }
+        if league == .cfl {
+            return try await cflArray("\(Self.cflAPI)/teams?league=cfl").compactMap(Self.cflTeam)
+                .map { SportsTeamResult(league: .cfl, team: $0) }
+        }
         let response = try await object("\(league.endpoint)/teams?limit=1000")
         return response.sportsObjects("sports").flatMap { $0.sportsObjects("leagues") }.flatMap { $0.sportsObjects("teams") }
             .map { SportsTeamResult(league: league, team: parseTeam($0.sportsObject("team"))) }.filter { !$0.team.id.isEmpty }
     }
 
     func profile(_ result: SportsTeamResult) async throws -> SportsTeamProfile {
+        if result.league == .cfl {
+            let id = result.team.id
+            guard Self.validEventID(id), let response = try await cflArray("\(Self.cflAPI)/teams?league=cfl&teamId=\(id)")
+                .first(where: { $0.sportsText("id") == id }), let team = Self.cflTeam(response) else { throw SportsServiceError.invalidResponse }
+            let roster = response.sportsObjects("roster").compactMap { player -> SportsRosterPlayer? in
+                let id = player.sportsText("id"), name = player.sportsText("name")
+                guard !id.isEmpty, !name.isEmpty else { return nil }
+                return SportsRosterPlayer(id: id, name: name, number: player.sportsText("number"), position: player.sportsText("position"),
+                                          height: player.sportsText("height"), photo: player.sportsText("headshot"))
+            }
+            return SportsTeamProfile(team: team, location: response.sportsText("location"), venue: response.sportsText("venue"),
+                games: SportsScheduleDayPolicy.canonicalGames(response.sportsObjects("games").compactMap(Self.cflGame)), roster: roster,
+                scheduleUnavailable: response["scheduleUnavailable"] as? Bool ?? false, rosterUnavailable: response["rosterUnavailable"] as? Bool ?? false)
+        }
         let root = "\(result.league.endpoint)/teams/\(result.team.id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? "")"
         let information = (try await object(root)).sportsObject("team")
         let schedule = try? await object(root + "/schedule")
@@ -605,6 +756,9 @@ struct SportsService: Sendable {
 
     func center(_ game: SportsGame) async throws -> SportsGameCenter {
         if game.league == .tennis { return try await tennisCenter(game) }
+        if game.league == .cfl {
+            return try await cflCenter(game)
+        }
         let response = try await object("\(game.league.endpoint)/summary?event=\(game.eventID)")
         let header = response.sportsObject("header")
         var fresh = await summaryGame(response, fallback: game) ?? game
@@ -705,11 +859,17 @@ struct SportsService: Sendable {
         !value.isEmpty && value.utf8.count <= 32 && value.utf8.allSatisfy { (48...57).contains($0) }
     }
 
-    /// Widget links contain ESPN identities, never an arbitrary player URL.
+    /// Widget links contain event identities. Fetch the authoritative matchup
+    /// before resolving any player URL.
     /// Fetch fresh status and teams before discovering any playable source.
     func game(league: SportsLeague, eventID: String) async throws -> SportsGame {
         if league == .tennis { return try await tennisGame(eventID: eventID) }
         guard Self.validEventID(eventID) else { throw SportsServiceError.invalidURL }
+        if league == .cfl {
+            guard let game = try await cflArray("\(Self.cflAPI)/game?league=cfl&gameId=\(eventID)")
+                .compactMap(Self.cflGame).first(where: { $0.eventID == eventID }) else { throw SportsServiceError.invalidResponse }
+            return game
+        }
         let response = try await object("\(league.endpoint)/summary?event=\(eventID)")
         guard let game = parseGame(response.sportsObject("header"), league: league), game.eventID == eventID else {
             throw SportsServiceError.invalidResponse
@@ -719,6 +879,16 @@ struct SportsService: Sendable {
 
     func streams(_ game: SportsGame) async throws -> [SportsStream] {
         guard game.canWatch else { return [] }
+        if game.league == .cfl {
+            guard Self.validEventID(game.eventID) else { throw SportsServiceError.invalidURL }
+            var seen = Set<URL>()
+            return try await cflArray(Self.cflGameURL("streams", game: game)).compactMap { value in
+                let label = value.sportsText("label").trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !label.isEmpty, let url = sportsHTTPSURL(value.sportsText("embedUrl")),
+                      url.port == nil || url.port == 443, seen.insert(url).inserted else { return nil }
+                return SportsStream(title: String(label.prefix(140)), url: url)
+            }
+        }
         if game.league == .tennis { return try await MatchoraProvider(session: session).streams(game) }
         if streamCatalog == .timStreams { return try await timstStreams(game) }
         if streamCatalog == .streamed { return try await streamedStreams(game) }
@@ -872,7 +1042,7 @@ struct SportsService: Sendable {
         let expectedGenre: Int
         switch game.league {
         case .nba, .wnba, .ncaam, .ncaaw: expectedGenre = 7
-        case .nfl, .ncaaf: expectedGenre = 8
+        case .nfl, .ncaaf, .cfl: expectedGenre = 8
         case .mlb: expectedGenre = 9
         case .nhl: expectedGenre = 11
         case .tennis: return false // No verified TimStreams tennis genre contract.

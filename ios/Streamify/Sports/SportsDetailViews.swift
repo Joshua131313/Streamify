@@ -41,6 +41,7 @@ struct SportsGameView: View {
                 if tab == "Overview" {
                     if hasStreams { watchSources }
                     else if current.canWatch { streamAvailability }
+                    if current.league == .cfl { cflBroadcasts }
                     overview
                 }
                 if tab == "Scoring" || tab == "Sets" {
@@ -60,7 +61,10 @@ struct SportsGameView: View {
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
             ToolbarItem(placement: .primaryAction) {
-                if let url = sportsHTTPSURL(game.link) { Link(destination: url) { Text(game.tennis?.source == "tennisexplorer" ? "Details ↗" : "ESPN ↗").font(.caption.bold()) }.accessibilityLabel("Open match source") }
+                if let url = sportsHTTPSURL(game.link) {
+                    let label = game.league == .cfl ? "CFL ↗" : game.tennis?.source == "tennisexplorer" ? "Details ↗" : "ESPN ↗"
+                    Link(destination: url) { Text(label).font(.caption.bold()) }.accessibilityLabel("Open match source")
+                }
             }
         }
         .task(id: "\(game.id)-\(revision)-\(scenePhase == .active)") {
@@ -100,7 +104,7 @@ struct SportsGameView: View {
     private var scoreboard: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 7) {
-                if current.league.isCollegeBasketball {
+                if current.league.isCollegeBasketball || current.league == .cfl {
                     SportsLeagueIcon(league: current.league).frame(width: 18, height: 18).accessibilityHidden(true)
                 }
                 Text(current.isLive ? "LIVE" : current.league.title).font(.caption2.bold())
@@ -165,6 +169,23 @@ struct SportsGameView: View {
         if let streamsError { SportsSourcesUnavailableView(message: streamsError) { revision += 1 } }
         else if streamsLoading { Label("Finding streams…", systemImage: "tv").font(.caption).foregroundStyle(AppTheme.muted) }
         else { Text("No matching stream is available.").font(.caption).foregroundStyle(AppTheme.muted) }
+    }
+
+    @ViewBuilder private var cflBroadcasts: some View {
+        if !current.broadcasts.isEmpty || !current.isFinal && !current.broadcastLinks.isEmpty {
+            SportsPanel {
+                Text("Broadcast").font(.headline)
+                if !current.broadcasts.isEmpty { Text(current.broadcasts).font(.subheadline).foregroundStyle(AppTheme.muted) }
+                if !current.isFinal {
+                    ForEach(current.broadcastLinks) { source in
+                        Link(destination: source.url) {
+                            Label(source.label, systemImage: "arrow.up.right").font(.subheadline.weight(.semibold))
+                                .frame(minHeight: 44, alignment: .leading)
+                        }.accessibilityLabel("Open \(source.label)").accessibilityIdentifier("sports-cfl-broadcast-\(source.label)")
+                    }
+                }
+            }
+        }
     }
 
     private var watchSources: some View {
@@ -303,7 +324,9 @@ struct SportsTeamView: View {
                     RemoteArtwork(url: team.logoURL, contentMode: .fit).frame(width: 84, height: 84)
                     Text(team.rankedName).font(.title.bold())
                     HStack(spacing: 7) {
-                        if result.league.isCollegeBasketball { SportsLeagueIcon(league: result.league).frame(width: 20, height: 20).accessibilityHidden(true) }
+                        if result.league.isCollegeBasketball || result.league == .cfl {
+                            SportsLeagueIcon(league: result.league).frame(width: 20, height: 20).accessibilityHidden(true)
+                        }
                         Text([result.league.title, team.record, profile?.venue ?? ""].filter { !$0.isEmpty }.joined(separator: " · ")).font(.subheadline).foregroundStyle(AppTheme.muted)
                     }
                     Button { library.toggleTeam(result.id) } label: {
