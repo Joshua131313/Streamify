@@ -26,6 +26,7 @@ final class CFLTests: XCTestCase {
         XCTAssertNil(game.liveSituation?.fieldProgress)
         XCTAssertNil(game.footballFieldPosition)
         XCTAssertEqual(game.broadcastLinks.map(\.label), ["TSN"])
+        XCTAssertEqual(game.eventName, "113th Grey Cup")
         XCTAssertEqual(SportsWidgetPolicy.watchURL(for: game)?.absoluteString, "streamify://sports/watch?league=cfl&event=6676")
 
         let deepLinkGame = try await service.game(league: .cfl, eventID: "6676")
@@ -77,7 +78,7 @@ private final class CFLURLProtocol: URLProtocol {
     static var game: [String: Any] {
         ["id": "6676", "league": "cfl", "date": "2026-11-15T23:00:00Z", "state": "in",
          "detail": "12:45 · Q3", "clock": "12:45", "period": 3, "periodCount": 4, "teams": teams,
-         "venue": "McMahon Stadium", "broadcast": "TSN, CTV", "link": "https://cfl.ca/games/6676/",
+         "venue": "McMahon Stadium", "broadcast": "TSN, CTV", "notes": ["113th Grey Cup"],
          "situation": ["possession": "7", "yardLine": 55, "possessionText": "55"],
          "broadcastLinks": [["label": "TSN", "url": "https://www.tsn.ca/live"],
                             ["label": "Invalid", "url": "https://www.tsn.ca.invalid/live"]],
@@ -99,7 +100,7 @@ private final class CFLURLProtocol: URLProtocol {
         case "/api/scores" where keys["date"] == "20261115" && keys["live"] == "1": payload = [Self.game]
         case "/api/game" where keys["gameId"] == "6676": payload = [Self.game]
         case "/api/calendar" where keys["date"] == "20261115-20261116":
-            payload = ["dates": ["20261115", "20261399"], "partial": false]
+            payload = ["dates": ["2026-11-15T23:00:00Z", "2026-11-16T01:22:00Z", "invalid-date"], "partial": false]
         case "/api/teams" where keys["teamId"] == "7":
             var team = Self.teams[0]
             team["venue"] = "McMahon Stadium"; team["games"] = [Self.game]; team["rosterUnavailable"] = true

@@ -62,8 +62,9 @@ struct SportsGameView: View {
             ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
             ToolbarItem(placement: .primaryAction) {
                 if let url = sportsHTTPSURL(game.link) {
-                    let label = game.league == .cfl ? "CFL ↗" : game.tennis?.source == "tennisexplorer" ? "Details ↗" : "ESPN ↗"
-                    Link(destination: url) { Text(label).font(.caption.bold()) }.accessibilityLabel("Open match source")
+                    let label = game.league == .cfl ? "CFL Game Tracker ↗" : game.tennis?.source == "tennisexplorer" ? "Details ↗" : "ESPN ↗"
+                    Link(destination: url) { Text(label).font(.caption.bold()) }
+                        .accessibilityLabel(game.league == .cfl ? "Open CFL Game Tracker" : "Open match source")
                 }
             }
         }
@@ -112,6 +113,7 @@ struct SportsGameView: View {
                 Spacer(minLength: 6)
                 if current.isLive { Text(current.league.title).font(.caption2.weight(.semibold)).foregroundStyle(AppTheme.muted) }
             }
+            if let eventName = current.eventName { Text(eventName).font(.caption).foregroundStyle(AppTheme.muted) }
             if let tennis = current.tennis {
                 Text([tennis.tour.rawValue, tennis.tournament, tennis.discipline, tennis.round].filter { !$0.isEmpty }.joined(separator: " · "))
                     .font(.caption).foregroundStyle(AppTheme.muted)
@@ -172,17 +174,15 @@ struct SportsGameView: View {
     }
 
     @ViewBuilder private var cflBroadcasts: some View {
-        if !current.broadcasts.isEmpty || !current.isFinal && !current.broadcastLinks.isEmpty {
+        if !current.broadcasts.isEmpty || !current.broadcastLinks.isEmpty {
             SportsPanel {
                 Text("Broadcast").font(.headline)
                 if !current.broadcasts.isEmpty { Text(current.broadcasts).font(.subheadline).foregroundStyle(AppTheme.muted) }
-                if !current.isFinal {
-                    ForEach(current.broadcastLinks) { source in
-                        Link(destination: source.url) {
-                            Label(source.label, systemImage: "arrow.up.right").font(.subheadline.weight(.semibold))
-                                .frame(minHeight: 44, alignment: .leading)
-                        }.accessibilityLabel("Open \(source.label)").accessibilityIdentifier("sports-cfl-broadcast-\(source.label)")
-                    }
+                ForEach(current.broadcastLinks) { source in
+                    Link(destination: source.url) {
+                        Label(source.label, systemImage: "arrow.up.right").font(.subheadline.weight(.semibold))
+                            .frame(minHeight: 44, alignment: .leading)
+                    }.accessibilityLabel("Open \(source.label)").accessibilityIdentifier("sports-cfl-broadcast-\(source.label)")
                 }
             }
         }

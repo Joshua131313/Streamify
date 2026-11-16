@@ -91,18 +91,12 @@ struct SportsService: Sendable {
     }
 
     func cflCalendar(first: Date, last: Date) async throws -> (days: [Date], partial: Bool) {
-        let dates = "\(Self.cflDateKey(first, timeZone: calendar.timeZone))-\(Self.cflDateKey(last, timeZone: calendar.timeZone))"
+        let leagueTime = TimeZone(identifier: "America/Toronto")!
+        let cutoff = calendar.date(byAdding: .day, value: 1, to: last) ?? last
+        let dates = "\(Self.cflDateKey(first, timeZone: leagueTime))-\(Self.cflDateKey(cutoff.addingTimeInterval(-1), timeZone: leagueTime))"
         let value = try await object("\(Self.cflAPI)/calendar?league=cfl&date=\(dates)")
-        guard let keys = value["dates"] as? [String], keys.count <= 21 else { throw SportsServiceError.invalidResponse }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.timeZone = calendar.timeZone
-        formatter.dateFormat = "yyyyMMdd"
-        let days = keys.compactMap { key -> Date? in
-            guard let day = formatter.date(from: key), formatter.string(from: day) == key, day >= first, day <= last else { return nil }
-            return day
-        }
+        guard let timestamps = value["dates"] as? [String], timestamps.count <= 64 else { throw SportsServiceError.invalidResponse }
+        let days = Set(timestamps.compactMap(Self.parseDate).map(calendar.startOfDay(for:))).filter { $0 >= first && $0 <= last }.sorted()
         return (days, value["partial"] as? Bool ?? false)
     }
 
@@ -126,14 +120,16 @@ struct SportsService: Sendable {
         var seen = Set<URL>()
         let broadcastLinks = value.sportsObjects("broadcastLinks").prefix(12).compactMap { link -> SportsBroadcastLink? in
             let label = link.sportsText("label").trimmingCharacters(in: .whitespacesAndNewlines)
-            let hosts: Set<String> = ["www.tsn.ca", "www.ctv.ca", "www.crave.ca", "www.rds.ca", "www.cfl.ca", "www.dazn.com", "dazn.com"]
+            let hosts: Set<String> = ["www.tsn.ca", "www.ctv.ca", "www.crave.ca", "www.rds.ca", "cfl.ca", "www.dazn.com"]
             guard !label.isEmpty, let url = sportsHTTPSURL(link.sportsText("url")), let host = url.host, hosts.contains(host.lowercased()),
                   url.port == nil || url.port == 443, seen.insert(url).inserted else { return nil }
             return SportsBroadcastLink(label: String(label.prefix(80)), url: url)
         }
+        let eventName = (value["notes"] as? [String])?.first(where: { !$0.isEmpty }).map { String($0.prefix(80)) }
         return SportsGame(eventID: id, league: .cfl, date: date, state: state, status: value.sportsText("detail"),
-            home: home, away: away, venue: value.sportsText("venue"), broadcasts: value.sportsText("broadcast"), link: value.sportsText("link"),
-            liveSituation: liveSituation(situation, status: status, state: state, league: .cfl, home: home, away: away), broadcastLinks: broadcastLinks)
+            home: home, away: away, venue: value.sportsText("venue"), broadcasts: value.sportsText("broadcast"), link: "https://cfl.ca/games/\(id)/",
+            liveSituation: liveSituation(situation, status: status, state: state, league: .cfl, home: home, away: away), broadcastLinks: broadcastLinks,
+            eventName: eventName)
     }
 
     private func cflCenter(_ fallback: SportsGame) async throws -> SportsGameCenter {
@@ -644,7 +640,7 @@ struct SportsService: Sendable {
     private func schedule(league: SportsLeague, day: Date, now: Date) async throws -> SportsSchedule {
         if league == .tennis { return try await tennisSchedule(day: day, now: now) }
         if league == .cfl {
-            let date = Self.cflDateKey(day, timeZone: calendar.timeZone)
+            let date = Self.cflDateKey(day, timeZone: TimeZone(identifier: "America/Toronto")!)
             let url = Self.cflScoreboardURL(date: date, includeNeighbors: true)
             let games = try await cflArray(url).compactMap(Self.cflGame)
             return SportsSchedule(games: SportsScheduleDayPolicy.games(games, for: day, now: now, calendar: calendar), failedLeagues: [], partial: false)

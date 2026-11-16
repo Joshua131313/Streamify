@@ -886,6 +886,8 @@ struct SportsGameCard: View {
                 if let tennis = game.tennis {
                     Text([tennis.tournament, tennis.round].filter { !$0.isEmpty }.joined(separator: " · "))
                         .font(.caption2).foregroundStyle(AppTheme.muted)
+                } else if let eventName = game.eventName {
+                    Text(eventName).font(.caption2).foregroundStyle(AppTheme.muted)
                 }
                 VStack(spacing: 2) {
                     if game.isLive, game.tennis != nil { SportsTennisPointsHeading() }

@@ -182,6 +182,7 @@ struct SportsGame: Identifiable, Hashable, Sendable {
     var liveSituation: SportsLiveSituation? = nil
     var tennis: SportsTennisMatch? = nil
     var broadcastLinks: [SportsBroadcastLink] = []
+    var eventName: String? = nil
     var id: String { "\(league.rawValue):\(eventID)" }
     var isLive: Bool { state == "in" }
     var isFinal: Bool { state == "post" }

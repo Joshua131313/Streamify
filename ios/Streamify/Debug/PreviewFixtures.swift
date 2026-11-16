@@ -285,7 +285,7 @@ enum PreviewFixtures {
             switch path {
             case "/api/scores", "/api/game": value = enabled ? [game] : []
             case "/api/teams": value = enabled ? game.sportsObjects("teams") : []
-            case "/api/calendar": value = ["dates": enabled ? [SportsService.cflDateKey(Date(), timeZone: .current)] : [], "partial": false]
+            case "/api/calendar": value = ["dates": enabled ? [game.sportsText("date")] : [], "partial": false]
             default: value = [[String: Any]]()
             }
         } else if host == "site.api.espn.com" { value = sportsJSON(url) }
