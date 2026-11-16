@@ -40,8 +40,7 @@
     </array>
     <key>UIApplicationSceneManifest</key><dict><key>UIApplicationSupportsMultipleScenes</key><false/></dict>
     <key>ITSAppUsesNonExemptEncryption</key><false/>
-    <key>UILaunchScreen</key>
-    <dict><key>UIColorName</key><string>LaunchBackground</string><key>UIImageName</key><string>streamify-logo</string></dict>
+    <key>UILaunchStoryboardName</key><string>LaunchScreen</string>
     <key>UISupportedInterfaceOrientations</key>
     <array><string>UIInterfaceOrientationPortrait</string><string>UIInterfaceOrientationLandscapeLeft</string><string>UIInterfaceOrientationLandscapeRight</string></array>
     <key>UISupportedInterfaceOrientations~ipad</key>

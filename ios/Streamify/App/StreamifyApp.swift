@@ -139,9 +139,11 @@ private struct ProfileAppGate: View {
             .zIndex(1)
             if isLoadingProfiles {
                 loadingProfiles
+                    .transition(.opacity)
                     .zIndex(2)
             }
         }
+        .animation(.easeOut(duration: reduceMotion ? 0.12 : 0.24), value: isLoadingProfiles)
         .preferredColorScheme(showsChooser ? .dark : settings.appearance == "System" ? nil : settings.appearance == "Light" ? .light : .dark)
         .task(id: "\(account.isResolved):\(account.identity?.uid ?? "")") {
             if account.isResolved { profiles.catalogCredential.connect(account.identity) }
@@ -237,23 +239,25 @@ private struct ProfileAppGate: View {
     }
 
     private var loadingProfiles: some View {
-        VStack(spacing: 18) {
-            Image("streamify-logo").resizable().scaledToFit().frame(width: 64, height: 64)
-            if !account.isResolved || profiles.ownerUID != account.identity?.uid || profiles.syncStatus == .loading || profiles.syncStatus == .syncing {
-                ProgressView("Opening your profiles…").tint(AppTheme.foreground)
-            } else {
-                Text(profiles.syncStatus.title).font(.subheadline).multilineTextAlignment(.center)
-                Button("Try again") { Task { await profiles.retrySync() } }
-                    .buttonStyle(PrimaryButtonStyle())
+        let pending = !account.isResolved || profiles.ownerUID != account.identity?.uid ||
+            profiles.syncStatus == .loading || profiles.syncStatus == .syncing
+        return StreamifyLaunchScreen(isLoading: pending) {
+            VStack(spacing: 16) {
+                if pending {
+                    ProgressView().tint(.white.opacity(0.7))
+                        .accessibilityLabel("Opening your profiles")
+                } else {
+                    Text(profiles.syncStatus.title).font(.subheadline).multilineTextAlignment(.center)
+                    Button("Try again") { Task { await profiles.retrySync() } }
+                        .buttonStyle(PrimaryButtonStyle())
+                }
+                if account.isResolved, account.identity != nil {
+                    Button("Use guest profiles") { Task { await account.signOut() } }
+                        .buttonStyle(SecondaryButtonStyle()).disabled(account.isWorking)
+                    if let error = account.error { Text(error).font(.caption).foregroundStyle(AppTheme.muted) }
+                }
             }
-            if account.isResolved, account.identity != nil {
-                Button("Use guest profiles") { Task { await account.signOut() } }
-                    .buttonStyle(SecondaryButtonStyle()).disabled(account.isWorking)
-                if let error = account.error { Text(error).font(.caption).foregroundStyle(AppTheme.muted) }
-            }
-        }.padding(24).frame(maxWidth: 360)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .foregroundStyle(AppTheme.foreground).background(AppTheme.canvas.ignoresSafeArea())
+        }
     }
 }
 
