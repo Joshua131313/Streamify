@@ -241,7 +241,7 @@ private struct ProfileAppGate: View {
     private var loadingProfiles: some View {
         let pending = !account.isResolved || profiles.ownerUID != account.identity?.uid ||
             profiles.syncStatus == .loading || profiles.syncStatus == .syncing
-        return StreamifyLaunchScreen(isLoading: pending) {
+        return StreamifyLaunchScreen(isLoading: pending && account.error == nil) {
             VStack(spacing: 16) {
                 if pending {
                     ProgressView().tint(.white.opacity(0.7))

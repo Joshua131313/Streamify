@@ -12,6 +12,10 @@ import XCTest
         try renderLaunchScreen(size: CGSize(width: 1024, height: 1366), name: "iPad portrait")
     }
 
+    func testCompiledLaunchScreenOnIPhoneLandscape() throws {
+        try renderLaunchScreen(size: CGSize(width: 852, height: 393), name: "iPhone landscape")
+    }
+
     func testCompiledLaunchScreenOnIPadLandscape() throws {
         try renderLaunchScreen(size: CGSize(width: 1366, height: 1024), name: "iPad landscape")
     }

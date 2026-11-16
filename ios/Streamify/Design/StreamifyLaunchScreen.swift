@@ -10,7 +10,7 @@ struct StreamifyLaunchScreen<Status: View>: View {
         GeometryReader { geometry in
             ZStack {
                 Color("LaunchBackground")
-                if geometry.size.height < 480 {
+                if geometry.size.height < 480 && !isLoading {
                     // Keep recovery actions usable in phone landscape.
                     ScrollView {
                         HStack(spacing: 40) {
@@ -29,7 +29,7 @@ struct StreamifyLaunchScreen<Status: View>: View {
                         status().frame(maxWidth: 340)
                     }
                     .padding(.horizontal, 24)
-                    .padding(.bottom, max(40, geometry.size.height * 0.08))
+                    .padding(.bottom, geometry.size.height < 480 ? 16 : max(40, geometry.size.height * 0.08))
                 } else {
                     ScrollView {
                         VStack(spacing: 32) {
