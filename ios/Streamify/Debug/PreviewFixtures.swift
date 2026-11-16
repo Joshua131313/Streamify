@@ -423,7 +423,12 @@ enum PreviewFixtures {
             ? ["period": 7, "periodPrefix": "Bottom", "type": ["state": "in", "shortDetail": "Bottom 7th", "description": "In Progress"]]
             : ["period": 4, "displayClock": "2:18", "type": ["state": "in", "shortDetail": "4th · 02:18", "description": "In Progress"]]
         let game: [String: Any] = ["id": "\(league)-fixture", "date": date, "competitions": [["date": date, "competitors": [competitor(false), competitor(true)], "status": liveStatus, "situation": situation, "venue": ["fullName": "Streamify Arena"], "broadcasts": [["names": [league == "nba" ? "NBA League Pass" : "ESPN"]]]]]]
-        let final: [String: Any] = ["id": "\(league)-final", "date": date, "competitions": [["date": date, "competitors": [competitor(false), competitor(true)], "status": ["type": ["state": "post", "shortDetail": "Final", "description": "Final"]], "venue": ["fullName": "Streamify Arena"], "broadcasts": [["names": ["ESPN"]]]]]]
+        var final: [String: Any] = ["id": "\(league)-final", "date": date, "competitions": [["date": date, "competitors": [competitor(false), competitor(true)], "status": ["type": ["state": "post", "shortDetail": "Final", "description": "Final"]], "venue": ["fullName": "Streamify Arena"], "broadcasts": [["names": ["ESPN"]]]]]]
+        if league == "nba", ProcessInfo.processInfo.arguments.contains("--ui-recent-final") {
+            let now = Date()
+            final["date"] = ISO8601DateFormatter().string(from: now.addingTimeInterval(-7200))
+            final["endedAt"] = ISO8601DateFormatter().string(from: now.addingTimeInterval(-300))
+        }
         let pregame: [String: Any] = ["id": "\(league)-pregame", "date": date, "competitions": [["date": date, "competitors": [competitor(false), competitor(true)], "status": ["type": ["state": "pre", "shortDetail": "Scheduled", "description": "Scheduled"]], "venue": ["fullName": "Streamify Arena"], "broadcasts": [["names": ["ESPN"]]]]]]
         if parts.last == "scoreboard" || parts.last == "schedule" {
             if league == "nba", ProcessInfo.processInfo.arguments.contains("--ui-past-sports-results") {

@@ -38,7 +38,8 @@ enum SportsTennisFeed {
                     result.append(SportsGame(eventID: "espn-\(tour.rawValue.lowercased())-\(competitionID)", league: .tennis,
                         date: start, state: state, status: status, home: home, away: away,
                         venue: [venue.sportsText("fullName"), venue.sportsText("court")].filter { !$0.isEmpty }.joined(separator: " · "),
-                        broadcasts: "", link: tournament.sportsObjects("links").first?.sportsText("href") ?? "", tennis: metadata))
+                        broadcasts: "", link: tournament.sportsObjects("links").first?.sportsText("href") ?? "", tennis: metadata,
+                        endedAt: state == "post" ? SportsService.parseDate(competition.sportsText("endedAt")) : nil))
                 }
             }
         }
@@ -102,7 +103,7 @@ extension SportsService {
     }
     func tennisSchedule(day: Date, now reference: Date) async throws -> SportsSchedule {
         let raw = try await tennisEvents(around: day)
-        return SportsSchedule(games: SportsScheduleDayPolicy.games(raw.games, for: day, now: reference, calendar: calendar),
+        return SportsSchedule(games: SportsScheduleDayPolicy.games(observePostgame(raw.games, at: reference), for: day, now: reference, calendar: calendar),
             failedLeagues: raw.failedLeagues, partial: raw.partial)
     }
 
@@ -164,7 +165,7 @@ extension SportsService {
         guard Self.validTennisEventID(eventID) else { throw SportsServiceError.invalidURL }
         let schedule = try await tennisEvents(around: day ?? now())
         guard let game = TennisLiveFeed.findGame(eventID: eventID, in: schedule.games) else { throw SportsServiceError.noSchedule }
-        return game
+        return observePostgame([game])[0]
     }
 
     func tennisCenter(_ game: SportsGame) async throws -> SportsGameCenter {

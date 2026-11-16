@@ -4,13 +4,39 @@ import Combine
 @MainActor
 final class SportsWatchQueue: ObservableObject {
     @Published var streams: [SportsStream] = []
-    func add(_ stream: SportsStream) {
-        guard streams.count < 4, !streams.contains(where: { $0.id == stream.id }) else { return }
+    @Published private(set) var games: [String: SportsGame] = [:]
+
+    func add(_ stream: SportsStream, game: SportsGame? = nil) {
+        guard streams.count < 4, !streams.contains(where: { $0.id == stream.id }),
+              game.map({ SportsPostgameHistory.shared.applyingKnownEnd(to: $0).canWatch }) != false else { return }
+        if let game { games[stream.id] = game }
         streams.append(stream)
     }
-    func remove(_ stream: SportsStream) { streams.removeAll { $0.id == stream.id } }
+    func remove(_ stream: SportsStream) {
+        streams.removeAll { $0.id == stream.id }
+        games.removeValue(forKey: stream.id)
+    }
+    func game(for stream: SportsStream) -> SportsGame? {
+        games[stream.id].map(SportsPostgameHistory.shared.applyingKnownEnd(to:))
+    }
+    func canStart(_ stream: SportsStream) -> Bool { game(for: stream)?.canRestartSource(at: Date()) != false }
+
+    func removeExpired() {
+        for stream in streams where !canStart(stream) { remove(stream) }
+    }
+
+    func updateGames(_ snapshots: [SportsGame]) {
+        let byID = Dictionary(uniqueKeysWithValues: SportsScheduleDayPolicy.canonicalGames(snapshots).map { ($0.id, $0) })
+        let updated = games.mapValues { previous in
+            guard let next = byID[previous.id], next.home.id == previous.home.id, next.away.id == previous.away.id,
+                  next.isFinal || !previous.isFinal else { return previous }
+            return next
+        }
+        if updated != games { games = updated }
+    }
     func selectSource(streamID: String, url: URL) {
         guard let index = streams.firstIndex(where: { $0.id == streamID }),
+              canStart(streams[index]),
               streams[index].url != url,
               streams[index].availableSources.contains(where: { $0.url == url }) else { return }
         let existing = streams[index]
@@ -119,7 +145,7 @@ struct SportsView: View {
     private func matchesStatus(_ game: SportsGame, _ status: SportsFilter) -> Bool {
         switch status {
         case .all: return true
-        case .live: return game.isLive
+        case .live: return game.isLive || game.isInPostgameWindow(at: statusNow)
         case .final: return game.isFinal
         case .pregame: return game.scheduledPhase(at: statusNow) == .pregame
         case .upcoming: return game.scheduledPhase(at: statusNow) == .upcoming
@@ -767,6 +793,7 @@ struct SportsView: View {
             guard requestedKey == requestKey, scheduleRequest == request else { return }
             scheduleCache.store(result, leagues: requestedLeagues, day: requestedDay, backend: backend, fetchedAt: fetchedAt)
             games = result.games
+            queue.updateGames(result.games)
             scheduleGeneration &+= 1
             loadedScheduleKey = identity
             partial = result.partial
@@ -878,7 +905,9 @@ struct SportsGameCard: View {
     @State private var watchRevision = 0
     @State private var handledWatchRevision = 0
     @State private var watchLoading = false
+    @State private var expiredPostgame: Date?
     @State private var selectedTeam: SportsTeamResult?
+    private var canWatch: Bool { game.canWatch && game.postgameDeadline.map { $0 != expiredPostgame } != false }
     var body: some View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 8) {
@@ -898,7 +927,7 @@ struct SportsGameCard: View {
                     SportsLiveSituationView(game: game).padding(.top, 6)
                 }
             }.padding(.horizontal, 16).padding(.top, 6).padding(.bottom, 12)
-            if hasFooterSituation || !game.isFinal || game.canWatch {
+            if hasFooterSituation || !game.isFinal || canWatch {
                 VStack(spacing: 0) {
                     Rectangle().fill(AppTheme.foreground.opacity(0.07)).frame(height: 0.5)
                     Group {
@@ -923,6 +952,11 @@ struct SportsGameCard: View {
             .sportsPlaybackOrigin(playbackOrigin)
             .sheet(item: $selectedTeam) { result in
                 NavigationStack { SportsTeamView(result: result).environmentObject(queue) }.streamifyPageSheet()
+            }
+            .task(id: game.postgameDeadline) {
+                guard let deadline = game.postgameDeadline else { return }
+                do { try await Task.sleep(for: .seconds(max(0, deadline.timeIntervalSinceNow))) } catch { return }
+                expiredPostgame = deadline
             }
             .task(id: "\(watchRevision)-\(scenePhase == .active)") {
                 let request = watchRevision
@@ -968,9 +1002,9 @@ struct SportsGameCard: View {
     private var cardActions: some View {
         HStack(spacing: 10) {
             if !game.isFinal { SportsTrackGameButton(game: game).sportsDaySwipeExcluded(daySwipeScope) }
-            if game.canWatch {
+            if canWatch {
                 Button {
-                    guard daySwipeScope?.permitsProtectedAction != false else { return }
+                    guard canWatch, daySwipeScope?.permitsProtectedAction != false else { return }
                     AppHaptics.tap()
                     watchRevision += 1
                 } label: {

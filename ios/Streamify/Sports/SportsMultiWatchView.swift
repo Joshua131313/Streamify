@@ -7,6 +7,7 @@ struct SportsMultiWatchView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @State private var showPicker = false
+    @State private var watchClock = Date()
     @StateObject private var audio = SportsMultiWatchAudio()
     private var tilesActive: Bool { scenePhase == .active && playback.item == nil }
 
@@ -15,10 +16,13 @@ struct SportsMultiWatchView: View {
             ForEach(queue.streams) { stream in
                 SportsWatchTile(stream: stream,
                     audible: audio.audibleID == stream.id && tilesActive,
-                    active: tilesActive, audio: audio,
+                    active: tilesActive, canStart: queue.game(for: stream)?.canRestartSource(at: watchClock) != false, audio: audio,
                     toggleAudio: { audio.select(audio.selectedID == stream.id ? nil : stream.id) },
                     selectSource: { queue.selectSource(streamID: stream.id, url: $0) },
-                    open: { origin in playback.play(title: stream.title, url: stream.url, sources: stream.availableSources, origin: origin) }, remove: { queue.remove(stream) })
+                    open: { origin in
+                        guard queue.canStart(stream) else { return }
+                        playback.play(title: stream.title, url: stream.url, sources: stream.availableSources, origin: origin, game: queue.game(for: stream))
+                    }, remove: { queue.remove(stream) })
                     .id(stream.id)
             }
             if queue.streams.isEmpty || queue.streams.count == 3 {
@@ -30,7 +34,7 @@ struct SportsMultiWatchView: View {
                             .font(.subheadline).foregroundStyle(AppTheme.muted).multilineTextAlignment(.center)
                     }
                     Button { showPicker = true } label: {
-                        Label("Live games", systemImage: "plus").font(.subheadline.weight(.semibold))
+                        Label("Add a game", systemImage: "plus").font(.subheadline.weight(.semibold))
                             .padding(.horizontal, 16).frame(minHeight: 44).streamifyControlSurface()
                     }.buttonStyle(HapticPlainButtonStyle()).accessibilityIdentifier("sports-multiwatch-add")
                 }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(20)
@@ -60,6 +64,7 @@ struct SportsMultiWatchView: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("sports-multiwatch-screen")
         .onAppear {
+            queue.removeExpired()
             #if DEBUG
             if PreviewFixtures.enabled, ProcessInfo.processInfo.arguments.contains("--ui-multiwatch-two"), queue.streams.isEmpty {
                 queue.add(SportsStream(title: "Game one", url: URL(string: "https://fixture.streamify.test/multi-one")!))
@@ -79,10 +84,31 @@ struct SportsMultiWatchView: View {
             if let selected = audio.selectedID, !ids.contains(selected) { audio.select(ids.first) }
             if ids.count == 1 { audio.select(ids.first) }
         }
+        .task(id: "\(scenePhase == .active)-\(queue.games.keys.sorted().joined(separator: ","))") {
+            guard scenePhase == .active else { return }
+            repeat {
+                watchClock = Date()
+                let service = SportsService()
+                let games = SportsScheduleDayPolicy.canonicalGames(Array(queue.games.values)).filter { !$0.isFinal }
+                let updates = await withTaskGroup(of: SportsGame?.self, returning: [SportsGame].self) { group in
+                    for game in games {
+                        group.addTask { try? await service.game(league: game.league, eventID: game.eventID) }
+                    }
+                    var snapshots: [SportsGame] = []
+                    for await game in group { if let game { snapshots.append(game) } }
+                    return snapshots
+                }
+                guard !Task.isCancelled else { return }
+                queue.updateGames(updates)
+                let now = Date()
+                let nextExpiry = queue.games.values.compactMap(\.postgameDeadline).filter { $0 > now }.min()
+                do { try await Task.sleep(for: .seconds(min(30, nextExpiry?.timeIntervalSince(now) ?? 30))) } catch { return }
+            } while !Task.isCancelled
+        }
         .sheet(isPresented: $showPicker) {
-            NavigationStack { SportsLiveGamePicker { stream in
+            NavigationStack { SportsLiveGamePicker { stream, game in
                 if queue.streams.isEmpty { audio.select(stream.id) }
-                queue.add(stream); showPicker = false
+                queue.add(stream, game: game); showPicker = false
             }.environmentObject(queue) }.presentationDetents([.medium, .large]).presentationDragIndicator(.visible)
         }
     }
@@ -105,7 +131,7 @@ private struct SportsWatchLayout: Layout {
 }
 
 private struct SportsLiveGamePicker: View {
-    let choose: (SportsStream) -> Void
+    let choose: (SportsStream, SportsGame) -> Void
     @EnvironmentObject private var settings: SettingsStore
     @EnvironmentObject private var queue: SportsWatchQueue
     @Environment(\.dismiss) private var dismiss
@@ -119,7 +145,7 @@ private struct SportsLiveGamePicker: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 12) {
-                Text("Live now or starting within an hour").font(.subheadline).foregroundStyle(AppTheme.muted)
+                Text("Live, recently finished, or starting within an hour").font(.subheadline).foregroundStyle(AppTheme.muted)
                 if loading { ProgressView("Finding games…").frame(maxWidth: .infinity).padding(24) }
                 if let error { Text(error).font(.footnote).foregroundStyle(AppTheme.muted) }
                 if !loading && games.isEmpty {
@@ -131,7 +157,7 @@ private struct SportsLiveGamePicker: View {
                             SportsLeagueIcon(league: game.league).frame(width: 32, height: 32)
                             VStack(alignment: .leading, spacing: 5) {
                                 Text("\(game.away.abbreviation) vs \(game.home.abbreviation)").font(.subheadline.weight(.semibold))
-                                Text(game.isLive ? "Live · \(game.status)" : game.date?.formatted(date: .omitted, time: .shortened) ?? "TBD").font(.caption).foregroundStyle(AppTheme.muted)
+                                Text(game.isLive ? "Live · \(game.status)" : game.isFinal ? "Final" : game.date?.formatted(date: .omitted, time: .shortened) ?? "TBD").font(.caption).foregroundStyle(AppTheme.muted)
                             }.frame(maxWidth: .infinity, alignment: .leading)
                             if loadingGame == game.id { ProgressView() } else { Image(systemName: "play.fill") }
                         }.padding(14).frame(minHeight: 60).background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 14))
@@ -162,24 +188,25 @@ private struct SportsLiveGamePicker: View {
             catch { unavailable = true }
         }
         guard !Task.isCancelled else { return }
-        var seen = Set<String>()
-        games = loaded.filter { game in
-            seen.insert(game.id).inserted && game.canWatch
-        }.sorted { lhs, rhs in lhs.isLive != rhs.isLive ? lhs.isLive : (lhs.date ?? .distantFuture) < (rhs.date ?? .distantFuture) }
+        games = SportsScheduleDayPolicy.canonicalGames(loaded).filter(\.canWatch)
+            .sorted { lhs, rhs in lhs.isLive != rhs.isLive ? lhs.isLive : (lhs.date ?? .distantFuture) < (rhs.date ?? .distantFuture) }
         if unavailable { error = "Some schedules are unavailable. Showing the games that loaded." }
     }
 
     private func loadStream(_ game: SportsGame) {
-        guard loadingGame == nil, queue.streams.count < 4 else { return }
+        guard loadingGame == nil, queue.streams.count < 4, game.canWatch else {
+            if game.isFinal && !game.canWatch { games.removeAll { $0.id == game.id }; error = "The broadcast has ended." }
+            return
+        }
         loadingGame = game.id; error = nil
         streamTask = Task { @MainActor in
             defer { loadingGame = nil }
             do {
                 let sources = try await SportsService().streams(game)
-                guard let source = sources.first else { error = "No stream is available for this game yet. Try another game."; return }
+                guard let source = sources.first else { error = game.isFinal ? "The broadcast has ended." : "No stream is available for this game yet. Try another game."; return }
                 try Task.checkCancellation()
                 guard !queue.streams.contains(where: { stream in stream.availableSources.contains { $0.url == source.url } }) else { error = "This game is already playing."; return }
-                choose(SportsStream(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: source.url, alternatives: sources))
+                choose(SportsStream(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: source.url, alternatives: sources), game)
             } catch is CancellationError { }
             catch { if !Task.isCancelled { self.error = error.localizedDescription } }
         }
@@ -190,6 +217,7 @@ private struct SportsWatchTile: View {
     let stream: SportsStream
     let audible: Bool
     let active: Bool
+    let canStart: Bool
     let audio: SportsMultiWatchAudio
     let toggleAudio: () -> Void
     let selectSource: (URL) -> Void
@@ -217,15 +245,15 @@ private struct SportsWatchTile: View {
                             }.buttonStyle(.automatic)
                         }
                     } label: { Label("Select stream", systemImage: "play.rectangle") }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.plain).disabled(!canStart)
                     Button("Fullscreen", systemImage: "arrow.up.left.and.arrow.down.right") {
                         AppHaptics.tap(); open(playbackOrigin)
-                    }.buttonStyle(.automatic)
+                    }.buttonStyle(.automatic).disabled(!canStart)
                     Button("Reload", systemImage: "arrow.clockwise") {
                         AppHaptics.tap(); revision += 1; error = nil
-                    }.buttonStyle(.automatic)
+                    }.buttonStyle(.automatic).disabled(!canStart)
                     Link(destination: stream.url) { Label("Open in browser", systemImage: "safari") }
-                        .buttonStyle(.automatic)
+                        .buttonStyle(.automatic).disabled(!canStart)
                     Button("Remove", systemImage: "xmark") {
                         AppHaptics.tap(); remove()
                     }.buttonStyle(.automatic)

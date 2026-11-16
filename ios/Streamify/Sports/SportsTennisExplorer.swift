@@ -118,7 +118,7 @@ enum TennisLiveFeed {
                 guard index > 0, let draw = game.tennis?.tennisLiveDraw else { return game }
                 return SportsGame(eventID: "\(game.eventID)-\(draw)", league: game.league, date: game.date,
                     state: game.state, status: game.status, home: game.home, away: game.away, venue: game.venue,
-                    broadcasts: game.broadcasts, link: game.link, tennis: game.tennis)
+                    broadcasts: game.broadcasts, link: game.link, tennis: game.tennis, endedAt: game.endedAt)
             }
         }
     }
@@ -174,7 +174,7 @@ enum TennisLiveFeed {
         }
         return SportsGame(eventID: original.eventID, league: .tennis, date: original.date ?? snapshot.date,
             state: preferred.state, status: preferred.status, home: b, away: a, venue: original.venue,
-            broadcasts: original.broadcasts, link: original.link, tennis: metadata)
+            broadcasts: original.broadcasts, link: original.link, tennis: metadata, endedAt: preferred.endedAt ?? original.endedAt)
     }
 
     static func sameMatch(_ a: SportsGame, _ b: SportsGame) -> Bool {

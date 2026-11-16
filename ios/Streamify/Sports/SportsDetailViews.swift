@@ -17,9 +17,11 @@ struct SportsGameView: View {
     @State private var selectedTeam: SportsTeamResult?
     @State private var showMultiWatch = false
     @State private var showChat = false
+    @State private var expiredPostgame: Date?
     private var current: SportsGame { center?.game ?? game }
     private var tabs: [String] { current.league == .tennis ? ["Overview", "Sets", "Chat"] : ["Overview", "Scoring", "Team stats"] + (current.state == "pre" ? [] : ["Players"]) + [current.isFinal ? "Play-by-play" : "Latest play", "Chat"] }
-    private var hasStreams: Bool { current.canWatch && !streams.isEmpty }
+    private var canWatch: Bool { current.canWatch && current.postgameDeadline.map { $0 != expiredPostgame } != false }
+    private var hasStreams: Bool { canWatch && !streams.isEmpty }
 
     init(game: SportsGame) { self.game = game }
 
@@ -40,7 +42,7 @@ struct SportsGameView: View {
                 }
                 if tab == "Overview" {
                     if hasStreams { watchSources }
-                    else if current.canWatch { streamAvailability }
+                    else if canWatch { streamAvailability }
                     if current.league == .cfl { cflBroadcasts }
                     overview
                 }
@@ -81,12 +83,17 @@ struct SportsGameView: View {
                 do { try await Task.sleep(for: .seconds(60)) } catch { return }
             } while !Task.isCancelled
         }
-        .task(id: "\(game.id)-\(revision)-\(current.canWatch)-\(scenePhase == .active)") {
+        .task(id: current.postgameDeadline) {
+            guard let deadline = current.postgameDeadline else { return }
+            do { try await Task.sleep(for: .seconds(max(0, deadline.timeIntervalSinceNow))) } catch { return }
+            expiredPostgame = deadline
+        }
+        .task(id: "\(game.id)-\(revision)-\(canWatch)-\(scenePhase == .active)") {
             guard scenePhase == .active else { return }
-            guard current.canWatch else { streams = []; streamsLoading = false; streamsError = nil; return }
+            guard canWatch else { streams = []; streamsLoading = false; streamsError = nil; return }
             repeat {
                 await loadStreams()
-                guard current.canWatch, streams.isEmpty else { return }
+                guard canWatch, streams.isEmpty else { return }
                 do { try await Task.sleep(for: .seconds(30)) } catch { return }
             } while !Task.isCancelled
         }
@@ -168,8 +175,9 @@ struct SportsGameView: View {
     }
 
     @ViewBuilder private var streamAvailability: some View {
-        if let streamsError { SportsSourcesUnavailableView(message: streamsError) { revision += 1 } }
-        else if streamsLoading { Label("Finding streams…", systemImage: "tv").font(.caption).foregroundStyle(AppTheme.muted) }
+        if streamsLoading { Label("Finding streams…", systemImage: "tv").font(.caption).foregroundStyle(AppTheme.muted) }
+        else if current.isFinal { Text("The broadcast has ended.").font(.caption).foregroundStyle(AppTheme.muted) }
+        else if let streamsError { SportsSourcesUnavailableView(message: streamsError) { revision += 1 } }
         else { Text("No matching stream is available.").font(.caption).foregroundStyle(AppTheme.muted) }
     }
 
@@ -207,7 +215,7 @@ struct SportsGameView: View {
                     }
                     Button {
                         guard let first = streams.first else { return }
-                        queue.add(SportsStream(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: first.url, alternatives: streams))
+                        queue.add(SportsStream(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: first.url, alternatives: streams), game: current)
                         showMultiWatch = true
                     } label: {
                         Image(systemName: "rectangle.split.2x2").font(.subheadline.weight(.semibold))
@@ -227,7 +235,7 @@ struct SportsGameView: View {
                                 Button { play(stream, origin: origin, rememberSource: true) } label: { Image(systemName: "play.fill").frame(width: 44, height: 44).streamifyControlSurface() }
                                     .buttonStyle(HapticPlainButtonStyle()).accessibilityLabel("Watch \(stream.title)")
                                 Button {
-                                    queue.add(SportsStream(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: stream.url, alternatives: streams))
+                                    queue.add(SportsStream(title: "\(game.away.abbreviation) vs \(game.home.abbreviation)", url: stream.url, alternatives: streams), game: current)
                                     showMultiWatch = true
                                 } label: { Image(systemName: "rectangle.split.2x2").frame(width: 44, height: 44).streamifyControlSurface() }.buttonStyle(HapticPlainButtonStyle())
                                     .disabled(queue.streams.count >= 4 || queue.streams.contains(where: { $0.url == stream.url })).accessibilityLabel("Add source to multi-watch")

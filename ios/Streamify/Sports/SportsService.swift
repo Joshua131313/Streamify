@@ -25,7 +25,7 @@ enum SportsScheduleDayPolicy {
         guard let start = game.date else { return false }
         if calendar.isDate(start, inSameDayAs: day) { return true }
         let today = calendar.startOfDay(for: now)
-        guard calendar.isDate(day, inSameDayAs: today), game.isLive,
+        guard calendar.isDate(day, inSameDayAs: today), game.isLive || game.isInPostgameWindow(at: now),
               let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else { return false }
         return start >= yesterday && start < today
     }
@@ -60,6 +60,7 @@ struct SportsService: Sendable {
     var now: @Sendable () -> Date = { Date() }
     var forceReload = false
     var streamCatalog: SportsStreamCatalog = .automatic
+    var postgameHistory = SportsPostgameHistory.shared
     // Both names are explicitly configured by the provider's own frontend.
     // Keep its normal .com API first when a device cannot resolve timst.top.
     var timStreamAPIHosts = ["tim-streams.com", "timst.top"]
@@ -129,13 +130,14 @@ struct SportsService: Sendable {
         return SportsGame(eventID: id, league: .cfl, date: date, state: state, status: value.sportsText("detail"),
             home: home, away: away, venue: value.sportsText("venue"), broadcasts: value.sportsText("broadcast"), link: "https://cfl.ca/games/\(id)/",
             liveSituation: liveSituation(situation, status: status, state: state, league: .cfl, home: home, away: away), broadcastLinks: broadcastLinks,
-            eventName: eventName)
+            eventName: eventName, endedAt: state == "post" ? parseDate(value.sportsText("endedAt")) : nil)
     }
 
     private func cflCenter(_ fallback: SportsGame) async throws -> SportsGameCenter {
         guard Self.validEventID(fallback.eventID), let response = try await cflArray(Self.cflGameURL("game", game: fallback))
-            .first(where: { $0.sportsText("id") == fallback.eventID }), let game = Self.cflGame(response),
-            game.away.id == fallback.away.id, game.home.id == fallback.home.id else { throw SportsServiceError.invalidResponse }
+            .first(where: { $0.sportsText("id") == fallback.eventID }), let fresh = Self.cflGame(response),
+            fresh.away.id == fallback.away.id, fresh.home.id == fallback.home.id else { throw SportsServiceError.invalidResponse }
+        let game = observePostgame([fresh])[0]
         let teams = response.sportsObjects("teams")
         func scores(_ team: SportsTeam) -> [String] {
             teams.first { $0.sportsText("id") == team.id }?["linescores"] as? [String] ?? []
@@ -255,6 +257,32 @@ struct SportsService: Sendable {
         return short.date(from: value)
     }
 
+    func observePostgame(_ games: [SportsGame], at reference: Date? = nil) -> [SportsGame] {
+        postgameHistory.observe(games, at: reference ?? now())
+    }
+
+    private func scheduledGames(_ games: [SportsGame], day: Date, now: Date) -> [SportsGame] {
+        let observed = observePostgame(SportsScheduleDayPolicy.canonicalGames(games), at: now)
+        return SportsScheduleDayPolicy.games(observed, for: day, now: now, calendar: calendar)
+    }
+
+    static func summaryEnd(_ response: [String: Any], game: SportsGame) -> Date? {
+        let header = response.sportsObject("header")
+        let type = header.sportsObjects("competitions").first?.sportsObject("status").sportsObject("type")
+        guard game.isCompleted, type?.sportsText("name") == "STATUS_FINAL" else { return nil }
+        if let end = parseDate(response.sportsObject("meta").sportsText("lastPlayWallClock")) { return end }
+        let drives = response.sportsObject("drives")
+        let plays = response.sportsObjects("plays") + drives.sportsObjects("previous").flatMap { $0.sportsObjects("plays") }
+            + drives.sportsObject("current").sportsObjects("plays")
+        let terminal = ["end of game", "end of the game", "end game", "game over"]
+        return plays.compactMap { play -> Date? in
+            let labels = [play.sportsText("text"), play.sportsObject("type").sportsText("text")]
+                .map { $0.lowercased().trimmingCharacters(in: .punctuationCharacters.union(.whitespacesAndNewlines)) }
+            guard labels.contains(where: terminal.contains) else { return nil }
+            return parseDate(play.sportsText("wallclock"))
+        }.max()
+    }
+
     private func parseTeam(_ raw: [String: Any]) -> SportsTeam {
         SportsTeam(id: raw.sportsText("id"), name: raw.sportsText("displayName"), abbreviation: raw.sportsText("abbreviation"),
                    logo: raw.sportsObjects("logos").first?.sportsText("href") ?? raw.sportsText("logo"),
@@ -301,7 +329,8 @@ struct SportsService: Sendable {
         return SportsGame(eventID: raw.sportsText("id"), league: league, date: Self.parseDate(dateText), state: type.sportsText("state"),
                           status: detail, home: home, away: away, venue: competition.sportsObject("venue").sportsText("fullName"),
                           broadcasts: broadcasts.joined(separator: " · "), link: raw.sportsObjects("links").first?.sportsText("href") ?? "",
-                          liveSituation: Self.liveSituation(situation, status: status, state: type.sportsText("state"), league: league, home: home, away: away))
+                          liveSituation: Self.liveSituation(situation, status: status, state: type.sportsText("state"), league: league, home: home, away: away),
+                          endedAt: type.sportsText("state") == "post" ? Self.parseDate(competition.sportsText("endedAt")) ?? Self.parseDate(raw.sportsText("endedAt")) : nil)
     }
 
     static func liveSituation(_ raw: [String: Any], status: [String: Any], state: String,
@@ -412,7 +441,8 @@ struct SportsService: Sendable {
         return SportsGame(eventID: raw.sportsText("id"), league: league, date: Self.parseDate(raw.sportsText("date")), state: raw.sportsText("state"),
                           status: raw.sportsText("status"), home: home, away: away, venue: raw.sportsObject("venue").sportsText("name"),
                           broadcasts: (raw["broadcasts"] as? [String] ?? []).joined(separator: " · "), link: raw.sportsText("gameLink"),
-                          liveSituation: Self.liveSituation(situation, status: status, state: raw.sportsText("state"), league: league, home: home, away: away))
+                          liveSituation: Self.liveSituation(situation, status: status, state: raw.sportsText("state"), league: league, home: home, away: away),
+                          endedAt: raw.sportsText("state") == "post" ? Self.parseDate(raw.sportsText("endedAt")) : nil)
     }
 
     func schedule(leagues: [SportsLeague], day: Date) async throws -> SportsSchedule {
@@ -493,7 +523,7 @@ struct SportsService: Sendable {
             return result
         }
         guard !Task.isCancelled else { return games }
-        var enriched = Self.applyingLiveSnapshots(snapshots, to: games)
+        var enriched = Self.applyingLiveSnapshots(observePostgame(SportsScheduleDayPolicy.canonicalGames(snapshots)), to: games)
         // Basketball feeds may supply possession only on their game summary.
         // Never infer it from lastPlay.team, which can name a scorer or defender.
         let summaryGames = enriched.filter { $0.isLive &&
@@ -610,7 +640,9 @@ struct SportsService: Sendable {
         return SportsGame(eventID: next.eventID, league: next.league, date: next.date ?? game.date,
             state: next.state, status: next.status, home: team(next.home, game.home), away: team(next.away, game.away),
             venue: next.venue.isEmpty ? game.venue : next.venue, broadcasts: next.broadcasts.isEmpty ? game.broadcasts : next.broadcasts,
-            link: next.link.isEmpty ? game.link : next.link, liveSituation: next.liveSituation)
+            link: next.link.isEmpty ? game.link : next.link, liveSituation: next.liveSituation,
+            broadcastLinks: next.broadcastLinks.isEmpty ? game.broadcastLinks : next.broadcastLinks,
+            eventName: next.eventName ?? game.eventName, endedAt: next.endedAt ?? game.endedAt)
     }
 
     private func summaryGame(_ response: [String: Any], fallback game: SportsGame) async -> SportsGame? {
@@ -634,7 +666,8 @@ struct SportsService: Sendable {
                 fresh = parseGame(header, league: game.league, situationOverride: situation) ?? fresh
             }
         }
-        return Self.preservingPresentation(fresh, from: game)
+        fresh.endedAt = fresh.endedAt ?? Self.summaryEnd(response, game: fresh)
+        return observePostgame([Self.preservingPresentation(fresh, from: game)])[0]
     }
 
     private func schedule(league: SportsLeague, day: Date, now: Date) async throws -> SportsSchedule {
@@ -643,7 +676,7 @@ struct SportsService: Sendable {
             let date = Self.cflDateKey(day, timeZone: TimeZone(identifier: "America/Toronto")!)
             let url = Self.cflScoreboardURL(date: date, includeNeighbors: true)
             let games = try await cflArray(url).compactMap(Self.cflGame)
-            return SportsSchedule(games: SportsScheduleDayPolicy.games(games, for: day, now: now, calendar: calendar), failedLeagues: [], partial: false)
+            return SportsSchedule(games: scheduledGames(games, day: day, now: now), failedLeagues: [], partial: false)
         }
         let date = DateFormatter()
         date.locale = Locale(identifier: "en_US_POSIX")
@@ -671,7 +704,7 @@ struct SportsService: Sendable {
                 let response = try await object("\(base)/api/schedule?league=\(league.rawValue)&start=\(firstDayText)&end=\(dayText)")
                 backendGames = response.sportsObjects("games").compactMap { backendGame($0, league: league) }
                 if (response["failedDates"] as? [Any] ?? []).isEmpty {
-                    return SportsSchedule(games: SportsScheduleDayPolicy.games(backendGames, for: day, now: now, calendar: calendar), failedLeagues: [], partial: false)
+                    return SportsSchedule(games: scheduledGames(backendGames, day: day, now: now), failedLeagues: [], partial: false)
                 }
             } catch is CancellationError { throw CancellationError() } catch { }
         }
@@ -691,7 +724,7 @@ struct SportsService: Sendable {
             }
         }
         if failed == attempted && backendGames.isEmpty { throw SportsServiceError.noSchedule }
-        return SportsSchedule(games: SportsScheduleDayPolicy.games(games, for: day, now: now, calendar: calendar), failedLeagues: [], partial: failed > 0)
+        return SportsSchedule(games: scheduledGames(games, day: day, now: now), failedLeagues: [], partial: failed > 0)
     }
 
     func teams(league: SportsLeague) async throws -> [SportsTeamResult] {
@@ -717,7 +750,7 @@ struct SportsService: Sendable {
                                           height: player.sportsText("height"), photo: player.sportsText("headshot"))
             }
             return SportsTeamProfile(team: team, location: response.sportsText("location"), venue: response.sportsText("venue"),
-                games: SportsScheduleDayPolicy.canonicalGames(response.sportsObjects("games").compactMap(Self.cflGame)), roster: roster,
+                games: observePostgame(SportsScheduleDayPolicy.canonicalGames(response.sportsObjects("games").compactMap(Self.cflGame))), roster: roster,
                 scheduleUnavailable: response["scheduleUnavailable"] as? Bool ?? false, rosterUnavailable: response["rosterUnavailable"] as? Bool ?? false)
         }
         let root = "\(result.league.endpoint)/teams/\(result.team.id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? "")"
@@ -727,7 +760,7 @@ struct SportsService: Sendable {
         let roster = try? await object(root + "/roster" + (result.league.isCollege ? "?limit=1000" : ""))
         try Task.checkCancellation()
         let athletes = (roster?.sportsObjects("athletes") ?? []).flatMap { group in group["items"] == nil ? [group] : group.sportsObjects("items") }
-        let scheduledGames = (schedule?.sportsObjects("events") ?? []).compactMap { parseGame($0, league: result.league) }
+        let scheduledGames = observePostgame((schedule?.sportsObjects("events") ?? []).compactMap { parseGame($0, league: result.league) })
         let liveScores = await withTaskGroup(of: SportsGame?.self) { group in
             for game in scheduledGames where game.isLive {
                 group.addTask { try? await center(game).game }
@@ -857,24 +890,30 @@ struct SportsService: Sendable {
 
     /// Widget links contain event identities. Fetch the authoritative matchup
     /// before resolving any player URL.
-    /// Fetch fresh status and teams before discovering any playable source.
     func game(league: SportsLeague, eventID: String) async throws -> SportsGame {
         if league == .tennis { return try await tennisGame(eventID: eventID) }
         guard Self.validEventID(eventID) else { throw SportsServiceError.invalidURL }
         if league == .cfl {
             guard let game = try await cflArray("\(Self.cflAPI)/game?league=cfl&gameId=\(eventID)")
                 .compactMap(Self.cflGame).first(where: { $0.eventID == eventID }) else { throw SportsServiceError.invalidResponse }
-            return game
+            return observePostgame([game])[0]
         }
         let response = try await object("\(league.endpoint)/summary?event=\(eventID)")
-        guard let game = parseGame(response.sportsObject("header"), league: league), game.eventID == eventID else {
+        guard var game = parseGame(response.sportsObject("header"), league: league), game.eventID == eventID else {
             throw SportsServiceError.invalidResponse
         }
-        return game
+        game.endedAt = game.endedAt ?? Self.summaryEnd(response, game: game)
+        return observePostgame([game])[0]
     }
 
-    func streams(_ game: SportsGame) async throws -> [SportsStream] {
-        guard game.canWatch else { return [] }
+    func streams(_ input: SportsGame) async throws -> [SportsStream] {
+        let game = postgameHistory.applyingKnownEnd(to: input)
+        guard game.canWatch(at: now()) else { return [] }
+        let sources = try await lookupStreams(game)
+        return postgameHistory.applyingKnownEnd(to: game).canWatch(at: now()) ? sources : []
+    }
+
+    private func lookupStreams(_ game: SportsGame) async throws -> [SportsStream] {
         if game.league == .cfl {
             guard Self.validEventID(game.eventID) else { throw SportsServiceError.invalidURL }
             var seen = Set<URL>()
@@ -929,7 +968,7 @@ struct SportsService: Sendable {
     }
 
     private func officialCollegeStreams(_ game: SportsGame) async throws -> [SportsStream] {
-        guard game.league.isCollegeBasketball, game.canWatch, !game.isFinal, Self.validEventID(game.eventID) else { return [] }
+        guard game.league.isCollegeBasketball, game.canWatch, Self.validEventID(game.eventID) else { return [] }
         var components = URLComponents(string: "https://streamify.watch/api/official-streams")!
         components.queryItems = [URLQueryItem(name: "league", value: game.league.rawValue), URLQueryItem(name: "gameId", value: game.eventID)]
         guard let url = components.url else { throw SportsServiceError.invalidURL }
@@ -957,7 +996,7 @@ struct SportsService: Sendable {
         return value.url
     }
     static func officialCollegeSources(_ values: [[String: Any]], game: SportsGame) -> [SportsStream] {
-        guard game.league.isCollegeBasketball, game.canWatch, !game.isFinal else { return [] }
+        guard game.league.isCollegeBasketball, game.canWatch else { return [] }
         var seen = Set<URL>()
         return Array(values.prefix(8)).compactMap { value in
             guard let raw = value["embedUrl"] as? String, let url = officialCollegeEmbed(raw), seen.insert(url).inserted else { return nil }

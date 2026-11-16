@@ -92,7 +92,8 @@ struct MatchoraProvider: Sendable {
     }
 
     static func matches(_ event: [String: Any], game: SportsGame, now: Date) -> Bool {
-        guard let id = event["id"] as? String, validEventID(id, tennis: game.league == .tennis), event["finished"] as? Bool != true,
+        guard let id = event["id"] as? String, validEventID(id, tennis: game.league == .tennis),
+              event["finished"] as? Bool != true || game.isInPostgameWindow(at: now),
               let home = event["home"] as? String, let away = event["away"] as? String,
               SportsSourceIdentity.teamsMatch("\(home) vs \(away)", game: game),
               let start = start(event) else { return false }

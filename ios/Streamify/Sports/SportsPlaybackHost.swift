@@ -368,7 +368,7 @@ private struct SportsPlaybackOverlay: View {
                 Label("Watching · \(current.league.title) · \(item.title)", systemImage: "checkmark")
             }
             ForEach(SportsLeague.allCases) { league in
-                let games = session.liveGames.filter { $0.league == league }
+                let games = session.liveGames.filter { $0.league == league && $0.canWatch }
                 if !games.isEmpty {
                     Section(league.title) {
                         ForEach(games) { game in
@@ -376,7 +376,7 @@ private struct SportsPlaybackOverlay: View {
                                 AppHaptics.tap()
                                 Task { await session.selectGame(game) }
                             } label: {
-                                let name = "\(game.away.name) vs \(game.home.name)"
+                                let name = "\(game.away.name) vs \(game.home.name)\(game.isFinal ? " · Final" : "")"
                                 if item.game?.id == game.id { Label(name, systemImage: "checkmark") }
                                 else { Text(name) }
                             }.accessibilityIdentifier("sports-player-game-option-\(game.id)")
@@ -413,7 +413,7 @@ private struct SportsPlaybackOverlay: View {
                 }.accessibilityIdentifier("sports-player-source-option-\(index)")
             }
         } label: { pickerLabel(caption: "Stream", title: session.sourceTitle) }
-            .buttonStyle(.plain).disabled(session.switchingGameID != nil)
+            .buttonStyle(.plain).disabled(session.switchingGameID != nil || !session.canStartSource)
             .accessibilityLabel("Switch stream source")
             .accessibilityValue("\(item.title), \(session.sourceTitle)")
             .accessibilityIdentifier("sports-player-source-picker")
@@ -455,10 +455,13 @@ private struct SportsPlaybackOverlay: View {
     private func footer(_ item: SportsPlaybackItem) -> some View {
         HStack(spacing: 8) {
             Button(action: session.reloadCurrent) { utilityLabel("Reload", symbol: "arrow.clockwise") }
+                .disabled(!session.canStartSource)
                 .accessibilityIdentifier("sports-player-reload")
             Button(action: session.toggleDirect) { utilityLabel(session.direct ? "Embed mode" : "Direct mode", symbol: "rectangle.on.rectangle") }
+                .disabled(!session.canStartSource)
                 .accessibilityIdentifier("sports-player-direct")
-            Button { openURL(item.url) } label: { utilityLabel("Safari", symbol: "safari") }
+            Button { if session.canStartSource { openURL(item.url) } } label: { utilityLabel("Safari", symbol: "safari") }
+                .disabled(!session.canStartSource)
                 .accessibilityLabel("Open in browser").accessibilityIdentifier("sports-player-browser")
         }.font(.caption.weight(.semibold)).padding(.horizontal, max(12, session.safeAreaInsets.left)).buttonStyle(HapticPlainButtonStyle())
     }

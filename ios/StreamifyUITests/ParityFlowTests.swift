@@ -9,6 +9,7 @@ final class ParityFlowTests: XCTestCase {
         continueAfterFailure = false
         app = XCUIApplication()
         app.launchArguments = ["--ui-fixtures"]
+        if name.contains("testRecentlyFinishedGameKeepsWatchInLiveSchedule") { app.launchArguments.append("--ui-recent-final") }
         if name.contains("testCFLScorecardOpensGameCenterWithBroadcastAndQuarterScores") { app.launchArguments.append("--ui-cfl-fixture") }
         if name.contains("testBaseballDiamondUsesLiveBaseStates") || name.contains("testBaseballFooter") { app.launchArguments.append("--ui-mlb-count-fixtures") }
         if name.contains("testBaseballFooterAdaptsToLargeTextInLightMode") {
@@ -86,6 +87,21 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertTrue(scoring.waitForExistence(timeout: 10)); scoring.tap()
         XCTAssertTrue(element("sports-scoring-periods").waitForExistence(timeout: 10))
         capture("CFL Game Center with quarter scoring")
+    }
+
+    func testRecentlyFinishedGameKeepsWatchInLiveSchedule() {
+        app.buttons["tab-sports"].tap()
+        selectSportsLeagues(["nba"])
+        let final = app.buttons["sports-game-nba:nba-final"]
+        XCTAssertTrue(final.waitForExistence(timeout: 12))
+        XCTAssertTrue(app.buttons["sports-watch-nba:nba-final"].exists)
+        reveal(final)
+        final.tap()
+        XCTAssertTrue(app.navigationBars["Game center"].waitForExistence(timeout: 10))
+        selectGameCenterTab("Play-by-play")
+        XCTAssertTrue(element("sports-play-play-1").waitForExistence(timeout: 8))
+        XCTAssertFalse(app.buttons["sports-game-tab-Latest play"].exists)
+        capture("Recently finished game still shows final game details")
     }
 
     func testGameCardTeamHoldAndNHLTagDoNotTriggerCardNavigation() {

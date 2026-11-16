@@ -7,7 +7,7 @@ struct SportsPlaybackItem: Identifiable {
     let title: String
     var url: URL
     let sources: [SportsStream]
-    let game: SportsGame?
+    var game: SportsGame?
 }
 
 enum SportsPlaybackPresentation: Equatable { case expanded, systemPictureInPicture }
@@ -42,6 +42,7 @@ final class SportsPlaybackSession: ObservableObject {
     // Existing context sheets dismiss only after confirmed system PiP starts.
     var isMinimized: Bool { isPiPActive }
     var sourceTitle: String { item.flatMap { item in item.sources.first { $0.url == item.url }?.title } ?? "Current source" }
+    var canStartSource: Bool { item?.game.map { SportsPostgameHistory.shared.applyingKnownEnd(to: $0).canRestartSource(at: Date()) } ?? true }
 
     init(loadSchedule: @escaping (SportsService) async throws -> SportsSchedule = {
         try await $0.schedule(leagues: SportsLeague.allCases, day: Date())
@@ -71,11 +72,13 @@ final class SportsPlaybackSession: ObservableObject {
         var seen = Set<URL>()
         var choices = sources.flatMap(\.availableSources).filter { seen.insert($0.url).inserted }
         if !seen.contains(url) { choices.insert(SportsStream(title: "Current source", url: url), at: 0) }
-        if rememberSource, let selected = choices.first(where: { $0.url == url }) { savePreferredServer(selected.title) }
         if item?.url == url, item?.title == title, item?.game?.id == game?.id {
+            if canStartSource, rememberSource, let selected = choices.first(where: { $0.url == url }) { savePreferredServer(selected.title) }
             if let origin { self.origin = origin }
             expand(); return
         }
+        guard game.map({ SportsPostgameHistory.shared.applyingKnownEnd(to: $0).canWatch }) != false else { return }
+        if rememberSource, let selected = choices.first(where: { $0.url == url }) { savePreferredServer(selected.title) }
         pictureInPicture.reset()
         invalidateRequests()
         rememberedSources = game.map { [$0.id: url] } ?? [:]
@@ -85,7 +88,7 @@ final class SportsPlaybackSession: ObservableObject {
     }
 
     func selectSource(_ source: SportsStream) {
-        guard var current = item,
+        guard canStartSource, var current = item,
               current.sources.contains(where: { $0.url == source.url }) else { return }
         savePreferredServer(source.title)
         guard current.url != source.url else { return }
@@ -110,8 +113,16 @@ final class SportsPlaybackSession: ObservableObject {
             let schedule = try await loadSchedule(SportsService(backend: backend, forceReload: forceReload))
             try Task.checkCancellation()
             guard item?.id == identity, scheduleToken == token else { return }
-            let games = SportsScheduleDayPolicy.canonicalGames(schedule.games).filter(\.isLive)
+            let snapshots = SportsScheduleDayPolicy.canonicalGames(schedule.games)
+            let now = Date()
+            let games = snapshots.filter { $0.isLive || $0.isInPostgameWindow(at: now) }
             if liveGames != games { liveGames = games }
+            if var current = item, let previous = current.game,
+               let snapshot = snapshots.first(where: { $0.id == previous.id && $0.away.id == previous.away.id && $0.home.id == previous.home.id }),
+               (snapshot.isFinal || !previous.isFinal), snapshot != previous {
+                current.game = snapshot
+                item = current
+            }
             gamesError = schedule.partial ? "Some leagues could not be refreshed." : nil
         } catch is CancellationError { return }
         catch {
@@ -123,9 +134,9 @@ final class SportsPlaybackSession: ObservableObject {
     /// Resolve the next game's own sources before replacing anything visible.
     /// Keeping the item identity retains the one WebKit/player surface; only its
     /// selected URL changes. Failed or stale requests leave playback untouched.
-    func selectGame(_ game: SportsGame) async {
-        guard let current = item, isExpanded, current.game?.id != game.id,
-              liveGames.contains(where: { $0.id == game.id && $0.isLive }) else { return }
+    func selectGame(_ requested: SportsGame) async {
+        guard let current = item, isExpanded, current.game?.id != requested.id,
+              let game = liveGames.first(where: { $0.id == requested.id && $0.canWatch }) else { return }
         let token = UUID()
         selectionToken = token
         switchingGameID = game.id
@@ -137,8 +148,8 @@ final class SportsPlaybackSession: ObservableObject {
             try Task.checkCancellation()
             let choices = loaded.flatMap(\.availableSources).filter { seen.insert($0.url).inserted }
             guard item?.id == current.id, selectionToken == token, isExpanded else { return }
-            guard liveGames.contains(where: { $0.id == game.id && $0.isLive }) else {
-                gameSelectionError = "This game is no longer live. Your current stream is still playing."
+            guard liveGames.contains(where: { $0.id == game.id && $0.canWatch }) else {
+                gameSelectionError = "This game is no longer available. Your current stream is still playing."
                 return
             }
             guard let source = choices.first(where: { $0.url == rememberedSources[game.id] }) ?? preferredSource(in: choices) else {
@@ -169,8 +180,8 @@ final class SportsPlaybackSession: ObservableObject {
         switchingGameID = nil; gamesLoading = false
         gameSelectionError = nil; gamesError = nil
     }
-    func reloadCurrent() { guard item != nil else { return }; pictureInPicture.reset(); reload += 1 }
-    func toggleDirect() { guard item != nil else { return }; pictureInPicture.reset(); direct.toggle() }
+    func reloadCurrent() { guard item != nil, canStartSource else { return }; pictureInPicture.reset(); reload += 1 }
+    func toggleDirect() { guard item != nil, canStartSource else { return }; pictureInPicture.reset(); direct.toggle() }
     func requestPictureInPicture() { guard item != nil else { return }; pictureInPicture.request() }
     func expand() {
         guard item != nil else { return }

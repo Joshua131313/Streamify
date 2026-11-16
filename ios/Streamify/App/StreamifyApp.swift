@@ -439,7 +439,7 @@ struct RootView: View {
             guard quickActionRequest?.id == request.id, scenePhase == .active, tab == .sports,
                   !settingsOpen, !accountOpen, !downloadsOpen, !catalogSearchOpen else { return }
             guard let first = sportsPlayback.preferredSource(in: sources) else {
-                quickActionError = game.isFinal ? "This game has finished. Choose a live game in Sports."
+                quickActionError = game.isFinal ? "The broadcast has ended. Choose another game in Sports."
                     : "No stream is available for this game right now. Try its Game Center or another live game in Sports."
                 return
             }

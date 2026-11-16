@@ -183,6 +183,7 @@ struct SportsGame: Identifiable, Hashable, Sendable {
     var tennis: SportsTennisMatch? = nil
     var broadcastLinks: [SportsBroadcastLink] = []
     var eventName: String? = nil
+    var endedAt: Date? = nil
     var id: String { "\(league.rawValue):\(eventID)" }
     var isLive: Bool { state == "in" }
     var isFinal: Bool { state == "post" }
@@ -216,9 +217,13 @@ struct SportsGame: Identifiable, Hashable, Sendable {
         if let timer = hockey.strengthTime, power != nil { pieces.append(timer) }
         return pieces.joined(separator: " ")
     }
-    private var finalScores: (away: Double, home: Double)? {
+    var isCompleted: Bool {
         let detail = status.lowercased()
-        guard isFinal, !["cancel", "postpon", "suspend", "no contest", "abandon"].contains(where: detail.contains),
+        return isFinal && !["cancel", "postpon", "suspend", "no contest", "abandon", "walkover", "retired", "defaulted"]
+            .contains { detail.contains($0) }
+    }
+    private var finalScores: (away: Double, home: Double)? {
+        guard isCompleted,
               let awayScore = Double(away.score), let homeScore = Double(home.score),
               awayScore.isFinite, homeScore.isFinite, awayScore >= 0, homeScore >= 0 else { return nil }
         return (awayScore, homeScore)
@@ -233,8 +238,101 @@ struct SportsGame: Identifiable, Hashable, Sendable {
         if let winner { return "\(winner.abbreviation.isEmpty ? winner.name : winner.abbreviation) won" }
         return isTied ? "Tied game" : nil
     }
-    var canWatch: Bool {
-        isLive || (state == "pre" && tennis?.timeConfirmed != false && date.map { (0...3600).contains($0.timeIntervalSinceNow) } == true)
+    static let postgameWatchDuration: TimeInterval = 30 * 60
+    var postgameDeadline: Date? { endedAt?.addingTimeInterval(Self.postgameWatchDuration) }
+    func isInPostgameWindow(at now: Date) -> Bool {
+        guard isCompleted || isLive, let end = endedAt else { return false }
+        let elapsed = now.timeIntervalSince(end)
+        return elapsed >= 0 && elapsed < Self.postgameWatchDuration && (date.map { end >= $0 } ?? true)
+    }
+    func canWatch(at now: Date) -> Bool {
+        if isFinal || endedAt != nil { return isInPostgameWindow(at: now) }
+        return isLive || (state == "pre" && tennis?.timeConfirmed != false && date.map { (0...3600).contains($0.timeIntervalSince(now)) } == true)
+    }
+    func canRestartSource(at now: Date) -> Bool { !(isFinal || endedAt != nil) || isInPostgameWindow(at: now) }
+    var canWatch: Bool { canWatch(at: Date()) }
+}
+
+/// Native feeds do not reliably publish an end instant. Persist only a recently
+/// observed live-to-final transition and never grant a new window to old results.
+final class SportsPostgameHistory: @unchecked Sendable {
+    static let shared = SportsPostgameHistory()
+    private static let recentLiveLimit: TimeInterval = 10 * 60
+    private static let retention: TimeInterval = 48 * 3600
+    private struct Entry: Codable {
+        let start: Date
+        let home: String
+        let away: String
+        var lastSeen: Date
+        var lastLive: Date?
+        var endedAt: Date?
+        var sawFinal = false
+
+        func matches(_ game: SportsGame) -> Bool {
+            guard let kickoff = game.date, home == game.home.id, away == game.away.id else { return false }
+            return abs(start.timeIntervalSince(kickoff)) <= 5 * 60
+        }
+    }
+    private let lock = NSLock()
+    private let defaults: UserDefaults
+    private let storageKey = "streamify.sports.postgame.v1"
+    private var entries: [String: Entry]
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        entries = defaults.data(forKey: storageKey).flatMap { try? JSONDecoder().decode([String: Entry].self, from: $0) } ?? [:]
+    }
+
+    func observe(_ games: [SportsGame], at now: Date) -> [SportsGame] {
+        lock.withLock {
+            var dirty = false
+            let result = games.map { input -> SportsGame in
+                var game = input
+                let publishedEnd = game.endedAt.flatMap { candidate -> Date? in
+                    guard game.isCompleted, candidate <= now, game.date.map({ candidate >= $0 }) ?? true else { return nil }
+                    return candidate
+                }
+                game.endedAt = publishedEnd
+                guard let kickoff = game.date, kickoff <= now, game.isLive || game.isFinal,
+                      now.timeIntervalSince(kickoff) < Self.retention else { return game }
+                let previous = entries[game.id].flatMap { $0.matches(game) ? $0 : nil }
+                var entry = previous ?? Entry(start: kickoff, home: game.home.id, away: game.away.id, lastSeen: now)
+                guard entry.lastSeen <= now else { return game }
+                if game.isFinal {
+                    if let publishedEnd { entry.endedAt = publishedEnd }
+                    else if !game.isCompleted { entry.endedAt = nil }
+                    else if !entry.sawFinal, let live = entry.lastLive, (0...Self.recentLiveLimit).contains(now.timeIntervalSince(live)) {
+                        entry.endedAt = now
+                    }
+                    entry.sawFinal = true
+                } else if !entry.sawFinal { entry.lastLive = now }
+                game.endedAt = entry.endedAt
+                if previous == nil || entry.lastSeen != now || entry.lastLive != previous?.lastLive || entry.endedAt != previous?.endedAt || entry.sawFinal != previous?.sawFinal {
+                    entry.lastSeen = now
+                    entries[game.id] = entry
+                    dirty = true
+                }
+                return game
+            }
+            if dirty {
+                entries = entries.filter { now.timeIntervalSince($0.value.lastSeen) <= Self.retention }
+                if entries.count > 512 {
+                    for old in entries.sorted(by: { $0.value.lastSeen < $1.value.lastSeen }).prefix(entries.count - 512) { entries.removeValue(forKey: old.key) }
+                }
+                if let data = try? JSONEncoder().encode(entries) { defaults.set(data, forKey: storageKey) }
+            }
+            return result
+        }
+    }
+
+    func applyingKnownEnd(to input: SportsGame) -> SportsGame {
+        lock.withLock {
+            guard let entry = entries[input.id], entry.matches(input), entry.sawFinal,
+                  let endedAt = entry.endedAt else { return input }
+            var game = input
+            game.endedAt = endedAt
+            return game
+        }
     }
 }
 
