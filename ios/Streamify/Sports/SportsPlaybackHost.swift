@@ -394,7 +394,8 @@ private struct SportsPlaybackOverlay: View {
             } label: { Label("Refresh live games", systemImage: "arrow.clockwise") }
         } label: {
             pickerLabel(caption: session.switchingGameID == nil ? "Game" : "Finding streams…",
-                title: item.game.map { "\($0.league.title) · \(item.title)" } ?? item.title)
+                title: item.game.map { "\($0.league.title) · \(item.title)" } ?? item.title,
+                loading: session.switchingGameID != nil)
         }.buttonStyle(.plain).disabled(session.switchingGameID != nil)
             .accessibilityLabel("Switch live game")
             .accessibilityValue(item.game.map { "\($0.league.title), \($0.away.name) vs \($0.home.name)" } ?? item.title)
@@ -419,13 +420,16 @@ private struct SportsPlaybackOverlay: View {
             .accessibilityIdentifier("sports-player-source-picker")
     }
 
-    private func pickerLabel(caption: String, title: String) -> some View {
+    private func pickerLabel(caption: String, title: String, loading: Bool = false) -> some View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(caption).font(.caption2).foregroundStyle(.white.opacity(0.6))
                 Text(title).font(.subheadline.weight(.semibold)).lineLimit(1)
             }.frame(maxWidth: .infinity, alignment: .leading)
-            Image(systemName: "chevron.down").font(.caption.weight(.semibold))
+            Group {
+                if loading { ProgressView().controlSize(.small).tint(.white) }
+                else { Image(systemName: "chevron.down").font(.caption.weight(.semibold)) }
+            }.frame(width: 16).accessibilityHidden(true)
         }.padding(.horizontal, 12).frame(maxWidth: .infinity, minHeight: 44)
             .contentShape(RoundedRectangle(cornerRadius: 12))
     }

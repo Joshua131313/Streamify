@@ -175,7 +175,12 @@ struct SportsGameView: View {
     }
 
     @ViewBuilder private var streamAvailability: some View {
-        if streamsLoading { Label("Finding streams…", systemImage: "tv").font(.caption).foregroundStyle(AppTheme.muted) }
+        if streamsLoading {
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small).tint(AppTheme.muted).accessibilityHidden(true)
+                Text("Finding streams…")
+            }.font(.caption).foregroundStyle(AppTheme.muted)
+        }
         else if current.isFinal { Text("The broadcast has ended.").font(.caption).foregroundStyle(AppTheme.muted) }
         else if let streamsError { SportsSourcesUnavailableView(message: streamsError) { revision += 1 } }
         else { Text("No matching stream is available.").font(.caption).foregroundStyle(AppTheme.muted) }
