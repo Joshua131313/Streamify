@@ -82,7 +82,8 @@ final class ParityFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["TSN, CTV"].waitForExistence(timeout: 10))
         XCTAssertTrue(element("sports-cfl-broadcast-TSN").exists)
         XCTAssertFalse(element("sports-field-cfl:6676").exists)
-        selectGameCenterTab("Scoring")
+        let scoring = app.buttons["sports-scoring-tab"]
+        XCTAssertTrue(scoring.waitForExistence(timeout: 10)); scoring.tap()
         XCTAssertTrue(element("sports-scoring-periods").waitForExistence(timeout: 10))
         capture("CFL Game Center with quarter scoring")
     }
