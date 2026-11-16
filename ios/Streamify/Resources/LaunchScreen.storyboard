@@ -22,7 +22,7 @@
                                     <constraint firstAttribute="height" constant="80" id="logo-height"/>
                                 </constraints>
                             </imageView>
-                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" textAlignment="center" lineBreakMode="byClipping" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="launch-wordmark">
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" textAlignment="center" lineBreakMode="byClipping" usesAttributedText="YES" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="launch-wordmark">
                                 <rect key="frame" x="86.5" y="486" width="220" height="22"/>
                                 <constraints>
                                     <constraint firstAttribute="width" constant="220" id="wordmark-width"/>
@@ -34,6 +34,8 @@
                                 <attributedString key="attributedText">
                                     <fragment content="STREAMIFY">
                                         <attributes>
+                                            <color key="NSColor" white="0.96" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                            <font key="NSFont" metaFont="systemSemibold" size="18"/>
                                             <real key="NSKern" value="4"/>
                                         </attributes>
                                     </fragment>

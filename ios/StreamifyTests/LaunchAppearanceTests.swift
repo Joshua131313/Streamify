@@ -35,18 +35,6 @@ import XCTest
         view.setNeedsLayout()
         view.layoutIfNeeded()
 
-        let contents = descendants(in: view)
-        let logo = try XCTUnwrap(contents.compactMap { $0 as? UIImageView }.first)
-        XCTAssertNotNil(logo.image, "The image referenced by the compiled storyboard must load.")
-        let wordmark = try XCTUnwrap(contents.compactMap { $0 as? UILabel }.first { $0.text == "STREAMIFY" })
-        for content in [logo as UIView, wordmark as UIView] {
-            let frame = view.convert(content.bounds, from: content)
-            XCTAssertGreaterThan(frame.width, 0)
-            XCTAssertGreaterThan(frame.height, 0)
-            XCTAssertTrue(view.bounds.contains(frame), "Launch branding must remain inside the \(name) canvas.")
-            XCTAssertFalse(content.hasAmbiguousLayout, "Launch branding must have a resolved layout.")
-        }
-
         let format = UIGraphicsImageRendererFormat()
         format.scale = 2
         let image = UIGraphicsImageRenderer(bounds: view.bounds, format: format).image { context in
@@ -56,6 +44,22 @@ import XCTest
         attachment.name = "Compiled launch storyboard - \(name)"
         attachment.lifetime = .keepAlways
         add(attachment)
+
+        let contents = descendants(in: view)
+        let logo = try XCTUnwrap(contents.compactMap { $0 as? UIImageView }.first)
+        XCTAssertNotNil(logo.image, "The image referenced by the compiled storyboard must load.")
+        let labels = contents.compactMap { $0 as? UILabel }
+        let decodedLabels = labels.map { $0.attributedText?.string ?? $0.text ?? "nil" }
+        let wordmark = try XCTUnwrap(labels.first { $0.text == "STREAMIFY" },
+            "Decoded labels: \(decodedLabels)")
+        for content in [logo as UIView, wordmark as UIView] {
+            let frame = view.convert(content.bounds, from: content)
+            XCTAssertGreaterThan(frame.width, 0)
+            XCTAssertGreaterThan(frame.height, 0)
+            XCTAssertTrue(view.bounds.contains(frame), "Launch branding must remain inside the \(name) canvas.")
+            XCTAssertFalse(content.hasAmbiguousLayout, "Launch branding must have a resolved layout.")
+        }
+
     }
 
     private func descendants(in view: UIView) -> [UIView] {
