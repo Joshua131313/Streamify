@@ -51,7 +51,16 @@ final class SportsChatFlowTests: XCTestCase {
         app.typeText("Ready without tapping")
         XCTAssertTrue(wait { self.element("sports-chat-composer").value as? String == "Ready without tapping" })
         capture("Opening game chat automatically focuses the visible composer")
-        dismissKeyboard()
+        // Exercise the chat's scroll-to-dismiss behavior directly. Opening a
+        // message action menu here would make a focus test depend on its separate
+        // long-press gesture. Drag upward within the thread so the sheet's
+        // downward close gesture cannot consume this interaction.
+        let thread = app.scrollViews["sports-chat-thread"]
+        thread.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.75))
+            .press(forDuration: 0.05, thenDragTo: thread.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.25)))
+        XCTAssertTrue(wait { !self.app.keyboards.firstMatch.exists })
+        XCTAssertEqual(element("sports-chat-composer").value as? String, "Ready without tapping")
+        XCTAssertTrue(element("sports-chat").exists)
         let keyboardReopened = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.app.keyboards.firstMatch.exists }, object: nil)
         keyboardReopened.isInverted = true
         XCTAssertEqual(XCTWaiter.wait(for: [keyboardReopened], timeout: 1), .completed,
