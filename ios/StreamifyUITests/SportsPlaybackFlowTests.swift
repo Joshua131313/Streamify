@@ -136,8 +136,15 @@ final class SportsPlaybackFlowTests: XCTestCase {
         let chat = app.buttons["sports-player-chat"]
         XCTAssertTrue(chat.isHittable); chat.tap()
         XCTAssertTrue(element("sports-chat").waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["What a game!"].waitForExistence(timeout: 5),
+        XCTAssertTrue(app.staticTexts["sports-chat-body-fixture-chat-1"].waitForExistence(timeout: 5),
             "Chat in the separately hosted player must use the actual window scene's active state.")
+        let composer = element("sports-chat-composer")
+        let keyboard = app.keyboards.firstMatch
+        XCTAssertTrue(keyboard.waitForExistence(timeout: 5), "The player chat should focus after the sheet opens")
+        XCTAssertTrue(wait { composer.isHittable && composer.frame.maxY <= keyboard.frame.minY + 2 },
+            "The player chat composer must stay above the keyboard without dragging the sheet")
+        app.typeText("Watching together")
+        XCTAssertEqual(composer.value as? String, "Watching together")
         capture("Game chat sheet opens above the retained sports video")
         app.buttons["sports-chat-close"].tap()
         XCTAssertTrue(source.wait(for: \.isHittable, toEqual: true, timeout: 5))

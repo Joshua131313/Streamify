@@ -28,8 +28,8 @@ private struct SearchPresentation<Destination: View>: ViewModifier {
     }
 }
 
-/// UIKit delivers appearance after the actual cover/zoom transition. Focusing
-/// here keeps the keyboard from resizing content while the search field expands.
+/// UIKit delivers appearance after the actual sheet/cover transition. Focusing
+/// here keeps the keyboard from resizing content while its presentation expands.
 private struct SearchPresentationReadiness: UIViewControllerRepresentable {
     let action: () -> Void
     func makeUIViewController(context: Context) -> SearchPresentationObserver {
@@ -80,6 +80,11 @@ extension View {
     }
 
     func searchPresentationReady(_ action: @escaping () -> Void) -> some View {
+        streamifyPresentationReady(action)
+    }
+
+    /// Delivered once for this presentation, never for data or keyboard updates.
+    func streamifyPresentationReady(_ action: @escaping () -> Void) -> some View {
         background { SearchPresentationReadiness(action: action).allowsHitTesting(false).accessibilityHidden(true) }
     }
 }

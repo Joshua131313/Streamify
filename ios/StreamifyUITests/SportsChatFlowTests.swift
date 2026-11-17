@@ -26,7 +26,8 @@ final class SportsChatFlowTests: XCTestCase {
     func testSendingKeepsKeyboardFocusedWhileTheServerAcknowledges() {
         openChat()
         let composer = element("sports-chat-composer")
-        reveal(composer); composer.tap(); composer.typeText("First update")
+        assertComposerReadyAboveKeyboard()
+        app.typeText("First update")
         XCTAssertTrue(app.keyboards.firstMatch.exists)
         app.buttons["sports-chat-send"].tap()
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label ENDSWITH %@", ": First update")).firstMatch.waitForExistence(timeout: 1), "The sender sees the message before the delayed server acknowledgement")
@@ -42,6 +43,35 @@ final class SportsChatFlowTests: XCTestCase {
         composer.typeText("Next update")
         XCTAssertEqual(composer.value as? String, "Next update")
         capture("Keyboard remains visible and ready for the next message after sending")
+    }
+
+    func testOpeningChatFocusesVisibleComposerAndReopeningFocusesAgain() {
+        openChat()
+        assertComposerReadyAboveKeyboard()
+        app.typeText("Ready without tapping")
+        XCTAssertEqual(element("sports-chat-composer").value as? String, "Ready without tapping")
+        capture("Opening game chat automatically focuses the visible composer")
+        dismissKeyboard()
+        let keyboardReopened = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.app.keyboards.firstMatch.exists }, object: nil)
+        keyboardReopened.isInverted = true
+        XCTAssertEqual(XCTWaiter.wait(for: [keyboardReopened], timeout: 1), .completed,
+            "A deliberate dismissal must not be undone by a data or layout update")
+        app.buttons["sports-chat-close"].tap()
+        let chatTab = app.buttons["sports-game-tab-Chat"]
+        XCTAssertTrue(chatTab.wait(for: \.isHittable, toEqual: true, timeout: 5))
+        chatTab.tap()
+        assertComposerReadyAboveKeyboard()
+        app.typeText("New opening")
+        XCTAssertEqual(element("sports-chat-composer").value as? String, "New opening")
+    }
+
+    private func assertComposerReadyAboveKeyboard() {
+        let composer = element("sports-chat-composer")
+        let keyboard = app.keyboards.firstMatch
+        XCTAssertTrue(keyboard.waitForExistence(timeout: 5), "Opening chat should show the keyboard automatically")
+        XCTAssertTrue(wait { composer.isHittable && composer.frame.maxY <= keyboard.frame.minY + 2 },
+            "The full composer must be visible above the keyboard without scrolling")
+        XCTAssertTrue(app.buttons["sports-chat-close"].isHittable)
     }
 
     func testGuestCanReadReplyAndSendLocallyWhileReactionPermissionFailureIsVisible() {

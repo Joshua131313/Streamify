@@ -78,6 +78,10 @@ struct SportsChatView: View {
             composer
         }.foregroundStyle(AppTheme.foreground)
             .accessibilityElement(children: .contain).accessibilityIdentifier("sports-chat")
+            .streamifyPresentationReady {
+                guard room != nil, active else { return }
+                composing = true
+            }
             .task(id: observationID) { chat.listen(room: room, active: active) }
             .task(id: highlightedMessage) {
                 guard highlightedMessage != nil else { return }
