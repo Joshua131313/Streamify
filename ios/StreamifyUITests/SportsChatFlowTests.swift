@@ -49,7 +49,7 @@ final class SportsChatFlowTests: XCTestCase {
         openChat()
         assertComposerReadyAboveKeyboard()
         app.typeText("Ready without tapping")
-        XCTAssertEqual(element("sports-chat-composer").value as? String, "Ready without tapping")
+        XCTAssertTrue(wait { self.element("sports-chat-composer").value as? String == "Ready without tapping" })
         capture("Opening game chat automatically focuses the visible composer")
         dismissKeyboard()
         let keyboardReopened = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in self.app.keyboards.firstMatch.exists }, object: nil)
@@ -62,7 +62,7 @@ final class SportsChatFlowTests: XCTestCase {
         chatTab.tap()
         assertComposerReadyAboveKeyboard()
         app.typeText("New opening")
-        XCTAssertEqual(element("sports-chat-composer").value as? String, "New opening")
+        XCTAssertTrue(wait { self.element("sports-chat-composer").value as? String == "New opening" })
     }
 
     private func assertComposerReadyAboveKeyboard() {
