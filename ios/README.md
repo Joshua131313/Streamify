@@ -105,18 +105,20 @@ Choose the Streamify target, set your unique bundle identifier and signing team,
 
 The generated project is ignored. Re-run `xcodegen generate` after adding source files; the specification includes the entire source tree. There is no React runtime or bundled website. External players and trailer previews use WKWebView.
 
-## TestFlight later
+## TestFlight distribution
 
 [Apple's distribution guide](https://developer.apple.com/documentation/xcode/distributing-your-app-for-beta-testing-and-releases) describes account enrollment, archiving and TestFlight. Once you have membership:
 
-1. Register a unique bundle ID and create its matching App Store Connect app record.
-2. Create an Apple Distribution certificate with its private key and an App Store distribution provisioning profile for that exact bundle ID.
-3. Add these repository **Actions variables**: `IOS_TEAM_ID`, `IOS_BUNDLE_ID`.
-4. Add these repository **Actions secrets**: `IOS_CERTIFICATE_P12_BASE64`, `IOS_CERTIFICATE_PASSWORD`, `IOS_PROFILE_BASE64`. These are the base64-encoded certificate export, its password, and the base64-encoded distribution profile.
-5. For upload, also add `ASC_API_KEY_ID`, `ASC_API_ISSUER_ID`, `ASC_API_KEY_P8_BASE64` using an App Store Connect API key authorized to upload this app. Do not commit any signing files.
-6. First ensure **iOS build and tests** passes. Run **iOS TestFlight** manually. Leave upload unchecked to export a distribution-signed IPA, or check upload to submit it to App Store Connect. Apple must process the upload before it appears in TestFlight; tester setup happens in App Store Connect.
+1. Register the main app bundle ID `com.streamify.app` and widget extension ID `com.streamify.app.widgets` in the paid developer team, and create the matching main-app record in App Store Connect. Keep the main ID aligned with the bundled `GoogleService-Info.plist`; changing it requires updating the Firebase/Google sign-in registration first.
+2. Create an Apple Distribution certificate with its private key and **two App Store distribution provisioning profiles**, one per exact bundle ID, both containing that certificate. Export the certificate and private key together as a password-protected `.p12`.
+3. Add these repository **Actions variables**: `IOS_TEAM_ID`, `IOS_BUNDLE_ID`. Optional `IOS_WIDGET_BUNDLE_ID` defaults to `IOS_BUNDLE_ID` plus `.widgets`; it must extend the main app identifier.
+4. Add these repository **Actions secrets**: `IOS_CERTIFICATE_P12_BASE64`, `IOS_CERTIFICATE_PASSWORD`, `IOS_PROFILE_BASE64` (main app), and `IOS_WIDGET_PROFILE_BASE64` (widget extension). Encode each binary file as a single base64 string; the password remains plain text in its secret.
+5. For upload, also add `ASC_API_KEY_ID`, `ASC_API_ISSUER_ID`, `ASC_API_KEY_P8_BASE64` using a **team App Store Connect API key** authorized to upload this app. The `.p8` file is base64 encoded; the issuer ID is the team's API issuer UUID. Do not commit signing files or API keys.
+6. First ensure **iOS build and tests** passes. Run **iOS TestFlight** manually and provide a unique `build_number` greater than prior uploads for this version (for example, `196` after build `195`). This explicit value is used for both the app and widget; the workflow's own run number is not used. Leave upload unchecked to export a distribution-signed IPA, or check upload to submit it to App Store Connect. Apple must process the upload before it appears in TestFlight; tester setup happens in App Store Connect.
 
-The distribution IPA is intended for App Store Connect, not direct installation on arbitrary devices. The workflow uses an isolated runner keychain and removes signing material after the run. No Apple account, certificates, profile, or API key was created by this implementation.
+Before archiving, the workflow validates required settings, both profiles' team, exact app IDs, expiration, distribution type and certificate membership, plus API-key format when upload is requested. It confirms that the imported P12 provides a valid Apple Distribution identity with a private key. A temporary XcodeGen overlay assigns bundle IDs and profiles per target while retaining the widget and all source-project dependencies; `ios/project.yml` is unchanged. Export options map both targets. Local signing fixtures run with `python ios/scripts/testflight_signing_test.py`; they do not replace a signed Xcode archive or Apple's upload validation.
+
+The distribution IPA is intended for App Store Connect, not direct installation on arbitrary devices. The workflow uses an isolated runner keychain and removes its temporary keys, profiles and overlay after the run. It does not create Apple accounts, certificates, profiles or API keys. After processing, add the build to an internal TestFlight group and include your App Store Connect user. TestFlight builds expire after 90 days, so upload a replacement before expiry; external testing requires Apple's beta review. See [Apple's TestFlight overview](https://developer.apple.com/help/app-store-connect/test-a-beta-version/testflight-overview/).
 
 ## Implemented surfaces and differences
 
