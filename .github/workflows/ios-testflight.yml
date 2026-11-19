@@ -1,0 +1,22 @@
+name: iOS TestFlight
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: Unique CFBundleVersion greater than previously uploaded builds
+        type: string
+        required: true
+      upload:
+        description: Upload the signed build to App Store Connect for TestFlight
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  select-native-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Select the native source branch
+        run: |
+          echo "::error::Select codex/native-ios as the workflow ref to build and upload Streamify. The main branch only registers this workflow."
+          exit 1
